@@ -1,0 +1,10 @@
+*~
+\#*\#
+/Debug
+/Release
+.xdchelp
+/.config
+/.launches
+*.DS_Store
+/.ccsproject
+/.cproject
