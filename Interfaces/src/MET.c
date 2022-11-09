@@ -1,0 +1,320 @@
+/* AMSAT Fox-1
+ Mission Elapsed Time (MET) Interface
+ 12/16/2012 Mike McCann KB2GHZ
+ 1/18/2014 Semaphore Synchronization with the Telemetry Collection task added
+*/
+
+#include <nonvolManagement.h>
+#include "FreeRTOSConfig.h"
+#include "FreeRTOS.h"
+#include "os_semphr.h"
+#include "os_task.h"
+#include "os_timer.h"
+#include "MET.h"
+#include "MRAMmap.h"
+#include "nonvol.h"
+#include <stdint.h>
+#include "errors.h"
+#include "gpioDriver.h"
+#include "CommandTask.h"
+#include "watchdogSupport.h"
+#include "telemetryCollectionInterface.h"
+
+extern bool SimDoppler;
+static bool TelemetryReady = false,PSOCEpochReceived=false;
+static Intertask_Message telemMsg;
+
+#ifdef DEBUG_PRINT
+static bool timePrint=true;
+#else
+static bool timePrint=false;
+#endif
+//static int timeType;
+
+
+
+static uint32_t METcount = 0;  /* 1 second time periods since the last IHU start */
+static uint32_t stableStart = 0xffffffff;
+static portTickType TicksAtLastSecond = 0; /* The tick count from FreeRTOS when when METcount was incremented. */
+                                              /* This allows us to offer a high resolution time. */
+/* IHU reset event counter's current value */
+static uint16_t IHUreset;
+static uint32_t clockPhase = 0;
+
+/* Here is the telemetry timestamp */
+static uint16_t timestampEpoch=0,PSOCEpoch;
+static uint32_t timestampSeconds;
+
+/* Here is the current number of seconds in orbit */
+static uint32_t secondsInOrbit;
+static bool preflightInitInhibit = false; // This is set to true on preflight init.
+
+/*
+ * Here are timestamps and callbacks for things that must be
+ * tested against the time in orbit
+ */
+
+static uint32_t timeoutValues[MaxNumberOfTimeouts];
+static void (*timeoutCallback[MaxNumberOfTimeouts])(void)=
+    {NoCommandTimeoutCallback,NoTimedSWCommandTimeoutCallback,ClearMinMax};
+static void METupdate(xTimerHandle x);
+
+/*
+ * This module deals with most aspects of the system's time.  The main time is a combination of
+ * the reset count and seconds since the last reset.  So in general when we say "time" that is what
+ * we mean.  There is also "timeStamp" which is used for telemetry, including the downlink packet,
+ * the min/max change timestamp, and the WOD timestamp.  This value is coordinated among all the processors
+ * so that as a whole the satellite timestamp always increases.  The timestamp consists of an "Epoch"
+ * (rather than a reset count) and seconds since the Epoch.  The Epoch changes when there is an event
+ * that might cause one of the IHUs to loose track, for example a reset, or a change of control. And
+ * finally there is "seconds in orbit", which is a kind-of absolute time reference that can be used
+ * with various type of scheduled events.  Seconds in orbit is also coordinated among all the processors.
+ */
+
+
+/*
+ * Initialization-related routines for this module
+ */
+void initMET() {
+    xTimerHandle handle;
+    volatile portBASE_TYPE timerStatus;
+    int pvtID = 0,i;
+
+    /* create a RTOS software timer - 1 second period */
+    handle = xTimerCreate( "MET", SECONDS(1), TRUE, &pvtID, METupdate);
+    /* start the timer */
+    timerStatus = xTimerStart(handle, 0);
+    if (timerStatus != pdPASS){
+        ReportError(RTOSfailure, FALSE, ReturnAddr, (int) initMET); /* failed to create the RTOS timer */
+    }
+
+    ResetAllWatchdogs(); // We have spent some time; better make sure the WDs are happy
+
+    /* update the IHU reset event-counter */
+    IHUreset = ReadMRAMResets();
+    WriteMRAMResets(IHUreset+1);
+
+    /*
+     * Now update the telemetry timestamp counter.  See UpdateTelemEpoch for description,
+     * but note that this is a default if we are the only one up.  Otherwise this will be
+     * updated by Coordination when we hear from someone else.
+     */
+    UpdateTelemEpoch(ReadMRAMTimestampResets()+1);
+
+    /* And get the time on orbit and timeouts in progress */
+    secondsInOrbit = ReadMRAMSecondsOnOrbit();
+    for(i=0;i<MaxNumberOfTimeouts;i++){
+        timeoutValues[i] = ReadMRAMTimeout((TimeoutType)i);
+    }
+    telemMsg.MsgType = TelemCollectMsg; // Just set up this message for later use
+    ResetAllWatchdogs();
+}
+
+void initSecondsInOrbit(void){ // Called only from preflight init
+    secondsInOrbit = 0;
+    preflightInitInhibit = true; // We are in preflight init.  Don't update till next boot
+    WriteMRAMSecondsOnOrbit(secondsInOrbit);
+}
+void InitResetCnt() {
+    /* update the IHU reset event-counter */
+    WriteMRAMResets(0); //Start the reset count at 0
+    timestampEpoch = 0;
+    WriteMRAMTimestampResets(0);
+    PSOCEpoch = 0;
+    PSOCSaveEpoch(0);
+    preflightInitInhibit = true;
+}
+
+void METTelemetryReady() {  /* Ok to start sending telemetry messages */
+    TelemetryReady = true;
+}
+void StartStableCount(void){
+    /*
+     * Start counting stable time
+     */
+    stableStart = METcount;
+}
+
+bool IsStabilizedAfterBoot(){
+    return (((int)METcount-(int)stableStart) > MET_STABLE_TIME);
+}
+
+/*
+ * Here is the actual major function of this module.  It gets called by a FreeRTOS Timer every second
+ */
+
+static void METupdate(xTimerHandle x) {
+
+    METcount++;
+    timestampSeconds++;
+    secondsInOrbit++;
+    TicksAtLastSecond = xTaskGetTickCount();
+    if(METcount > MET_STABLE_TIME*2) {  // No longer a short boot.
+        ClearShortBootFlag();
+    }
+
+    /*
+     * This section kicks the telemetry update to collect data.
+     */
+    if((clockPhase & TELEM_COLLECT_MASK)==0) {
+        //uint32_t freq;
+        /* This is every 4 seconds */
+        if(TelemetryReady){//TelemCollect
+            NotifyInterTaskFromISR(ToTelemetry,&telemMsg);
+        }
+        Can2TimeoutTick(); // To determine if CAN2 partner is alive
+        // For doppler simulation test?
+        //freq = ReadMRAMTelemFreq();
+        //WriteMRAMTelemFreq(freq-266);
+
+    }
+    clockPhase++;  // It's ok if this wraps.  We only care about the bottom few bits
+}
+
+
+/* These are to get the time for the individual satellite */
+void getTime(logicalTime_t *timeRecord) {
+	timeRecord->IHUresetCnt = IHUreset;
+	timeRecord->METcount = METcount;
+}
+uint16_t getResets(void){
+    return IHUreset;
+}
+uint32_t getSeconds(void){
+    return METcount;
+}
+/*
+ * This is currently not used, but it can get the time in hundredths of a second.  I'm
+ * not sure this makes sense (we should subtract ticksatlastsecond from current ticks?
+ */
+
+void getHighResolutiontime(highResolutionTime_t *hrt) {
+    getTime(&(hrt->LogicalTime));
+    hrt->TicksAtLastSecond = TicksAtLastSecond;
+}
+
+/*
+ * This is to get the coordinated timestamp for the entire satellite.  Coordination keeps track
+ * of whether it is synchronized, and a routine TimeIsSynchronized lets a user find out.
+ */
+
+void getTimestamp(logicalTime_t *timeRecord) {
+    timeRecord->IHUresetCnt = timestampEpoch;
+    timeRecord->METcount = timestampSeconds;
+}
+ uint16_t getEpoch(void){
+     return timestampEpoch;
+}
+
+/*
+ * Here we get a constantly increasing number indicating the (approximate) number of seconds since we booted up
+ * the first time in orbit.
+ */
+
+uint32_t getSecondsInOrbit(void){
+    return secondsInOrbit;
+}
+
+void EnableTimePrint(bool enable, int type){
+    timePrint = enable;
+    //timeType=type;
+}
+
+void SaveSecondsInOrbit(void){
+    // This gets called every few seconds (from a task, not from an interrupt routine like
+    // UpdateMET;  Do not update if timestamp epoch is 0.  That means we just did preflight init
+    if(!preflightInitInhibit && TimeInOrbitSynchronized()){
+        WriteMRAMSecondsOnOrbit(secondsInOrbit);
+    }
+}
+
+/*
+ * These relate to scheduled events
+ */
+void SetInternalSchedules(TimeoutType type,uint32_t numSeconds){
+    if(numSeconds != 0xFFFFFFFF)numSeconds += secondsInOrbit;
+    timeoutValues[type] = numSeconds;
+    WriteMRAMTimeout(type,numSeconds); // Set each timeout to never
+}
+void CheckScheduledEvents(){
+    int i;
+    if(!TimeInOrbitSynchronized())return;
+    for(i=0;i<MaxNumberOfTimeouts;i++){
+        if(timeoutValues[i] < secondsInOrbit){
+            timeoutCallback[i]();
+        }
+    }
+}
+void GetTimeoutTimes(uint32_t *times){ //This is probably a subset of scheduled events.  This is just a skeleton
+    int i;
+    for(i=0;i<MaxNumberOfTimeouts;i++){
+        times[i] = timeoutValues[i];
+    }
+}
+
+
+
+void UpdateTelemEpoch(uint16 resets){
+    /*
+     * This always gets called on a reboot with the reset/epoch number 1 greater than
+     * the last one that we knew about.  If we start out immediately as the in-control
+     * cpu, that newly incremented epoch is that one that gets used since the in-control
+     * cpu is the time master.
+     *
+     * Only the time-master sends (or at least only the non-masters pay attention to) timestamp
+     * updates.  So that is why the epoch changes for the whole satellite.  OTOH, if we are NOT
+     * the master, then we will soon get an update from the actual master
+     *
+     * Update the MRAM if resets have changed or if we are right at the start of
+     * a boot (when resets have not yet been initted)
+     */
+    if(!preflightInitInhibit){
+        if(timePrint){
+            debug_print("Timestamp update epoch=%d,seconds=0 (was %d,%d)\n",resets,timestampEpoch,timestampSeconds);
+        }
+        if (resets != timestampEpoch){
+            timestampEpoch = resets;
+            WriteMRAMTimestampResets(timestampEpoch);
+            timestampSeconds = 0;
+        }
+    }
+}
+void UpdateSecondsInOrbit(uint32_t seconds){
+    /*
+     * This routine is called from coordination when it has decided that our seconds in orbit time
+     * is off a bit.
+     */
+    if(!preflightInitInhibit){
+        if(seconds > (secondsInOrbit+10) && timePrint){
+            debug_print("Update seconds in orbit = %d, was %d\n",seconds,secondsInOrbit);
+        }
+        secondsInOrbit = seconds;
+        SaveSecondsInOrbit();
+    }
+}
+
+/*
+ * The following gets called from CAN/Telemetry when we get a message from the PSOC/CIU
+ * with the PSOC's version of the telemetry epoch.  Since we are getting this, we can
+ * then compare it with what we aleady have, and update it if necessary, assuming we are
+ * in control.
+ */
+void ReportPSOCEpoch(uint16_t epoch){
+    PSOCEpoch = epoch;
+    if(ThisIHUInControl() && ((PSOCEpoch <= timestampEpoch) || (PSOCEpoch == 0xFFFF))){
+        // Here the PSOC epoch was out of date compared to us.  Update it
+        PSOCSaveEpoch(timestampEpoch+1);
+        if(timePrint){
+            debug_print("PSOC was %d and is being set to %d\n",PSOCEpoch,timestampEpoch+1);
+        }
+        PSOCEpoch = timestampEpoch;
+    }
+    PSOCEpochReceived = true;
+}
+uint16_t GetPSOCEpoch(void){
+    if(PSOCEpochReceived) return PSOCEpoch;
+    else return 0xFFFF;
+}
+
+
+

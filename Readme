@@ -1,0 +1,6 @@
+ This the rt-ihu.git repository.
+
+If you plan to use TI's HALCoGen, please fetch everything from the "hcg" directory on the repo and then
+tell HALCoGen to open a project and point to the .rtihu.hcg file as a start.  Be sure to include the source
+and header files because HALCoGen will read them and modify them rather than totally writing over them.
+
