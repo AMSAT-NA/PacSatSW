@@ -55,13 +55,13 @@
 #include "GPIO9539.h"
 #include "inet.h"
 #include "errors.h"
-#include "telemetryCollectionInterface.h"
 #include "gpioDriver.h"
 #include "DownlinkControl.h"
 #include "LinearInterp.h"
 #include "Buzzer.h"
 #include "keyfile.h"
-
+#include "MinMaxCalcs.h"
+#include "TelemetryCollection.h"
 //Extern definition
 extern uint8_t SWCmdRing[SW_CMD_RING_SIZE],SWCmdIndex;
 

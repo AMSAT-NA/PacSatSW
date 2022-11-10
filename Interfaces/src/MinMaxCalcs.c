@@ -11,7 +11,6 @@
 #include "os_task.h"
 #include "downlink.h"
 #include "TelemetryCollection.h"
-#include "telemetryCollectionInterface.h"
 #include "MET.h"
 #include "errors.h"
 #include "MRAMmap.h"

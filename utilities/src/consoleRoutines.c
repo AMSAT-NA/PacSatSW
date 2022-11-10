@@ -10,7 +10,6 @@
 #include "rti.h"
 #include "consoleRoutines.h" // My own
 #include "downlink.h"
-#include "telemetryCollectionInterface.h"
 #include "serialDriver.h"
 #include "nonvolManagement.h"
 #include "nonvol.h"

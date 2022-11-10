@@ -29,4 +29,15 @@ extern int printf(const char *fmt, ...);
 extern int sprintf(char* str, const char *fmt, ...);
 
 #define VOID ((void *)0)
+
+/* Some temporary declarations to avoid errors till we remove the calls */
+/*
+ * For PacSat, these are just filler routines at first to allow it to compile.  We probably
+ * don't need at least some of this
+ */
+bool CreateHeader(int x,void *y);
+bool CreatePayload(int x, void *y);
+
+
+
 #endif /* PACSAT_H_ */

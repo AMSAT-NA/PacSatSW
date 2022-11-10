@@ -182,7 +182,6 @@ bool I2cSendCommand (I2cBusNum busNum, uint32_t address, void *sndBuffer,uint16_
     static int taskWithSemaphore = 0;
     bool retVal = true;
 #define MAX31725_ADDR (0x90 >> 1)
-    if((address != MAX31725_ADDR) && (!ThisIHUInControl()))return false; //Todo:  Take this out after we have bus switches.  Otherwise no temp
     if(sndLength+rcvLength == 0)return false;
 
     if(busUsingOS[busNum]){
@@ -288,10 +287,8 @@ static inline bool DoIO(){
          // we tried to get the local temp.  Ignore it.  Otherwise, some other sort of major problem.  Reset
          // the bus.
         if(majorFailure[busNum]){
-            if(ThisIHUInControl()){
-                ReportError(I2cError[busNum],false,CharString,(int)"ArbitrationFailure");
-                I2cResetBus(busNum,true); //Try to reset--call it an error
-            }
+            ReportError(I2cError[busNum],false,CharString,(int)"ArbitrationFailure");
+            I2cResetBus(busNum,true); //Try to reset--call it an error
             return false;
         }
     }
@@ -331,13 +328,12 @@ static inline bool DoIO(){
             waitFlag[busNum] = true;
         }
         if(majorFailure[busNum]){
-            if(ThisIHUInControl()){
                 // If we are NOT in control, chances are good the in-control CPU poked at the I2c at the same time
                 // we tried to get the local temp.  Ignore it.  Otherwise, some other sort of major problem.  Reset
                 // the bus.
                 ReportError(I2cError[busNum],false,CharString,(int)"MajorFail");
                 I2cResetBus(busNum,true); //Try to reset--call it an error
-            }
+
             return false;
         }
 

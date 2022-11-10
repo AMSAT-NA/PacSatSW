@@ -18,7 +18,6 @@
 #include "nonvolManagement.h"
 #include "UplinkCommands.h"
 #include "DownlinkControl.h"
-#include "telemetryCollectionInterface.h"
 #include "TMS570Hardware.h"
 #include "ao_fec_rx.h"
 #include "aesdecipher.h"
@@ -26,6 +25,9 @@
 #include "canDriver.h"
 #include "inet.h"
 #include "ax5043_access.h"
+#include "MinMaxCalcs.h"
+#include "TelemetryCollection.h"
+
 #define command_print if(PrintCommandInfo)printf
 
 extern bool InSafeMode,InScienceMode,InHealthMode;
@@ -237,7 +239,6 @@ static void DecodeHardwareCommand(UplinkCommands command){
 
 void DispatchSoftwareCommand(SWCmdUplink *uplink,bool local){
     uint8_t nameSpace;
-    CanIDType canType=NoIDType;
 
     /*
      * Ok, we have a command that has been error corrected, unwhitened, CRC checked, unconvolved, timestamped,
@@ -266,62 +267,7 @@ void DispatchSoftwareCommand(SWCmdUplink *uplink,bool local){
 
     command_print("Namespace=%d,command=%d,arg=%d\n",nameSpace,uplink->comArg.command,
                   uplink->comArg.arguments[0]);
-    switch(nameSpace){
-    case SWCmdNSSpaceCraftOps: {
-        canType = UplinkCommandOps;
-        break;
-    }
-    case SWCmdNSTelemetry:{
-        canType = UplinkCommandTelem;
-        break;
-    }
-    case SWCmdNSExperiment1:{
-        canType = UplinkCommandExp1;
-        break;
-    }
-    case SWCmdNSInternal:{
-        canType = UplinkCommandInternal;
-        break;
-    }
 
-    default:
-        printf("Unknown namespace %d\n\r",nameSpace);
-        localErrorCollection.DCTCmdFailNamespaceCnt++;
-        return;
-    }
-
-    if(canType != NoIDType && local){
-        /*
-         * Here we have a command that could be passed on.  If local is true
-         * then it originated on this processor and should be passed on to the
-         * other processor, to the LIHU or both depending on whether the bus is
-         * enabled.
-         */
-        CanID id;
-        uint16_t commandNumber;
-        CANPacket_t packet;
-
-#define CAN_COMMAND_PRIORITY 3
-        id.bits.type = canType;
-        id.bits.priorityBits = CAN_COMMAND_PRIORITY;
-        commandNumber = uplink->comArg.command;
-        id.bits.ID1 = (CanID1)((commandNumber>>8) & 0xf);  // We can only send 4 bits of the top of the command
-        id.bits.serialID2.serial = commandNumber & 0xff; //And here are the bottom 8 bits.
-        packet.ID.fullWord = id.fullWord;
-        packet.dlc = 8;
-
-        // Now put the 4 16-bit arguments from the command into the 8 CAN bytes in big-endian format as required
-        // by the Golf standard.
-        memcpy(packet.data,uplink->comArg.arguments,8);
-
-        packet.ID.bits.source = MyLocalCanID;
-        packet.ID.bits.dest = PartnerLocalCanID;
-        if(CANPrintCommands){
-            printf("++Sending command to other RTIHU,id=%x\n",id.fullWord);
-        }
-        CAN_WRITE_TRY2(CAN2,&packet,false);
-
-    }
     switch(nameSpace){
     case SWCmdNSSpaceCraftOps: {
         OpsSWCommands(&uplink->comArg);
@@ -335,6 +281,10 @@ void DispatchSoftwareCommand(SWCmdUplink *uplink,bool local){
         InternalSWCommands(&uplink->comArg);
         break;
     }
+    default:
+        printf("Unknown namespace %d\n\r",nameSpace);
+        localErrorCollection.DCTCmdFailNamespaceCnt++;
+        return;
 
     }
 
@@ -350,14 +300,6 @@ void InternalSWCommands(CommandAndArgs *comarg){
         SendEclipseSafeModeMsg();
         command_print("Internal Eclipse Safe\n");
         break;
-    case SWCmdIntSetEclipseState:{
-        char * inOut;
-        bool into = ((comarg->arguments[0]) != 0);
-        SetInEclipse(into);
-        inOut = into ? "Into":"Out of";
-        command_print("Internal Going %s Eclipse\n",inOut);
-        break;
-    }
     case SWCmdIntEclipseInhibTx:{
         bool forceOff = ((comarg->arguments[0]) != 0);
         ForceTransmittersOff(forceOff);

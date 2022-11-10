@@ -17,7 +17,6 @@
 #include <pacsat.h> /* Must precede stdio */
 #include "DownlinkControl.h"
 #include "nonvolManagement.h"
-#include "telemetryCollectionInterface.h"
 #include "interTaskNotify.h"
 #include "downlink.h"
 #include "MET.h"
@@ -31,7 +30,7 @@
 #include "ax5043.h"
 #include "inet.h"
 #include "CommandTask.h"
-
+#include "TelemetryCollection.h"
 /* Standard headers */
 #include "stdio.h"
 #include "string.h"
@@ -174,6 +173,16 @@ void SetTelemetryFrameType(FrameTypeMode type);
 
 /************************************End of state machine declarations*********************************/
 
+/*
+ * For PacSat, these are just filler routines at first to allow it to compile.  We probably
+ * don't need at least some of this
+ */
+bool CreateHeader(int x,void *y){
+return true;
+};
+bool CreatePayload(int x, void *y){
+return true;
+}
 
 /*
  * The Downlink Control Task itself
@@ -1493,6 +1502,6 @@ bool InEclipseSafeMode(void){
 }
 bool StandbyReceiverOk(void){
     bool can2Ok = Can2PartnerIsOk();
-    int16_t RSSI = GetStandbyRSSI();
+    int16_t RSSI = 0;//GetStandbyRSSI();
     return can2Ok && (RSSI > MIN_RSSI_OK);
 }

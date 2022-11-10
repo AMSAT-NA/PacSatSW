@@ -18,17 +18,11 @@
 #include "gpioDriver.h"
 #include "CommandTask.h"
 #include "watchdogSupport.h"
-#include "telemetryCollectionInterface.h"
 
 extern bool SimDoppler;
-static bool TelemetryReady = false,PSOCEpochReceived=false;
+static bool TelemetryReady = false;
 static Intertask_Message telemMsg;
 
-#ifdef DEBUG_PRINT
-static bool timePrint=true;
-#else
-static bool timePrint=false;
-#endif
 //static int timeType;
 
 
@@ -42,21 +36,17 @@ static uint16_t IHUreset;
 static uint32_t clockPhase = 0;
 
 /* Here is the telemetry timestamp */
-static uint16_t timestampEpoch=0,PSOCEpoch;
+static uint16_t timestampEpoch=0;
 static uint32_t timestampSeconds;
 
 /* Here is the current number of seconds in orbit */
 static uint32_t secondsInOrbit;
-static bool preflightInitInhibit = false; // This is set to true on preflight init.
 
 /*
  * Here are timestamps and callbacks for things that must be
  * tested against the time in orbit
  */
 
-static uint32_t timeoutValues[MaxNumberOfTimeouts];
-static void (*timeoutCallback[MaxNumberOfTimeouts])(void)=
-    {NoCommandTimeoutCallback,NoTimedSWCommandTimeoutCallback,ClearMinMax};
 static void METupdate(xTimerHandle x);
 
 /*
@@ -78,7 +68,7 @@ static void METupdate(xTimerHandle x);
 void initMET() {
     xTimerHandle handle;
     volatile portBASE_TYPE timerStatus;
-    int pvtID = 0,i;
+    int pvtID = 0;
 
     /* create a RTOS software timer - 1 second period */
     handle = xTimerCreate( "MET", SECONDS(1), TRUE, &pvtID, METupdate);
@@ -101,18 +91,14 @@ void initMET() {
      */
     UpdateTelemEpoch(ReadMRAMTimestampResets()+1);
 
-    /* And get the time on orbit and timeouts in progress */
+    /* And get the time on orbit */
     secondsInOrbit = ReadMRAMSecondsOnOrbit();
-    for(i=0;i<MaxNumberOfTimeouts;i++){
-        timeoutValues[i] = ReadMRAMTimeout((TimeoutType)i);
-    }
     telemMsg.MsgType = TelemCollectMsg; // Just set up this message for later use
     ResetAllWatchdogs();
 }
 
 void initSecondsInOrbit(void){ // Called only from preflight init
     secondsInOrbit = 0;
-    preflightInitInhibit = true; // We are in preflight init.  Don't update till next boot
     WriteMRAMSecondsOnOrbit(secondsInOrbit);
 }
 void InitResetCnt() {
@@ -120,9 +106,6 @@ void InitResetCnt() {
     WriteMRAMResets(0); //Start the reset count at 0
     timestampEpoch = 0;
     WriteMRAMTimestampResets(0);
-    PSOCEpoch = 0;
-    PSOCSaveEpoch(0);
-    preflightInitInhibit = true;
 }
 
 void METTelemetryReady() {  /* Ok to start sending telemetry messages */
@@ -215,41 +198,12 @@ uint32_t getSecondsInOrbit(void){
     return secondsInOrbit;
 }
 
-void EnableTimePrint(bool enable, int type){
-    timePrint = enable;
-    //timeType=type;
-}
-
 void SaveSecondsInOrbit(void){
     // This gets called every few seconds (from a task, not from an interrupt routine like
     // UpdateMET;  Do not update if timestamp epoch is 0.  That means we just did preflight init
-    if(!preflightInitInhibit && TimeInOrbitSynchronized()){
-        WriteMRAMSecondsOnOrbit(secondsInOrbit);
-    }
-}
+    //(!preflightInitInhibit && TimeInOrbitSynchronized()){
+    //  WriteMRAMSecondsOnOrbit(secondsInOrbit);
 
-/*
- * These relate to scheduled events
- */
-void SetInternalSchedules(TimeoutType type,uint32_t numSeconds){
-    if(numSeconds != 0xFFFFFFFF)numSeconds += secondsInOrbit;
-    timeoutValues[type] = numSeconds;
-    WriteMRAMTimeout(type,numSeconds); // Set each timeout to never
-}
-void CheckScheduledEvents(){
-    int i;
-    if(!TimeInOrbitSynchronized())return;
-    for(i=0;i<MaxNumberOfTimeouts;i++){
-        if(timeoutValues[i] < secondsInOrbit){
-            timeoutCallback[i]();
-        }
-    }
-}
-void GetTimeoutTimes(uint32_t *times){ //This is probably a subset of scheduled events.  This is just a skeleton
-    int i;
-    for(i=0;i<MaxNumberOfTimeouts;i++){
-        times[i] = timeoutValues[i];
-    }
 }
 
 
@@ -268,10 +222,7 @@ void UpdateTelemEpoch(uint16 resets){
      * Update the MRAM if resets have changed or if we are right at the start of
      * a boot (when resets have not yet been initted)
      */
-    if(!preflightInitInhibit){
-        if(timePrint){
-            debug_print("Timestamp update epoch=%d,seconds=0 (was %d,%d)\n",resets,timestampEpoch,timestampSeconds);
-        }
+    {
         if (resets != timestampEpoch){
             timestampEpoch = resets;
             WriteMRAMTimestampResets(timestampEpoch);
@@ -279,42 +230,7 @@ void UpdateTelemEpoch(uint16 resets){
         }
     }
 }
-void UpdateSecondsInOrbit(uint32_t seconds){
-    /*
-     * This routine is called from coordination when it has decided that our seconds in orbit time
-     * is off a bit.
-     */
-    if(!preflightInitInhibit){
-        if(seconds > (secondsInOrbit+10) && timePrint){
-            debug_print("Update seconds in orbit = %d, was %d\n",seconds,secondsInOrbit);
-        }
-        secondsInOrbit = seconds;
-        SaveSecondsInOrbit();
-    }
-}
 
-/*
- * The following gets called from CAN/Telemetry when we get a message from the PSOC/CIU
- * with the PSOC's version of the telemetry epoch.  Since we are getting this, we can
- * then compare it with what we aleady have, and update it if necessary, assuming we are
- * in control.
- */
-void ReportPSOCEpoch(uint16_t epoch){
-    PSOCEpoch = epoch;
-    if(ThisIHUInControl() && ((PSOCEpoch <= timestampEpoch) || (PSOCEpoch == 0xFFFF))){
-        // Here the PSOC epoch was out of date compared to us.  Update it
-        PSOCSaveEpoch(timestampEpoch+1);
-        if(timePrint){
-            debug_print("PSOC was %d and is being set to %d\n",PSOCEpoch,timestampEpoch+1);
-        }
-        PSOCEpoch = timestampEpoch;
-    }
-    PSOCEpochReceived = true;
-}
-uint16_t GetPSOCEpoch(void){
-    if(PSOCEpochReceived) return PSOCEpoch;
-    else return 0xFFFF;
-}
 
 
 
