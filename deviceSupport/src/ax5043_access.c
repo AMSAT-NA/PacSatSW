@@ -172,8 +172,6 @@ void ax5043StopTx(void){
         ax5043_off();
         Txing=Rxing=false;
     }
-    if(IAmActiveCPU()){  // If we are active then we turn off the tx for safe mode, so reduce power.
-        ax5043PowerOff();
-    }
+    ax5043PowerOff();
 }
 

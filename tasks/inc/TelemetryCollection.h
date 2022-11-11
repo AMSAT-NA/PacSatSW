@@ -31,11 +31,9 @@ uint32_t computeCRC(uint32_t *address, int words);
 bool GetMramCRCState(void);
 void SetMramCRCGood(void);
 void SetMramCRCError(void);
-void incomingCANTelemetry(CANPacket_t *packet);
 void ChangeWODSaved(uint16_t size);
 bool getBusVoltage( uint8_t *);
 void getLastLIHUDiagTime(logicalTime_t *lastTime);
 void getLastRTDiagTime(logicalTime_t *lastTime);
-bool WeAreInEclipse(void);
 void SetInEclipse(bool eclipse);
 #endif /* TELEMETRYCOLLECTION_H_ */

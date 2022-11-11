@@ -11,7 +11,6 @@
 #include "os_task.h"
 #include "downlink.h"
 #include "TelemetryCollection.h"
-#include "telemetryCollectionInterface.h"
 #include "MET.h"
 #include "errors.h"
 #include "MRAMmap.h"
@@ -181,7 +180,6 @@ void ClearMinMax() {
     NVstatus = writeNV(&maxData, sizeof(maxData), ExternalMRAMData, (int) &(MRAMaddr->maxData));
     if (NVstatus == false) { ReportError(MRAMwrite, false, ReturnAddr, (int)ClearMinMax);}
     SetMramCRCGood();
-    SetInternalSchedules(MinMaxResetTimeout,MIN_MAX_CLEAR_SECONDS);
     WriteMinMaxResetSeconds(currentTime.METcount);
     WriteMinMaxResetEpoch(currentTime.IHUresetCnt);
 

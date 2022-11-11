@@ -25,7 +25,6 @@
 
 #include <pacsat.h> /* Must precede stdio */
 #include "stdio.h"
-#include "telemetryCollectionInterface.h"
 #include "interTaskNotify.h"
 #include "downlink.h"
 #include "MET.h"

@@ -35,7 +35,6 @@ typedef enum {
 void initMET(void);
 void initSecondsInOrbit(void);
 void InitResetCnt(void);
-void EnableTimePrint(bool,int);
 
 /* These are for the local time */
 void getTime(logicalTime_t * ld);
@@ -53,9 +52,6 @@ void SaveSecondsInOrbit(); // Periodically called to ensure current value is in 
 /* These allow us to do stuff based on the seconds in orbit.  Not too much happening yet.  May move to another
  * module
  */
-void SetInternalSchedules(TimeoutType type, uint32_t seconds);
-void GetTimeoutTimes(uint32_t *);
-void CheckScheduledEvents();
 
 
 /* These are for updating among the CPUs */

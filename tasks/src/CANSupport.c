@@ -26,10 +26,6 @@
 #include "canID.h"
 extern bool AllTasksStarted,CoordinationMessageReceived;
 
-// Locally used module-wide variables
-
-static bool BusEnabled;
-
 // Forward routines
 static void CANDispatchMessage(CANPacket_t *readData);
 
@@ -50,7 +46,6 @@ portTASK_FUNCTION_PROTO(CANTask, pvParameters)
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)CANSupportWD );
     ReportToWatchdog(CurrentTaskWD);
 
-    BusEnabled = BusIsEnabled(); // Remember the state last time we looked.
     InitInterTask(ToCAN,20);
     CANInit(CAN1,ToCAN, CANMessageReceived);
     CANInit(CAN2,ToCAN, CANMessageReceived);
@@ -78,10 +73,6 @@ portTASK_FUNCTION_PROTO(CANTask, pvParameters)
         status = WaitInterTask(ToCAN, WATCHDOG_SHORT_WAIT_TIME, &msg);
         ReportToWatchdog(CANSupportWD);
         if(!status){
-            if(BusEnabled ^ BusIsEnabled()){
-                CANRestart();
-                BusEnabled = !BusEnabled;
-            }
             continue;
         }
         switch(msg.MsgType){ // There is only one type for now
@@ -132,15 +123,6 @@ void CANDispatchMessage(CANPacket_t *readData){
         printf("\n");
     }
     switch(readData->ID.bits.type){
-    case Telemetry:{
-        /*
-         * Telemetry comes in serial packets.  incomingCANTelemetry is in TelemetryCollection
-         * but it actually calls back to CANReceiveLongMessage below.
-         */
-        incomingCANTelemetry(readData);
-        ReportToWatchdog(CANSupportWD);
-        break;
-    }
     case Coordination: {
         //        logicalTime_t remTime;
         //        int i;
@@ -182,7 +164,7 @@ void CANDispatchMessage(CANPacket_t *readData){
             printf("--Cmd with ID %x originating from node %d (we are %d)\n",readData->ID.fullWord,
                    readData->ID.bits.source,MyLocalCanID);
         }
-        if(BusIsEnabled()){
+        {
             if(readData->ID.bits.source == LIHU){
                 // We are the active processor, and this started from the LIHU
                 // Pass it to the standby processor.
@@ -205,15 +187,6 @@ void CANDispatchMessage(CANPacket_t *readData){
             }
         }
         break;
-    }
-    case EttusCmd:{
-        if(CANPrintCommands){
-            printf("--Ettus Command with ID %x originating from node %d (we are %d)\n",readData->ID.fullWord,
-                   readData->ID.bits.source,MyLocalCanID);
-        }
-        NotifyEttusMessageReceived(readData);
-        ReportToWatchdog(CANSupportWD);
-
     }
 
     default:

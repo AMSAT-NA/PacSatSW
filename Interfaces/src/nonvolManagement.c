@@ -13,6 +13,7 @@
 #include "nonvol.h"
 #include "spiDriver.h"
 #include "CANSupport.h"
+#include "MinMaxCalcs.h"
 
 static const MRAMmap_t *ptr = (MRAMmap_t *) 0;
 

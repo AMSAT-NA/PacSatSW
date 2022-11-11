@@ -17,7 +17,6 @@
 #include "watchdogSupport.h"
 #include "MET.h"
 #include "downlink.h"
-#include "telemetryCollectionInterface.h"
 #include "CANSupport.h"
 #include "CANQueueManagement.h"
 #include "i2cDriver.h"
@@ -178,7 +177,7 @@ portTASK_FUNCTION(TelemetryCollectTask, pvParameters )
              * a realtime downlink buffer.  We will also use this for the WOD data if it is time.
              */
             RealTimeTelemetry = dataSetPtr; // Remember the data buffer we are working on.
-            telemetryIndex = nextBuffer(telemetryIndex); // Get ready to use the next one
+            //telemetryIndex = nextBuffer(telemetryIndex); // Get ready to use the next one
             ReportToWatchdog(TelemetryWD);
             {
                 /*
@@ -300,8 +299,8 @@ void WriteHkWOD(WODHkMRAM_t *latestData, bool getDataFromCAN){
      * LatestData has the (duh) latest data whether it be from our caller or from another
      * CPU via CAN.  Put it into the MRAM data structure and write it out WOD.
      */
-    loadCommonFields(&MRAMdata.wodHKPayload.common,latestData);
-    loadCommonFields2(&MRAMdata.wodHKPayload.common2,latestData);
+    //loadCommonFields(&MRAMdata.wodHKPayload.common,latestData);
+    //loadCommonFields2(&MRAMdata.wodHKPayload.common2,latestData);
     MRAMdata.wodHKPayload.wodInfo.WODTimestampReset = ntohs(latestData->wodHKPayload.wodInfo.WODTimestampReset);
     MRAMdata.wodHKPayload.wodInfo.WODTimestampUptime = ntohl(latestData->wodHKPayload.wodInfo.WODTimestampUptime);
     //
@@ -416,7 +415,7 @@ void getModeData(WODHkMRAM_t *buffer) {
     buffer->wodHKPayload.common2.AutoSafeAllowed = IsAutoSafeAllowed();
     buffer->wodHKPayload.common2.AutoSafeModeActive =InAutoSafeMode();
     buffer->wodHKPayload.common2.transponderEnabled = IsTransponderEnabled();
-    buffer->wodHKPayload.common2.inEclipse = WeAreInEclipse();
+    //buffer->wodHKPayload.common2.inEclipse = WeAreInEclipse();
     buffer->wodHKPayload.common2.vucDisabled = GetVUCDisabled();
 }
 

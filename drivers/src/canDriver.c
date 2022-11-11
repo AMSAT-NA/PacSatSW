@@ -157,18 +157,6 @@ bool CANWriteMessage(CANBus bus,CANPacket_t *packet,bool highPrio){
         if(bus==CAN2)return false;
     }
 #endif
-    if(BusIsDisabled()){
-        // If we don't have the bus, i.e. we are the standby, we can't send on CAN1
-        if(bus==CAN1)return false;
-    } else {
-        // If we DO have the bus, we only send to the standby processor on CAN2 if
-        // it lives or if there are no messages waiting to be sent.  If we ARE the
-        // standby, we always try to send to the active
-        if(
-                (!Can2PartnerIsOk()) &&
-                (uxQueueMessagesWaiting(CANTxBusySemaphore[bus][thisDlc]) == 0)
-            )return false;
-    }
     msgBox = messageBoxDLC[thisDlc];
     ID = packet->ID.fullWord;
     if(ID != messageBoxID[bus][thisDlc]) {
