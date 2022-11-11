@@ -123,15 +123,6 @@ void CANDispatchMessage(CANPacket_t *readData){
         printf("\n");
     }
     switch(readData->ID.bits.type){
-    case Telemetry:{
-        /*
-         * Telemetry comes in serial packets.  incomingCANTelemetry is in TelemetryCollection
-         * but it actually calls back to CANReceiveLongMessage below.
-         */
-        incomingCANTelemetry(readData);
-        ReportToWatchdog(CANSupportWD);
-        break;
-    }
     case Coordination: {
         //        logicalTime_t remTime;
         //        int i;

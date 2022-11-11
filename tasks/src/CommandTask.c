@@ -262,7 +262,7 @@ void DispatchSoftwareCommand(SWCmdUplink *uplink,bool local){
      * so we can turn off the timeout function
      */
     if(CommandTimeEnabled)
-        SetInternalSchedules(NoTimeCommandTimeout,TIMEOUT_NONE);
+        //SetInternalSchedules(NoTimeCommandTimeout,TIMEOUT_NONE);
 
 
     command_print("Namespace=%d,command=%d,arg=%d\n",nameSpace,uplink->comArg.command,
@@ -445,9 +445,9 @@ void EnableCommandPrint(bool enable){
 void EnableCommandTimeCheck(bool enable){
     CommandTimeEnabled = enable;
     if(enable){
-        SetInternalSchedules(NoTimeCommandTimeout,SW_COMMAND_TIME_TIMEOUT);
+        //SetInternalSchedules(NoTimeCommandTimeout,SW_COMMAND_TIME_TIMEOUT);
     } else {
-        SetInternalSchedules(NoTimeCommandTimeout,TIMEOUT_NONE);
+        //SetInternalSchedules(NoTimeCommandTimeout,TIMEOUT_NONE);
     }
     WriteMRAMBoolState(StateCommandTimeCheck,CommandTimeEnabled);
 }
@@ -742,12 +742,12 @@ void incomingCANRawSoftwareCommand(CANPacket_t *packet){
 void NoCommandTimeoutCallback(void){
     printf("No command timeout\n");
     SimulateSwCommand(SWCmdNSSpaceCraftOps,SWCmdOpsHealthMode,NULL,0);
-    SetInternalSchedules(NoCommandTimeout,TIMEOUT_NONE); // Set this timeout to never
+    //SetInternalSchedules(NoCommandTimeout,TIMEOUT_NONE); // Set this timeout to never
 }
 void NoTimedSWCommandTimeoutCallback(void){
     printf("No command after setting time check\n");
     EnableCommandTimeCheck(false);
-    SetInternalSchedules(NoTimeCommandTimeout,TIMEOUT_NONE); // Set this timeout to never
+    //SetInternalSchedules(NoTimeCommandTimeout,TIMEOUT_NONE); // Set this timeout to never
 }
 
 /*

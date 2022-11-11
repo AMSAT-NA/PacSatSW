@@ -415,7 +415,7 @@ void getModeData(WODHkMRAM_t *buffer) {
     buffer->wodHKPayload.common2.AutoSafeAllowed = IsAutoSafeAllowed();
     buffer->wodHKPayload.common2.AutoSafeModeActive =InAutoSafeMode();
     buffer->wodHKPayload.common2.transponderEnabled = IsTransponderEnabled();
-    buffer->wodHKPayload.common2.inEclipse = WeAreInEclipse();
+    //buffer->wodHKPayload.common2.inEclipse = WeAreInEclipse();
     buffer->wodHKPayload.common2.vucDisabled = GetVUCDisabled();
 }
 

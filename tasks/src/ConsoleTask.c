@@ -803,16 +803,6 @@ void RealConsoleTask(void)
         case DisableComPr:
             EnableCommandPrint(false);
             break;
-        case EnableTimePr:{
-            int timeType = parseNumber(afterCommand);
-            EnableTimePrint(true,timeType);
-            break;
-        }
-        case DisableTimePr:{
-            int timeType = parseNumber(afterCommand);
-            EnableTimePrint(false,timeType);
-            break;
-        }
         case getMode:{
             if(InSafeMode){
                 char * autoStr;
@@ -998,15 +988,11 @@ void RealConsoleTask(void)
         }
         case time:{
             logicalTime_t time;
-            uint32_t timeouts[MaxNumberOfTimeouts];
             getTime(&time);
             printf("IHU time:  Resets=%i,seconds=%i\n",time.IHUresetCnt,time.METcount);
             getTimestamp(&time);
             printf("Timestamp time:  Epoch=%i,seconds=%i\n",time.IHUresetCnt,time.METcount);
             printf("Poweron Time since preflight: %d seconds\n",getSecondsInOrbit());
-            GetTimeoutTimes(timeouts);
-            printf("Command timeout=%d, sw timecheck timeout=%d, time to minmax clear=%d\n",
-                   timeouts[NoCommandTimeout],timeouts[NoTimeCommandTimeout],timeouts[MinMaxResetTimeout]);
 
             printf("Short boot count: %d, short boot flag %d\n\r",
                    SaveAcrossReset.fields.earlyResetCount,
