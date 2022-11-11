@@ -90,9 +90,9 @@ void receiveLine(COM_NUM ioCom, char *commandString, char prompt, bool echo) {
     int charNum = 0;
     const char deleteString[4] = { '\b', ' ', '\b', 0 }; // Back overwrite space, back
     int escSeq=0;
-    if(!CheckMRAMVersionNumber()){
-        printf("\n ***MRAM format has changed\n ***Command 'preflight init' or 'init mram' required!\n");
-    }
+//    if(!CheckMRAMVersionNumber()){
+//        printf("\n ***MRAM format has changed\n ***Command 'preflight init' or 'init mram' required!\n");
+//    }
     if (echo)
         printf("");
     SerialPutChar(ioCom, prompt, 0);
@@ -689,10 +689,9 @@ void printID(void){
     }
 
 
-    printf("\nAMSAT-NA Golf-TEE RT-IHU Console\n");
-    printf("RT-IHU Flight Software %s (built on %s at %s)\n",
+    printf("\nAMSAT-NA PacSat Console\n");
+    printf("Flight Software %s (built on %s at %s)\n",
            RTIHU_FW_VERSION_STRING, __DATE__, __TIME__);
-    printf("Software Version " "IHU_FW_VERSION_STRING \n");
     printf("   Built %s %s\n\n",__DATE__, __TIME__);//__GNUC__,__GNUC_MINOR__);
 
 #if defined (COMPILE_DEBUG)
@@ -710,12 +709,6 @@ void printID(void){
     printf("Watchdog Enabled\n");
 #else
     printf("Watchdog NOT Enabled\n");
-#endif
-#ifdef RTIHU_BOARD_LAUNCHPAD
-    printf("Compiled for the Launchpad\n");
-#endif
-#ifdef RTIHU_BOARD_V11
-    printf("Compiled for V1.1 board\n");
 #endif
 
     printf("Free heap size is %d\n",xPortGetFreeHeapSize());

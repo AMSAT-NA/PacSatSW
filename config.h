@@ -11,8 +11,7 @@
 
 #ifndef GOLFCONFIG_H_
 #define GOLFCONFIG_H_
-#define GOLF_NUMBER "8" // This is Golf-T.  Numbers are sequential from Fox-1A,b,c,d,e,Husky,Simulator, Golf-T LIHU.
-// Golf-T RTIHU (this one) is the same as LIHU until we figure out if they should be different
+#define GOLF_NUMBER "0" // This is PacSat.
 #define GOLF_ID (GOLF_NUMBER[0] - '0') /*Must change if number greater than 9*/
 #define ENGINEERING_MODEL
 #define UNDEFINE_BEFORE_FLIGHT
@@ -54,7 +53,7 @@
 #define WATCHDOG_ENABLE
 #   define SOFTWARE_TYPE "V"
 #endif
-#define VERSION "7m" /*Exactly 2 characters will show in the diagnostic downlink*/
+#define VERSION "0a" /*Exactly 2 characters will show in the diagnostic downlink*/
 #define RTIHU_FW_VERSION_STRING SOFTWARE_TYPE GOLF_NUMBER "." VERSION
 
 ////////////////////////////////////////////This is I/O

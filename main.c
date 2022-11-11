@@ -177,9 +177,6 @@ void startup(void)
 
 
 
-#ifdef WD_DEBUG
-    xTaskCreate(WDResetTest, "WDResetTest", CONSOLE_STACK_SIZE, NULL,CONSOLE_PRIORITY, NULL);
-#endif
 
     /* Start the tasks and timer running. */
     vTaskStartScheduler();
@@ -188,7 +185,7 @@ void startup(void)
 
 }
 void ConsoleTask(void *pvParameters){
-    bool haveWaited,chargerAttached=false,umbilicalAttached; //todo: Fix charger when we get that line in V1.2
+    bool haveWaited,umbilicalAttached; //todo: Fix charger when we get that line in V1.2
     GPIOInit(WatchdogFeed,NO_TASK,NO_MESSAGE,None);
     ResetAllWatchdogs(); // This is started before MET and other tasks so just reporting in does not help
 
@@ -268,40 +265,12 @@ void ConsoleTask(void *pvParameters){
         haveWaited = true;
         WriteMRAMBoolState(StateInOrbit,true); // The umbilical was connected so cancel the wait
     }
-#ifdef UNDEFINE_BEFORE_FLIGHT
+#if 0 //def UNDEFINE_BEFORE_FLIGHT
     if(!CheckMRAMVersionNumber()){
         printf("MRAM format has changed.  Skipping possible waits and antenna deploy\n");
         haveWaited = true;
     }
 #endif
-    if((umbilicalAttached || chargerAttached) && (!haveWaited)){
-        // Do not do any of the waiting if umbilical or charger is attached
-        printf("****Umbilical/charger attached but Waited in Orbit flag is %d.  Setting it*****\n",!haveWaited);
-        haveWaited = true;
-        WriteMRAMBoolState(StateInOrbit,true); // With umbilical on, don't wait
-    }
-
-    if(!haveWaited){
-        int minutesToWait;
-        minutesToWait = (ReadMRAMCountdownAfterRelease());
-        debug_print("***Waiting %d minutes after first boot in orbit***\n",minutesToWait);
-
-        /*
-         * Here we are running for the first time after having been released from the Launch Vehicle.
-         * We, the RT-IHU will be initially in control, so just to avoid confusion, we will set those
-         * coordination lines immediately.  The other RT-IHU is doing the same thing, so if the active
-         * RT-IHU fails, the standby should be able to take over right away.
-         */
-        while(minutesToWait > 0){
-//            AlertFlashingWait(MINUTES(1),SECONDS(1),SECONDS(2)); // Here is where we wait after we are in orbit
-            minutesToWait--;
-            debug_print("Minutes remaining: %d\n",minutesToWait);
-            WriteMRAMCountdownAfterRelease(minutesToWait);
-        }
-        WriteMRAMBoolState(StateInOrbit,true); // This MUST be after the wait
-    } else {
-        JustReleasedFromBooster = false;
-    }
     //////////////////////////////////////// Deployables //////////////////////////////////////////////////
 
     /*
