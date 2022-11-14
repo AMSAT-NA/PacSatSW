@@ -72,7 +72,6 @@ extern bool InSafeMode;
 extern rt1Errors_t localErrorCollection;
 
 static bool MinMaxCRCError;
-static CanID1 CANDiagID1;
 
 int telemetryIndex = 0;
 WODHkMRAM_t telemetrySet[2];
@@ -106,7 +105,6 @@ portTASK_FUNCTION(TelemetryCollectTask, pvParameters )
     ReportToWatchdog(TelemetryWD); /* Make sure we don't time out */
     InitInterTask(ToTelemetry,4);
     localErrorCollection.valid = 1;
-    CANDiagID1 = CANId1InterCPU_RT1Diag;
 
 
     /*
@@ -135,22 +133,7 @@ portTASK_FUNCTION(TelemetryCollectTask, pvParameters )
         if (status == pdFAIL){
             ReportError(RTOSfailure, false, ReturnAddr,(int) TelemetryCollectTask);
         }
-        if((msg.MsgType == TelemSendErrorsResetMsg) || (msg.MsgType == TelemSendErrorsPowerCycleMsg)){
-            /*
-             * Here we got a message from the error module saying that we have a fatal error reported and
-             * we need to send it to the other CPU so it won't get forgotten.  We should already have switched
-             * to the other CPU. but hopefully this one can run long enough with that error to get the data
-             * over.
-             */
-            CANSendLongMessage(CAN2,CANDiagID1,Telemetry,0,(uint8_t *)&localErrorCollection,
-                               (uint32_t)sizeof(rt1Errors_t));
-            if(msg.MsgType == TelemSendErrorsResetMsg){
-                ProcessorReset();
-            } else {
-                ForceExternalWatchdogTrigger(); // This is how we power cycle
-            }
-
-        } else { //MsgType == TelemCollect
+ { //MsgType == TelemCollect
             /*
              * Here we get a buffer to put telemetry in (we double buffer it so we are not
              * filling while the downlink is fetching)

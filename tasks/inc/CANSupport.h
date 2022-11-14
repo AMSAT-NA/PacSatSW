@@ -38,7 +38,7 @@ void CANTask(void *pvParameters);
 
 int CANPrintMessage(uint8_t *message);
 void CANPrintPayload(uint8_t *payload, int maxSize);
-
+#if 0
 void CANResetAndSetup(uint8_t groundClass);
 bool CANInterruptCallback(void *);
 void CANGPIOsInitialize(void);
@@ -55,7 +55,7 @@ void CANInitLongMessage(CANLongBitmap *);
     CANWriteMessage(canID,pPacket,priority);\
 }
 
-
+#endif
 #ifndef MAIN_FUNCTION
 extern bool CANPrintTelemetry,CANPrintCoord,CANPrintCommands,CANPrintAny,CANPrintCount,CANPrintErrors,CANPrintEttus;
 #endif
