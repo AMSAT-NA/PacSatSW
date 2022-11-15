@@ -37,7 +37,6 @@
 #include "TelemetryRadio.h"
 #include "watchdogSupport.h"
 #include "interTaskNotify.h"
-#include "DownlinkControl.h"
 #include "nonvolManagement.h"
 
 #include "MRAMmap.h"
@@ -60,7 +59,6 @@
 #define TONE_BUFFER_BYTES 256
 
 FECBufferReturn newBuffer;
-
 static enum {
              /* [
               * On the LIHU, these decide various types of telemetry.  Here, we are only using none, tone, and
@@ -161,14 +159,7 @@ portTASK_FUNCTION_PROTO(TelemetryRadioTask, pvParameters)  {
 
 
                         //printf("bytes received: %02x %02x %02x\n", axradio_rxbuffer_2m[0], axradio_rxbuffer_2m[1], axradio_rxbuffer_2m[2]);
-                        /* todo
-                         * If we are in receive mode, this might be a legit command
-                         * so extend the timer.  (We might want to do this differently and
-                         * wait till we were more sure of something real).  In any case, start
-                         * receive timer with a true argument only has an effect if the timer is
-                         * actually running
-                         */
-                        StartReceiveTimer(true);
+
                         incomingRawSoftwareCommand(axradio_rxbuffer_2m);
 
 
@@ -251,8 +242,8 @@ portTASK_FUNCTION_PROTO(TelemetryRadioTask, pvParameters)  {
                         sendingPacket = 1;
                         telemByteNum = 0;
                     } else {
-
-                    newBuffer = GetFECBufferToDownlink();
+                    // Downlink control would normally fill a buffer and make it available via this routine
+                    //newBuffer = GetFECBufferToDownlink();
                     fecFrameToSend = newBuffer.buffer;
                     
                     if (fecFrameToSend == (void *) NO_BUFFERS) {
@@ -429,7 +420,7 @@ uint8_t GetDCTPowerFlagCnt(void){
 
 void copyAndPack(uint8_t *byteBuf, FECBufferReturn *newBuffer, bool *startWithSync, bool *endWithSync, int *bytes, int *partial) {
 
-    uint32_t *fecFrameToSend = newBuffer->buffer; 
+    //uint32_t *fecFrameToSend = newBuffer->buffer;
     int start = 0;
     int i;
     uint16_t word;
@@ -439,11 +430,11 @@ void copyAndPack(uint8_t *byteBuf, FECBufferReturn *newBuffer, bool *startWithSy
     *startWithSync = *endWithSync = 0;
 
     if (newBuffer->length <= 0) return;
-  
-    if (Get10bFromBuffer(fecFrameToSend,0) == SYNC10b0) {
-        *startWithSync = 1;
-        start++;
-    }
+ // Get the first 8b10b word and see if it is a sync--this routine has been removed for pacsat
+//    if (Get10bFromBuffer(fecFrameToSend,0) == SYNC10b0) {
+//        *startWithSync = 1;
+//        start++;
+//    }
 
 //    currentFrameWords = newBuffer.length;
 //    currentFrameBytes = (currentFrameWords * 10) / 8;
@@ -458,17 +449,9 @@ void copyAndPack(uint8_t *byteBuf, FECBufferReturn *newBuffer, bool *startWithSy
 
         //printf("In loop\n");
 
+        // Getting data to transmit.  Get10b is removed for pacsat
+        //word = Get10bFromBuffer(fecFrameToSend,i);
 
-        word = Get10bFromBuffer(fecFrameToSend,i);
-
-#if 0
-        if (i < 10) printf("%03x ", word); //DEBUG
-        if (i == 10) printf("\n...\n");
-        if (i > (newBuffer->length - 10)) printf("%03x ", word); //DEBUG
-//#else
-        printf("0x%03x ", word); //DEBUG
-        if ((i % 10) == 9) printf("\n");
-#endif
 
         if (word == SYNC10b0) {
             //printf("Found end sync inside loop, index=%d, size=%d\n",i,newBuffer->length);

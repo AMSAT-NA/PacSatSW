@@ -17,7 +17,6 @@
 #include "MET.h"
 #include "nonvolManagement.h"
 #include "UplinkCommands.h"
-#include "DownlinkControl.h"
 #include "TMS570Hardware.h"
 #include "ao_fec_rx.h"
 #include "aesdecipher.h"
@@ -26,7 +25,6 @@
 #include "inet.h"
 #include "ax5043_access.h"
 #include "MinMaxCalcs.h"
-#include "TelemetryCollection.h"
 
 #define command_print if(PrintCommandInfo)printf
 
@@ -186,13 +184,7 @@ static void DecodeHardwareCommand(UplinkCommands command){
         uint16_t args[1] = {1};
         command_print("Hw Cmd: Transmit off\n");
         SimulateSwCommand(SWCmdNSSpaceCraftOps,SWCmdOpsDCTTxInhibit,args,1); //Send to others
-        CommandInhibitTransmitting();
 
-    } else if(GetCurrentDownlinkState()==TransmitInhibit){
-        uint16_t args[1] = {0};
-        command_print("HW Cmd: Resume transmitting\n");
-        SimulateSwCommand(SWCmdNSSpaceCraftOps,SWCmdOpsDCTTxInhibit,args,1); //Send to others
-        CommandResumeTransmitting();
     }
 }
 
@@ -328,9 +320,7 @@ void OpsSWCommands(CommandAndArgs *comarg){
     case SWCmdOpsDCTTxInhibit:
         if(comarg->arguments[0] != 0) { // True means to inhibit it
             command_print("SW:Inhibit transmitting\n");
-            CommandInhibitTransmitting();
         } else {
-            CommandResumeTransmitting();
             command_print("SW:Uninhibit transmitting\n");
         }
         break;
@@ -340,8 +330,8 @@ void OpsSWCommands(CommandAndArgs *comarg){
         bool normalPowerHigh = comarg->arguments[myCpuIndex+2]; //Arg 2 and 3 are for normal
         command_print("Select Power Level; for this DCT, safe=%s,normal=%s\n",safePowerHigh?"high":"low",
                 normalPowerHigh?"high":"low");
-        SetSafeRfPowerLevel(safePowerHigh);
-        SetNormalRfPowerLevel(normalPowerHigh);
+        //SetSafeRfPowerLevel(safePowerHigh);
+        //SetNormalRfPowerLevel(normalPowerHigh);
 #if 0
         WriteMRAMTelemLowPower();
         ax5043_set_frequency(freq);
@@ -387,7 +377,7 @@ void TlmSWCommands(CommandAndArgs *comarg){
         uint16_t lowPower = comarg->arguments[myCpuIndex]; // Arg 0 and 1 are for low
         uint16_t highPower = comarg->arguments[myCpuIndex+2]; //Arg 2 and 3 are for high
         command_print("Drive power reg for this proc are Low: %d, high: %d\n",lowPower,highPower);
-        SetDCTDriveValue(lowPower,highPower);
+        //SetDCTDriveValue(lowPower,highPower);
         break;
     }
 

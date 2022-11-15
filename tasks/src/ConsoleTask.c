@@ -56,12 +56,10 @@
 #include "inet.h"
 #include "errors.h"
 #include "gpioDriver.h"
-#include "DownlinkControl.h"
 #include "LinearInterp.h"
 #include "Buzzer.h"
 #include "keyfile.h"
 #include "MinMaxCalcs.h"
-#include "TelemetryCollection.h"
 //Extern definition
 extern uint8_t SWCmdRing[SW_CMD_RING_SIZE],SWCmdIndex;
 
@@ -426,8 +424,8 @@ void RealConsoleTask(void)
         }
 
         case GetRfPower:
-            printf("Safe Rf Power Level is %s\n",GetSafeRfPowerLevel()?"HIGH":"LOW");
-            printf("Normal Rf Power Level is %s\n",GetNormalRfPowerLevel()?"HIGH":"LOW");
+            //printf("Safe Rf Power Level is %s\n",GetSafeRfPowerLevel()?"HIGH":"LOW");
+            //printf("Normal Rf Power Level is %s\n",GetNormalRfPowerLevel()?"HIGH":"LOW");
             break;
 
         case SelectRFPowerLevels:
@@ -500,10 +498,10 @@ void RealConsoleTask(void)
             break;
         }
         case ignoreUmb:
-            OverrideUmbilical(true);
+            //OverrideUmbilical(true);
             break;
         case noticeUmb:
-            OverrideUmbilical(false);
+            //OverrideUmbilical(false);
             break;
         case restartCAN:{
             CANPacket_t readData;
@@ -535,12 +533,6 @@ void RealConsoleTask(void)
             break;
         }
 
-        case getState:{
-             char * stateNames[]=
-                 {"None","Health","Safe","SafeBcon","Autosafe","AutoSfBcon","TransmitInhibit"};
-            printf("Current downlink state is %s\n",stateNames[GetCurrentDownlinkState()]);
-            break;
-        }
         case inhibitTx:{
             SimulateHWCommand(CMD_TX_OFF);
             break;
@@ -654,16 +646,11 @@ void RealConsoleTask(void)
         case noToneTx:{
                 printf("Turning off tone; telemetry enabled\n");
                 AudioSetMixerSource(MixerSilence);
-                DisableTelemetry(false);
-                BeaconOff();
                 break;
         case toneTx: {
                 printf("Sending a tone\n");
                 AudioSetMixerSource(MixerSilence);  //Stop everything
-                BeaconOff();
                 AudioSetMixerSource(MixerTone);
-                DisableTelemetry(true);
-                BeaconOn();
                 break;
             }
         }

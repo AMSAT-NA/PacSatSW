@@ -21,7 +21,7 @@
  *
  *
  ***************************************************************************************/
-
+#if 0
 
 #include <pacsat.h> /* Must precede stdio */
 #include "stdio.h"
@@ -241,3 +241,4 @@ void PrintBufferData(){
            BufferBeingEmptied);
 
 }
+#endif

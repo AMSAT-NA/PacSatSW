@@ -17,11 +17,9 @@
 #include "errors.h"
 #include "LinearInterp.h"
 #include "inet.h"
-#include "DownlinkControl.h"
 #include "adc.h"
 
 
-extern bool InSafeMode,InScienceMode,InHealthMode;
 extern rt1Errors_t localErrorCollection;
 
 extern char *ErrMsg[], *LIHUErrMsg[],*TaskNames[];
@@ -186,25 +184,6 @@ void DisplayTelemetry(uint32_t typeRequested){
         printf("I2c device state:\n"
                 "    ICR ADC: %d    Solar ADC:   %d,   CSS ADC: %d\n",
                 ICRTelemIsOk(),SolarTelemIsOk(),CSSTelemIsOk());
-
-        if(InSafeMode){
-            printf("In SAFE mode\n\r");
-        }
-        if(InScienceMode){
-            printf("In SCIENCE mode");
-        }
-
-        if (InHealthMode){
-            printf("in HEALTH mode");
-        }
-        if(!InSafeMode){
-            printf(" with transponder ");
-            if(IsTransponderEnabled()){
-                printf("ENABLED\n\r");
-            } else {
-                printf("DISABLED\n\r");
-            }
-        }
 
         printf("MRAM State Values:\n\r"
                 " CommandedSafeMode=%d,Autosafe=%d\n\r"

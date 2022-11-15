@@ -41,8 +41,6 @@
 #include "gpioDriver.h"
 #include "ConsoleTask.h"
 #include "CommandTask.h"
-#include "TelemetryCollection.h"
-#include "DownlinkControl.h"
 #include "TelemetryRadio.h"
 #include "RTISetup.h"
 #include "nonvol.h"
@@ -283,8 +281,6 @@ void ConsoleTask(void *pvParameters){
      */
    xTaskCreate(CommandTask, "Command", COMMAND_STACK_SIZE,
                 NULL,COMMAND_PRIORITY, NULL);
-    xTaskCreate(DownlinkCtrlTask,"DwnLnk",DOWNLINK_STACK_SIZE,
-                NULL,DOWNLINK_PRIORITY,NULL);
     xTaskCreate(TelemetryRadioTask,"Radio",RADIO_STACK_SIZE,
                 NULL,RADIO_PRIORITY,NULL);
 

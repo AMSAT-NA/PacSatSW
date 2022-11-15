@@ -10,7 +10,6 @@
 #include "string.h"
 #include "os_task.h"
 #include "downlink.h"
-#include "TelemetryCollection.h"
 #include "MET.h"
 #include "errors.h"
 #include "MRAMmap.h"
@@ -20,7 +19,6 @@
 #include "CANQueueManagement.h"
 #include "ADS7828.h"
 #include "inet.h"
-#include "DownlinkControl.h"
 #include "nonvolManagement.h"
 
 static uint8_t  TelemetryResets=0; /* Could be extern, but not used anywhere else */
