@@ -73,97 +73,42 @@ static uint32_t DCTTxFreq,DCTRxFreq;
 extern bool InSafeMode,InScienceMode,InHealthMode;
 extern bool TransponderEnabled,onOrbit,SimDoppler;
 extern resetMemory_t SaveAcrossReset;
-extern uint16_t WODFrequency,NumWODSaved;
-extern int32_t WODHkStoreIndex,WODSciStoreIndex,WODSciFetchIndex,WODHkFetchIndex;
-extern int32_t WODRagStoreIndex,WODRagFetchIndex;
 extern char *ErrMsg[];
 
 bool TestPlayDead=false;
 
-static const uint16_t one=1,zero=0;
 
 enum {
     nada=0
+
     ,getTemp
-    ,getDeploy
-    ,com1test
-    ,com2test
     ,reset
     ,resetBoth
-    ,resetOther
-    ,resetAll
-    ,resetLIHU
-    ,reason4reset
     ,startWD
-    ,loop
     ,preflight
-    ,enTransp
-    ,disTransp
     ,time
-    ,showOtherCoord
-    ,takeControl
-    ,dropControl
     ,version
-    ,endianTest
     ,clrMinMax
     ,getI2cState
     ,internalWDTimeout
     ,externalWDTimeout
     ,telem0
-    ,telem1
-    ,telem2
-    ,telem3
-    ,telem5
-    ,telemDiag
-    ,setTimeouts
     ,pollI2c
-    ,ShowWODRange
-    ,ShowWODContents
-    ,changeWODSaved
     ,readMRAMsr
     ,writeMRAMsr
-    ,swapBus
     ,dropBus
-    ,getMode
     ,healthMode
-    ,safeMode
-    ,scienceMode
     ,inhibitTx
-    ,eclipseAction
     ,getState
     ,toneTx
     ,noToneTx
     ,testLED
-    ,testAlert
-    ,fastWOD
-    ,defaultWOD
-    ,standardWOD
     ,restartCAN
-    ,resetWODStore
-    ,turnOnVUC
     ,initMRAM
-    ,DeployUHF1
-    ,DeployUHF2
-    ,DeployVHF
-    ,DeployMultiband
-    ,DeployPanelL
-    ,DeployPanelR
-    ,DeployDeorbit
-    ,DeployAll
-    ,DeployInitial
-    ,SetInOrbit
-    ,ClearInOrbit
-    ,TestBuzzer
     ,enbCanPrint
     ,dsbCanPrint
     ,EnableComPr
     ,DisableComPr
-    ,EnableTimePr
-    ,DisableTimePr
-    ,EnableEclipsePr
-    ,DisableEclipsePr
-    ,corModeOn
-    ,corModeOff
     ,GetRfPower
     ,SelectRFPowerLevels
     ,SetDCTDrivePower
@@ -177,31 +122,19 @@ enum {
     ,ignoreUmb
     ,noticeUmb
     ,initSaved
-    ,GRadiationTlm
     ,DisablePA
     ,EnablePA
     ,StartADC1
     ,StartADC2
     ,ReadADC1
     ,ReadADC2
-    ,TestOneWire
     ,TestMemScrub
-    ,SetFakeEclipse
     ,GetCommands
     ,GetGpios
     ,getax5043
     ,getRSSI
-    ,simDoppler
-    ,stopDoppler
-    ,deployBusCAN
-    ,deployBusI2c
-    ,deployBusAgree
-    ,deployBusEither
     ,testRxFreq
     ,testPLLrange
-    ,testEttusCAN
-    ,testShutdownEttusCAN
-    ,testFakeDead
     ,HelpAll
     ,HelpDevo
     ,HelpSetup
@@ -219,65 +152,33 @@ commandPairs setupCommands[] = {
                                 ,{"lower rx freq","Lower the command frequency by n Hz",LowerRxFreq}
                                 ,{"save freq","Save the current frequency in MRAM",SaveFreq}
                                 ,{"test freq", "xmit on receive frequency",testRxFreq}
-                                ,{"test com1","Output to com1",com1test}
-                                ,{"test com2","Output to com2",com2test}
                                 ,{"test internal wd","Force internal watchdog to reset CPU",internalWDTimeout}
                                 ,{"test external wd","Force external watchdog to reset CPU",externalWDTimeout}
-                                ,{"test set timeouts","Set orbit time timeouts",setTimeouts}
                                 ,{"test leds","Flash the LEDs in order",testLED}
-                                ,{"test alert","Try beeping at different rates",testAlert}
-                                ,{"test buzzer","Tweaks the alert for 2 seconds at specified pitch",TestBuzzer}
                                 ,{"test adc1","Read group 1 of ADC",StartADC1}
                                 ,{"test adc2","Read group 2 of ADC",StartADC2}
-                                ,{"test onewire","Check for a presence response to a reset",TestOneWire}
+
 };
 commandPairs debugCommands[] = {
+
                                  {"test scrub","Run the memory scrub routine once",TestMemScrub}
-                                ,{"test eclipse","0 for sun, 1 for eclipse",SetFakeEclipse}
                                 ,{"test pll", "test ax5043 PLL frequency range",testPLLrange}
-                                ,{"test ettus can","Send a CAN message to the Ettus",testEttusCAN}
-                                ,{"test ettus shutdown","Shutdown the Ettus via CAN",testShutdownEttusCAN}
-                                ,{"test endian","Output a structure in hex",endianTest}
-                                ,{"test play dead","Make this IHU play dead (no CAN)",testFakeDead}
-                                ,{"simulate doppler","Slowly change the telem transmit frequency",simDoppler}
-                                ,{"stop doppler","Start fixed frequency again",stopDoppler}
                                 ,{"init mram","Initializes MRAM state,WOD,Min/max but does not clear InOrbit--testing only",initMRAM}
                                 ,{"load key","Load an authorization key for uplink commands",LoadKey}
                                 ,{"reset ihu","Reset this processor",reset}
                                 ,{"reset both","Reset both primary and secondary processor",resetBoth}
-                                ,{"reset other","Reset the other processor from the one we are on",resetOther}
-                                ,{"reset all","Reset all processors including LIHU",resetAll}
-                                ,{"reset lihu","Reset only the LIHU",resetLIHU}
                                 ,{"reset can","Reset the CAN devices",restartCAN}
-                                ,{"set cor mode","Disable RF Control for autonomous RxTx",corModeOn}
-                                ,{"clear cor mode","Enable RF Control for controlled RxTx",corModeOff}
                                 ,{"poll i2c","Poll to see which I2c devices are there",pollI2c}
                                 ,{"inhibit tx","Simulate FCC command to turn off tx",inhibitTx}
                                 ,{"get mram sr","Get the MRAM status register",readMRAMsr}
                                 ,{"get downlink size","Debug-get sizes of downlink payloads and frames",showDownlinkSize}
                                 ,{"get temp","Get RT-IHU board temperature",getTemp}
-                                ,{"set bus can","Set the bus used for the deploy command",deployBusCAN}
-                                ,{"set bus i2c","Set the bus used for the deploy command",deployBusI2c}
-                                ,{"set bus agree","I2c and CAN must agree for the deploy command",deployBusAgree}
-                                ,{"set bus either","Use either I2c or CAN for the deploy command",deployBusEither}
-};
+                             };
 commandPairs commonCommands[] = {
-                                 {"get deploy","Get i2c deploy status",getDeploy}
-                                 ,{"get reset","Why did the processor reset?",reason4reset}
-                                 ,{"get i2c","What I2c devices are working?",getI2cState}
+                                  {"get i2c","What I2c devices are working?",getI2cState}
                                  ,{"get time","Display reset number and seconds",time}
-                                 ,{"get lihu state","Get the LIHU's current IHU Coordination State",showOtherCoord}
                                  ,{"get status","Get some general status info",telem0}
                                  ,{"get rssi","Get the current RSSI reading from the AX5043 Rx",getRSSI}
-                                 ,{"get realtime telem","Display a health payload",telem1}
-                                 ,{"get max telem","Display a max payload",telem2}
-                                 ,{"get min telem","Display a min payload",telem3}
-                                 ,{"get rad telem","Display a Vanderbilt experiment payload",GRadiationTlm}
-                                 ,{"get wod range","Get the indices for WOD",ShowWODRange}
-                                 ,{"get wod contents","Get the full WOD contents",ShowWODContents}
-                                 ,{"get wod telemetry","Get a WOD payload",telem5}
-                                 ,{"get diag telemetry","Get a diagnostic payload",telemDiag}
-                                 ,{"get mode","Get the current mode",getMode}
                                  ,{"get state","Mainly for debug: Get the current state of the downlink state machine",getState}
                                  ,{"get version","Get the software version number and build time",version}
                                  ,{"get rf power","Print the RF power settings",GetRfPower}
@@ -285,26 +186,14 @@ commandPairs commonCommands[] = {
                                  ,{"get gpios","Display the values of all GPIOS",GetGpios}
                                  ,{"get ax","Get ax5043 status",getax5043}
                                  ,{"health mode","Set health mode",healthMode}
-                                 ,{"safe mode","Set safe mode",safeMode}
-                                 ,{"science mode","Set science mode",scienceMode}
-                                 ,{"set eclipse action","Set the action taken entring an eclipse",eclipseAction}
                                  ,{"set dct drive power","Set drive power for high and low power",SetDCTDrivePower}
                                  ,{"select dct power","Set rf power used in safe or normal modes",SelectRFPowerLevels}
                                  ,{"set mram sr","Set the MRAM status register",writeMRAMsr}
-                                 ,{"set wod saved","Set the number of WOD records to be saved",changeWODSaved}
-                                 ,{"set wod fast","Set the WOD collection frequency fast for debugging",fastWOD}
-                                 ,{"set wod normal","Set the WOD collection frequency to standard",standardWOD}
                                  ,{"set pa on","Turn on the RF power amp",EnablePA}
                                  ,{"set pa off","Turn off the RF power amp",DisablePA}
-                                 ,{"set inorbit flag","Use after preflight init to avoid delay",SetInOrbit}
                                  ,{"start watchdog","Start the watchdog",startWD}
-                                 ,{"loop","Loop without resetting watchdog",loop}
                                  ,{"preflight init","Initialize MRAM etc for flight",preflight}
                                  ,{"clear minmax","Clear the min, max, and CIU counts",clrMinMax}
-                                 ,{"init wod store","Clear all the WOD info",resetWODStore}
-                                 ,{"take control","Take control from the LIHU",takeControl}
-                                 ,{"drop control","Drop control to let the LIHU take over",dropControl}
-                                 ,{"swap bus","Simulate a commmand to swap the bus to the opposite processor",swapBus}
                                  ,{"drop bus","Assert a fail briefly so the bus switches drop out",dropBus}
                                  ,{"ignore umbilical","Allow radios to go on with umbilical connected",ignoreUmb}
                                  ,{"heed umbilical","Reverse effects of ignore umbilical",noticeUmb}
@@ -312,28 +201,13 @@ commandPairs commonCommands[] = {
                                  ,{"disable canprint","Debug can--number follows",dsbCanPrint}
                                  ,{"enable comprint","Show uplink commands",EnableComPr}
                                  ,{"disable comprint","Turn off uplink command print",DisableComPr}
-                                 ,{"enable timeprint","Turn on print of time updates 1=infrequent, 2=frequent",EnableTimePr}
-                                 ,{"disable timeprint","Turn off print of time updates 1=infrequent, 2=frequent",DisableTimePr}
-                                 ,{"enable eclipseprint","Turn on print of action on entering eclipse",EnableEclipsePr}
-                                 ,{"disable eclipseprint","Turn on print of action on entering eclipse",DisableEclipsePr}
-                                 ,{"enable vuc","make sure the experiment can turn on",turnOnVUC}
-                                 ,{"enable transponder","Let transponder turn on when not in safe mode",enTransp}
-                                 ,{"disable transponder","Prevent turning on when not in safe mode",disTransp}
-                                 ,{"deploy uhf1","Deploy UFH1 Tx Antenna",DeployUHF1}
-                                 ,{"deploy uhf2","Deploy UHF antenna",DeployUHF2}
-                                 ,{"deploy vhf","",DeployVHF}
-                                 ,{"deploy multi","",DeployMultiband}
-                                 ,{"deploy panel left" ,"", DeployPanelL}
-                                 ,{"deploy panel right" ,"", DeployPanelR}
-                                 ,{"deploy deorbit" ,"", DeployDeorbit}
-                                 ,{"deploy initial","Only the antennas that deploy autonomously",DeployInitial}
-                                 ,{"deploy all","Does not do deorbit--can add 'override'",DeployAll}
                                  ,{"helpall","List all commands",HelpAll}
                                  ,{"helpdevo","List commands for software devlopers",HelpDevo}
                                  ,{"helpsetup","List commands for setting up new board",HelpSetup}
                                  ,{"help","List common commands",Help}
                                  ,{"","",0}
-};
+                                 };
+
 char * ResetReasons[] = {
                          0,0,0,
                          "External",
@@ -408,27 +282,6 @@ void RealConsoleTask(void)
             printf("Unknown command\n");
             break;
         }
-        case testFakeDead:{
-            int test = parseNumber(afterCommand);
-            if(test == 0){
-                printf("1 = play dead; 2 = come to life\n");
-            }
-            if(test==1){
-                TestPlayDead = true;
-                SWIDoBusSwitch();
-            }
-            else
-                TestPlayDead = false;
-        }
-        case simDoppler:{
-            SimDoppler = true;
-            WriteMRAMTelemFreq(DCT_DEFAULT_TX_FREQ+10000);
-            break;
-        }
-        case stopDoppler:{
-            SimDoppler=false;
-            WriteMRAMTelemFreq(DCT_DEFAULT_TX_FREQ);
-        }
         case GetGpios:{
             int i;
             char *gpioNames[NumberOfGPIOs]={
@@ -462,44 +315,6 @@ void RealConsoleTask(void)
         }
         case TestMemScrub:{
             ScrubECCMemory((uint64_t *)0x08000000,0x20000);
-            break;
-        }
-        case endianTest:{
-#if 1 /* For testing diag downlink*/
-            infrequentDownlink_t test;
-            uint32_t *test32 = (uint32_t *)&test;
-            uint8_t *test8 = (uint8_t *)&test;
-            test32[1] = 0xffffffff;
-            test.UTCHours = 0x16;
-            test.UTCMinutes = 0x3f;
-            test.UTCSeconds = 0x3f;
-            test.UTCDay = 0x0;
-            test.UTCMonth = 0;
-            test.UTCYear = 0x0;
-            test.UTCValid = 1;
-            printf("32 bit version of struct is %08x bytes low to high are %x %x %x %x\n",
-                   test32[2],test8[8],test8[9],test8[10],test8[11]);
-#else
-            struct xxx {
-                unsigned int a0:1;
-                unsigned int a1:1;
-                unsigned int a2:1;
-                unsigned int a3:1;
-                unsigned int a4:1;
-                unsigned int a5:1;
-                unsigned int a6:2;
-            } test;
-            uint8_t *testbyte = (uint8_t *)&test;
-            test.a0=1;
-            test.a1=0;
-            test.a2=1;
-            test.a3=0;
-            test.a4=1;
-            test.a5=0;
-            test.a6 = 3;
-
-            printf("Value is 0x%x\n",*testbyte);
-#endif
             break;
         }
         case StartADC1:{
@@ -570,11 +385,6 @@ void RealConsoleTask(void)
             WriteMRAMCommandFreq(DCTRxFreq);
             break;
         }
-        case initSaved:
-            IHUInitSaved();
-            DCTTxFreq = ReadMRAMTelemFreq();
-            DCTRxFreq = ReadMRAMCommandFreq();
-            break;
         case LoadKey:{
             uint8_t key[16],i;
             uint32_t magic = ENCRYPTION_KEY_MAGIC_VALUE,checksum=0;
@@ -633,13 +443,6 @@ void RealConsoleTask(void)
             SimulateSwCommand(SWCmdNSSpaceCraftOps,SWCmdOpsSelectDCTRFPower,args,4); //Send to others
             break;
         }
-        case eclipseAction:{
-            uint16_t arg;
-            arg = parseNumber(afterCommand);
-            printf("Set eclipse action to %d\n",arg);
-            SimulateSwCommand(SWCmdNSSpaceCraftOps,SWCmdOpsSetEclipseAction,&arg,1);
-            break;
-        }
         case SetDCTDrivePower:
         {
             uint16_t args[4];
@@ -691,33 +494,9 @@ void RealConsoleTask(void)
 
              break;
          }
-
-
-        case corModeOn:{
-            GPIOSetOff(IhuRfControl);
-            break;
-        }
-        case corModeOff:{
-            GPIOSetOn(IhuRfControl);
-            break;
-        }
         case initMRAM:{
             MRAMInit();
             WriteMRAMBoolState(StateInOrbit,true); // Don't get confused by in orbit state!
-            break;
-        }
-        case TestBuzzer:{
-            int pitch;
-            pitch = parseNumber(afterCommand);
-            Buzzer(SECONDS(2),pitch);
-            break;
-        }
-        case SetInOrbit:{
-            WriteMRAMBoolState(StateInOrbit,true);
-            break;
-        }
-        case ClearInOrbit:{
-            WriteMRAMBoolState(StateInOrbit,false);
             break;
         }
         case ignoreUmb:
@@ -725,19 +504,6 @@ void RealConsoleTask(void)
             break;
         case noticeUmb:
             OverrideUmbilical(false);
-            break;
-        case resetWODStore:
-            /* Clear out all the WOD and reset the indices */
-            WriteMRAMWODSciDownlinkIndex(0);
-            WriteMRAMWODHkDownlinkIndex(0);
-            WriteMRAMWODRagDownlinkIndex(0);
-            WriteMRAMWODHkStoreIndex(0);
-            WriteMRAMWODSciStoreIndex(0);
-            WriteMRAMWODRagStoreIndex(0);
-            WODSciStoreIndex = 0;
-            WODRagStoreIndex = 0;
-            WODHkStoreIndex = 0;
-            MRAMInitWOD();
             break;
         case restartCAN:{
             CANPacket_t readData;
@@ -750,16 +516,6 @@ void RealConsoleTask(void)
                 printf("CAN2 read return:  Msg Box=%d, status=%d\n",i,
                        CANReadMessage(CAN2,i,&readData));
             }
-            break;
-        }
-        case fastWOD:{
-            WODFrequency=4;
-            printf("Frequency set to collection rate/4\n");
-            break;
-        }
-        case standardWOD:{
-            WODFrequency = ReadMRAMWODFreq();
-            printf("Frequency set to collection rate/%d",WODFrequency);
             break;
         }
         case testLED:{
@@ -785,14 +541,6 @@ void RealConsoleTask(void)
             printf("Current downlink state is %s\n",stateNames[GetCurrentDownlinkState()]);
             break;
         }
-        case enTransp:{
-            SimulateSwCommand(SWCmdNSSpaceCraftOps,SWCmdOpsEnableTransponder,&one,1);
-            break;
-        }
-        case disTransp:{
-            SimulateSwCommand(SWCmdNSSpaceCraftOps,SWCmdOpsEnableTransponder,&zero,1);
-            break;
-        }
         case inhibitTx:{
             SimulateHWCommand(CMD_TX_OFF);
             break;
@@ -803,32 +551,8 @@ void RealConsoleTask(void)
         case DisableComPr:
             EnableCommandPrint(false);
             break;
-        case getMode:{
-            if(InSafeMode){
-                char * autoStr;
-                autoStr = InAutoSafeMode()?" (auto)":InEclipseSafeMode()?" (eclipse)":"";
-                 printf("Satellite is in%s safe mode\n",autoStr);
-             } else if (InScienceMode) {
-                 printf("Satellite is in science mode\n");
-             } else if (InHealthMode){
-                 printf("Satellite is in health mode\n");
-             } else {
-                 printf("Satellite is in UNKNOWN MODE\n");
-             }
-            break;
-        }
         case healthMode:{
             SimulateSwCommand(SWCmdNSSpaceCraftOps,SWCmdOpsHealthMode,NULL,0);
-            break;
-        }
-        case safeMode:{
-            SimulateSwCommand(SWCmdNSSpaceCraftOps,SWCmdOpsSafeMode,NULL,0);
-            break;
-        }
-        case scienceMode:{
-            uint16_t time = parseNumber(afterCommand);
-            if(time==0)time=5;
-            SimulateSwCommand(SWCmdNSSpaceCraftOps,SWCmdOpsScienceMode,&time,1);
             break;
         }
 #define primaryProc 1
@@ -837,20 +561,6 @@ void RealConsoleTask(void)
         case dropBus:{
             SWIDoBusSwitch();
             vTaskDelay(2); // Give the bus time to switch before doing anything else
-            break;
-        }
-
-        case ShowWODRange:{
-            DisplayWODRange(false);
-            break;
-        }
-        case ShowWODContents:{
-            DisplayWODRange(true); //Special type to show the range
-            break;
-        }
-        case changeWODSaved:{
-            uint16_t size = parseNumber(afterCommand);
-            ChangeWODSaved(size);
             break;
         }
         case readMRAMsr:{
@@ -886,31 +596,6 @@ void RealConsoleTask(void)
             DisplayTelemetry(0);
             break;
         }
-        case telem1:{
-            DisplayTelemetry(RT_HK_PAYLOAD);
-            break;
-        }
-        case telem2:{
-            DisplayTelemetry(MAX_VALS_PAYLOAD);
-            break;
-        }
-        case telem3:{
-            DisplayTelemetry(MIN_VALS_PAYLOAD);
-            break;
-        }
-        case GRadiationTlm:{
-            DisplayTelemetry(RT_RAD_PAYLOAD);
-            break;
-        }
-        case telem5:{
-            DisplayTelemetry(WOD_HK_PAYLOAD);
-            break;
-        }
-        case telemDiag:{
-            DisplayTelemetry(DIAGNOSTIC_PAYLOAD);
-            break;
-        }
-
         case clrMinMax:{
             ClearMinMax();
             break;
@@ -1006,19 +691,11 @@ void RealConsoleTask(void)
             break;
 
         }
-        case loop:{
-            while(1){};
-        }
         case startWD:{
             SWISetWDTimer();
             dwdReset();
             SWIStartWatchdog();
             break;
-        }
-        case resetAll:{
-            uint16_t args[]={1,1,1};
-            SimulateSwCommand(SWCmdNSSpaceCraftOps,SWCmdOpsResetSpecified,args,3);
-            vTaskDelay(CENTISECONDS(50));
         }
         case resetBoth:{
             uint16_t args[]={0,1,1};
@@ -1028,11 +705,6 @@ void RealConsoleTask(void)
         case reset:{
             vTaskDelay(CENTISECONDS(50));
             ProcessorReset();
-            break;
-        }
-        case resetLIHU:{
-            uint16_t args[]={1,0,0};
-            SimulateSwCommand(SWCmdNSSpaceCraftOps,SWCmdOpsResetSpecified,args,3);
             break;
         }
         case getTemp:{

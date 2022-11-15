@@ -103,7 +103,7 @@ void ClearMinMax() {
     minData.commonMin.Current10GHz = MRAM_MAX8;
     minData.deltaMin.IHUresetCnt = currentTime.IHUresetCnt;
     minData.deltaMin.METcount = currentTime.METcount;
-    minData.MinCrc = computeCRC((uint32_t *)&minData, CRClen(minData));
+    //minData.MinCrc = computeCRC((uint32_t *)&minData, CRClen(minData));
     printIf("Writing min to MRAM...");
     NVstatus = writeNV(&minData, sizeof(minData), ExternalMRAMData, (int) &(MRAMaddr->minData));
     if (NVstatus == false) { ReportError(MRAMwrite, false, ReturnAddr, (int)ClearMinMax);}
@@ -174,12 +174,12 @@ void ClearMinMax() {
 
     maxData.deltaMax.IHUresetCnt = currentTime.IHUresetCnt;
     maxData.deltaMax.METcount = currentTime.METcount;
-    maxData.MaxCrc = computeCRC((uint32_t *)&maxData, CRClen(maxData));
+    //maxData.MaxCrc = computeCRC((uint32_t *)&maxData, CRClen(maxData));
     printIf("Writing max to MRAM...");
 
     NVstatus = writeNV(&maxData, sizeof(maxData), ExternalMRAMData, (int) &(MRAMaddr->maxData));
     if (NVstatus == false) { ReportError(MRAMwrite, false, ReturnAddr, (int)ClearMinMax);}
-    SetMramCRCGood();
+    //SetMramCRCGood();
     WriteMinMaxResetSeconds(currentTime.METcount);
     WriteMinMaxResetEpoch(currentTime.IHUresetCnt);
 
@@ -201,7 +201,7 @@ void MinMaxUpdate(WODHkMRAM_t *buffer) {
     const MRAMmap_t *ptr = (MRAMmap_t *) 0;
     MRAMMin_t MinInfo; /* PSU's stored telemetry values read from MRAM */
     MRAMMax_t MaxInfo;
-    uint32_t computedCRC;
+    //uint32_t computedCRC;
     int updateMinCnt = 0,updateMaxCnt=0; /* count min/max changes */
     logicalTime_t currentTime;
 
@@ -225,25 +225,25 @@ void MinMaxUpdate(WODHkMRAM_t *buffer) {
     NVstatus=readNV(&MinInfo, sizeof(MRAMMin_t), ExternalMRAMData, (int) &(ptr->minData));
     if (NVstatus == false) { ReportError(MRAMread, false, ReturnAddr, (int)MinMaxUpdate);
     }
-    computedCRC = computeCRC((uint32_t *) &MinInfo, sizeof(MinInfo)/4-1);
-    if (computedCRC != MinInfo.MinCrc) {
+    //computedCRC = computeCRC((uint32_t *) &MinInfo, sizeof(MinInfo)/4-1);
+    //if (computedCRC != MinInfo.MinCrc) {
         // Error--remember it.
-        ReportError(MRAMcrc, false, ReturnAddr, (int)MinMaxUpdate);
-        SetMramCRCError(); // Remember there was an error for telemetry
-        updateMinCrc = true;  // Write a working CRC so we won't keep repeating this over and over.
-    }
+    //    ReportError(MRAMcrc, false, ReturnAddr, (int)MinMaxUpdate);
+        //SetMramCRCError(); // Remember there was an error for telemetry
+    //    updateMinCrc = true;  // Write a working CRC so we won't keep repeating this over and over.
+    //}
 
 
     NVstatus=readNV(&MaxInfo, sizeof(MRAMMax_t), ExternalMRAMData, (int) &(ptr->maxData));
     if (NVstatus == false) { ReportError(MRAMread, false, ReturnAddr, (int)MinMaxUpdate);
     }
-    computedCRC = computeCRC((uint32_t *) &MaxInfo, sizeof(MaxInfo)/4-1);
-    if (computedCRC != MaxInfo.MaxCrc) {
+    //computedCRC = computeCRC((uint32_t *) &MaxInfo, sizeof(MaxInfo)/4-1);
+    //if (computedCRC != MaxInfo.MaxCrc) {
         // Error--remember it.
-        ReportError(MRAMcrc, false, ReturnAddr, (int)MinMaxUpdate);
-        SetMramCRCError(); // Remember there was an error for telemetry
-        updateMaxCrc = true;  // Write a working CRC so we won't keep repeating this over and over.
-    }
+     //   ReportError(MRAMcrc, false, ReturnAddr, (int)MinMaxUpdate);
+        //SetMramCRCError(); // Remember there was an error for telemetry
+      //  updateMaxCrc = true;  // Write a working CRC so we won't keep repeating this over and over.
+    //}
 
 
     GetMinMax(busV)
@@ -329,7 +329,7 @@ void MinMaxUpdate(WODHkMRAM_t *buffer) {
             MinInfo.deltaMin.IHUresetCnt = currentTime.IHUresetCnt;
             MinInfo.deltaMin.METcount = currentTime.METcount;
         }
-        MinInfo.MinCrc = computeCRC((void *) &MinInfo, sizeof(MinInfo)/4-1); /* update the CRC field */
+        //MinInfo.MinCrc = computeCRC((void *) &MinInfo, sizeof(MinInfo)/4-1); /* update the CRC field */
         NVstatus=writeNV(&MinInfo, sizeof(MinInfo), ExternalMRAMData, (int) &(ptr->minData));
         if (NVstatus == false) ReportError(MRAMwrite, false, ReturnAddr, (int) MinMaxUpdate);
 
@@ -339,7 +339,7 @@ void MinMaxUpdate(WODHkMRAM_t *buffer) {
             MaxInfo.deltaMax.IHUresetCnt = currentTime.IHUresetCnt;
             MaxInfo.deltaMax.METcount = currentTime.METcount;
         }
-        MaxInfo.MaxCrc = computeCRC((void *) &MaxInfo, sizeof(MaxInfo)/4-1); /* update the CRC field */
+        //MaxInfo.MaxCrc = computeCRC((void *) &MaxInfo, sizeof(MaxInfo)/4-1); /* update the CRC field */
         NVstatus=writeNV(&MaxInfo, sizeof(MaxInfo), ExternalMRAMData, (int) &(ptr->maxData));
         if (NVstatus == false) ReportError(MRAMwrite, false, ReturnAddr, (int) MinMaxUpdate);
     }

@@ -72,8 +72,6 @@ bool CANPrintTelemetry,CANPrintCoord,CANPrintCommands,CANPrintAny,CANPrintCount,
  */
 
 rt1Errors_t localErrorCollection;
-rt1Errors_t standbyErrorCollection[DIAG_PAYLOAD_NUMBER_OF_BUFFERS];
-legacyErrors_t legacyErrorCollection[DIAG_PAYLOAD_NUMBER_OF_BUFFERS];
 int currentStandbyDiagIndex=0,currentLegacyDiagIndex=0;
 
 //Module variables
@@ -285,8 +283,6 @@ void ConsoleTask(void *pvParameters){
      */
    xTaskCreate(CommandTask, "Command", COMMAND_STACK_SIZE,
                 NULL,COMMAND_PRIORITY, NULL);
-    xTaskCreate(TelemetryCollectTask, "Telem", TELEMETRY_STACK_SIZE,
-                NULL,TELEMETRY_PRIORITY, NULL);
     xTaskCreate(DownlinkCtrlTask,"DwnLnk",DOWNLINK_STACK_SIZE,
                 NULL,DOWNLINK_PRIORITY,NULL);
     xTaskCreate(TelemetryRadioTask,"Radio",RADIO_STACK_SIZE,

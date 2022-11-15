@@ -288,6 +288,7 @@ portTASK_FUNCTION_PROTO(DownlinkCtrlTask, pvParameters){
          * it is too low.  Come out if it is high enough after we went into safe because of low
          * power.
          */
+#if 0
         if(IsStabilizedAfterBoot() && allowAutoSafeMode){
             uint8_t battery;
             if(getBusVoltage(&battery)){ //Only do if battery reading is valid
@@ -303,6 +304,7 @@ portTASK_FUNCTION_PROTO(DownlinkCtrlTask, pvParameters){
                 }
             }
         }
+#endif
         if(status==true && !DoNotSendTelemetry){
             DownlinkStates newState;
             IntertaskMessageType message = msgReceived.MsgType;

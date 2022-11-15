@@ -19,7 +19,6 @@ typedef struct _commandPairs {
 } commandPairs;
 
 void printHelp(char *search,commandPairs *commands, int numberOfCommands);
-void DisplayWODRange(bool contents);
 void print8BitTemp(uint8_t temp8);
 void DisplayTelemetry(uint32_t typeRequested);
 void PreflightInitNow(CanIDNode cameFrom);

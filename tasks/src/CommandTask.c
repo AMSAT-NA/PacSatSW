@@ -45,14 +45,10 @@ static void DecodeHardwareCommand(UplinkCommands);
 static void DecodeSoftwareCommand(uint32_t);
 static void TlmSWCommands(CommandAndArgs *comarg);
 static void OpsSWCommands(CommandAndArgs *comarg);
-static void InternalSWCommands(CommandAndArgs *comarg);
 static void DispatchSoftwareCommand(SWCmdUplink *uplink,bool local);
 bool AuthenticateSoftwareCommand(SWCmdUplink *uplink);
 bool CommandTimeOK(SWCmdUplink *uplink);
 
-static void EnableAutosafe(void);
-static void DisableAutosafe(void);
-static void SetAutosafe(uint16_t into, uint16_t outof);
 
 static bool PrintCommandInfo = false,CommandTimeEnabled = false;
 static bool VUCIsDisabled=false;
@@ -130,27 +126,7 @@ void CommandTask(void *pvParameters)
                 WriteMRAMCommandReceived(true);
                 FallbackTimerActive = false;
             }
-            if(msg.MsgType == CmdTypeValidatedSoftwareCAN) {
-                SWCmdUplink uplink;
-                uplink.address = OUR_ADDRESS;
-                uplink.namespaceNumber = msg.argument;
-                uplink.comArg.command = msg.argument2;
-                uplink.comArg.arguments[0] = msg.data[0];
-                uplink.comArg.arguments[1] = msg.data[1];
-                uplink.comArg.arguments[2] = msg.data[2];
-                uplink.comArg.arguments[3] = msg.data[3];
-                DispatchSoftwareCommand(&uplink,false);
-            } else if (msg.MsgType == CmdTypeValidatedSoftwareLocal){
-                SWCmdUplink uplink;
-                uplink.address = OUR_ADDRESS;
-                uplink.namespaceNumber = msg.argument;
-                uplink.comArg.command = msg.argument2;
-                uplink.comArg.arguments[0] = msg.data[0];
-                uplink.comArg.arguments[1] = msg.data[1];
-                uplink.comArg.arguments[2] = msg.data[2];
-                uplink.comArg.arguments[3] = msg.data[3];
-                DispatchSoftwareCommand(&uplink,true);
-            } else if(msg.MsgType == CmdTypeRawSoftware){
+            if(msg.MsgType == CmdTypeRawSoftware){
                 DecodeSoftwareCommand(msg.argument);
             } else if(msg.MsgType == CmdTypeHardware){
                 int fixedUp=0;
@@ -166,6 +142,7 @@ void CommandTask(void *pvParameters)
                 DecodeHardwareCommand((UplinkCommands)fixedUp);
             }
         } else {
+            // Just another timed thing not really related to this task
             GPIOSetOn(LED3); // Turn the light off (so command light was on about 2 seconds)
         }
     }
@@ -205,7 +182,6 @@ static void DecodeHardwareCommand(UplinkCommands command){
      * we get when the hardware device on the receiver finds a command and sends it
      * to the IHU.  No alt sequence decoding on Golf.
      */
-    UplinkCommands previousState = (UplinkCommands)0;
     if(command & CMD_TX_OFF) {
         uint16_t args[1] = {1};
         command_print("Hw Cmd: Transmit off\n");
@@ -218,23 +194,6 @@ static void DecodeHardwareCommand(UplinkCommands command){
         SimulateSwCommand(SWCmdNSSpaceCraftOps,SWCmdOpsDCTTxInhibit,args,1); //Send to others
         CommandResumeTransmitting();
     }
-#ifdef UNDEFINE_BEFORE_FLIGHT /*The following stuff is purely diagnostics */
-    if(command & CMD_LIHU_OFF){
-        command_print("HW Cmd: LIHU off\n"); // I'm not sure we need to do anything.  His tough luck!
-    } else if (previousState & CMD_LIHU_OFF){
-        command_print("HW Cmd: LIHU on\n");
-    }
-    if(command & CMD_RTIHU_PRIM_OFF){
-        command_print("HW Cmd: Primary RTIHU off"); // I'm not sure we need to do anything.  His tough luck!
-    } else if (previousState & CMD_RTIHU_PRIM_OFF){
-        command_print("HW Cmd: Primary RTIHU on\n"); // I'm not sure we need to do anything.  His tough luck!
-    }
-    if(command & CMD_RTIHU_SECOND_OFF){
-        command_print("HW Cmd: Secondary RTIHU off"); // I'm not sure we need to do anything.  His tough luck!
-    } else if (previousState & CMD_RTIHU_SECOND_OFF){
-        command_print("HW Cmd: Secondary RTIHU on\n"); // I'm not sure we need to do anything.  His tough luck!
-    }
-#endif
 }
 
 void DispatchSoftwareCommand(SWCmdUplink *uplink,bool local){
@@ -277,90 +236,60 @@ void DispatchSoftwareCommand(SWCmdUplink *uplink,bool local){
         TlmSWCommands(&uplink->comArg);
         break;
     }
-    case SWCmdNSInternal:{
-        InternalSWCommands(&uplink->comArg);
-        break;
-    }
     default:
         printf("Unknown namespace %d\n\r",nameSpace);
         localErrorCollection.DCTCmdFailNamespaceCnt++;
         return;
 
     }
-
-
 }
-void InternalSWCommands(CommandAndArgs *comarg){
-    switch((int)comarg->command){
-    case SWCmdIntAutosafeMode:
-        SendSafeModeMsg(true); // We are going to autosafe--either we decided to or got a command from controller
-        command_print("Internal Autosafe\n");
-        break;
-    case SWCmdIntEclipsesafeMode:
-        SendEclipseSafeModeMsg();
-        command_print("Internal Eclipse Safe\n");
-        break;
-    case SWCmdIntEclipseInhibTx:{
-        bool forceOff = ((comarg->arguments[0]) != 0);
-        ForceTransmittersOff(forceOff);
-        if(PrintCommandInfo){
-            if(forceOff){
-                printf("Internal: Force Tx Off\n");
-            } else {
-                printf("Internal: Allow Tx On\n");
-            }
-        }
-        break;
-    }
-    case SWCmdIntEclipseInhibXpond:{
-        bool inhibit = ((comarg->arguments[0]) != 0);
-        InhibitTransponder(inhibit);
-        if(PrintCommandInfo){
-            if(inhibit){
-                printf("Internal: Temp inhibit transponder\n");
-            } else {
-                printf("Internal: Remove temp transponder inhibit\n");
-            }
-        }
-        break;
-    }
-    }
-}
+
+/*
+ * Just for initial pacsat code most of the operations that commands do are commented out.  We just
+ * print the command so the uplink can be tested.
+ */
+
 void OpsSWCommands(CommandAndArgs *comarg){
 
     switch((int)comarg->command){
+
+    // This first group is intended to write states into the MRAM
+
     case SWCmdOpsDisableAutosafe:
         command_print("Disable Autosafe Command\n\r");
-        DisableAutosafe();
+        //DisableAutosafe();
         break;
     case SWCmdOpsEnableAutosafe:
         command_print("Enable Autosafe Command\n\r");
-        EnableAutosafe();
+        //EnableAutosafe();
         break;
     case SWCmdOpsSetAutosafeVoltages:{
         uint16_t into=comarg->arguments[0],outof=comarg->arguments[1];
         command_print("Set autosafe voltages %d %d\n",into,outof);
-        SetAutosafe(into,outof);
+        //SetAutosafe(into,outof);
         break;
     }
+
+    //Now we get to other stuff
+
     case SWCmdOpsSafeMode:{
         command_print("Safe mode command\n");
-        SendSafeModeMsg(false); // False forced it to not be autosafe
+        //SendSafeModeMsg(false); // False forced it to not be autosafe
         break;
     }
     case SWCmdOpsHealthMode:
         command_print("Health mode \n");
-        SendHealthModeMsg();
+        //SendHealthModeMsg();
         break;
     case SWCmdOpsScienceMode:{
         int timeout = comarg->arguments[0];
         if(timeout<=0)timeout = 1; // Just in case
-        SendScienceModeMsg(timeout);
+        //SendScienceModeMsg(timeout);
         break;
     }
     case SWCmdOpsClearMinMax:
         command_print("Clear minmax\n");
-        ClearMinMax();
+        //ClearMinMax();
         break;
 
     case SWCmdOpsEnableTransponder: {
@@ -372,7 +301,7 @@ void OpsSWCommands(CommandAndArgs *comarg){
         } else {
             command_print("Disable transponder\n\r");
         }
-        EnableTransponder(turnOn);
+        //EnableTransponder(turnOn);
         break;
     }
     case SWCmdOpsNoop:
@@ -386,11 +315,6 @@ void OpsSWCommands(CommandAndArgs *comarg){
             ProcessorReset();
         break;
     }
-    case SWCmdOpsSetGyroReg:
-        command_print("Command set gyro reg %x to %x\n\r",comarg->arguments[0],
-                      comarg->arguments[1]);
-        //GyroWriteOneRegister(comarg->arguments[0],(uint8_t )comarg->arguments[1]);
-        break;
     case SWCmdOpsEnableCommandTimeCheck:{
         EnableCommandTimeCheck(comarg->arguments[0] != 0);
         if(CommandTimeEnabled){
@@ -427,11 +351,7 @@ void OpsSWCommands(CommandAndArgs *comarg){
 
         break;
     }
-    case SWCmdOpsSelectLegacyRFPower:
-        command_print("Tlm Select Power, safe=%d, normal=%d\n\r",comarg->arguments[0],comarg->arguments[1]);
-        break;
-
-    default:
+     default:
         localErrorCollection.DCTCmdFailCommandCnt++;
         command_print("Unknown Ops Command %d\n\r",comarg->command);
         break;
@@ -455,7 +375,7 @@ void TlmSWCommands(CommandAndArgs *comarg){
     switch(comarg->command){
     case SWCmdTlmWODSaveSize:
         command_print("Change WOD size to %d\n\r",comarg->arguments[0]);
-        ChangeWODSaved(comarg->arguments[0]);
+        //ChangeWODSaved(comarg->arguments[0]);
         break;
 
     case SWCmdTlmLegacyGain:
@@ -594,40 +514,6 @@ bool CommandTimeOK(SWCmdUplink *uplink){
     return goodTime;
 }
 
-/**********************************************************************************
- * These routines are called only from within this module. They are for actually
- * executing commands
- ***********************************************************************************/
-
-
-static void EnableAutosafe(void){
-    SetAllowAutoSafe(true);
-
-}
-static void DisableAutosafe(void){
-    SetAllowAutoSafe(false);
-}
-
-static void SetAutosafe(uint16_t into, uint16_t outof){
-    /*
-     * Set the autosafe voltage from the command, but first
-     * do a bit of checking to be sure we don't really hose the system
-     */
-    if(into > outof){
-        // If this happened, autosafe would not work right
-        uint16_t temp=into;
-        into = outof;
-        outof = temp;
-    }
-    if((outof-into) < AUTOSAFE_MIN_HYSTERESIS){
-        outof = into + AUTOSAFE_MIN_HYSTERESIS;
-    }
-    WriteMRAMEnterAutosafe(into);
-    WriteMRAMExitAutosafe(outof);
-    SetAutosafeVoltages();
-
-}
-
 
 /*********************************************************************************
  * These routines are called from different tasks
@@ -680,61 +566,6 @@ void incomingRawSoftwareCommand(uint8_t *packet) {
 
 }
 
-#if 0
-
-void incomingCANRawSoftwareCommand(CANPacket_t *packet){
-    /*
-     * This routine is called from CANSupport (and thus executes in that task's context)
-     * when it receives an incoming raw software command packet.  This routines job
-     * is to collect the packets of the long message, and then send them in an intertask
-     * message to the command task for decoding.
-     *
-     * This routine gets called for each CAN packet, but only when the full message has been
-     * received do we send the intertask message.
-     */
-    static CANLongBitmap bitmap={0,0};              // This is for the multi-packet CAN message.
-    static uint8_t CanRawCommand[SW_UPLINK_BYTES];  // This is the actual CAN message
-    static uint8_t swCommandBufferIndex=0;          // And this is the index for the double-buffered message
-    // sent to the command task.
-    bool stat=false;
-    int i,bitNum=0,byteNum=0;
-
-    // Take the incoming packet and parse it out into the longer CanRawCommand buffer
-    stat = CANReceiveLongMessage(packet,CanRawCommand, &bitmap,SW_UPLINK_BYTES);
-    if(stat){
-        // Here we have the whole CanRawCommand
-        Intertask_Message msg;
-        command_print("Incoming CAN software command received\n");
-        CANInitLongMessage(&bitmap); // Restart it for the next time
-        for(i=0;i<SW_UPLINK_BITS;i++){
-            /*
-             * Turn the single bits into the bytes that the FEC decode wants.  We could
-             * send the packed version that comes over the CAN and do all this in the
-             * command task, but then the code would be more different than it is from the
-             * LIHU
-             */
-            if(CanRawCommand[byteNum] & 1<<bitNum){
-                UplinkCommandBuffer[0][i]=0xff;
-            }
-            else {
-                UplinkCommandBuffer[0][i]=0;
-            }
-            if(++bitNum >=8){
-                bitNum=0;
-                byteNum++;
-            }
-        }
-        stat = false; // Get it ready for next time
-        msg.MsgType = CmdTypeRawSoftware;
-        msg.argument = swCommandBufferIndex++; // If we allow several commands, this will be the array index to UplinkCommandBuffer
-        if(swCommandBufferIndex >= SW_UPLINK_BUFFERS)swCommandBufferIndex = 0;
-        ReportToWatchdog(CurrentTaskWD);
-        NotifyInterTask(ToCommand,WATCHDOG_MAX_WAIT_TIME,(Intertask_Message *)&msg);
-        ReportToWatchdog(CurrentTaskWD);
-        return;
-    }
-}
-#endif
 /*
  * Here are the timeout callbacks relating to commands
  */

@@ -6,6 +6,7 @@
 
 /* Fox header files */
 
+#if 0
 #include <pacsat.h>
 #include "TMS570Hardware.h"
 #include "ihuSpecificIncludes.h"
@@ -537,4 +538,4 @@ bool getBusVoltage(uint8_t *volts) {
 #endif
     return false;
 }
-
+#endif

@@ -4,7 +4,7 @@
  *  Created on: Mar 9, 2014
  *      Author: Mike McCann KB2GHZ
  */
-
+#define TELEMETRYCOLLECTION_H_
 #ifndef TELEMETRYCOLLECTION_H_
 #define TELEMETRYCOLLECTION_H_
 
