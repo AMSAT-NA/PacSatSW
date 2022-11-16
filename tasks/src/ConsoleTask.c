@@ -137,6 +137,7 @@ enum {
     ,HelpDevo
     ,HelpSetup
     ,Help
+    ,Prime
 };
 
 
@@ -171,6 +172,7 @@ commandPairs debugCommands[] = {
                                 ,{"get mram sr","Get the MRAM status register",readMRAMsr}
                                 ,{"get downlink size","Debug-get sizes of downlink payloads and frames",showDownlinkSize}
                                 ,{"get temp","Get RT-IHU board temperature",getTemp}
+                                ,{"prime","Do prime number benchmark",Prime}
                              };
 commandPairs commonCommands[] = {
                                   {"get i2c","What I2c devices are working?",getI2cState}
@@ -278,6 +280,32 @@ void RealConsoleTask(void)
 
         case nada: {
             printf("Unknown command\n");
+            break;
+        }
+        case Prime:{
+            int n, i,flag, count=0, ms1,ms2;
+            int maxNumber = parseNumber(afterCommand);
+            if(maxNumber<2)maxNumber=2;
+            ms1=xTaskGetTickCount();
+            for(n=2;n<maxNumber;n++){
+                flag = 0; //Init to assume it is prime
+
+                for (i = 2; i <= n / 2; ++i) {
+
+                    // if n is divisible by i, then n is not prime
+                    // change flag to 1 for non-prime number
+                    if (n % i == 0) {
+                        flag = 1;
+                        break;
+                    }
+                }
+
+                // flag is 0 for prime numbers
+                if (flag == 0)
+                    count++;
+            }
+            ms2 = xTaskGetTickCount();
+            printf("There are %d primes less than %d; This took %d centiseconds\n",count,maxNumber,(ms2-ms1));
             break;
         }
         case GetGpios:{
