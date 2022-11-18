@@ -6,5 +6,4 @@
 /.config
 /.launches
 *.DS_Store
-/.ccsproject
-/.cproject
+
