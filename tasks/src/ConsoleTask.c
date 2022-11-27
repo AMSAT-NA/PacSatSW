@@ -282,6 +282,21 @@ void RealConsoleTask(void)
             printf("Unknown command\n");
             break;
         }
+        case initSaved:{
+            int i;
+            uint8_t data[]={8,0,0,0,0,0,0,0};
+            bool stat;
+            stat = writeNV(data, 8,ExternalMRAMData, 0); // Write a 0 at the bottom of memory
+            printf("Stat for first write is %d\n",stat);
+            for(i=0;i<128;i+=8){
+                int address = i*1024;
+                data[0] = 0;
+                writeNV(data,8,ExternalMRAMData,address);
+                readNV(data,8,ExternalMRAMData,0);
+                printf("MRAM at address 0 is now %d\n",data[0]);
+            }
+            break;
+        }
         case Prime:{
             int n, i,flag, count=0, ms1,ms2;
             int maxNumber = parseNumber(afterCommand);

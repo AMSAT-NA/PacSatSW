@@ -46,7 +46,7 @@ bool writeNV(void const * const data, uint32_t dataLength,NVType type, uint32_t 
         writeCommand.byte[2] = framAddress.byte[2];
         writeCommand.byte[3] = framAddress.byte[3];
 
-        SPISendCommand(MRAMDev, writeCommand.word,4, /* Now write    */
+        SPISendCommand(MRAMDev, writeCommand.word,3, /* Now write    */
                        (uint8_t *)data,dataLength,  NULL,0);
         // Reuse 'writeCommand' as a buffer with the length and address to send to another CPU
 
@@ -76,11 +76,11 @@ bool readNV(void *data, uint32_t dataLength, NVType type, uint32_t nvAddress){
         retry=SPI_MRAM_RETRIES;
         while(retry-- > 0){
             /* Retry a few times before we give up */
-            if(SPISendCommand(MRAMDev, framAddress.word,4,0,0,
+            if(SPISendCommand(MRAMDev, framAddress.word,3,0,0,
                               (uint8_t *)data, dataLength)){
                 return TRUE;
             }
-            //			IHUSoftErrorData.SPIRetries++;
+            //          IHUSoftErrorData.SPIRetries++;
         }
         ReportError(SPIMramTimeout,TRUE,ReturnAddr,(int)__builtin_return_address(0));
     }
