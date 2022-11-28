@@ -154,7 +154,7 @@ void _c_int00(void)
         SaveAcrossReset.fields.errorCode = PowerCycle;
 /* USER CODE END */
         /* Add condition to check whether PLL can be started successfully */
-        if (_errata_SSWF021_45_pll1(PLL_RETRIES) != 0U)
+        if (_errata_SSWF021_45_both_plls(PLL_RETRIES) != 0U)
         {
             /* Put system in a safe state */
 			handlePLLLockFail();
@@ -369,7 +369,7 @@ void _c_int00(void)
      * The CPU RAM is a single-port memory. The actual "RAM Group" for all on-chip SRAMs is defined in the
      * device datasheet.
      */
-    pbistRun(0x00100020U, /* ESRAM Single Port PBIST */
+    pbistRun(0x00300020U, /* ESRAM Single Port PBIST */
              (uint32)PBIST_March13N_SP);
 
 /* USER CODE BEGIN (32) */

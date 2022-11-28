@@ -77,10 +77,10 @@ void setupPLL(void)
 /* USER CODE BEGIN (3) */
 /* USER CODE END */
 
-    /* Disable PLL1 */
-    systemREG1->CSDISSET = 0x00000002U;
+    /* Disable PLL1 and PLL2 */
+    systemREG1->CSDISSET = 0x00000002U | 0x00000040U;
     /*SAFETYMCUSW 28 D MR:NA <APPROVED> "Hardware status bit read check" */
-    while((systemREG1->CSDIS & 0x2U) != 0x2U)
+    while((systemREG1->CSDIS & 0x42U) != 0x42U)
     {
     /* Wait */
     }
@@ -117,20 +117,33 @@ void setupPLL(void)
                         |  (uint32)((uint32)(2U - 1U) << 9U)
                         |  (uint32)61U;
 
+    /** @b Initialize @b Pll2: */
+
+    /**   - Setup pll2 control register :
+    *     - setup Pll output clock divider to max before Lock
+    *     - Setup reference clock divider
+    *     - Setup internal Pll output divider
+    *     - Setup Pll multiplier
+    */
+    systemREG2->PLLCTL3 = (uint32)((uint32)(2U - 1U) << 29U)
+                        | (uint32)((uint32)0x1FU << 24U)
+                        | (uint32)((uint32)(6U - 1U)<< 16U)
+                        | (uint32)(0x7700U);
+
     /** - Enable PLL(s) to start up or Lock */
     systemREG1->CSDIS = 0x00000000U
                       | 0x00000000U
                       | 0x00000008U
                       | 0x00000080U
                       | 0x00000000U
-                      | 0x00000040U
-                      | 0x00000000U;
+                      | 0x00000000U
+                      | 0x00000000U;  
 }
 
 /** @fn void trimLPO(void)
 *   @brief Initialize LPO trim values
-*
-*   Load TRIM values from OTP if present else call customTrimLPO() function
+*   
+*	Load TRIM values from OTP if present else call customTrimLPO() function   
 *
 */
 /* SourceId : SYSTEM_SourceId_002 */
@@ -146,9 +159,9 @@ void trimLPO(void)
     /*The TRM states OTP TRIM value should be stepped to avoid large changes in the HF LPO clock that would result in a LPOCLKMON fault. At issue is the TRM does not specify what the maximum step is so there is no metric to use for the SW implementation - the routine can temporarily disable the LPOCLKMON range check so the sudden change will not cause a fault.*/
     /* Disable clock range detection*/
     systemREG1->CLKTEST = (systemREG1->CLKTEST 
-                        | (uint32)((uint32)0x1U << 24U))        
-                        & (uint32)(~((uint32)0x1U << 25U));                       
- 
+                        | (uint32)((uint32)0x1U << 24U))
+                        & (uint32)(~((uint32)0x1U << 25U));
+    
     /*SAFETYMCUSW 139 S MR:13.7 <APPROVED> "Hardware status bit read check" */
     if(LPO_TRIM_VALUE != 0xFFFFU)
     {
@@ -189,7 +202,7 @@ void setupFlash(void)
     /** - Setup flash access wait states for bank 7 */
     FSM_WR_ENA_HL    = 0x5U;
     EEPROM_CONFIG_HL = 0x00000002U
-                     | (uint32)((uint32)9U << 16U) ;
+                     | (uint32)((uint32)3U << 16U) ;
 
 /* USER CODE BEGIN (7) */
 /* USER CODE END */
@@ -200,6 +213,7 @@ void setupFlash(void)
     /** - Setup flash bank power modes */
     flashWREG->FBFALLBACK = 0x00000000U
                           | (uint32)((uint32)SYS_ACTIVE << 14U) /* BANK 7 */
+                          | (uint32)((uint32)SYS_ACTIVE << 2U)  /* BANK 1 */
                           | (uint32)((uint32)SYS_ACTIVE << 0U); /* BANK 0 */
 
 /* USER CODE BEGIN (8) */
@@ -299,8 +313,16 @@ void mapClocks(void)
     systemREG1->CLKCNTL  = (systemREG1->CLKCNTL & 0xFFF0FFFFU)
                          | (uint32)((uint32)1U << 16U);
 
-    systemREG2->CLK2CNTL = (systemREG2->CLK2CNTL & 0xFFFFF0FFU)
-                         | (uint32)((uint32)1U << 8U);
+    systemREG2->CLK2CNTL = (systemREG2->CLK2CNTL & 0xFFFFF0F0U)
+                         | (uint32)((uint32)1U << 8U)
+                         | (uint32)((uint32)1U << 0U);
+
+    systemREG2->VCLKACON1 =  (uint32)((uint32)(1U - 1U) << 24U)
+                           | (uint32)((uint32)0U << 20U)
+                           | (uint32)((uint32)SYS_VCLK << 16U)
+                           | (uint32)((uint32)(1U - 1U) << 8U)
+                           | (uint32)((uint32)0U << 4U)
+                           | (uint32)((uint32)SYS_VCLK << 0U);
 
 /* USER CODE BEGIN (13) */
 /* USER CODE END */
@@ -308,6 +330,8 @@ void mapClocks(void)
     /* Now the PLLs are locked and the PLL outputs can be sped up */
     /* The R-divider was programmed to be 0xF. Now this divider is changed to programmed value */
     systemREG1->PLLCTL1 = (systemREG1->PLLCTL1 & 0xE0FFFFFFU) | (uint32)((uint32)(1U - 1U) << 24U);
+    /*SAFETYMCUSW 134 S MR:12.2 <APPROVED> "LDRA Tool issue" */
+    systemREG2->PLLCTL3 = (systemREG2->PLLCTL3 & 0xE0FFFFFFU) | (uint32)((uint32)(1U - 1U) << 24U);
 
     /* Enable/Disable Frequency modulation */
     systemREG1->PLLCTL2 |= 0x00000000U;
@@ -401,6 +425,7 @@ void systemInit(void)
 
     /** - Check if there was an ESM error from FMC OTP read during power-up */
     fmcBus2Check();
+
 
 
 /* USER CODE BEGIN (23) */
@@ -520,8 +545,10 @@ void systemGetConfigValue(system_config_reg_t *config_reg, config_value_type_t t
         config_reg->CONFIG_DEVCR1 = SYS_DEVCR1_CONFIGVALUE;
         config_reg->CONFIG_SYSECR = SYS_SYSECR_CONFIGVALUE;
 
+        config_reg->CONFIG_PLLCTL3 = SYS2_PLLCTL3_CONFIGVALUE_2;
         config_reg->CONFIG_STCCLKDIV = SYS2_STCCLKDIV_CONFIGVALUE;
         config_reg->CONFIG_CLK2CNTL = SYS2_CLK2CNTL_CONFIGVALUE;
+        config_reg->CONFIG_VCLKACON1 = SYS2_VCLKACON1_CONFIGVALUE;
         config_reg->CONFIG_CLKSLIP = SYS2_CLKSLIP_CONFIGVALUE;
         config_reg->CONFIG_EFC_CTLEN = SYS2_EFC_CTLEN_CONFIGVALUE;
     }
@@ -557,8 +584,11 @@ void systemGetConfigValue(system_config_reg_t *config_reg, config_value_type_t t
         config_reg->CONFIG_DEVCR1 = systemREG1->DEVCR1;
         config_reg->CONFIG_SYSECR = systemREG1->SYSECR;
 
+        /*SAFETYMCUSW 134 S MR:12.2 <APPROVED> "LDRA Tool issue" */
+        config_reg->CONFIG_PLLCTL3 = systemREG2->PLLCTL3;
         config_reg->CONFIG_STCCLKDIV = systemREG2->STCCLKDIV;
         config_reg->CONFIG_CLK2CNTL = systemREG2->CLK2CNTL;
+        config_reg->CONFIG_VCLKACON1 = systemREG2->VCLKACON1;
         config_reg->CONFIG_CLKSLIP = systemREG2->CLKSLIP;
         config_reg->CONFIG_EFC_CTLEN = systemREG2->EFC_CTLEN;
     }

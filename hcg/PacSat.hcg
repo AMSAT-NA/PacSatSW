@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <SETTINGS>
   <DEVICE>
-    <family>TMS570LS09x_07x</family>
-    <device>TMS570LS0914PGE</device>
-    <dilfile>rtihu.dil</dilfile>
+    <family>TMS570LS12x</family>
+    <device>TMS570LS1224PGE</device>
+    <dilfile>PacSat.dil</dilfile>
     <tools>ti</tools>
   </DEVICE>
   <VERSION>
@@ -12,20 +12,20 @@
   <HET1>
     <FILENAME>
       <HET1ASMHDR>
-        <NAME>..\TMS570LS04_HET_EMU_SCI\HET_EMU_SCI\HET_EMU_SCI.h</NAME>
+        <NAME>include\HET_EMU_SCI.h</NAME>
       </HET1ASMHDR>
       <HET1ASMSRC>
-        <NAME>..\TMS570LS04_HET_EMU_SCI\HET_EMU_SCI\HET_EMU_SCI.c</NAME>
+        <NAME>source\HET_EMU_SCI.c</NAME>
       </HET1ASMSRC>
     </FILENAME>
   </HET1>
   <HET2>
     <FILENAME>
       <HET2ASMHDR>
-        <NAME>..\HET_EMU_I2C\HET_EMU_I2C.h</NAME>
+        <NAME>include\HET_EMU_I2C.h</NAME>
       </HET2ASMHDR>
       <HET2ASMSRC>
-        <NAME>..\HET_EMU_I2C\HET_EMU_I2C.c</NAME>
+        <NAME>source\HET_EMU_I2C.c</NAME>
       </HET2ASMSRC>
     </FILENAME>
   </HET2>
@@ -182,6 +182,18 @@
       <HDRTEST>
         <NAME>HL_Test.h</NAME>
       </HDRTEST>
+      <SSWFHDRERRATA>
+        <NAME>errata_SSWF021_45.h</NAME>
+        <PATH>include\errata_SSWF021_45.h</PATH>
+      </SSWFHDRERRATA>
+      <SSWFHDREGERRATA>
+        <NAME>errata_SSWF021_45_defs.h</NAME>
+        <PATH>include\errata_SSWF021_45_defs.h</PATH>
+      </SSWFHDREGERRATA>
+      <SSWFSRCERRATA>
+        <NAME>errata_SSWF021_45.c</NAME>
+        <PATH>source\errata_SSWF021_45.c</PATH>
+      </SSWFSRCERRATA>
       <HDRMUX_R>
         <NAME>reg_pinmux.h</NAME>
       </HDRMUX_R>
@@ -224,16 +236,14 @@
       <HDRLIN>
         <NAME>lin.h</NAME>
       </HDRLIN>
-      <SRCLIN>
-        </SRCLIN>
+      <SRCLIN/>
       <HDRMIBSPI_R>
         <NAME>reg_mibspi.h</NAME>
       </HDRMIBSPI_R>
       <HDRMIBSPI>
         <NAME>mibspi.h</NAME>
       </HDRMIBSPI>
-      <SRCMIBSPI>
-        </SRCMIBSPI>
+      <SRCMIBSPI/>
       <HDRSPI_R>
         <NAME>reg_spi.h</NAME>
       </HDRSPI_R>
@@ -262,10 +272,10 @@
         <NAME>adc.c</NAME>
       </SRCADC>
       <HET1ASMHDR>
-        <NAME>..\TMS570LS04_HET_EMU_SCI\HET_EMU_SCI\HET_EMU_SCI.h</NAME>
+        <NAME>include\HET_EMU_SCI.h</NAME>
       </HET1ASMHDR>
       <HET1ASMSRC>
-        <NAME>..\TMS570LS04_HET_EMU_SCI\HET_EMU_SCI\HET_EMU_SCI.c</NAME>
+        <NAME>source\HET_EMU_SCI.c</NAME>
       </HET1ASMSRC>
       <STDHDRHET>
         <NAME>std_nhet.h</NAME>
@@ -286,10 +296,10 @@
         <NAME>htu.h</NAME>
       </HDRHTU>
       <HET2ASMHDR>
-        <NAME>..\HET_EMU_I2C\HET_EMU_I2C.h</NAME>
+        <NAME>include\HET_EMU_I2C.h</NAME>
       </HET2ASMHDR>
       <HET2ASMSRC>
-        <NAME>..\HET_EMU_I2C\HET_EMU_I2C.c</NAME>
+        <NAME>source\HET_EMU_I2C.c</NAME>
       </HET2ASMSRC>
       <HDRESM_R>
         <NAME>reg_esm.h</NAME>
@@ -355,7 +365,7 @@
         <NAME>eqep.c</NAME>
       </SRCEQEP>
       <HDR1FEE>
-        <NAME>Device_TMS570LS07.h</NAME>
+        <NAME>Device_TMS570LS12.h</NAME>
       </HDR1FEE>
       <HDR2FEE>
         <NAME>Device_header.h</NAME>
@@ -378,50 +388,22 @@
       <HDR8FEE>
         <NAME>fee_interface.h</NAME>
       </HDR8FEE>
-      <SRC1FEE>
-        </SRC1FEE>
-      <SRC2FEE>
-        </SRC2FEE>
-      <SRC3FEE>
-        </SRC3FEE>
-      <SRC4FEE>
-        </SRC4FEE>
-      <SRC5FEE>
-        </SRC5FEE>
-      <SRC6FEE>
-        </SRC6FEE>
-      <SRC7FEE>
-        </SRC7FEE>
-      <SRC8FEE>
-        </SRC8FEE>
-      <SRC9FEE>
-        </SRC9FEE>
-      <SRC10FEE>
-        </SRC10FEE>
-      <SRC11FEE>
-        </SRC11FEE>
-      <SRC12FEE>
-        </SRC12FEE>
-      <SRC13FEE>
-        </SRC13FEE>
-      <SRC14FEE>
-        </SRC14FEE>
-      <SRC15FEE>
-        </SRC15FEE>
-      <SRC16FEE>
-        </SRC16FEE>
-      <SSWFHDRERRATA>
-        <NAME>errata_SSWF021_45.h</NAME>
-        <PATH>include\errata_SSWF021_45.h</PATH>
-      </SSWFHDRERRATA>
-      <SSWFHDREGERRATA>
-        <NAME>errata_SSWF021_45_defs.h</NAME>
-        <PATH>include\errata_SSWF021_45_defs.h</PATH>
-      </SSWFHDREGERRATA>
-      <SSWFSRCERRATA>
-        <NAME>errata_SSWF021_45.c</NAME>
-        <PATH>source\errata_SSWF021_45.c</PATH>
-      </SSWFSRCERRATA>
+      <SRC1FEE/>
+      <SRC2FEE/>
+      <SRC3FEE/>
+      <SRC4FEE/>
+      <SRC5FEE/>
+      <SRC6FEE/>
+      <SRC7FEE/>
+      <SRC8FEE/>
+      <SRC9FEE/>
+      <SRC10FEE/>
+      <SRC11FEE/>
+      <SRC12FEE/>
+      <SRC13FEE/>
+      <SRC14FEE/>
+      <SRC15FEE/>
+      <SRC16FEE/>
     </FILENAMES>
   </SYSTEM>
   <PINMUX>
@@ -485,7 +467,7 @@
         <PATH>include\lin.h</PATH>
       </HDRLIN>
       <SRCLIN>
-        <PATH></PATH>
+        <PATH/>
       </SRCLIN>
     </FILENAMES>
   </LIN>
@@ -498,7 +480,7 @@
         <PATH>include\mibspi.h</PATH>
       </HDRMIBSPI>
       <SRCMIBSPI>
-        <PATH></PATH>
+        <PATH/>
       </SRCMIBSPI>
     </FILENAMES>
   </MIBSPI>
@@ -543,6 +525,12 @@
   </ADC>
   <HET>
     <FILENAMES>
+      <HET1ASMHDR>
+        <PATH>include\HET_EMU_SCI.h</PATH>
+      </HET1ASMHDR>
+      <HET1ASMSRC>
+        <PATH>source\HET_EMU_SCI.c</PATH>
+      </HET1ASMSRC>
       <STDHDRHET>
         <PATH>include\std_nhet.h</PATH>
       </STDHDRHET>
@@ -561,12 +549,6 @@
       <HDRHTU>
         <PATH>include\htu.h</PATH>
       </HDRHTU>
-      <HET1ASMHDR>
-        <PATH>include\HET_EMU_SCI.h</PATH>
-      </HET1ASMHDR>
-      <HET1ASMSRC>
-        <PATH>source\HET_EMU_SCI.c</PATH>
-      </HET1ASMSRC>
       <HET2ASMHDR>
         <PATH>include\HET_EMU_I2C.h</PATH>
       </HET2ASMHDR>
@@ -669,7 +651,7 @@
   <FEE>
     <FILENAMES>
       <HDR1FEE>
-        <PATH>include\Device_TMS570LS07.h</PATH>
+        <PATH>include\Device_TMS570LS12.h</PATH>
       </HDR1FEE>
       <HDR2FEE>
         <PATH>include\Device_header.h</PATH>
@@ -693,52 +675,52 @@
         <PATH>include\fee_interface.h</PATH>
       </HDR8FEE>
       <SRC1FEE>
-        <PATH></PATH>
+        <PATH/>
       </SRC1FEE>
       <SRC2FEE>
-        <PATH></PATH>
+        <PATH/>
       </SRC2FEE>
       <SRC3FEE>
-        <PATH></PATH>
+        <PATH/>
       </SRC3FEE>
       <SRC4FEE>
-        <PATH></PATH>
+        <PATH/>
       </SRC4FEE>
       <SRC5FEE>
-        <PATH></PATH>
+        <PATH/>
       </SRC5FEE>
       <SRC6FEE>
-        <PATH></PATH>
+        <PATH/>
       </SRC6FEE>
       <SRC7FEE>
-        <PATH></PATH>
+        <PATH/>
       </SRC7FEE>
       <SRC8FEE>
-        <PATH></PATH>
+        <PATH/>
       </SRC8FEE>
       <SRC9FEE>
-        <PATH></PATH>
+        <PATH/>
       </SRC9FEE>
       <SRC10FEE>
-        <PATH></PATH>
+        <PATH/>
       </SRC10FEE>
       <SRC11FEE>
-        <PATH></PATH>
+        <PATH/>
       </SRC11FEE>
       <SRC12FEE>
-        <PATH></PATH>
+        <PATH/>
       </SRC12FEE>
       <SRC13FEE>
-        <PATH></PATH>
+        <PATH/>
       </SRC13FEE>
       <SRC14FEE>
-        <PATH></PATH>
+        <PATH/>
       </SRC14FEE>
       <SRC15FEE>
-        <PATH></PATH>
+        <PATH/>
       </SRC15FEE>
       <SRC16FEE>
-        <PATH></PATH>
+        <PATH/>
       </SRC16FEE>
     </FILENAMES>
   </FEE>
