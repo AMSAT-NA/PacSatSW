@@ -23,6 +23,7 @@
 #include "errors.h"
 #include "CANSupport.h"
 
+
 bool writeNV(void const * const data, uint32_t dataLength,NVType type, uint32_t nvAddress){
     if (type == LocalEEPROMData){
         // This is here just in case there is a way to do this on RT-IHU
@@ -37,8 +38,8 @@ bool writeNV(void const * const data, uint32_t dataLength,NVType type, uint32_t 
 
         framAddress.word = nvAddress;
 
-        writeCommand.byte[0] = FRAM_OP_WREN;
-        SPISendCommand(MRAMDev,writeCommand.word,1, NULL,0, (uint8_t *)data,0);        /* Write enable */
+        MRAMWriteEnable();
+        printf("sr is now %x\n",ReadMRAMStatus());
 
         writeCommand.byte[0] = FRAM_OP_WRITE;
         // The MRAM address is big endian, but so is the processor.
@@ -48,7 +49,6 @@ bool writeNV(void const * const data, uint32_t dataLength,NVType type, uint32_t 
 
         SPISendCommand(MRAMDev, writeCommand.word,3, /* Now write    */
                        (uint8_t *)data,dataLength,  NULL,0);
-        // Reuse 'writeCommand' as a buffer with the length and address to send to another CPU
 
         return TRUE;
     }
@@ -86,12 +86,19 @@ bool readNV(void *data, uint32_t dataLength, NVType type, uint32_t nvAddress){
     }
     return FALSE;
 }
-int ReadMRAMStatus(void){
+uint8_t ReadMRAMStatus(void){
     ByteToWord command;
-    uint8_t data[4];
+    uint8_t data;
     command.byte[0]=FRAM_OP_RDSR;
-    SPISendCommand(MRAMDev,command.word,1,0,0,data,4);
-    return data[2];
+    SPISendCommand(MRAMDev,command.word,1,0,0,&data,1);
+    return data;
+}
+bool MRAMWriteEnable(void){
+    bool stat;
+    ByteToWord command;
+    command.byte[0] = FRAM_OP_WREN;
+    stat = SPISendCommand(MRAMDev,command.word,1, NULL,0,NULL,0);        /* Write enable */
+    return stat;
 }
 void WriteMRAMStatus(uint8_t status){
     ByteToWord command;

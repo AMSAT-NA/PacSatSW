@@ -57,8 +57,7 @@
 #define RTIHU_FW_VERSION_STRING SOFTWARE_TYPE GOLF_NUMBER "." VERSION
 
 ////////////////////////////////////////////This is I/O
-#define PRINTF_COM COM1
-#define SDR_COM COM2
+#define PRINTF_COM COM2
 #define COM1_BAUD 38400
 #define COM2_BAUD 38400
 #ifdef DEBUG

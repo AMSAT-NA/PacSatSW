@@ -22,5 +22,8 @@ bool writeNV(void const * const data, uint32_t dataLength, NVType memoryType, ui
 bool readNV(void *data, uint32_t dataLength, NVType memoryType,  uint32_t address);
 int getSizeNV(NVType type);
 int initNV(NVType type);
+uint8_t ReadMRAMStatus(void);
+void WriteMRAMStatus(uint8_t);
+bool MRAMWriteEnable(void);
 
 #endif /* NONVOL_H_ */

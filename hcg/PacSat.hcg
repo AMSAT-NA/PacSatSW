@@ -12,20 +12,20 @@
   <HET1>
     <FILENAME>
       <HET1ASMHDR>
-        <NAME>include\HET_EMU_SCI.h</NAME>
+        <NAME>..\HET\HET_EMU_SCI.h</NAME>
       </HET1ASMHDR>
       <HET1ASMSRC>
-        <NAME>source\HET_EMU_SCI.c</NAME>
+        <NAME>..\HET\HET_EMU_SCI.c</NAME>
       </HET1ASMSRC>
     </FILENAME>
   </HET1>
   <HET2>
     <FILENAME>
       <HET2ASMHDR>
-        <NAME>include\HET_EMU_I2C.h</NAME>
+        <NAME>..\HET\HET_EMU_I2C.h</NAME>
       </HET2ASMHDR>
       <HET2ASMSRC>
-        <NAME>source\HET_EMU_I2C.c</NAME>
+        <NAME>..\HET\HET_EMU_I2C.c</NAME>
       </HET2ASMSRC>
     </FILENAME>
   </HET2>
@@ -272,10 +272,10 @@
         <NAME>adc.c</NAME>
       </SRCADC>
       <HET1ASMHDR>
-        <NAME>include\HET_EMU_SCI.h</NAME>
+        <NAME>..\HET\HET_EMU_SCI.h</NAME>
       </HET1ASMHDR>
       <HET1ASMSRC>
-        <NAME>source\HET_EMU_SCI.c</NAME>
+        <NAME>..\HET\HET_EMU_SCI.c</NAME>
       </HET1ASMSRC>
       <STDHDRHET>
         <NAME>std_nhet.h</NAME>
@@ -296,10 +296,10 @@
         <NAME>htu.h</NAME>
       </HDRHTU>
       <HET2ASMHDR>
-        <NAME>include\HET_EMU_I2C.h</NAME>
+        <NAME>..\HET\HET_EMU_I2C.h</NAME>
       </HET2ASMHDR>
       <HET2ASMSRC>
-        <NAME>source\HET_EMU_I2C.c</NAME>
+        <NAME>..\HET\HET_EMU_I2C.c</NAME>
       </HET2ASMSRC>
       <HDRESM_R>
         <NAME>reg_esm.h</NAME>

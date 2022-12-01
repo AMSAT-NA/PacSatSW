@@ -138,6 +138,8 @@ enum {
     ,HelpSetup
     ,Help
     ,Prime
+    ,MRAMWrEn
+    ,testMRAM
 };
 
 
@@ -156,6 +158,7 @@ commandPairs setupCommands[] = {
                                 ,{"test leds","Flash the LEDs in order",testLED}
                                 ,{"test adc1","Read group 1 of ADC",StartADC1}
                                 ,{"test adc2","Read group 2 of ADC",StartADC2}
+                                ,{"test mram","Write and read low MRAM",testMRAM}
 
 };
 commandPairs debugCommands[] = {
@@ -173,6 +176,7 @@ commandPairs debugCommands[] = {
                                 ,{"get downlink size","Debug-get sizes of downlink payloads and frames",showDownlinkSize}
                                 ,{"get temp","Get RT-IHU board temperature",getTemp}
                                 ,{"prime","Do prime number benchmark",Prime}
+                                ,{"mram wren","Write enable MRAM",MRAMWrEn}
                              };
 commandPairs commonCommands[] = {
                                   {"get i2c","What I2c devices are working?",getI2cState}
@@ -282,19 +286,31 @@ void RealConsoleTask(void)
             printf("Unknown command\n");
             break;
         }
-        case initSaved:{
-            int i;
-            uint8_t data[]={8,0,0,0,0,0,0,0};
+        case testMRAM:{
+            uint8_t data1[]={9,2,4,6,8,10,12,14},data2[]={7,6,5,4,3,2,1,0};
+            uint8_t rdata1[8]={0,0,0,0,0,0,0,0};
+            uint8_t rdata2[8]={0,0,0,0,0,0,0,0};
+            MRAMWriteEnable();
+            printf("sr is now %x\n",ReadMRAMStatus());
+            writeNV(data1, sizeof(data1), ExternalMRAMData, (int)0);
+            printf("After write, sr is now %x\n",ReadMRAMStatus());
+            readNV(rdata1, sizeof(rdata1), ExternalMRAMData, (int)0);
+            printf("First data read back is %d %d %d %d %d %d %d %d",
+                   rdata1[0],rdata1[1],rdata1[2],rdata1[3],rdata1[4],rdata1[5],rdata1[6],rdata1[7]);
+            writeNV(data2, sizeof(data2), ExternalMRAMData, (int)0);
+            printf("After 2nd write, sr is now %x\n",ReadMRAMStatus());
+            readNV(rdata2, sizeof(rdata2), ExternalMRAMData, (int)0);
+            printf("Second data read back is %d %d %d %d %d %d %d %d",
+                   rdata2[0],rdata2[1],rdata2[2],rdata2[3],rdata2[4],rdata2[5],rdata2[6],rdata2[7]);
+
+            break;
+        }
+        case MRAMWrEn:{
             bool stat;
-            stat = writeNV(data, 8,ExternalMRAMData, 0); // Write a 0 at the bottom of memory
-            printf("Stat for first write is %d\n",stat);
-            for(i=0;i<128;i+=8){
-                int address = i*1024;
-                data[0] = 0;
-                writeNV(data,8,ExternalMRAMData,address);
-                readNV(data,8,ExternalMRAMData,0);
-                printf("MRAM at address 0 is now %d\n",data[0]);
-            }
+            stat=MRAMWriteEnable();
+            printf("stat for Wren is %d; sr is %x\n",stat,ReadMRAMStatus());
+            //readNV(data,8,ExternalMRAMData,0);
+            //printf("MRAM at address 0 and 1 are now now %d and %d\n",data[0],data[1]);
             break;
         }
         case Prime:{

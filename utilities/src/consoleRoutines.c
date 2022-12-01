@@ -227,9 +227,10 @@ void DisplayTelemetry(uint32_t typeRequested){
 }
 
 void printID(void){
-    int boardVersion;
     {
+#if 0 /* On Golf, this would find the board address */
         // Get the board version from the ADC (hey, that's how it is wired!)
+        int boardVersion;
         adcData_t data[4];
         int i=0;
         adcResetFiFo(adcREG1,adcGROUP2);
@@ -245,6 +246,7 @@ void printID(void){
             if(data[i].value > 50)boardVersion |= (1<<i);
 
         }
+#endif
     }
 
 
