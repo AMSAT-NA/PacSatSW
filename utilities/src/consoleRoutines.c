@@ -227,29 +227,6 @@ void DisplayTelemetry(uint32_t typeRequested){
 }
 
 void printID(void){
-    {
-#if 0 /* On Golf, this would find the board address */
-        // Get the board version from the ADC (hey, that's how it is wired!)
-        int boardVersion;
-        adcData_t data[4];
-        int i=0;
-        adcResetFiFo(adcREG1,adcGROUP2);
-        adcStartConversion(adcREG1,adcGROUP2);
-        while(adcIsConversionComplete(adcREG1,adcGROUP2)==0){
-            // Really should be only one tick
-            vTaskDelay(1);
-        }
-        adcStopConversion(adcREG1,adcGROUP2);
-        adcGetData(adcREG1,adcGROUP2,data);
-        boardVersion = 0;
-        for(i=0;i<4;i++){
-            if(data[i].value > 50)boardVersion |= (1<<i);
-
-        }
-#endif
-    }
-
-
     printf("\nAMSAT-NA PacSat Console\n");
     printf("Flight Software %s (built on %s at %s)\n",
            RTIHU_FW_VERSION_STRING, __DATE__, __TIME__);
@@ -265,12 +242,17 @@ void printID(void){
 #else
     printf("**X, E, U, or DEBUG Version: Not configured for flight**\n");
 #endif
-    printf("\nFree heap size is %d\n", xPortGetFreeHeapSize());
 #ifdef WATCHDOG_ENABLE
     printf("Watchdog Enabled\n");
 #else
     printf("Watchdog NOT Enabled\n");
 #endif
+    printf("Using FreeRTOS with"
+#if !configUSE_PREEMPTION
+            "OUT"
+#endif
+            " premption enabled;\n");
+
 
     printf("Free heap size is %d\n",xPortGetFreeHeapSize());
     {

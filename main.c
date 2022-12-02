@@ -226,24 +226,6 @@ void ConsoleTask(void *pvParameters){
 
     ResetAllWatchdogs(); // We waited a bit; better make sure the WDs are happy
     printID();
-     printf("FreeRTOS with"
- #if !configUSE_PREEMPTION
-             "OUT"
- #endif
-             " premption enabled;\n");
-
-
-        printf("Free heap size is %d\n",xPortGetFreeHeapSize());
-    {
-        uint32_t *addr= (uint32_t *)0xf008015c,value,megs,kilos,size;
-        value = ((*addr) & 0xFFFF);
-        megs = value/1024;
-        kilos = value % 1024;
-        printf("Flash memory size %dMb+%dKb; ",megs,kilos);
-        size = getSizeNV(ExternalMRAMData);
-        printf("MRAM size is 0x%x, structure size is 0x%x\n\n\n", size,sizeof(MRAMmap_t));
-
-     }
 
     /*
      * Time to wait for the post-release timer if we have to
