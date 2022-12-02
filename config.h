@@ -15,6 +15,7 @@
 #define GOLF_ID (GOLF_NUMBER[0] - '0') /*Must change if number greater than 9*/
 #define ENGINEERING_MODEL
 #define UNDEFINE_BEFORE_FLIGHT
+#define FRAM64K
 #define DEBUG
 //#define RTIHU_BOARD_LAUNCHPAD
 //#define RTIHU_BOARD_V10

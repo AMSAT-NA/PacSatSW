@@ -287,20 +287,34 @@ void RealConsoleTask(void)
             break;
         }
         case testMRAM:{
-            uint8_t data1[]={9,2,4,6,8,10,12,14},data2[]={7,6,5,4,3,2,1,0};
+            uint8_t data1[]={1,1,1,1,8,10,12,14};
+            uint8_t data2[]={2,2,2,2,3,2,1,30};
             uint8_t rdata1[8]={0,0,0,0,0,0,0,0};
             uint8_t rdata2[8]={0,0,0,0,0,0,0,0};
-            MRAMWriteEnable();
-            printf("sr is now %x\n",ReadMRAMStatus());
-            writeNV(data1, sizeof(data1), ExternalMRAMData, (int)0);
-            printf("After write, sr is now %x\n",ReadMRAMStatus());
-            readNV(rdata1, sizeof(rdata1), ExternalMRAMData, (int)0);
-            printf("First data read back is %d %d %d %d %d %d %d %d",
+
+            int startAddr = parseNumber(afterCommand);
+            printf("Starting at address %d:\n Data 1 should be %d %d %d %d %d %d %d %d\n",
+                   startAddr,
+                   data1[0],data1[1],data1[2],data1[3],data1[4],data1[5],data1[6],data1[7]);
+            writeNV(data1,8, ExternalMRAMData, (int)0);
+            readNV(rdata1,8, ExternalMRAMData, (int)0);
+            printf("First read/write cycle for data 1 is %d %d %d %d %d %d %d %d\n",
                    rdata1[0],rdata1[1],rdata1[2],rdata1[3],rdata1[4],rdata1[5],rdata1[6],rdata1[7]);
-            writeNV(data2, sizeof(data2), ExternalMRAMData, (int)0);
-            printf("After 2nd write, sr is now %x\n",ReadMRAMStatus());
-            readNV(rdata2, sizeof(rdata2), ExternalMRAMData, (int)0);
-            printf("Second data read back is %d %d %d %d %d %d %d %d",
+
+            writeNV(data1,8, ExternalMRAMData, (int)0);
+            readNV(rdata1,8, ExternalMRAMData, (int)0);
+            printf("Second read/write cycle for data 1 is %d %d %d %d %d %d %d %d\n",
+                   rdata1[0],rdata1[1],rdata1[2],rdata1[3],rdata1[4],rdata1[5],rdata1[6],rdata1[7]);
+
+
+            printf("Starting at address %d:\n Data 2 should be %d %d %d %d %d %d %d %d\n",
+                   startAddr,
+                   data2[0],data2[1],data2[2],data2[3],data2[4],data2[5],data2[6],data2[7]);
+
+            writeNV(data2,8, ExternalMRAMData, (int)0);
+            //printf("After 2nd write, sr is now %x\n",ReadMRAMStatus());
+            readNV(rdata2,8, ExternalMRAMData, (int)0);
+            printf("Read back for data 2 is %d %d %d %d %d %d %d %d\n",
                    rdata2[0],rdata2[1],rdata2[2],rdata2[3],rdata2[4],rdata2[5],rdata2[6],rdata2[7]);
 
             break;

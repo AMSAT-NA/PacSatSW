@@ -22,7 +22,11 @@
 #include "spiDriver.h"
 #include "errors.h"
 #include "CANSupport.h"
-
+#ifdef FRAM64K
+#define ADDRESS_BYTES 2
+#else
+#define ADDRESS_BYTES 3
+#endif
 
 bool writeNV(void const * const data, uint32_t dataLength,NVType type, uint32_t nvAddress){
     if (type == LocalEEPROMData){
@@ -39,15 +43,13 @@ bool writeNV(void const * const data, uint32_t dataLength,NVType type, uint32_t 
         framAddress.word = nvAddress;
 
         MRAMWriteEnable();
-        printf("sr is now %x\n",ReadMRAMStatus());
-
         writeCommand.byte[0] = FRAM_OP_WRITE;
         // The MRAM address is big endian, but so is the processor.
         writeCommand.byte[1] = framAddress.byte[1];
         writeCommand.byte[2] = framAddress.byte[2];
         writeCommand.byte[3] = framAddress.byte[3];
 
-        SPISendCommand(MRAMDev, writeCommand.word,3, /* Now write    */
+        SPISendCommand(MRAMDev, writeCommand.word,ADDRESS_BYTES+1, /* Now write    */
                        (uint8_t *)data,dataLength,  NULL,0);
 
         return TRUE;
@@ -76,7 +78,7 @@ bool readNV(void *data, uint32_t dataLength, NVType type, uint32_t nvAddress){
         retry=SPI_MRAM_RETRIES;
         while(retry-- > 0){
             /* Retry a few times before we give up */
-            if(SPISendCommand(MRAMDev, framAddress.word,3,0,0,
+            if(SPISendCommand(MRAMDev, framAddress.word,ADDRESS_BYTES+1,0,0,
                               (uint8_t *)data, dataLength)){
                 return TRUE;
             }
