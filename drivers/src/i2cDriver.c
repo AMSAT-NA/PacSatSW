@@ -181,7 +181,6 @@ bool I2cSendCommand (I2cBusNum busNum, uint32_t address, void *sndBuffer,uint16_
     I2cBusData *thisBusData = I2cBuses[busNum];
     static int taskWithSemaphore = 0;
     bool retVal = true;
-#define MAX31725_ADDR (0x90 >> 1)
     if(sndLength+rcvLength == 0)return false;
 
     if(busUsingOS[busNum]){

@@ -140,11 +140,13 @@ enum {
     ,Prime
     ,MRAMWrEn
     ,testMRAM
+    ,startRx
 };
 
 
 commandPairs setupCommands[] = {
                                  {"init new proc","Init DCT stuff that will be set once for each unit",initSaved}
+                                ,{"start rx","Switch the AX5043 to Receive mode",startRx}
                                 ,{"start tx tone", "Send a tone with 5043", toneTx}
                                 ,{"stop tx tone", "Stop sending the tone",noToneTx}
                                 ,{"raise tx freq","Raise the telem frequency by n Hz",RaiseTxFreq}
@@ -284,6 +286,10 @@ void RealConsoleTask(void)
 
         case nada: {
             printf("Unknown command\n");
+            break;
+        }
+        case startRx:{
+            ax5043StartRx();
             break;
         }
         case testMRAM:{
@@ -799,13 +805,8 @@ void RealConsoleTask(void)
         }
 
         case getRSSI:{
-//            if(IAmStandbyCPU()){
-//                int rssi = get_rssi();
-//                printf("RSSI is %d\n",((int16_t)rssi) - 255);
-//            } else {
-//                printf("Only standby CPU has RSSI on the RT-IHU (for now)\n");
-//            }
-
+                int rssi = get_rssi();
+                printf("RSSI is %d\n",((int16_t)rssi) - 255);
             break;
         }
 #if 0

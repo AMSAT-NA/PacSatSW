@@ -315,14 +315,18 @@ void WriteMRAMCommandFreq(uint32_t freq){
  }
 
 uint32_t ReadMRAMCommandFreq(void){
-    READ_UINT32(DCTRxFrequency,DCT_DEFAULT_RX_FREQ);
+    /* todo: Get the frequency from memory */
+    return 145835000;
+    //READ_UINT32(DCTRxFrequency,DCT_DEFAULT_RX_FREQ);
 }
 void WriteMRAMTelemFreq(uint32_t freq){
     WRITE_UINT32(DCTTxFrequency,freq);
  }
 
 uint32_t ReadMRAMTelemFreq(void){
-    READ_UINT32(DCTTxFrequency,DCT_DEFAULT_TX_FREQ);
+    /* todo: Get the frequency from memory */
+    return 435750000;
+    //READ_UINT32(DCTTxFrequency,DCT_DEFAULT_TX_FREQ);
 }
 void WriteMRAMDCTDriveLowPower(uint32_t regVal){
     WRITE_UINT32(DCTDriveLowPower,regVal);

@@ -270,6 +270,8 @@ void ConsoleTask(void *pvParameters){
     AllTasksStarted = true;
     StartStableCount();
     // Now head off to do the real work of the console task
+    AudioSetMixerSource(MixerTone);
+
     RealConsoleTask();
 }
 void vApplicationIdleHook(){
