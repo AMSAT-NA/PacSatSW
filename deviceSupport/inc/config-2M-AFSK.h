@@ -8,7 +8,7 @@ static void ax5043_set_registers(void)
 	ax5043WriteReg(AX5043_MODULATION,          0x0A);
 	ax5043WriteReg(AX5043_ENCODING,            0x00);
 	ax5043WriteReg(AX5043_FRAMING,             0x06);
-	ax5043WriteReg(AX5043_PINFUNCSYSCLK,       0x01);
+	//ax5043WriteReg(AX5043_PINFUNCSYSCLK,       0x90);// Was 0x1
 	ax5043WriteReg(AX5043_PINFUNCDCLK,         0x01);
 	ax5043WriteReg(AX5043_PINFUNCDATA,         0x01);
 	ax5043WriteReg(AX5043_PINFUNCANTSEL,       0x01);

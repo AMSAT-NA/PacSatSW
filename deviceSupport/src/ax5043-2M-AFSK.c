@@ -96,8 +96,6 @@ static uint8_t ax5043_reset(void)
 	ax5043WriteReg(AX5043_PWRMODE, AX5043_PWRSTATE_POWERDOWN);
 	// Wait some time for regulator startup
 	vTaskDelay(CENTISECONDS(1));
-    ax5043WriteReg(AX5043_PWRMODE, AX5043_PWRSTATE_XTAL_ON); // This is a test!
-    vTaskDelay(CENTISECONDS(1));
 
 	// Check Scratch
 	i = ax5043ReadReg(AX5043_SILICONREVISION);
