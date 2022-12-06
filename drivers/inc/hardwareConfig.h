@@ -190,7 +190,8 @@
 
 #define SPI_MRAM_Reg spiREG1
 #define SPI_MRAM_Select_Port spiPORT1 /*Gpio port for chip select*/
-#define SPI_MRAM_Select_Pin 0
+#define SPI_MRAM0_Select_Pin 0
+#define SPI_MRAM1_Select_Pin 1
 #define SPI_MRAM_Data_Format SPI_FMT_0
 
 #define SPI_DCT_Reg spiREG3

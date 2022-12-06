@@ -193,7 +193,8 @@ void ConsoleTask(void *pvParameters){
     SerialInitPort(COM1,COM1_BAUD, 10,10);//Max of 38400 for the moment
     SerialInitPort(COM2,COM2_BAUD,10,10);
     SPIInit(DCTDev);
-    SPIInit(MRAMDev);
+    SPIInit(MRAM0Dev);
+    SPIInit(MRAM1Dev);
     initNV(ExternalMRAMData); // Make sure MRAM is initialized
     initMET();
     I2cInit(I2C1);

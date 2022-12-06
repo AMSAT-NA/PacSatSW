@@ -27,7 +27,19 @@
 #else
 #define ADDRESS_BYTES 3
 #endif
+static SPIDevice GetMRAMAndAddress(int *addr){
+    int MRAMSize=512*1024;  // todo:  Calculate this from mram size
+    int MRAMNumber=0,numberOfMRAMs=2;
+    while(*addr > MRAMSize){
+        *addr-=MRAMSize;
+        MRAMNumber++;
+        if(MRAMNumber >= numberOfMRAMs){
+            return InvalidSPI;
+        }
+    }
+    return (SPIDevice)(MRAM0Dev+MRAMNumber); //Assume MRAM values are in order
 
+}
 bool writeNV(void const * const data, uint32_t dataLength,NVType type, uint32_t nvAddress){
     if (type == LocalEEPROMData){
         // This is here just in case there is a way to do this on RT-IHU
@@ -39,17 +51,17 @@ bool writeNV(void const * const data, uint32_t dataLength,NVType type, uint32_t 
          */
 
         ByteToWord writeCommand,framAddress;
-
+        SPIDevice mramDev;
         framAddress.word = nvAddress;
-
-        MRAMWriteEnable();
+        mramDev = GetMRAMAndAddress(&framAddress.word)
+        MRAMWriteEnable(mramDev);
         writeCommand.byte[0] = FRAM_OP_WRITE;
         // The MRAM address is big endian, but so is the processor.
         writeCommand.byte[1] = framAddress.byte[1];
         writeCommand.byte[2] = framAddress.byte[2];
         writeCommand.byte[3] = framAddress.byte[3];
 
-        SPISendCommand(MRAMDev, writeCommand.word,ADDRESS_BYTES+1, /* Now write    */
+        SPISendCommand(mramDev, writeCommand.word,ADDRESS_BYTES+1, /* Now write    */
                        (uint8_t *)data,dataLength,  NULL,0);
 
         return TRUE;
@@ -63,13 +75,12 @@ bool readNV(void *data, uint32_t dataLength, NVType type, uint32_t nvAddress){
         return false;
     } else if (type == ExternalMRAMData){
         ByteToWord framAddress,ourAddress;
+
         /*
          * See comments above regarding writing the MRAM
          */
 
         ourAddress.word = nvAddress;
-        //if(!IsStabilizedAfterBoot())return TRUE;
-
         framAddress.byte[1] = ourAddress.byte[1];  // Address is big-endian.
         framAddress.byte[2] = ourAddress.byte[2];  // Address is big-endian.
         framAddress.byte[3] = ourAddress.byte[3];  // Address is big-endian.
@@ -95,20 +106,20 @@ uint8_t ReadMRAMStatus(void){
     SPISendCommand(MRAMDev,command.word,1,0,0,&data,1);
     return data;
 }
-bool MRAMWriteEnable(void){
+bool MRAMWriteEnable(SPIDevice mramNum){
     bool stat;
     ByteToWord command;
     command.byte[0] = FRAM_OP_WREN;
-    stat = SPISendCommand(MRAMDev,command.word,1, NULL,0,NULL,0);        /* Write enable */
+    stat = SPISendCommand(mramNum,command.word,1, NULL,0,NULL,0);        /* Write enable */
     return stat;
 }
-void WriteMRAMStatus(uint8_t status){
+void WriteMRAMStatus(SPIDevice mramNum,uint8_t status){
     ByteToWord command;
     command.byte[0] = FRAM_OP_WREN;
-    SPISendCommand(MRAMDev,command.word,1,0,0,0,0);
+    SPISendCommand(mramNum,command.word,1,0,0,0,0);
     command.byte[0] = FRAM_OP_WRSR;
     command.byte[1] = status;
-    SPISendCommand(MRAMDev,command.word,2,0,0,0,0);
+    SPISendCommand(mramNum,command.word,2,0,0,0,0);
 
 
 }
