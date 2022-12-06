@@ -286,6 +286,7 @@ void RealConsoleTask(void)
 
         case nada: {
             printf("Unknown command\n");
+
             break;
         }
         case startRx:{
