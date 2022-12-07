@@ -104,9 +104,14 @@ bool readNV(void *data, uint32_t dataLength, NVType type, uint32_t nvAddress){
     return FALSE;
 }
 uint8_t ReadMRAMStatus(SPIDevice mram){
+    /*
+     * MRAM documentation says that if RDSR is executed immediately after READ, the results
+     * will be wrong.  One solution they say is to read it twice.
+     */
     ByteToWord command;
     uint8_t data;
     command.byte[0]=FRAM_OP_RDSR;
+    SPISendCommand(mram,command.word,1,0,0,&data,1);
     SPISendCommand(mram,command.word,1,0,0,&data,1);
     return data;
 }
