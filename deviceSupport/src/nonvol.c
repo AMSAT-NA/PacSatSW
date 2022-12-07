@@ -27,7 +27,7 @@
 #else
 #define ADDRESS_BYTES 3
 #endif
-static SPIDevice GetMRAMAndAddress(int *addr){
+static SPIDevice GetMRAMAndAddress(uint32_t *addr){
     int MRAMSize=512*1024;  // todo:  Calculate this from mram size
     int MRAMNumber=0,numberOfMRAMs=2;
     while(*addr > MRAMSize){
@@ -53,7 +53,7 @@ bool writeNV(void const * const data, uint32_t dataLength,NVType type, uint32_t 
         ByteToWord writeCommand,framAddress;
         SPIDevice mramDev;
         framAddress.word = nvAddress;
-        mramDev = GetMRAMAndAddress(&framAddress.word)
+        mramDev = GetMRAMAndAddress(&framAddress.word);
         MRAMWriteEnable(mramDev);
         writeCommand.byte[0] = FRAM_OP_WRITE;
         // The MRAM address is big endian, but so is the processor.
@@ -71,6 +71,7 @@ bool writeNV(void const * const data, uint32_t dataLength,NVType type, uint32_t 
 
 bool readNV(void *data, uint32_t dataLength, NVType type, uint32_t nvAddress){
     int retry;
+    SPIDevice mramDev;
     if (type == LocalEEPROMData){
         return false;
     } else if (type == ExternalMRAMData){
@@ -81,6 +82,9 @@ bool readNV(void *data, uint32_t dataLength, NVType type, uint32_t nvAddress){
          */
 
         ourAddress.word = nvAddress;
+        mramDev = GetMRAMAndAddress(&ourAddress.word);
+
+
         framAddress.byte[1] = ourAddress.byte[1];  // Address is big-endian.
         framAddress.byte[2] = ourAddress.byte[2];  // Address is big-endian.
         framAddress.byte[3] = ourAddress.byte[3];  // Address is big-endian.
@@ -89,7 +93,7 @@ bool readNV(void *data, uint32_t dataLength, NVType type, uint32_t nvAddress){
         retry=SPI_MRAM_RETRIES;
         while(retry-- > 0){
             /* Retry a few times before we give up */
-            if(SPISendCommand(MRAMDev, framAddress.word,ADDRESS_BYTES+1,0,0,
+            if(SPISendCommand(mramDev, framAddress.word,ADDRESS_BYTES+1,0,0,
                               (uint8_t *)data, dataLength)){
                 return TRUE;
             }
@@ -99,11 +103,11 @@ bool readNV(void *data, uint32_t dataLength, NVType type, uint32_t nvAddress){
     }
     return FALSE;
 }
-uint8_t ReadMRAMStatus(void){
+uint8_t ReadMRAMStatus(SPIDevice mram){
     ByteToWord command;
     uint8_t data;
     command.byte[0]=FRAM_OP_RDSR;
-    SPISendCommand(MRAMDev,command.word,1,0,0,&data,1);
+    SPISendCommand(mram,command.word,1,0,0,&data,1);
     return data;
 }
 bool MRAMWriteEnable(SPIDevice mramNum){
@@ -123,41 +127,47 @@ void WriteMRAMStatus(SPIDevice mramNum,uint8_t status){
 
 
 }
-int getSizeNV(NVType type){
+int getSizeNV(NVType x){
+    return 1000000;
+}
+#if 0
+int getMRAMSize(SPIDevice dev){
     /*
      * This routine 'knows' about the FRAM and the on-board FLASH data sizes
      * although it knows about the FRAM via a define in fram.h.  For the flash,
      * it just returns the (known) size.  For FRAM, it checks to see that there
      * is a non-0 status return before returning the known FRAM size.
      */
-    static int framSize=0;
-    if (type == ExternalMRAMData){
-        int temp1M,temp4M;
-        /* For the IHU board, it could be using either 1M or 4M */
-        /* We find out by writing a number to each max address and
-         * seeing which one comes back.  For the smaller part, the 4M address
-         * wraps and ends up at the same address as the 1M address */
-        const int end1M=FRAM_1M_ADDRESS_MAX,end4M=FRAM_4M_ADDRESS_MAX;
-        // First read what was in these two locations originally
-        readNV((uint32_t *) &temp1M, sizeof(temp1M), ExternalMRAMData, (int)FRAM_1M_ADDRESS_MAX-3);
-        readNV((uint32_t *) &temp4M, sizeof(temp4M), ExternalMRAMData, (int)FRAM_4M_ADDRESS_MAX-3);
-        // Now write the MRAM size into each maximum address
-        writeNV((uint32_t *) &end4M, sizeof(end4M), ExternalMRAMData, (int)FRAM_4M_ADDRESS_MAX-3);
-        writeNV((uint32_t *) &end1M, sizeof(end1M), ExternalMRAMData, (int)FRAM_1M_ADDRESS_MAX-3);
-        //Whichever one we get back when we read the 4Meg address wins
-        readNV((uint32_t *) &framSize, sizeof(framSize), ExternalMRAMData, (int)FRAM_4M_ADDRESS_MAX-3);
-        //Now restore the original data
-        writeNV((uint32_t *) &temp1M, sizeof(temp1M), ExternalMRAMData, (int)FRAM_1M_ADDRESS_MAX-3);
-        writeNV((uint32_t *) &temp4M, sizeof(temp4M), ExternalMRAMData, (int)FRAM_4M_ADDRESS_MAX-3);
-        if(framSize == 0xffffffff)framSize=0;// If we got back all ones, the SPI got nothing.  It's not there.
-
-        return framSize;
+    int mramSize
+    int i,sizeMuliple=128&1024; //Assume smallest is 128K increasing in multiples of 128K.
+    uint32_t saveVal0,testVal,read0Test;
+    uint8_t testVal 0x5a5aa5;
+    ByteToWord mramAddress0,mramAddressTest;
+    mramAddress.word = 0;
+    mramAddress.byte[0]=FRAM_OP_READ;
+    if(SPISendCommand(dev, mramAddress0.word,ADDRESS_BYTES+1,0,0, //Save the current value of address 0
+                      (uint8_t *)saveVal0,4)){
+        mramAddress0.byte[0]=FRAM_OP_WRITE;
+        SPISendCommand(dev,mramAddress0.word,ADDRESS_BYTES+1,0xff,4,0,0); // Write ff into addr 0
+    } else {
+        return 0; //Could not read address 0
     }
-    return 0;
+    for(i=1;i<16;i++){ //todo: Save the test value
+        mramAddressTest.word = sizeMultiple*i;
+        mramAddressTest.byte[0] = FRAM_OP_WRITE;
+        SPISendCommand(dev,mramAddressTest,ADDRESS_BYTES+1,)
+
+    }
+
+
+
 }
+#endif
+
 int initNV(NVType type){
     // Initialize status register to 0 so there are no memory banks write protected
-    WriteMRAMStatus(0);
+    WriteMRAMStatus(MRAM0Dev,0);
+    WriteMRAMStatus(MRAM1Dev,0);
     return FRAM_1M_ADDRESS_MAX;
 }
 

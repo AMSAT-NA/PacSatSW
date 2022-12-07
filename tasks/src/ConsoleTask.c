@@ -321,8 +321,10 @@ void RealConsoleTask(void)
         }
         case MRAMWrEn:{
             bool stat;
-            stat=MRAMWriteEnable();
-            printf("stat for Wren is %d; sr is %x\n",stat,ReadMRAMStatus());
+            stat=MRAMWriteEnable(MRAM0Dev);
+            printf("stat for Wren 0 is %d; sr is %x\n",stat,ReadMRAMStatus(MRAM0Dev));
+            stat=MRAMWriteEnable(MRAM1Dev);
+            printf("stat for Wren 1 is %d; sr is %x\n",stat,ReadMRAMStatus(MRAM0Dev));
             //readNV(data,8,ExternalMRAMData,0);
             //printf("MRAM at address 0 and 1 are now now %d and %d\n",data[0],data[1]);
             break;
@@ -629,12 +631,13 @@ void RealConsoleTask(void)
             break;
         }
         case readMRAMsr:{
-            printf("MRAM status is %x\n",ReadMRAMStatus());
+            printf("MRAM0 status %x, MRAM1 status %x\n",ReadMRAMStatus(MRAM0Dev),ReadMRAMStatus(MRAM1Dev));
             break;
         }
         case writeMRAMsr:{
             uint8_t stat = parseNumber(afterCommand);
-            WriteMRAMStatus(stat);
+            WriteMRAMStatus(MRAM0Dev,stat);
+            WriteMRAMStatus(MRAM1Dev,stat);
             break;
         }
         case internalWDTimeout:{
