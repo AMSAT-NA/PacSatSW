@@ -31,7 +31,7 @@ void ClearMinMax() {
     logicalTime_t currentTime;
     const MRAMmap_t *MRAMaddr = (MRAMmap_t *) 0;
     int NVstatus;
-    bool printIt = (GPIORead(UmbilicalAttached)==1);
+    bool printIt = true;
     TelemetryResets++;  /* Only 8 bits, so it can wrap.  That's ok.  The telemetry value is only 4 */
     getTimestamp(&currentTime); //Set min/max time to the current time
 

@@ -118,21 +118,15 @@ bool ax5043SetClockout(void){
  */
 
 void ax5043PowerOn(void){
-#ifdef RTIHU_BOARD_V10
-    // The V10 board uses a FPF2001 which is active low
-    GPIOSetOff(DCTPower);
-#endif
     // Later boards are active high
-    GPIOSetOn(DCTPower);
+    //GPIOSetOn(DCTPower);
     PowerOn=true;
     vTaskDelay(CENTISECONDS(1)); // Don't try to mess with it for a bit
 }
 void ax5043PowerOff(void){
-    GPIOSetOff(PAPower);  // Make sure the PA is off if we are turning off the 5043.
-#ifndef RTIHU_BOARD_V10 /* If we turn this off on the V10 board, everything stops since it drives the clock*/
-    GPIOSetOff(DCTPower);
+    //GPIOSetOff(PAPower);  // Make sure the PA is off if we are turning off the 5043.
+    //GPIOSetOff(DCTPower);
     PowerOn = Rxing = Txing = false;
-#endif
 }
 void ax5043StartRx(void){
     //printf("StartRx: Power=%d,Txing=%d,Rxing=%d\n",PowerOn,Txing,Rxing);

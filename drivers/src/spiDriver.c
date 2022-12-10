@@ -147,6 +147,8 @@ void SPIInit(SPIDevice thisDeviceNumber) {
     SPIBusData *thisBusData = thisDevInfo->thisBusData;
     // Here is the only thing we need to do with the device itself
     GPIOSetPinDirection(thisDevInfo->thisCsPort,thisDevInfo->chipSelectLine,true); // Define this "GPIO" as output
+    gioSetBit(thisDevInfo->thisCsPort, thisDevInfo->chipSelectLine,1); // Make sure it is set high initially
+
     if(!SPIIsInitted){
         /*
          * If this is the first time we have called init for any SPI device, init the bus data

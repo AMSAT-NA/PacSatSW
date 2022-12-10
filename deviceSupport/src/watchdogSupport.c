@@ -57,9 +57,9 @@ void ResetExternalWatchdog(void){
     static bool isOn=true;
     if(DoExternalResetOk){
         if(isOn){
-            GPIOSetOff(WatchdogFeed);
+            //GPIOSetOff(WatchdogFeed);
         } else {
-            GPIOSetOn(WatchdogFeed);
+            //GPIOSetOn(WatchdogFeed);
         }
         isOn = !isOn;
     }

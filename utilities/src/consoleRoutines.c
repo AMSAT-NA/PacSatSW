@@ -42,30 +42,6 @@ void print8BitVolts(uint8_t volt8,uint16_t maxV){
            (interpVal/100),((interpVal%100)+5)/10);
 }
 
-bool AntennaAsk(void){
-    char receivedChar;
-    bool releaseOK=false;
-    /*
-     * For antenna deployment, make double sure this is not an accident
-     */
-    //      if (GPIORead(UmbilicalAttached) == 0) {
-    if(GPIORead(UmbilicalAttached) == 1){
-        printf("Umbilical is attached! Are you sure? ");
-    }
-    printf(
-            "Type any key within 5 seconds to abort deploying\n\r");
-    if (SerialGetChar(PRINTF_COM, &receivedChar, SECONDS(5))) {
-        releaseOK = false;
-    } else {
-        releaseOK = true; /* Umbilical not connected and first Y was entered */
-    }
-
-    if(!releaseOK){
-        printf("Deploy command aborted\n\r");
-    }
-    return releaseOK;
-}
-
 uint16_t parseNumber(char *afterCommand){
     return (uint16_t)strtol(afterCommand,&nextNum,0);
 }
