@@ -197,7 +197,7 @@ void ConsoleTask(void *pvParameters){
     SPIInit(DCTDev);
     SPIInit(MRAM0Dev);
     SPIInit(MRAM1Dev);
-    initNV(ExternalMRAMData); // Make sure MRAM is initialized
+    initMRAM(); // Make sure MRAM is initialized
     initMET();
     I2cInit(I2C1);
     I2cInit(I2C2);

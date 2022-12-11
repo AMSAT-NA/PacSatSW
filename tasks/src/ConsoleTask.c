@@ -102,7 +102,7 @@ enum {
     ,noToneTx
     ,testLED
     ,restartCAN
-    ,initMRAM
+    ,doInitMRAM
     ,enbCanPrint
     ,dsbCanPrint
     ,EnableComPr
@@ -141,6 +141,8 @@ enum {
     ,MRAMWrEn
     ,testMRAM
     ,sizeMRAM
+    ,mramSleep
+    ,mramAwake
 };
 
 
@@ -167,7 +169,8 @@ commandPairs debugCommands[] = {
 
                                  {"test scrub","Run the memory scrub routine once",TestMemScrub}
                                 ,{"test pll", "test ax5043 PLL frequency range",testPLLrange}
-                                ,{"init mram","Initializes MRAM state,WOD,Min/max but does not clear InOrbit--testing only",initMRAM}
+                                ,{"init mram","Initializes MRAM state,WOD,Min/max but does not clear InOrbit--testing only",
+                                  doInitMRAM}
                                 ,{"load key","Load an authorization key for uplink commands",LoadKey}
                                 ,{"reset ihu","Reset this processor",reset}
                                 ,{"reset both","Reset both primary and secondary processor",resetBoth}
@@ -179,6 +182,8 @@ commandPairs debugCommands[] = {
                                 ,{"get temp","Get RT-IHU board temperature",getTemp}
                                 ,{"prime","Do prime number benchmark",Prime}
                                 ,{"mram wren","Write enable MRAM",MRAMWrEn}
+                                ,{"mram wake","Send wake command to MRAM",mramAwake}
+                                ,{"mram sleep","Send sleep command to MRAM",mramSleep}
                              };
 commandPairs commonCommands[] = {
                                   {"get i2c","What I2c devices are working?",getI2cState}
@@ -321,9 +326,9 @@ void RealConsoleTask(void)
         case MRAMWrEn:{
             bool stat;
             stat=MRAMWriteEnable(MRAM0Dev);
-            printf("stat for Wren 0 is %d; sr is %x\n",stat,ReadMRAMStatus(MRAM0Dev));
+            printf("stat for MRAM 0 is %d; sr is %x\n",stat,ReadMRAMStatus(MRAM0Dev));
             stat=MRAMWriteEnable(MRAM1Dev);
-            printf("stat for Wren 1 is %d; sr is %x\n",stat,ReadMRAMStatus(MRAM0Dev));
+            printf("stat for MRAM 1 is %d; sr is %x\n",stat,ReadMRAMStatus(MRAM1Dev));
             //readNV(data,8,ExternalMRAMData,0);
             //printf("MRAM at address 0 and 1 are now now %d and %d\n",data[0],data[1]);
             break;
@@ -560,7 +565,17 @@ void RealConsoleTask(void)
 
              break;
          }
-        case initMRAM:{
+        case mramSleep:{
+            int num = parseNumber(afterCommand);
+            MRAMSleep(num);
+            break;
+        }
+        case mramAwake:{
+            int num = parseNumber(afterCommand);
+            MRAMWake(num);
+            break;
+        }
+        case doInitMRAM:{
             MRAMInit();
             WriteMRAMBoolState(StateInOrbit,true); // Don't get confused by in orbit state!
             break;

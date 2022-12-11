@@ -134,8 +134,8 @@ void gioInit(void)
 
     /** - Port B direction */
     gioPORTB->DIR  = (uint32)((uint32)0U << 0U)  /* Bit 0 */
-                   | (uint32)((uint32)0U << 1U)  /* Bit 1 */
-                   | (uint32)((uint32)0U << 2U)  /* Bit 2 */
+                   | (uint32)((uint32)1U << 1U)  /* Bit 1 */
+                   | (uint32)((uint32)1U << 2U)  /* Bit 2 */
                    | (uint32)((uint32)0U << 3U)  /* Bit 3 */
                    | (uint32)((uint32)0U << 4U)  /* Bit 4 */
                    | (uint32)((uint32)0U << 5U)  /* Bit 5 */
@@ -154,8 +154,8 @@ void gioInit(void)
 
     /** - Port B pullup / pulldown selection */
     gioPORTB->PSL  = (uint32)((uint32)1U << 0U)  /* Bit 0 */
-                   | (uint32)((uint32)1U << 1U)  /* Bit 1 */
-                   | (uint32)((uint32)0U << 2U)  /* Bit 2 */
+                   | (uint32)((uint32)0U << 1U)  /* Bit 1 */
+                   | (uint32)((uint32)1U << 2U)  /* Bit 2 */
                    | (uint32)((uint32)0U << 3U)  /* Bit 3 */
                    | (uint32)((uint32)0U << 4U)  /* Bit 4 */
                    | (uint32)((uint32)0U << 5U)  /* Bit 5 */
@@ -164,7 +164,7 @@ void gioInit(void)
 
     /** - Port B pullup / pulldown enable*/
     gioPORTB->PULDIS  = (uint32)((uint32)0U << 0U) /* Bit 0 */
-                      | (uint32)((uint32)0U << 1U)  /* Bit 1 */
+                      | (uint32)((uint32)1U << 1U)  /* Bit 1 */
                       | (uint32)((uint32)0U << 2U)  /* Bit 2 */
                       | (uint32)((uint32)0U << 3U)  /* Bit 3 */
                       | (uint32)((uint32)0U << 4U)  /* Bit 4 */
@@ -230,8 +230,8 @@ void gioInit(void)
                    | (uint32)((uint32)1U << 6U)   /* Bit 6 */
                    | (uint32)((uint32)0U << 7U)   /* Bit 7 */
                    | (uint32)((uint32)1U << 8U)   /* Bit 8  */
-                   | (uint32)((uint32)1U << 9U)   /* Bit 9  */
-                   | (uint32)((uint32)1U << 10U)  /* Bit 10 */
+                   | (uint32)((uint32)0U << 9U)   /* Bit 9  */
+                   | (uint32)((uint32)0U << 10U)  /* Bit 10 */
                    | (uint32)((uint32)1U << 11U)  /* Bit 11 */
                    | (uint32)((uint32)0U << 12U)  /* Bit 12 */
                    | (uint32)((uint32)0U << 13U)  /* Bit 13 */
