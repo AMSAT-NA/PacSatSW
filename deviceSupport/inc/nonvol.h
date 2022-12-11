@@ -15,15 +15,13 @@
  */
 
 #include <pacsat.h>
+#include "spiDriver.h"
 #include "stdint.h"
+#include "mram.h"
 typedef enum {LocalEEPROMData,ExternalMRAMData} NVType;
 
 bool writeNV(void const * const data, uint32_t dataLength, NVType memoryType, uint32_t address);
 bool readNV(void *data, uint32_t dataLength, NVType memoryType,  uint32_t address);
 int getSizeNV(NVType type);
-int initNV(NVType type);
-uint8_t ReadMRAMStatus(void);
-void WriteMRAMStatus(uint8_t);
-bool MRAMWriteEnable(void);
 
 #endif /* NONVOL_H_ */

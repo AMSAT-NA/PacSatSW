@@ -114,6 +114,7 @@ portTASK_FUNCTION_PROTO(TelemetryRadioTask, pvParameters)  {
 
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)RadioWD );
     InitInterTask(ToRadio, 10);
+    GPIOInit(DCTInterrupt,ToRadio,DCTInterruptMsg,None);
 
 
     ResetAllWatchdogs();

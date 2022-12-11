@@ -15,6 +15,7 @@
 #define POST_OS_LOOP_FACTOR 5000
 
 void Buzzer(uint32_t burnTime,int pitch){
+#if 0 /* Might be useful at some point, but not for testing */
     int buzzCount;
     int timeLoop = (int)burnTime;
     int buzzLoop;
@@ -33,6 +34,7 @@ void Buzzer(uint32_t burnTime,int pitch){
         ResetAllWatchdogs();
         //taskYIELD();
     }
+#endif
     ResetAllWatchdogs();
 }
 

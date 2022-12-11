@@ -14,10 +14,7 @@
 
 
 typedef enum gu {None=-1,
-	 LED1,LED2,LED3,DCTPower,DCTFlag,DCTInterrupt,PAPower,PAFlag,Experiment1Enable,IHUCoordR0,IHUCoordL0,
-	 IHUCoordR1,IHUCoordL1,CommandStrobe,CommandBits,WhoAmI,I2c1Reset,I2c2Reset,
-	 BusDisabled,PBEnable,UmbilicalAttached,IhuRfControl,WatchdogFeed,Alert,SSPA10GHz,OneWire,
-	 RfPower,EttusSwitch,ChargerAttached,
+	 LED1,LED2,DCTInterrupt,CommandStrobe,CommandBits,
 	 NumberOfGPIOs
 } Gpio_Use;
 

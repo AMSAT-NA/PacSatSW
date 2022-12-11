@@ -77,12 +77,19 @@ SPIBusData bus1Data,bus2Data,bus3Data,bus4Data,bus5Data;
  * The Device info structures are the read-only data for each individual device
  * on the SPI bus.  Not used yet.
  */
-static SPIDevInfo SPIMramDevice={
+static SPIDevInfo SPIMram0Device={
                                  SPI_MRAM_Reg,
                                  SPI_MRAM_Select_Port,
                                  {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
                                  &bus1Data,
-                                 SPI_MRAM_Select_Pin //chipSelect
+                                 SPI_MRAM0_Select_Pin //chipSelect
+};
+static SPIDevInfo SPIMram1Device={
+                                 SPI_MRAM_Reg,
+                                 SPI_MRAM_Select_Port,
+                                 {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
+                                 &bus1Data,
+                                 SPI_MRAM1_Select_Pin //chipSelect
 };
 
 static SPIDevInfo SPIDCTDevice={
@@ -96,7 +103,8 @@ static SPIDevInfo SPIDCTDevice={
 };
 
 static const SPIDevInfo *SPIDevInfoStructures[] = {
-                                                   &SPIMramDevice
+                                                    &SPIMram0Device
+                                                   ,&SPIMram1Device
                                                    ,&SPIDCTDevice
 };
 
@@ -139,6 +147,8 @@ void SPIInit(SPIDevice thisDeviceNumber) {
     SPIBusData *thisBusData = thisDevInfo->thisBusData;
     // Here is the only thing we need to do with the device itself
     GPIOSetPinDirection(thisDevInfo->thisCsPort,thisDevInfo->chipSelectLine,true); // Define this "GPIO" as output
+    gioSetBit(thisDevInfo->thisCsPort, thisDevInfo->chipSelectLine,1); // Make sure it is set high initially
+
     if(!SPIIsInitted){
         /*
          * If this is the first time we have called init for any SPI device, init the bus data

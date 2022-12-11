@@ -97,10 +97,10 @@ void I2cInit(I2cBusNum thisBusNumber) {
     waitingForSemaphore[thisBusNumber] = false;  // Don't free the semaphore when we are not waiting!
     // Init the I2c Lines
     if(thisBusNumber==I2C1){
-        GPIOInit(I2c1Reset,NO_TASK,NO_MESSAGE,None);
+        //GPIOInit(I2c1Reset,NO_TASK,NO_MESSAGE,None);
 
     } else if (thisBusNumber==I2C2){
-        GPIOInit(I2c2Reset,NO_TASK,NO_MESSAGE,None);
+        //GPIOInit(I2c2Reset,NO_TASK,NO_MESSAGE,None);
     }
 
 
@@ -149,11 +149,11 @@ void I2cResetBus(uint32_t busNum,bool isError){
         if(bus1ResetsRemaining <= 0){
             ReportError(I2C1failure,true,PortNumber,busNum);
         }
-        GPIOSetOff(I2c1Reset);
+        //GPIOSetOff(I2c1Reset);
         i2cInit();
         i2cRxError(i2cREG1);
         I2cInit(I2C1);
-        GPIOSetOn(I2c1Reset);
+        //GPIOSetOn(I2c1Reset);
         if(isError)bus1ResetsRemaining--;
         else bus1ResetsRemaining = 5;
     } else {
@@ -161,9 +161,9 @@ void I2cResetBus(uint32_t busNum,bool isError){
         if(bus2ResetsRemaining <= 0){
             ReportError(I2C2failure,true,PortNumber,busNum);
         }
-        GPIOSetOff(I2c2Reset);
+        //GPIOSetOff(I2c2Reset);
         I2cInit(I2C2);
-        GPIOSetOn(I2c1Reset);
+        //GPIOSetOn(I2c1Reset);
         if(isError)bus2ResetsRemaining--;
         else bus2ResetsRemaining = 5;
     }
