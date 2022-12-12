@@ -10,10 +10,10 @@
 
 #include "MRAMmap.h"
 
-int MRAMInit(void);
+int SetupMRAM(void);
 void IHUInitSaved(void);
 
-bool MRAMInitWOD(void);
+bool SetupMRAMWOD(void);
 
 bool ReadMRAMBoolState(int index);
 void WriteMRAMBoolState(int index,bool state);

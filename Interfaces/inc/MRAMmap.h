@@ -79,32 +79,6 @@ typedef struct {
 } StateSavingMRAM_t;
 
 
-typedef struct  __attribute__((__packed__)) {
-    WODHousekeepingPayload_t wodHKPayload;
-	CRCtype_t Crc;
-} WODHkMRAM_t;
-
-typedef struct  __attribute__((__packed__)) {
-	WODRadiationPayload_t wodRadPayload;
-	CRCtype_t Crc;
-} WODSciMRAM_t;
-
-typedef struct  __attribute__((__packed__)) {
-    WODRagnarokPayload_t wodRagPayload;
-    CRCtype_t Crc;
-} WODRagMRAM_t;
-
-
-typedef struct _min {
-    commonRtMinmaxWodPayload_t commonMin;
-	logicalTime_t deltaMin;
-	CRCtype_t MinCrc;
-} MRAMMin_t;
-typedef struct _max {
-    commonRtMinmaxWodPayload_t commonMax;
-	logicalTime_t deltaMax;
-	CRCtype_t MaxCrc;
-} MRAMMax_t;
 
 typedef struct _authKey {
     uint8_t key[16];
@@ -112,18 +86,14 @@ typedef struct _authKey {
     uint32_t magic; //Make sure it was initialized
 } AuthKey_t;
 
-#define MRAM_VERSION 22
+#define MRAM_VERSION 1
 
 /* Top level MRAM storage map */
 typedef struct {
         uint32_t MRAMVersion1; // This should always have the real version number
         StateSavingMRAM_t StatesInMRAM;
-        MRAMMin_t minData;
-		MRAMMax_t maxData;
-		WODHkMRAM_t WODHousekeeping[MAX_WOD_SAVED];
-		WODSciMRAM_t WODScience[MAX_WOD_SAVED];
-		WODRagMRAM_t WODRagnarok[MAX_WOD_SAVED];
 		AuthKey_t AuthenticateKey;
+        //In here is the is the file system.
         uint32_t MRAMVersion2; // This is likely to be wrong if something above changed size
 } MRAMmap_t;
 

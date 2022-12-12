@@ -136,7 +136,7 @@ void receiveLine(COM_NUM ioCom, char *commandString, char prompt, bool echo) {
 }
 void PreflightInitNow(CanIDNode cameFrom){
     int size;
-    size=MRAMInit(); //This should be first.  It might overwrite part of MRAM.
+    size=SetupMRAM(); //This should be first.  It might overwrite part of MRAM.
     WriteMRAMBoolState(StateInOrbit,false);
     //todo: The rest of the stuff has not been implemented yet
     printf("WOD Frequency,size set to Default, and WOD Indices initialized\n");

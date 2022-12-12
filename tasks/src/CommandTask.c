@@ -24,7 +24,6 @@
 #include "canDriver.h"
 #include "inet.h"
 #include "ax5043_access.h"
-#include "MinMaxCalcs.h"
 
 #define command_print if(PrintCommandInfo)printf
 

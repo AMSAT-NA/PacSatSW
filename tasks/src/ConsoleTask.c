@@ -59,7 +59,6 @@
 #include "LinearInterp.h"
 #include "Buzzer.h"
 #include "keyfile.h"
-#include "MinMaxCalcs.h"
 //Extern definition
 extern uint8_t SWCmdRing[SW_CMD_RING_SIZE],SWCmdIndex;
 
@@ -102,7 +101,7 @@ enum {
     ,noToneTx
     ,testLED
     ,restartCAN
-    ,doInitMRAM
+    ,doClearMRAM
     ,enbCanPrint
     ,dsbCanPrint
     ,EnableComPr
@@ -169,8 +168,8 @@ commandPairs debugCommands[] = {
 
                                  {"test scrub","Run the memory scrub routine once",TestMemScrub}
                                 ,{"test pll", "test ax5043 PLL frequency range",testPLLrange}
-                                ,{"init mram","Initializes MRAM state,WOD,Min/max but does not clear InOrbit--testing only",
-                                  doInitMRAM}
+                                ,{"clear mram","Initializes MRAM state,WOD,Min/max but does not clear InOrbit--testing only",
+                                  doClearMRAM}
                                 ,{"load key","Load an authorization key for uplink commands",LoadKey}
                                 ,{"reset ihu","Reset this processor",reset}
                                 ,{"reset both","Reset both primary and secondary processor",resetBoth}
@@ -581,8 +580,8 @@ void RealConsoleTask(void)
             MRAMWake(num);
             break;
         }
-        case doInitMRAM:{
-            MRAMInit();
+        case doClearMRAM:{
+            SetupMRAM();
             WriteMRAMBoolState(StateInOrbit,true); // Don't get confused by in orbit state!
             break;
         }
@@ -672,10 +671,6 @@ void RealConsoleTask(void)
         }
         case telem0:{
             DisplayTelemetry(0);
-            break;
-        }
-        case clrMinMax:{
-            ClearMinMax();
             break;
         }
         case enbCanPrint:{
