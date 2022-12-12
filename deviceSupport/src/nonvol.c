@@ -36,6 +36,9 @@ bool writeNV(void const * const data, uint32_t dataLength,NVType type, uint32_t 
         SPIDevice mramDev;
         framAddress.word = nvAddress;
         mramDev = GetMRAMAndAddress(&framAddress.word);
+        if(mramDev == InvalidSPI){
+            return false;
+        }
         MRAMWriteEnable(mramDev);
         writeCommand.byte[0] = FRAM_OP_WRITE;
         // The MRAM address is big endian, but so is the processor.
@@ -67,6 +70,9 @@ bool readNV(void *data, uint32_t dataLength, NVType type, uint32_t nvAddress){
 
         ourAddress.word = nvAddress;
         mramDev = GetMRAMAndAddress(&ourAddress.word);
+        if(mramDev == InvalidSPI){
+            return false;
+        }
         framAddress.byte[1] = ourAddress.byte[1];  // Address is big-endian.
         framAddress.byte[2] = ourAddress.byte[2];  // Address is big-endian.
         framAddress.byte[3] = ourAddress.byte[3];  // Address is big-endian.

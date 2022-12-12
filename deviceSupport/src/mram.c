@@ -118,9 +118,12 @@ int getMRAMSize(SPIDevice dev){
      * Setup for test by reading and saving address 0; then write a random value into
      * address 0 so we can see when it changes
      */
-
+    addr0Val += xTaskGetTickCount(); //Get a sort of random value
     saveVal0 = readMRAMWord(dev,0);
     writeMRAMWord(dev,0,addr0Val);
+    if(readMRAMWord(dev,0) != addr0Val){
+        return 0;  //Chip does not work or exist
+    }
 
     /*
      * Now write a different number every "sizeMultiple" bytes and see if it wraps.

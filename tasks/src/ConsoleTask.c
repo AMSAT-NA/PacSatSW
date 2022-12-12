@@ -300,20 +300,26 @@ void RealConsoleTask(void)
         }
         case testMRAM:{
             int i,j;
-            for(i=0;i<1024;i++){
+            bool ok=true;
+            int add = parseNumber(afterCommand);
+            for(i=0;ok;i++){
                 for(j=0;j<1024;j+=4){
-                    int addr = i*1024 + j;
-                    writeNV(&addr,4,ExternalMRAMData,addr);
+                    int addr = (i*1024 + j);
+                    int val = addr+add;
+                    ok=writeNV(&val,4,ExternalMRAMData,addr);
+                    if(!ok)break;
                 }
                 if((i%64)==0){
                     printf("%dKB written\n",i);
                 }
             }
-            for(i=0;i<1024;i++){
+            ok=true;
+            for(i=0;ok;i++){
                 for(j=0;j<1024;j+=4){
-                    int addr = i*1024 + j,readVal;
-                    readNV(&readVal,4,ExternalMRAMData,addr);
-                    if(readVal != addr){
+                    int addr = (i*1024 + j),readVal;
+                    ok = readNV(&readVal,4,ExternalMRAMData,addr);
+                    if(!ok)break;
+                    if(readVal != addr+add){
                         printf("Address %x contains %x\n",addr,readVal);
                         break;                    }
                 }
