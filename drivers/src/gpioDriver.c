@@ -66,20 +66,20 @@ static const GPIOInfo LED1Info = {
                                   GPIOLed1Port//GPIOLed3Port,
                                   ,GPIOLed1Pin
                                   ,1
-                                  ,GPIO_ON //Actually this turns the LED off
+                                  ,GPIO_OFF
                                   ,GPIO_OUT
                                   ,false,false // No interrupts
-                                  ,true,false  // Open collector, not tristate
+                                  ,false,false  // Open collector, not tristate
 
 };
 static const GPIOInfo LED2Info = {
                                   GPIOLed2Port
                                   ,GPIOLed2Pin
                                   ,1
-                                  ,GPIO_ON
+                                  ,GPIO_OFF
                                   ,GPIO_OUT
                                   ,false,false // No interrupts
-                                  ,true,false  // Open collector, not tristate
+                                  ,false,false  // Open collector, not tristate
 
 };
 
@@ -115,24 +115,6 @@ static const GPIOInfo AX5043InterruptInfo = {
 
 
 
-
-#if 0 /* For Golf-1 */
-static const GPIOInfo Exp2Info = {
-                                  GPIO_Exp2EnablePort
-                                  ,GPIO_Exp2EnablePin
-                                  ,1
-                                  ,false // Default off
-                                  ,GPIO_OUT
-};
-
-static const GPIOInfo Exp4Info = {
-                                  GPIO_Exp4EnablePort
-                                  ,GPIO_Exp4EnablePin
-                                  ,1
-                                  ,GPIO_OFF // Default off
-                                  ,GPIO_OUT
-};
-#endif
 /*
  * Use this array to index to the correct GPIOInfoStructure based on the GPIO
  * enum index.

@@ -46,7 +46,7 @@
 #define GPIOCommandBit3Pin 16
 
 #define GPIO_DCTInterruptPort gioPORTB
-#define GPIO_DCTInterruptPin  2
+#define GPIO_DCTInterruptPin  0
 
 
 
