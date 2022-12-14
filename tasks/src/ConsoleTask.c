@@ -142,6 +142,7 @@ enum {
     ,sizeMRAM
     ,mramSleep
     ,mramAwake
+    ,startRx
 };
 
 
@@ -162,15 +163,16 @@ commandPairs setupCommands[] = {
                                 ,{"test adc2","Read group 2 of ADC",StartADC2}
                                 ,{"test mram","Write and read low MRAM",testMRAM}
                                 ,{"get mram size","Get the total size of all MRAMs",sizeMRAM}
+                                ,{"load key","Load an authorization key for uplink commands",LoadKey}
 
 };
 commandPairs debugCommands[] = {
 
                                  {"test scrub","Run the memory scrub routine once",TestMemScrub}
                                 ,{"test pll", "test ax5043 PLL frequency range",testPLLrange}
+                                ,{"start rx","Start up the 5043 receiver",startRx}
                                 ,{"clear mram","Initializes MRAM state,WOD,Min/max but does not clear InOrbit--testing only",
                                   doClearMRAM}
-                                ,{"load key","Load an authorization key for uplink commands",LoadKey}
                                 ,{"reset ihu","Reset this processor",reset}
                                 ,{"reset both","Reset both primary and secondary processor",resetBoth}
                                 ,{"reset can","Reset the CAN devices",restartCAN}
@@ -364,15 +366,15 @@ void RealConsoleTask(void)
             printf("There are %d primes less than %d; This took %d centiseconds\n",count,maxNumber,(ms2-ms1));
             break;
         }
-#if 0
+        case startRx:{
+            ax5043StartRx();
+            break;
+        }
+#if 1
         case GetGpios:{
             int i;
             char *gpioNames[NumberOfGPIOs]={
-               "LED1","LED2","LED3","DCTPower","DCTFlag","DCTInterrupt","PAPower","PAFlag","Experiment1Enable",
-               "IHUCoordR0","IHUCoordL0",
-               "IHUCoordR1","IHUCoordL1","CommandStrobe","CommandBits","WhoAmI","I2c1Reset","I2c2Reset",
-               "BusDisabled","PBEnable","UmbilicalAttached","IhuRfControl","WatchdogFeed","Alert","SSPA10GHz","OneWire",
-               "RfPower","EttusSwitch","ChargerAttached"
+               "LED1","LED2","DCTInterrupt","CommandStrobe","CommandBits"
             };
             for (i=0;i<NumberOfGPIOs;i++){
                 if(i%4 == 0){
@@ -807,23 +809,16 @@ void RealConsoleTask(void)
         }
 
         case getRSSI:{
-//            if(IAmStandbyCPU()){
-//                int rssi = get_rssi();
-//                printf("RSSI is %d\n",((int16_t)rssi) - 255);
-//            } else {
-//                printf("Only standby CPU has RSSI on the RT-IHU (for now)\n");
-//            }
-
+            int rssi = get_rssi();
+            printf("RSSI is %d\n",((int16_t)rssi) - 255);
             break;
         }
-#if 0
         case testRxFreq: {
             // This is so we can find what the receive frequency is on first build
             {
-                printf("I am not in control\n");
                 int freq = 145835000;
 
-                ax5043PowerOn();
+                ///ax5043PowerOn();
 
                 printf("Transmitting on receive freq: %d\n", freq);
 
@@ -858,7 +853,6 @@ void RealConsoleTask(void)
             }
             break;
         }
-#endif
 
         case testPLLrange:{
             test_pll_range();

@@ -175,7 +175,7 @@
  *
  */
 
-#define DCT_DEFAULT_TX_FREQ 435800000 // Actual frequency.  Converted later to ax5043 register value
+#define DCT_DEFAULT_TX_FREQ 435760000 // Actual frequency.  Converted later to ax5043 register value
 #define DCT_DEFAULT_RX_FREQ 145835000
 // For now, we want the output to be something like 100mW (20dBm) and 500mW (27dBm)
 // I believe this makes the DCT output be about -7dBM and +3dBM
