@@ -14,15 +14,15 @@
 #include "errors.h"
 #include "CANSupport.h"
 
-static uint32_t MRAMSize[NUMBER_OF_MRAMS];
-static SPIDevice mramDev[NUMBER_OF_MRAMS]={MRAM0Dev,MRAM1Dev};
-
+static uint32_t MRAMSize[PACSAT_MAX_MRAMS];
+static SPIDevice mramDev[PACSAT_MAX_MRAMS]={MRAM0Dev,MRAM1Dev,MRAM2Dev,MRAM3Dev};
+static int numberOfMRAMs=0;
 SPIDevice GetMRAMAndAddress(uint32_t *addr){
     int MRAMNumber=0;
     while(*addr >= MRAMSize[MRAMNumber]){
         *addr-=MRAMSize[MRAMNumber];
         MRAMNumber++;
-        if(MRAMNumber > NUMBER_OF_MRAMS){
+        if(MRAMNumber > numberOfMRAMs){
             return InvalidSPI;
         }
     }
@@ -152,10 +152,14 @@ int getMRAMSize(SPIDevice dev){
 int initMRAM(){
     // Initialize status register to 0 so there are no memory banks write protected
     WriteMRAMStatus(MRAM0Dev,0);
-    WriteMRAMStatus(MRAM1Dev,0);
     MRAMSize[0] = getMRAMSize(MRAM0Dev);
+    WriteMRAMStatus(MRAM1Dev,0);
     MRAMSize[1] = getMRAMSize(MRAM1Dev);
-    return MRAMSize[0]+MRAMSize[1];
+    WriteMRAMStatus(MRAM2Dev,0);
+    MRAMSize[2] = getMRAMSize(MRAM2Dev);
+    WriteMRAMStatus(MRAM3Dev,0);
+    MRAMSize[3] = getMRAMSize(MRAM3Dev);
+    return MRAMSize[0]+MRAMSize[1]+MRAMSize[2]+MRAMSize[3];
 }
 
 

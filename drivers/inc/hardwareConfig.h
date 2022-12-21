@@ -73,7 +73,8 @@
 
 #define SPI_DCT_Reg spiREG3
 #define SPI_DCT_Select_Port spiPORT3 /*Gpio port for chip select*/
-#define SPI_DCT_Select_Pin 1
+#define SPI_DCT0_Select_Pin 1
+#define SPI_DCT1_Select_Pin 4
 #define SPI_DCT_Data_Format SPI_FMT_0
 
 

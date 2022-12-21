@@ -40,7 +40,7 @@ void ax5043WriteRegMulti(unsigned int firstReg, uint8_t *val,uint8_t length){
     srcbuf[0] = 0x00f0 | ((firstReg & 0xf00) >> 8);
     srcbuf[1] = (firstReg & 0xff);
 
-    SPISendCommand(DCTDev,*command,2,val,(uint16_t)length,0,0);
+    SPISendCommand(DCTDev0,*command,2,val,(uint16_t)length,0,0);
 
 }
 void ax5043ReadRegMulti(unsigned int firstReg, uint8_t *val,uint8_t length){
@@ -49,7 +49,7 @@ void ax5043ReadRegMulti(unsigned int firstReg, uint8_t *val,uint8_t length){
     srcbuf[0] = 0x0070 | ((firstReg & 0xf00) >> 8);
     srcbuf[1] = (firstReg & 0xff);
 
-    SPISendCommand(DCTDev,*command,2,0,0,val,(uint16_t)length);
+    SPISendCommand(DCTDev0,*command,2,0,0,val,(uint16_t)length);
 
 }
 
@@ -66,7 +66,7 @@ void ax5043WriteReg(unsigned int reg, unsigned int val)  {
 //  gioSetBit(spiPORT3,1,0);  //Set CS1 1 low
 //  spi_write(1,3,srcbuf);
 //  gioSetBit(spiPORT3,1,1);  //Set CS1 1 high
-  SPISendCommand(DCTDev,0,0,srcbuf,3,0,0);
+  SPISendCommand(DCTDev0,0,0,srcbuf,3,0,0);
 
 #if 0
   if ((reg != AX5043_FIFODATA) && (reg != AX5043_FIFOSTAT)) {
@@ -90,7 +90,7 @@ unsigned int ax5043ReadLongreg(unsigned int reg,int bytes)
   srcbuf[0] = 0x0070 | ((reg & 0xf00) >> 8);
   srcbuf[1] = (reg & 0xff);
 
-  SPISendCommand(DCTDev,0,0,srcbuf,2,dstbuf,bytes);
+  SPISendCommand(DCTDev0,0,0,srcbuf,2,dstbuf,bytes);
   for(i=0;i<bytes;i++){
       retval <<= 8;
       retval |= dstbuf[i];

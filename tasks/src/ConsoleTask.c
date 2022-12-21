@@ -297,6 +297,8 @@ void RealConsoleTask(void)
         case sizeMRAM:{
             printf("Size of MRAM0 is %dKB\n",getMRAMSize(MRAM0Dev)/1024);
             printf("Size of MRAM1 is %dKB\n",getMRAMSize(MRAM1Dev)/1024);
+            printf("Size of MRAM2 is %dKB\n",getMRAMSize(MRAM2Dev)/1024);
+            printf("Size of MRAM3 is %dKB\n",getMRAMSize(MRAM3Dev)/1024);
             break;
         }
         case testMRAM:{
@@ -643,12 +645,15 @@ void RealConsoleTask(void)
         }
         case readMRAMsr:{
             printf("MRAM0 status %x, MRAM1 status %x\n",ReadMRAMStatus(MRAM0Dev),ReadMRAMStatus(MRAM1Dev));
+            printf("MRAM2 status %x, MRAM3 status %x\n",ReadMRAMStatus(MRAM2Dev),ReadMRAMStatus(MRAM3Dev));
             break;
         }
         case writeMRAMsr:{
             uint8_t stat = parseNumber(afterCommand);
             WriteMRAMStatus(MRAM0Dev,stat);
             WriteMRAMStatus(MRAM1Dev,stat);
+            WriteMRAMStatus(MRAM2Dev,stat);
+            WriteMRAMStatus(MRAM3Dev,stat);
             break;
         }
         case internalWDTimeout:{

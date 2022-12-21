@@ -205,7 +205,7 @@ void DisplayTelemetry(uint32_t typeRequested){
 void printID(void){
     printf("\nAMSAT-NA PacSat Console\n");
     printf("Flight Software %s (built on %s at %s)\n",
-           RTIHU_FW_VERSION_STRING, __DATE__, __TIME__);
+           PACSAT_FW_VERSION_STRING, __DATE__, __TIME__);
     printf("   Built %s %s\n\n",__DATE__, __TIME__);//__GNUC__,__GNUC_MINOR__);
 
 #if defined (COMPILE_DEBUG)

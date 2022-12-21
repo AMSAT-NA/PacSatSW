@@ -11,38 +11,11 @@
 
 #ifndef GOLFCONFIG_H_
 #define GOLFCONFIG_H_
-#define GOLF_NUMBER "0" // This is PacSat.
-#define GOLF_ID (GOLF_NUMBER[0] - '0') /*Must change if number greater than 9*/
+#define PACSAT_NUMBER "0" // This is PacSat.
+#define GOLF_ID (PACSAT_NUMBER[0] - '0') /*Must change if number greater than 9*/
 #define ENGINEERING_MODEL
 #define UNDEFINE_BEFORE_FLIGHT
-//#define FRAM64K
 #define DEBUG
-//#define RTIHU_BOARD_LAUNCHPAD
-//#define RTIHU_BOARD_V10
-#define RTIHU_BOARD_V11
-
-#if defined(RTIHU_BOARD_LAUNCHPAD)
-#if defined(RTIHU_BOARD_V11) || defined (RTIHU_BOARD_V10)
-#error "Choose only one board"
-#endif
-#endif
-#if defined(RTIHU_BOARD_V10) && defined(RTIHU_BOARD_V11)
-#error "Choose only one board"
-#endif
-
-#if (!defined(RTIHU_BOARD_V10) && !defined(RTIHU_BOARD_V11)) && !defined(RTIHU_BOARD_LAUNCHPAD)
-#error "You must choose one board"
-#endif
-
-#ifdef RTIHU_BOARD_LAUNCHPAD
-#define RTIHU_BOARD_V10 /* Launchpad and V10 are pretty similar */
-#endif
-#ifdef RTIHU_BOARD_V10
-#define RTIHU_ALL_I2C1
-#endif
-
-
-#define _AX_TX_DIFF  // FIXME: AX5043 library will be modified to make this NOT a compile-time selection, as we need both paths
 
 #if defined(UNDEFINE_BEFORE_FLIGHT)
 //#define WATCHDOG_ENABLE
@@ -55,7 +28,9 @@
 #   define SOFTWARE_TYPE "V"
 #endif
 #define VERSION "0a" /*Exactly 2 characters will show in the diagnostic downlink*/
-#define RTIHU_FW_VERSION_STRING SOFTWARE_TYPE GOLF_NUMBER "." VERSION
+#define PACSAT_FW_VERSION_STRING SOFTWARE_TYPE PACSAT_NUMBER "." VERSION
+
+#define PACSAT_MAX_MRAMS 4
 
 ////////////////////////////////////////////This is I/O
 #define PRINTF_COM COM2

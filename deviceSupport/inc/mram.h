@@ -17,7 +17,6 @@
 #else
 #define ADDRESS_BYTES 3
 #endif
-#define NUMBER_OF_MRAMS 2
 
 /*
  * These OPcode appear correct both for the RAMTRON F-RAM and
