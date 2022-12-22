@@ -150,48 +150,69 @@ int getMRAMSize(SPIDevice dev){
 
 int initMRAM(){
     // Initialize status register to 0 so there are no memory banks write protected
-    WriteMRAMStatus(MRAM0Dev,0);
-    MRAMSize[0] = getMRAMSize(MRAM0Dev);
-    WriteMRAMStatus(MRAM1Dev,0);
-    MRAMSize[1] = getMRAMSize(MRAM1Dev);
-    WriteMRAMStatus(MRAM2Dev,0);
-    MRAMSize[2] = getMRAMSize(MRAM2Dev);
-    WriteMRAMStatus(MRAM3Dev,0);
-    MRAMSize[3] = getMRAMSize(MRAM3Dev);
-    return MRAMSize[0]+MRAMSize[1]+MRAMSize[2]+MRAMSize[3];
+    int i,totalSize=0;
+    for (i=0;i<PACSAT_MAX_MRAMS;i++){
+        totalSize+= MRAMSize[i] = getMRAMSize(MRAM_Devices[i]);
+        if(MRAMSize[i] != 0)numberOfMRAMs++;
+    }
+    return totalSize;
 }
 
-bool testMRAM(int add){
-    int i,j;
+bool testMRAM(int size){
+    // Size is bytes words
+    int addr,i,startTime;
     bool ok=true;
-    for(i=0;ok;i++){
-        for(j=0;j<1024;j+=4){
-            int addr = (i*1024 + j);
-            int val = addr+add;
-            ok=writeNV(&val,4,ExternalMRAMData,addr);
-            if(!ok){
-                printf("Done\n");
-                break;
-            }
+    int valBase = xTaskGetTickCount();
+    uint32_t write[32],read[32];
+    printf("Testing with read/write size =");
+    switch (size){
+    case 4:
+    case 8:
+    case 16:
+    case 32:
+    case 64:
+    case 128:
+        printf(" %d bytes",size);
+        break;
+    default:
+        size=4;
+        printf(" %d bytes (defaulted)",size);
+    }
+    printf(", random value base is 0x%x\n",valBase);
+    startTime = getSeconds();
+    for(i=0;i<(size/4);i++){
+        write[i] = valBase+(i*4); // Put in the byte address of the word plus valbase.
+    }
+    for(addr=0;ok;addr+=size){ // Each loop is 1KByte
+        ok=writeNV(&write,size,ExternalMRAMData,addr);
+        if(!ok)break;
+        if(addr % (1024*64) == 0){
+            printf("%dKb written\n",addr/1024);
         }
-        if((i%64)==0){
-            printf("%dKB written\n",i);
+        for(i=0;i<size/4;i++){
+            write[i] += size; // Put in the address of the next set of words plus valbase.
         }
+
     }
     ok=true;
-    for(i=0;ok;i++){
-        for(j=0;j<1024;j+=4){
-            int addr = (i*1024 + j),readVal;
-            ok = readNV(&readVal,4,ExternalMRAMData,addr);
-            if(!ok)break;
-            if(readVal != addr+add){
-                printf("Address %x contains %x\n",addr,readVal);
-                break;                    }
-        }
-        if((i%64)==0){
-            printf("%dKB read\n",i);
-        }
+    for(i=0;i<(size/4);i++){
+        write[i] = valBase+(i*4); // Put in the byte address of the word plus valbase.
     }
+    for(addr=0;ok;addr+=size){ // Each loop is 1KByte
+        ok=readNV(&read,size,ExternalMRAMData,addr);
+        if(!ok)break;
+        for(i=0;i<(size/4);i++){
+            if(read[i] != write[i]){
+                printf("At address %x, read %x, not %x\n",addr+i*4,read[i],write[i]);
+            }
+            write[i] += size; // Put in the address of the next set of words plus valbase.
+        }
+        if(addr % (1024*64) == 0){
+            printf("%dKb read\n",addr/1024);
+        }
+
+    }
+    printf("Time is %d seconds\n",getSeconds()-startTime);
     return ok;
 }
 
