@@ -161,7 +161,7 @@ commandPairs setupCommands[] = {
                                 ,{"test leds","Flash the LEDs in order",testLED}
                                 ,{"test adc1","Read group 1 of ADC",StartADC1}
                                 ,{"test adc2","Read group 2 of ADC",StartADC2}
-                                ,{"test mram","Write and read low MRAM",testAllMRAM}
+                                ,{"test mram","Write and read mram with n blocksize (4,8,16,32,64,128)",testAllMRAM}
                                 ,{"get mram size","Get the total size of all MRAMs",sizeMRAM}
                                 ,{"load key","Load an authorization key for uplink commands",LoadKey}
 

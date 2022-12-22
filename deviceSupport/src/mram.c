@@ -13,6 +13,7 @@
 #include "spiDriver.h"
 #include "errors.h"
 #include "CANSupport.h"
+#include "MET.h"
 const SPIDevice MRAM_Devices[PACSAT_MAX_MRAMS]={MRAM0Dev,MRAM1Dev,MRAM2Dev,MRAM3Dev};
 static uint32_t MRAMSize[PACSAT_MAX_MRAMS];
 static int numberOfMRAMs=0;
