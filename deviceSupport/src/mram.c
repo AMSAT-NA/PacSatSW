@@ -161,5 +161,37 @@ int initMRAM(){
     return MRAMSize[0]+MRAMSize[1]+MRAMSize[2]+MRAMSize[3];
 }
 
-
+bool testMRAM(int add){
+    int i,j;
+    bool ok=true;
+    for(i=0;ok;i++){
+        for(j=0;j<1024;j+=4){
+            int addr = (i*1024 + j);
+            int val = addr+add;
+            ok=writeNV(&val,4,ExternalMRAMData,addr);
+            if(!ok){
+                printf("Done\n");
+                break;
+            }
+        }
+        if((i%64)==0){
+            printf("%dKB written\n",i);
+        }
+    }
+    ok=true;
+    for(i=0;ok;i++){
+        for(j=0;j<1024;j+=4){
+            int addr = (i*1024 + j),readVal;
+            ok = readNV(&readVal,4,ExternalMRAMData,addr);
+            if(!ok)break;
+            if(readVal != addr+add){
+                printf("Address %x contains %x\n",addr,readVal);
+                break;                    }
+        }
+        if((i%64)==0){
+            printf("%dKB read\n",i);
+        }
+    }
+    return ok;
+}
 

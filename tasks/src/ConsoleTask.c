@@ -138,7 +138,7 @@ enum {
     ,Help
     ,Prime
     ,MRAMWrEn
-    ,testMRAM
+    ,testAllMRAM
     ,sizeMRAM
     ,mramSleep
     ,mramAwake
@@ -161,7 +161,7 @@ commandPairs setupCommands[] = {
                                 ,{"test leds","Flash the LEDs in order",testLED}
                                 ,{"test adc1","Read group 1 of ADC",StartADC1}
                                 ,{"test adc2","Read group 2 of ADC",StartADC2}
-                                ,{"test mram","Write and read low MRAM",testMRAM}
+                                ,{"test mram","Write and read low MRAM",testAllMRAM}
                                 ,{"get mram size","Get the total size of all MRAMs",sizeMRAM}
                                 ,{"load key","Load an authorization key for uplink commands",LoadKey}
 
@@ -295,41 +295,26 @@ void RealConsoleTask(void)
             break;
         }
         case sizeMRAM:{
-            printf("Size of MRAM0 is %dKB\n",getMRAMSize(MRAM0Dev)/1024);
-            printf("Size of MRAM1 is %dKB\n",getMRAMSize(MRAM1Dev)/1024);
-            printf("Size of MRAM2 is %dKB\n",getMRAMSize(MRAM2Dev)/1024);
-            printf("Size of MRAM3 is %dKB\n",getMRAMSize(MRAM3Dev)/1024);
+            int i;
+            for (i=0;i<PACSAT_MAX_MRAMS;){
+                printf("MRAM%d size is %dkB",i,getMRAMSize(MRAM_Devices[i])/1024);
+                i++;
+                if(i%2 == 0){
+                    printf("\n");
+                } else {
+                    printf(", ");
+                }
+            }
+
+ //           printf("Size of MRAM0 is %dKB\n",getMRAMSize(MRAM0Dev)/1024);
+ //           printf("Size of MRAM1 is %dKB\n",getMRAMSize(MRAM1Dev)/1024);
+ //           printf("Size of MRAM2 is %dKB\n",getMRAMSize(MRAM2Dev)/1024);
+ //           printf("Size of MRAM3 is %dKB\n",getMRAMSize(MRAM3Dev)/1024);
             break;
         }
-        case testMRAM:{
-            int i,j;
-            bool ok=true;
+        case testAllMRAM:{
             int add = parseNumber(afterCommand);
-            for(i=0;ok;i++){
-                for(j=0;j<1024;j+=4){
-                    int addr = (i*1024 + j);
-                    int val = addr+add;
-                    ok=writeNV(&val,4,ExternalMRAMData,addr);
-                    if(!ok)break;
-                }
-                if((i%64)==0){
-                    printf("%dKB written\n",i);
-                }
-            }
-            ok=true;
-            for(i=0;ok;i++){
-                for(j=0;j<1024;j+=4){
-                    int addr = (i*1024 + j),readVal;
-                    ok = readNV(&readVal,4,ExternalMRAMData,addr);
-                    if(!ok)break;
-                    if(readVal != addr+add){
-                        printf("Address %x contains %x\n",addr,readVal);
-                        break;                    }
-                }
-                if((i%64)==0){
-                    printf("%dKB read\n",i);
-                }
-            }
+            testMRAM(add);
             break;
         }
         case MRAMWrEn:{
