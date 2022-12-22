@@ -635,25 +635,25 @@ void RealConsoleTask(void)
             SimulateSwCommand(SWCmdNSSpaceCraftOps,SWCmdOpsHealthMode,NULL,0);
             break;
         }
-#define primaryProc 1
-#define secondaryProc 2
-#define swapProc 0
-        case dropBus:{
-            SWIDoBusSwitch();
-            vTaskDelay(2); // Give the bus time to switch before doing anything else
-            break;
-        }
         case readMRAMsr:{
-            printf("MRAM0 status %x, MRAM1 status %x\n",ReadMRAMStatus(MRAM0Dev),ReadMRAMStatus(MRAM1Dev));
-            printf("MRAM2 status %x, MRAM3 status %x\n",ReadMRAMStatus(MRAM2Dev),ReadMRAMStatus(MRAM3Dev));
+            int i;
+            for (i=0;i<PACSAT_MAX_MRAMS;){
+                printf("MRAM%d: status %x",i,ReadMRAMStatus(MRAM_Devices[i]));
+                i++;
+                if(i%2 == 0){
+                    printf("\n");
+                } else {
+                    printf(", ");
+                }
+            }
             break;
         }
         case writeMRAMsr:{
             uint8_t stat = parseNumber(afterCommand);
-            WriteMRAMStatus(MRAM0Dev,stat);
-            WriteMRAMStatus(MRAM1Dev,stat);
-            WriteMRAMStatus(MRAM2Dev,stat);
-            WriteMRAMStatus(MRAM3Dev,stat);
+            int i;
+            for (i=0;i<PACSAT_MAX_MRAMS;i++){
+                WriteMRAMStatus(MRAM_Devices[i],stat);
+            }
             break;
         }
         case internalWDTimeout:{

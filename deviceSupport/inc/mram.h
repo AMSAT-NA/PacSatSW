@@ -53,4 +53,6 @@ int initMRAM(void);
 bool MRAMSleep(int mramNum);
 bool MRAMWake(int mramNum);
 
+extern const SPIDevice MRAM_Devices[PACSAT_MAX_MRAMS];
+
 #endif /* FRAM_H_ */

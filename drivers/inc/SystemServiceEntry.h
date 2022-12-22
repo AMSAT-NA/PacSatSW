@@ -47,11 +47,9 @@ extern void vPortEnableInterrupts( void );
 #pragma SWI_ALIAS(SWIRaisePrivilege,1)
 #pragma SWI_ALIAS(SWISetWDTimer,7)
 #pragma SWI_ALIAS(SWIStartWatchdog,8)
-#pragma SWI_ALIAS(SWIDoBusSwitch,9)
 extern void SWIRaisePrivilege(void);
 extern void SWISetWDTimer(void);
 extern void SWIStartWatchdog(void);
-extern void SWIDoBusSwitch(void);
 
 
 #endif /* DRIVERS_INC_SYSTEMSERVICEENTRY_H_ */

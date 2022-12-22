@@ -13,9 +13,8 @@
 #include "spiDriver.h"
 #include "errors.h"
 #include "CANSupport.h"
-
+const SPIDevice MRAM_Devices[PACSAT_MAX_MRAMS]={MRAM0Dev,MRAM1Dev,MRAM2Dev,MRAM3Dev};
 static uint32_t MRAMSize[PACSAT_MAX_MRAMS];
-static SPIDevice mramDev[PACSAT_MAX_MRAMS]={MRAM0Dev,MRAM1Dev,MRAM2Dev,MRAM3Dev};
 static int numberOfMRAMs=0;
 SPIDevice GetMRAMAndAddress(uint32_t *addr){
     int MRAMNumber=0;
@@ -26,7 +25,7 @@ SPIDevice GetMRAMAndAddress(uint32_t *addr){
             return InvalidSPI;
         }
     }
-    return mramDev[MRAMNumber]; //Assume MRAM values are in order
+    return MRAM_Devices[MRAMNumber]; //Assume MRAM values are in order
 
 }
 
@@ -34,7 +33,7 @@ bool MRAMSleep(int mramNum){
     bool stat;
     ByteToWord command;
     command.byte[0] = FRAM_OP_SLEEP;
-    stat = SPISendCommand(mramDev[mramNum],command.word,1, NULL,0,NULL,0);        /* Write enable */
+    stat = SPISendCommand(MRAM_Devices[mramNum],command.word,1, NULL,0,NULL,0);        /* Write enable */
     return stat;
 }
 
@@ -42,7 +41,7 @@ bool MRAMWake(int mramNum){
     bool stat;
     ByteToWord command;
     command.byte[0] = MRAM_OP_WAKE;
-    stat = SPISendCommand(mramDev[mramNum],command.word,1, NULL,0,NULL,0);        /* Write enable */
+    stat = SPISendCommand(MRAM_Devices[mramNum],command.word,1, NULL,0,NULL,0);        /* Write enable */
     return stat;
 }
 
