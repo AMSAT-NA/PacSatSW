@@ -353,10 +353,6 @@ void RealConsoleTask(void)
             printf("There are %d primes less than %d; This took %d centiseconds\n",count,maxNumber,(ms2-ms1));
             break;
         }
-        case startRx:{
-            ax5043StartRx();
-            break;
-        }
 #if 1
         case GetGpios:{
             int i;
@@ -724,9 +720,15 @@ void RealConsoleTask(void)
                 printf("Sending a tone\n");
                 AudioSetMixerSource(MixerSilence);  //Stop everything
                 AudioSetMixerSource(MixerTone);
+                ax5043StartTx();
                 break;
             }
         }
+        case startRx:{
+            ax5043StartRx();
+            break;
+        }
+
         case version:{
             printID();
             break;

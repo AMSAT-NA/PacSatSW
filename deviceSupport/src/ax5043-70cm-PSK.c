@@ -423,7 +423,7 @@ uint8_t axradio_init_70cm(int32_t freq)
 	    vTaskDelay(CENTISECONDS(1));
 	}
 
-    //debug_print("After ranging: AX5043_PLLRANGINGA: %02.2x\n", ax5043ReadReg(AX5043_PLLRANGINGA)); //DEBUG RBG
+    debug_print("After ranging: AX5043_PLLRANGINGA: %02.2x\n", ax5043ReadReg(AX5043_PLLRANGINGA)); //DEBUG RBG
 
 
 
