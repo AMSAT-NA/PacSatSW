@@ -107,9 +107,12 @@ void ax5043_prepare_tx(void)
     ax5043ReadReg(AX5043_POWSTICKYSTAT); // clear pwr management sticky status --> brownout gate works
 }
 
-
-static uint8_t ax5043_reset(void)
-{
+/**
+ * ax5043_reset()
+ *
+ * Set the PWRMODE to
+ */
+static uint8_t ax5043_reset(void) {
 	//printf("INFO: Resetting AX5043 (ax5043_reset)\n");
 	uint8_t i;
 	// Initialize Interface
@@ -119,7 +122,7 @@ static uint8_t ax5043_reset(void)
 	// Wait some time for regulator startup
 	vTaskDelay(CENTISECONDS(1));
 
-	// Check Scratch
+	// Check the version and that we can read/write to scratch.  Then we know the chip is connected
 	i = ax5043ReadReg(AX5043_SILICONREVISION);
 	i = ax5043ReadReg(AX5043_SILICONREVISION);
 
@@ -320,13 +323,16 @@ static void ax5043_init_registers(void)
 
     ax5043_set_registers();
 
+#ifdef LEGACY_GOLF
     regValue = ax5043ReadReg(AX5043_PKTLENOFFSET);
     /* regValue += axradio_framing_swcrclen; // add len offs for software CRC16 (used for both, fixed and variable length packets */
     ax5043WriteReg(AX5043_PKTLENOFFSET, regValue);
 
     ax5043WriteReg(AX5043_PINFUNCIRQ, 0x00); // No IRQ used for now
 //    ax5043WriteReg(AX5043_PKTSTOREFLAGS, axradio_phy_innerfreqloop ? 0x13 : 0x15); // store RF offset, RSSI and delimiter timing
+
     axradio_setaddrregs();
+#endif
 }
 
 static void axradio_wait_for_xtal(void) {
@@ -338,32 +344,37 @@ static void axradio_wait_for_xtal(void) {
 }
 
 
-
-uint8_t axradio_init_70cm(int32_t freq)
-{
-	//uint8_t regValue;
-
+/**
+ * axradio_init_70cm
+ *
+ * This is run at startup.  It initializes the radio for TX and runs the PLL ranging
+ * Then it initializes the radio for RX on the same frequency and ranges the PLL again.
+ * If everything works it returns success - AXRADIO_ERR_NOERROR
+ *
+ */
+uint8_t axradio_init_70cm(int32_t freq) {
 	//printf("Inside axradio_init_70cm\n");
 
+    /* Store the current state and reset the radio.  This makes sure everything is
+     * clean as we start up */
     axradio_mode = AXRADIO_MODE_UNINIT;
     axradio_trxstate = trxstate_off;
-    if (ax5043_reset())
+    if (ax5043_reset()) // this also confirms that we can read/write to the chip
         return AXRADIO_ERR_NOCHIP;
+
     ax5043_init_registers();
     ax5043_set_registers_tx();
 
-
-
-
+    /* Setup for PLL ranging to make sure we can lock onto the requested frequency */
     ax5043WriteReg(AX5043_PLLLOOP, 0x09); // default 100kHz loop BW for ranging
     ax5043WriteReg(AX5043_PLLCPI, 0x08);
 
     // range all channels
     ax5043WriteReg(AX5043_PWRMODE, AX5043_PWRSTATE_XTAL_ON);
-    ax5043WriteReg(AX5043_MODULATION, 0x08);
-    ax5043WriteReg(AX5043_FSKDEV2, 0x00);
-    ax5043WriteReg(AX5043_FSKDEV1, 0x00);
-    ax5043WriteReg(AX5043_FSKDEV0, 0x00);
+    ax5043WriteReg(AX5043_MODULATION              ,0x0A); // AFSK.  0x04 is PSK
+    ax5043WriteReg(AX5043_FSKDEV2                 ,0x00);
+    ax5043WriteReg(AX5043_FSKDEV1                 ,0x0A);
+    ax5043WriteReg(AX5043_FSKDEV0                 ,0x8E);
     axradio_wait_for_xtal();
 
 
@@ -378,8 +389,6 @@ uint8_t axradio_init_70cm(int32_t freq)
 #endif
 
     quick_setfreq(freq);     // DEBUG [RBG]
-
-
 
 	axradio_trxstate = trxstate_pll_ranging;
 
@@ -415,17 +424,12 @@ uint8_t axradio_init_70cm(int32_t freq)
 
 	}
 
-
-
-
 	//printf("INFO: Waiting for PLL ranging process\n");
 	while ((ax5043ReadReg(AX5043_PLLRANGINGA) & 0x10) != 0) {
 	    vTaskDelay(CENTISECONDS(1));
 	}
 
     //debug_print("After ranging: AX5043_PLLRANGINGA: %02.2x\n", ax5043ReadReg(AX5043_PLLRANGINGA)); //DEBUG RBG
-
-
 
 	//printf("INFO: PLL ranging process complete\n");
 	axradio_trxstate = trxstate_off;
@@ -485,7 +489,7 @@ uint8_t axradio_init_70cm(int32_t freq)
 
     ax5043WriteReg(AX5043_PWRMODE, AX5043_PWRSTATE_POWERDOWN);
     ax5043_init_registers();
-    ax5043_set_registers_rx();
+    ax5043_set_registers_tx();  // TODO - G0KLA - why was this RX?  Changed to TX
     ax5043WriteReg(AX5043_PLLRANGINGA, axradio_phy_chanpllrng[0] & 0x0F);
 
 #if 0
