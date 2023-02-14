@@ -5,12 +5,12 @@
  *      Author: g0kla
  */
 
+#include <ax5043-ax25.h>
+#include <TxTask.h>
 #include "FreeRTOS.h"
 #include "os_task.h"
 
 #include "ax5043_access.h"
-#include "ax5043-70cm-PSK.h"
-#include "TncTask.h"
 
 void radio_setup_16MHz_xtal_signal(bool txco, unsigned int xtal_cap);
 void radio_setup_center_freq(bool vhf_band, uint32_t freq_reg_val);
@@ -19,7 +19,7 @@ void radio_set_power(uint32_t regVal);
 void radio_setup_1200bps_tx();
 void radio_setup_9600bps_tx();
 
-portTASK_FUNCTION_PROTO(TncTask, pvParameters)  {
+portTASK_FUNCTION_PROTO(TxTask, pvParameters)  {
 
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)RadioWD ); // TODO - just reuse the Radio task name for now
     InitInterTask(ToRadio, 10);
@@ -41,8 +41,7 @@ portTASK_FUNCTION_PROTO(TncTask, pvParameters)  {
      ax5043WriteReg(AX5043_PWRMODE, AX5043_PWRSTATE_FULL_TX);
 
     while(1) {
-        Intertask_Message messageReceived;
-        int status = 0;
+
         uint8_t pktstart_flag = 0x01;
         uint8_t pktend_flag = 0x02;
         uint8_t raw_no_crc_flag = 0x18;
@@ -52,35 +51,22 @@ portTASK_FUNCTION_PROTO(TncTask, pvParameters)  {
         uint8_t byteBuf[] = {0xA0,0x84,0x98,0x92,0xA6,0xA8,0x00,0xA0,0x8C,0xA6,0x66,
         0x40,0x40,0x17,0x03,0xF0,0x50,0x42,0x3A,0x20,0x45,0x6D,0x70,0x74,0x79,0x2E,0x0D};
 
-
-        uint8_t byteBuf2[] = {0x55,0xaa,0x55,0xaa,0x55,0xaa,0x55,0xaa,0x55,0xaa,0x55,0xaa,0x55,0xaa,
-                             0x55,0xaa,0x55,0xaa,0x55,0xaa,0x55,0xaa,0x55,0xaa,0x55,0xaa,0x55,0xaa,
-                             0x55,0xaa,0x55,0xaa,0x55,0xaa,0x55,0xaa,0x55,0xaa,0x55,0xaa,0x55,0xaa,
-                             0x55,0xaa,0x55,0xaa,0x55,0xaa,0x55,0xaa,0x55,0xaa,0x55,0xaa,0x55,0xaa,
-                             0x55,0xaa,0x55,0xaa,0x55,0xaa,0x55,0xaa,0x55,0xaa,0x55,0xaa,0x55,0xaa,
-                             0x55,0xaa,0x55,0xaa,0x55,0xaa,0x55,0xaa,0x55,0xaa,0x55,0xaa,0x55,0xaa};
-
         int numbytes = sizeof(byteBuf);
         ReportToWatchdog(CurrentTaskWD);
-        status = WaitInterTask(ToRadio, SECONDS(5), &messageReceived);  // TODO - this should be listening for packets received or to send
+        vTaskDelay(pdMS_TO_TICKS(5*1000));
         ReportToWatchdog(CurrentTaskWD);
-        if (status==0) { // DEBUG: Just send a test packet
-            //printf("PB: Empty\n");
 
-            printf("FIFO_FREE 1: %d\n",fifo_free());
-            ax5043WriteReg(AX5043_FIFOSTAT, 3); // clear FIFO data & flags
-            fifo_repeat_byte(0xAA, 20, raw_no_crc_flag);
-            fifo_queue_buffer(byteBuf, numbytes, pktstart_flag|pktend_flag);
-            printf("FIFO_FREE 2: %d\n",fifo_free());
-            fifo_commit();
-            printf("INFO: Waiting for transmission to complete\n");
-            while (ax5043ReadReg(AX5043_RADIOSTATE) != 0) {
-              //    usleep(1000);
-              vTaskDelay(1);
-            }
-            printf("INFO: Transmission complete\n");
-            //transmit_psk();
+//        printf("FIFO_FREE 1: %d\n",fifo_free());
+        ax5043WriteReg(AX5043_FIFOSTAT, 3); // clear FIFO data & flags
+        fifo_repeat_byte(0x7E, 10, raw_no_crc_flag); // repeat the packet delimiter
+        fifo_queue_buffer(byteBuf, numbytes, pktstart_flag|pktend_flag);
+ //       printf("FIFO_FREE 2: %d\n",fifo_free());
+        fifo_commit();
+ //       printf("INFO: Waiting for transmission to complete\n");
+        while (ax5043ReadReg(AX5043_RADIOSTATE) != 0) {
+            vTaskDelay(1);
         }
+ //       printf("INFO: Transmission complete\n");
 
     }
 }

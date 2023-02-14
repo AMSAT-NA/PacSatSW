@@ -41,7 +41,8 @@
 #include "gpioDriver.h"
 #include "ConsoleTask.h"
 #include "CommandTask.h"
-#include "TncTask.h"
+#include "TxTask.h"
+#include "RxTask.h"
 #include "TelemetryRadio.h"
 #include "RTISetup.h"
 #include "nonvol.h"
@@ -282,8 +283,12 @@ void ConsoleTask(void *pvParameters){
      */
    xTaskCreate(CommandTask, "Command", COMMAND_STACK_SIZE,
                 NULL,COMMAND_PRIORITY, NULL);
-    xTaskCreate(TncTask,"Radio",RADIO_STACK_SIZE,
+
+     xTaskCreate(RxTask,"Radio",RADIO_STACK_SIZE,
                 NULL,RADIO_PRIORITY,NULL);
+
+//    xTaskCreate(TxTask,"Radio",RADIO_STACK_SIZE,
+//                NULL,RADIO_PRIORITY,NULL);
 
     //AlertFlashingWait(CENTISECONDS(50),CENTISECONDS(10),CENTISECONDS(3));
     AllTasksStarted = true;

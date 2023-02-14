@@ -6,7 +6,7 @@ uint16_t fifo_free();
 void fifo_commit();
 void fifo_queue_buffer(uint8_t *buf, uint8_t len, uint8_t flags);
 void fifo_send_sync(int final);
-void start_tx();
+void start_ax25_tx();
 
 void ax5043_set_power(uint32_t powerRegVal);
 void ax5043_set_frequency(uint32_t freqRegVal);

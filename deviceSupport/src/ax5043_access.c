@@ -24,6 +24,7 @@
 #include "ax5043.h"
 #include "ax5043_access.h"
 #include "ax5043-2M-AFSK-externs.h"
+#include "ax5043-ax25.h"
 #include "nonvol.h"
 
 
@@ -134,6 +135,12 @@ void ax5043PowerOff(void){
     PowerOn = Rxing = Txing = false;
 #endif
 }
+
+/**
+ * TODO - this now starts the AX25 RX.  It should be setup to start multiple receivers
+ * We also need another function to start the command receiver.
+ *
+ */
 void ax5043StartRx(void){
     //printf("StartRx: Power=%d,Txing=%d,Rxing=%d\n",PowerOn,Txing,Rxing);
     ax5043StopTx();
@@ -142,7 +149,7 @@ void ax5043StartRx(void){
         PowerOn = true;
     }
     if(!Rxing){
-        start_rx();
+        start_ax25_rx();
         Rxing=true; Txing=false;
     }
 }
@@ -163,7 +170,7 @@ void ax5043StartTx(void){
         ax5043PowerOn();
         PowerOn = true;
     }
-    start_tx();
+    start_ax25_tx();
     Txing = true; Rxing = false;
 }
 void ax5043StopTx(void){

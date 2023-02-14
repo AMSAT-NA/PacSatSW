@@ -300,6 +300,7 @@
 #define AX5043_0xF34 0xF34
 #define AX5043_0xF35 0xF35
 #define AX5043_0xF44 0xF44
+#define AX5043_0xF72 0xF72  // PERFTUNE114
 
 #define AX5043_AGCAHYST0 0x122   /* AGC Analog Hysteresis */
 #define AX5043_AGCAHYST1 0x132   /* AGC Analog Hysteresis */
@@ -454,8 +455,7 @@ uint8_t mode_tx_70cm(void);
 extern uint8_t ax5043_off(void);
 extern uint8_t ax5043_off_xtal(void);
 
-static uint8_t ax5043_init_registers_tx(void);
-static uint8_t ax5043_init_registers_rx(void);
+
 
 static uint8_t axradio_get_pllvcoi(void);
 static uint8_t ax5043_receiver_on_continuous(void);
@@ -463,7 +463,6 @@ static uint8_t ax5043_receiver_on_continuous(void);
 static void ax5043_set_registers(void);
 static void ax5043_set_registers_tx(void);
 static void ax5043_set_registers_rx(void);
-static void ax5043_set_registers_rxcont(void);
 
 static int32_t axradio_conv_freq_fromhz(int32_t f);
 static int32_t axradio_conv_freq_tohz(int32_t f);
@@ -488,8 +487,8 @@ uint8_t mode_rx_70cm(void);
 
 
 void quick_setfreq(int32_t f);
-
-void start_tx();
+void start_ax25_rx();
+void start_ax25_tx();
 uint16_t fifo_free();
 void fifo_repeat_byte(uint8_t b, uint8_t count, uint8_t flags);
 void fifo_commit();

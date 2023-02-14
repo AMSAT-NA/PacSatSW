@@ -120,7 +120,9 @@ uint8_t ax5043_readfifo(uint8_t axradio_rxbuffer[], uint8_t len) {
 	uint8_t loc = 0;
 	while (len--) {
 		axradio_rxbuffer[loc++] = ax5043ReadReg(AX5043_FIFODATA);
+		debug_print("%d ",axradio_rxbuffer[loc-1]);
 	}
+	debug_print("\n");
 	return loc;
 }
 
@@ -151,6 +153,7 @@ uint8_t receive_loop(void) {
         if (len == 7)
             len = ax5043ReadReg(AX5043_FIFODATA); // 7 means variable length, -> get length byte
         fifo_cmd &= 0x1F;
+        debug_print("FIFO CMD: %d\n",fifo_cmd);
         switch (fifo_cmd) {
         case AX5043_FIFOCMD_DATA:
             if (!len)
@@ -731,6 +734,7 @@ void test_pll_range() {
 //    ax5043PowerOff();
 }
 
+// TODO - common routines like this should be in ax5043_access.c
 uint8_t get_rssi() {
     int8_t byteVal;
     int16_t wordVal;

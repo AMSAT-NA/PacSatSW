@@ -7,6 +7,7 @@
 /*
  * Standard headers for Golf
  */
+#include <ax5043-ax25.h>
 #include <pacsat.h>
 #include "stdarg.h"
 #include "stdlib.h"
@@ -30,7 +31,6 @@
 #include "rti.h"
 #include "esm.h"
 #include "adc.h"
-#include "ax5043-70cm-PSK.h"
 #include "ax5043-2M-AFSK-externs.h"
 #include "config-2M-AFSK.h"
 

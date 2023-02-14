@@ -5,8 +5,8 @@
  *      Author: g0kla
  */
 
-#ifndef TASKS_INC_TNCTASK_H_
-#define TASKS_INC_TNCTASK_H_
+#ifndef TASKS_INC_TXTASK_H_
+#define TASKS_INC_TXTASK_H_
 
 #include <pacsat.h>
 
@@ -14,7 +14,7 @@
  * Routine prototypes
  */
 
-void TncTask(void *pvParameters);
+void TxTask(void *pvParameters);
 
 
-#endif /* TASKS_INC_TNCTASK_H_ */
+#endif /* TASKS_INC_TXTASK_H_ */

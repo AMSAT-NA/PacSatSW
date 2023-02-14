@@ -1,4 +1,6 @@
 
+#ifdef LEGACY_GOLF
+
 // TX: fcarrier=445.300MHz dev=  0.000kHz br=  1.200kBit/s pwr= 15.0dBm
 // RX: fcarrier=445.300MHz bw=  1.200kHz br=  1.200kBit/s
 
@@ -172,11 +174,11 @@ static void ax5043_set_registers(void) {
   unsigned int xtal_cap = 5;  // TODO - G0KLA this should be a define as it is set for each crystal
   ax5043WriteReg(AX5043_XTALCAP, xtal_cap);
 
-  ax5043WriteReg(AX5043_0xF1C                   ,0x07); // Also in JB code
-  ax5043WriteReg(AX5043_0xF21                   ,0x68);
-  ax5043WriteReg(AX5043_0xF22                   ,0xFF);
-  ax5043WriteReg(AX5043_0xF23                   ,0x84);
-  ax5043WriteReg(AX5043_0xF26                   ,0x98);
+  ax5043WriteReg(AX5043_0xF1C                   ,0x07); // Programming manual specifies this value
+  ax5043WriteReg(AX5043_0xF21                   ,0x68); // TODO - Programming manual specifies 5C
+  ax5043WriteReg(AX5043_0xF22                   ,0xFF); // TODO - Programming manual specifies 53
+  ax5043WriteReg(AX5043_0xF23                   ,0x84); // TODO - Programming manual specifies 76
+  ax5043WriteReg(AX5043_0xF26                   ,0x98); // TODO - Programming manual specifies 92
   ax5043WriteReg(AX5043_0xF34                   ,0x28); /* PERFTUNE52 - RFDIV ON - Set to 08 for VHF */
 
   ax5043WriteReg(AX5043_0xF44                   ,0x24); // In JB code but set to 24 and in programming manual.  Was 25 in GOLF code.
@@ -381,6 +383,8 @@ static void ax5043_set_registers_rx(void) {
    ax5043WriteReg(AX5043_0xF18                   ,0x02);
 #endif
 }
+
+#endif // LEGACY_GOLF
 
 // physical layer
 
