@@ -281,8 +281,8 @@ void ConsoleTask(void *pvParameters){
      * We create the coordination task first.  It will get us switched into either "InControl" or "AliveNotControlling".
      * When we are in one or the other, we init the appropriate GPIOs.
      */
-   xTaskCreate(CommandTask, "Command", COMMAND_STACK_SIZE,
-                NULL,COMMAND_PRIORITY, NULL);
+//   xTaskCreate(CommandTask, "Command", COMMAND_STACK_SIZE,
+//                NULL,COMMAND_PRIORITY, NULL);
 
      xTaskCreate(RxTask,"Radio",RADIO_STACK_SIZE,
                 NULL,RADIO_PRIORITY,NULL);

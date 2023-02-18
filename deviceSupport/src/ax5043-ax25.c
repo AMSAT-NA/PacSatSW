@@ -105,7 +105,6 @@ static const int8_t  axradio_phy_rssireference = 57;// 0xF9 + 64;
  */
 static void ax5043_ax25_set_registers(void) {
 
-
   ax5043WriteReg(AX5043_MODULATION              ,0x0A); // AFSK.  0x04 is PSK. GMSK for 9600 is 0x07
   ax5043WriteReg(AX5043_ENCODING                ,0x03); // Differential encoding, bit inversion, no scrambler.  Use 0x07 for G3RUH scrambler
   ax5043WriteReg(AX5043_FRAMING                 ,0x14); // 0x14 is HDLC framing with CRC. 0x04 is HDLC without CRC.  Was 0x06 for GOLF format
@@ -125,11 +124,14 @@ static void ax5043_ax25_set_registers(void) {
    * IFFREQ = 2^20 * Freq_of_if / Xtal_freq + 1/2
    * 1200bps = 0x0155
    * 9600bps = 0x01D8
+   *
+   * Note that Radio lab calculates 04CD, which is 1229, so this is the same freq as the bit rate..
    */
-  ax5043WriteReg(AX5043_IFFREQ1                 ,0x01);
-  ax5043WriteReg(AX5043_IFFREQ0                 ,0x55);
+  ax5043WriteReg(AX5043_IFFREQ1                 ,0x04);
+  ax5043WriteReg(AX5043_IFFREQ0                 ,0xcd);
 
   /**
+   * RX DATA RATE and DECIMATION
    * For 1200bps AFSK the Bandwidth is 10.4kHz from 2 * (Fdev + Fmod) = 2 * (3000 + 2200)
    * For 9600bps the bandwidth is also 2 * (Fdev + Fmod) where Fdev = 0.5 * modulation_index * bitrate and Fmod = 0.5 * bitrate
    * modulation_index = 0.5 for GMSK.  So bandwidth is 14.4 kHz from 2 * (0.5*0.5*9600 + 0.5*9600)
@@ -137,11 +139,18 @@ static void ax5043_ax25_set_registers(void) {
    * Min bw of lpf has to equal bw calculated above.  it is set by FILTIDX bits of PHASEGAIN register.  See prog manual.
    *
    * Decimation = 0.25 * Fxtal / (2^4 * BW)   -- Assuming FILTERIDX bits of PHASEGAIN0 set to default value of 0.25 using bits 11
+   *
+   * RadioLab sets the Decimation to 08
    */
-  ax5043WriteReg(AX5043_DECIMATION              ,0x18);  // Set to 0x11 for 9600 bps
-  ax5043WriteReg(AX5043_RXDATARATE2             ,0x01);  // 0x003106 for 9600
-  ax5043WriteReg(AX5043_RXDATARATE1             ,0x15);
-  ax5043WriteReg(AX5043_RXDATARATE0             ,0xC8);
+  ax5043WriteReg(AX5043_DECIMATION              ,0x08);  // Set to 0c18 per black magic and 0x11 for 9600 bps
+
+  /**
+   * Radiolab sets the 1200bps data rate to 034155, which is 213k and seems really wide...
+   * Black magic uses 0115c8
+   */
+  ax5043WriteReg(AX5043_RXDATARATE2             ,0x03);  // 0x003106 for 9600
+  ax5043WriteReg(AX5043_RXDATARATE1             ,0x41);
+  ax5043WriteReg(AX5043_RXDATARATE0             ,0x55);
 
   /**
    * We can set to zero if our timing is stable and TX bitrate is within 1%
@@ -162,10 +171,23 @@ static void ax5043_ax25_set_registers(void) {
    * For 9600 we set to 0x0EBF
    *
    * We also set bit 23 so that this is corrected at the first Local Oscillator rather than at the second
+   *
+   * Radio lab sets this to 0707
    */
   ax5043WriteReg(AX5043_MAXRFOFFSET2            ,0x80);  // set bit 23
-  ax5043WriteReg(AX5043_MAXRFOFFSET1            ,0x0A);
-  ax5043WriteReg(AX5043_MAXRFOFFSET0            ,0xA7);
+  ax5043WriteReg(AX5043_MAXRFOFFSET1            ,0x07);
+  ax5043WriteReg(AX5043_MAXRFOFFSET0            ,0x07);
+
+  /* Radio lab sets FSKDMAX and FSKDMIN, which are not set in the GOLF code.  They are set to 0 */
+  ax5043WriteReg(AX5043_FSKDMAX1            ,0x00);
+  ax5043WriteReg(AX5043_FSKDMAX0            ,0x00);
+  ax5043WriteReg(AX5043_FSKDMIN1            ,0x00);
+  ax5043WriteReg(AX5043_FSKDMIN0            ,0x00);
+
+  /* AFSK detector bandwidth set as AFSKCTRL = 2 * log2 (Fxtal / 2^5 * bitrate * decimation)
+   * Radio laB SETS TO 0C*/
+  ax5043WriteReg(AX5043_AFSKCTRL,           0x0C); // need to calculate for 9600  ***************** should be checked
+
   ax5043WriteReg(AX5043_AMPLFILTER              ,0x00);
   ax5043WriteReg(AX5043_RXPARAMSETS             ,0xF4);  // Was F4 in GOLF to have different param sets for each pattern matched
 
@@ -187,11 +209,14 @@ static void ax5043_ax25_set_registers(void) {
    *
    * ATTACK is the lower 4 bits
    * We can tune this value by outputting RSSI or SAMPLE_ROT_I/SAMPLE_ROT_Q through the DAC
+   *
+   * Radio lab sets this to E8
    */
-  ax5043WriteReg(AX5043_AGCGAIN0                ,0xA7); // RX Only
+  ax5043WriteReg(AX5043_AGCGAIN0                ,0xE8); // RX Only
 
-  /* ADC for AGC has max value of 512.  This sets the max range.  Set to 75% or magnitude 384.  AGCTARGET = log2(Magnitude) * 16 */
-  ax5043WriteReg(AX5043_AGCTARGET0              ,0x89); // RX only
+  /* ADC for AGC has max value of 512.  This sets the max range.  Set to 75% or magnitude 384.  AGCTARGET = log2(Magnitude) * 16 = 0x89
+   * Radio lab sets this to 84 */
+  ax5043WriteReg(AX5043_AGCTARGET0              ,0x84); // RX only
 
   /**
    * TIMEGAIN contains two 4 bit numbers TIMEGAINxM and TIMEGAINxE
@@ -203,10 +228,10 @@ static void ax5043_ax25_set_registers(void) {
    * So for 1200bps TIMEGAINxM = 0x9 and TIMEGAINxE = 0x5
    * For 9600bps TIMEGAINxM = 0x9 and TIMEGAINxE = 0x8
    * TIMEGAINxE is the lower 4 bits
+   *
+   * Radio lab sets TIMEGAIN0 to DC
    */
-  ax5043WriteReg(AX5043_TIMEGAIN0               ,0x95); // RX Only
-  ax5043WriteReg(AX5043_TIMEGAIN1               ,0x94);
-  ax5043WriteReg(AX5043_TIMEGAIN3               ,0x93);
+  ax5043WriteReg(AX5043_TIMEGAIN0               ,0xDC); // RX Only
 
   /**
    * DRGAIN contains two 4 bit numbers DRGAINxM and DRGAINxE
@@ -218,54 +243,74 @@ static void ax5043_ax25_set_registers(void) {
    * So for 1200bps DRGAINxM = 0x9 and DRGAINxE = 0x1
    * For 9600 bps DRGAINxM = 0x9 and DRGAINxE = 0x4
    * DRGAINxE is lower 4 bits
+   *
+   * Radio lab sets DRGAIN0 to D6
    */
-  ax5043WriteReg(AX5043_DRGAIN0                 ,0x91); // RX Only
-  ax5043WriteReg(AX5043_DRGAIN1                 ,0x90);
-  ax5043WriteReg(AX5043_DRGAIN3                 ,0x90);
+  ax5043WriteReg(AX5043_DRGAIN0                 ,0xD6); // RX Only
 
-  /* Set FILTERIDX bits to 11 in PHASEGAIN - see DECIMATION calc above */
+  /* Set FILTERIDX bits to 11 in PHASEGAIN - see DECIMATION calc above
+   * Radio lab also sets this to default of C3*/
   ax5043WriteReg(AX5043_PHASEGAIN0              ,0xC3); // C3 is also the default
-  ax5043WriteReg(AX5043_FREQUENCYGAINA0         ,0x46);
-  ax5043WriteReg(AX5043_FREQUENCYGAINB0         ,0x0A);
-  ax5043WriteReg(AX5043_FREQUENCYGAINC0         ,0x1F);
-  ax5043WriteReg(AX5043_FREQUENCYGAIND0         ,0x1F);
+
+  /* From GOLF FREQUENCYGAINA0 = 46, B0 = 0A, C0 = qF, D0 = 1F
+   * Radio lab sets FREQUENCYGAINA0 to 0F, B0 = 1F, C0 = 0D, D0 = 0D */
+  ax5043WriteReg(AX5043_FREQUENCYGAINA0         ,0x0F);
+  ax5043WriteReg(AX5043_FREQUENCYGAINB0         ,0x1F);
+  ax5043WriteReg(AX5043_FREQUENCYGAINC0         ,0x0D);
+  ax5043WriteReg(AX5043_FREQUENCYGAIND0         ,0x0D);
+
+  /* AMPLITUDEGAIN0 set to 06 in GOLF and by RadioLab */
   ax5043WriteReg(AX5043_AMPLITUDEGAIN0          ,0x06);
+
+  /* Set to 00 */
   ax5043WriteReg(AX5043_FREQDEV10               ,0x00);
   ax5043WriteReg(AX5043_FREQDEV00               ,0x00);
+
+  /* Baseband gain compensation resistors Set to zero */
   ax5043WriteReg(AX5043_BBOFFSRES0              ,0x00);
+
   ax5043WriteReg(AX5043_AGCGAIN1                ,0xE8); // RX Only?
   ax5043WriteReg(AX5043_AGCTARGET1              ,0x84);
   ax5043WriteReg(AX5043_AGCAHYST1               ,0x00); // 0 is default value
   ax5043WriteReg(AX5043_AGCMINMAX1              ,0x00); // 0 is default value
-  ax5043WriteReg(AX5043_PHASEGAIN1              ,0x83);
-  ax5043WriteReg(AX5043_FREQUENCYGAINA1         ,0x46);
-  ax5043WriteReg(AX5043_FREQUENCYGAINB1         ,0x0A);
-  ax5043WriteReg(AX5043_FREQUENCYGAINC1         ,0x1F);
-  ax5043WriteReg(AX5043_FREQUENCYGAIND1         ,0x1F);
-  ax5043WriteReg(AX5043_AMPLITUDEGAIN1          ,0x06);
-  ax5043WriteReg(AX5043_FREQDEV11               ,0x00);
-  ax5043WriteReg(AX5043_FREQDEV01               ,0x00);
-  ax5043WriteReg(AX5043_FOURFSK1                ,0x16);
-  ax5043WriteReg(AX5043_BBOFFSRES1              ,0x00);
-  ax5043WriteReg(AX5043_AGCGAIN3                ,0xFF);
-  ax5043WriteReg(AX5043_AGCTARGET3              ,0x84);
+  ax5043WriteReg(AX5043_TIMEGAIN1               ,0xDA); // GOLF was 94, DA per radio lab
+  ax5043WriteReg(AX5043_DRGAIN1                 ,0xD5); // GOLF was 90, D5 per radio lab
+  ax5043WriteReg(AX5043_PHASEGAIN1              ,0xC3); // GOLF was 83, C3 per radio lab
+  ax5043WriteReg(AX5043_FREQUENCYGAINA1         ,0x0F); // GOLF was 46, 0F per Radio lab
+  ax5043WriteReg(AX5043_FREQUENCYGAINB1         ,0x1F); // GOLF was 0A, 1F per radio lab
+  ax5043WriteReg(AX5043_FREQUENCYGAINC1         ,0x1D); // GOLF was 1F, 0D per radio lab
+  ax5043WriteReg(AX5043_FREQUENCYGAIND1         ,0x1D); // GOLF was 1F, 0D per radio lab
+  ax5043WriteReg(AX5043_AMPLITUDEGAIN1          ,0x06); // per radio lab
+  ax5043WriteReg(AX5043_FREQDEV11               ,0x00); // per radio lab
+  ax5043WriteReg(AX5043_FREQDEV01               ,0x00); // per radio lab
+  ax5043WriteReg(AX5043_FOURFSK1                ,0x16); // per radio lab
+  ax5043WriteReg(AX5043_BBOFFSRES1              ,0x00); // per radio lab
+  ax5043WriteReg(AX5043_AGCGAIN3                ,0xFF); // per radio lab
+  ax5043WriteReg(AX5043_AGCTARGET3              ,0x84); // per radio lab
   ax5043WriteReg(AX5043_AGCAHYST3               ,0x00); // 0 is default value
   ax5043WriteReg(AX5043_AGCMINMAX3              ,0x00); // 0 is default value
-  ax5043WriteReg(AX5043_PHASEGAIN3              ,0x83);
-  ax5043WriteReg(AX5043_FREQUENCYGAINA3         ,0x46);
-  ax5043WriteReg(AX5043_FREQUENCYGAINB3         ,0x0A);
-  ax5043WriteReg(AX5043_FREQUENCYGAINC3         ,0x1F);
-  ax5043WriteReg(AX5043_FREQUENCYGAIND3         ,0x1F);
-  ax5043WriteReg(AX5043_AMPLITUDEGAIN3          ,0x06);
-  ax5043WriteReg(AX5043_FREQDEV13               ,0x00);
-  ax5043WriteReg(AX5043_FREQDEV03               ,0x00);
-  ax5043WriteReg(AX5043_FOURFSK3                ,0x16);
-  ax5043WriteReg(AX5043_BBOFFSRES3              ,0x00);
+  ax5043WriteReg(AX5043_TIMEGAIN3               ,0xD9); // GOLF was 93, D9 per radio lab
+  ax5043WriteReg(AX5043_DRGAIN3                 ,0xD4); // GOLF was 90, D4 per radio lab
+  ax5043WriteReg(AX5043_PHASEGAIN3              ,0xC3); // GOLF was 83, C3 per radio lab
+  ax5043WriteReg(AX5043_FREQUENCYGAINA3         ,0x0F); // GOLF was 46, 0F per radio lab
+  ax5043WriteReg(AX5043_FREQUENCYGAINB3         ,0x1F); // GOLF was 0A, 1F per radio lab
+  ax5043WriteReg(AX5043_FREQUENCYGAINC3         ,0x0D); // GOLF was 1F, 0D per radio lab
+  ax5043WriteReg(AX5043_FREQUENCYGAIND3         ,0x0D); // GOLF was 1F, 0D per radio lab
+  ax5043WriteReg(AX5043_AMPLITUDEGAIN3          ,0x06); // per radio lab
+  ax5043WriteReg(AX5043_FREQDEV13               ,0x00); // per radio lab
+  ax5043WriteReg(AX5043_FREQDEV03               ,0x00); // per radio lab
+  ax5043WriteReg(AX5043_FOURFSK3                ,0x16); // per radio lab
+  ax5043WriteReg(AX5043_BBOFFSRES3              ,0x00); // per radio lab
+
+  /* TODO - G0KLA - Signal filtering, for now per Jonathons code
+   * 03 is Gaussian BT = 0.5.  02 is Gaussian with BT = 0.3 and 00 is no filtering. */
+  ax5043WriteReg(AX5043_MODCFGF                 ,0x03); // TX only
 
   /* Set the Frequency Deviation  TODO -- THIS IS JUST THE TX VALUE?? */
-  /* Where FSKDEV = (0.858785 * Fdevisation) / Fxtal * 2^24 + 1/2
+  /* Where FSKDEV = (0.858785 * Fdeviation) / Fxtal * 2^24 + 1/2
        * and Fdeviation = 3kHz  */
-  /* Set FSK Deviation to 0A8E for 1200BPS FSK */
+  /* Set FSK Deviation to 0A8E for 1200BPS FSK
+   * Radio lab sets this to 0547 but given TX is working, this is left at 0A8E */
   ax5043WriteReg(AX5043_FSKDEV2                 ,0x00);
   ax5043WriteReg(AX5043_FSKDEV1                 ,0x0A);
   ax5043WriteReg(AX5043_FSKDEV0                 ,0x8E);
@@ -277,7 +322,7 @@ static void ax5043_ax25_set_registers(void) {
   /* TXRATE = BITRATE/Fxtal * 2^24 + 1/2
    * Where Fxtal = 16,000,000
    */
-  /* Set the data rate to 0x04EB for 1200bps */
+  /* Set the data rate to 0x04EB for 1200bps.  Radio lab agrees with this value */
   ax5043WriteReg(AX5043_TXRATE2                 ,0x00);
   ax5043WriteReg(AX5043_TXRATE1                 ,0x04);
   ax5043WriteReg(AX5043_TXRATE0                 ,0xEA);
@@ -292,36 +337,67 @@ static void ax5043_ax25_set_registers(void) {
   ax5043WriteReg(AX5043_TXPWRCOEFFB1            ,0x00); // Start it out with totally minimum pwr
   ax5043WriteReg(AX5043_TXPWRCOEFFB0            ,0x20);
 
+  /**
+   * PLL VCO Current
+   * GOLF sets this to 97, which is half the radio lab suggested value.  Given it works this is left as 97
+   * Radio lab suggests AA
+   */
   ax5043WriteReg(AX5043_PLLVCOI                 ,0x97);
-  ax5043WriteReg(AX5043_PLLRNGCLK               ,0x03);
-  ax5043WriteReg(AX5043_BBTUNE                  ,0x0F);
-  ax5043WriteReg(AX5043_BBOFFSCAP               ,0x77);
-  ax5043WriteReg(AX5043_PKTADDRCFG              ,0x20); // Send AX25 LSB first.  Disable FEC sync search.  Addr bytes set to 0.  Note this was 80 = MSB First for GOLF/FOX
-  ax5043WriteReg(AX5043_PKTLENCFG               ,0xF0); // arbitrary length packets
-  ax5043WriteReg(AX5043_PKTLENOFFSET            ,0x00); // Add no offset was 09 for GOLF
-  ax5043WriteReg(AX5043_PKTMAXLEN               ,0xFF); // max 255 bytes for a packet
 
+  ax5043WriteReg(AX5043_PLLRNGCLK               ,0x03); // per radio lab.  Unclear what this means due to misprint in programming manual
+  ax5043WriteReg(AX5043_BBTUNE                  ,0x0F); // basegand tuning value - per radio lab
+  ax5043WriteReg(AX5043_BBOFFSCAP               ,0x77); // baseband gain offset compensation capacitors - per radio lab
+  /*
+   * PKTADDRXFG
+   * Send AX25 LSB first.  Disable FEC sync search.  Addr bytes set to 0.  Note this was 80 = MSB First for GOLF/FOX
+   * Radio lab suggests 40, which is CRC skip first
+   * This was set to 20 to disable FEC sync search, but maybe that is needed
+   */
+  ax5043WriteReg(AX5043_PKTADDRCFG              ,0x20); //
 
-  ax5043WriteReg(AX5043_MATCH0PAT3              ,0x00);
-  ax5043WriteReg(AX5043_MATCH0PAT2              ,0x00);
-  ax5043WriteReg(AX5043_MATCH0PAT1              ,0x00);
-  ax5043WriteReg(AX5043_MATCH0PAT0              ,0x00);
-  ax5043WriteReg(AX5043_MATCH0LEN               ,0x00);
-  ax5043WriteReg(AX5043_MATCH0MAX               ,0x0F);
-  ax5043WriteReg(AX5043_MATCH1PAT1              ,0x00);
-  ax5043WriteReg(AX5043_MATCH1PAT0              ,0x00);
-  ax5043WriteReg(AX5043_MATCH1LEN               ,0x00);
-  ax5043WriteReg(AX5043_MATCH1MAX               ,0x0F);
-  ax5043WriteReg(AX5043_TMGTXBOOST              ,0x32);
-  ax5043WriteReg(AX5043_TMGTXSETTLE             ,0x14);
+  /**
+   * Set to F0 for arbitrary length packets
+   * Radio lab suggests 00 for HDLC Pkt
+   */
+  ax5043WriteReg(AX5043_PKTLENCFG               ,0x00);
+
+  /**
+   * GOLF sets this to 09.
+   * Radio lab suggests 06
+   * I had this at 00 for no offset, but perhaps that was wrong??
+   */
+  ax5043WriteReg(AX5043_PKTLENOFFSET            ,0x06);
+
+  /**
+   * Radio lab says F0 for PKTMAXLEN
+   */
+  ax5043WriteReg(AX5043_PKTMAXLEN               ,0xF0); // max 240 bytes for a packet
+
+  /**
+   * The match values are from radio lab, but likely only becuse I put 7E preamble byte in
+   * the entry field.  Need to determine if this matters or is needed.
+   */
+  ax5043WriteReg(AX5043_MATCH0PAT3              ,0xAA);
+  ax5043WriteReg(AX5043_MATCH0PAT2              ,0xCC);
+  ax5043WriteReg(AX5043_MATCH0PAT1              ,0xAA);
+  ax5043WriteReg(AX5043_MATCH0PAT0              ,0xCC);
+//  ax5043WriteReg(AX5043_MATCH0LEN               ,0x00);
+//  ax5043WriteReg(AX5043_MATCH0MAX               ,0x7E);
+  ax5043WriteReg(AX5043_MATCH1PAT1              ,0x7E);
+  ax5043WriteReg(AX5043_MATCH1PAT0              ,0x7E);
+  ax5043WriteReg(AX5043_MATCH1LEN               ,0x8A);
+  ax5043WriteReg(AX5043_MATCH1MAX               ,0x0A);
+
+  ax5043WriteReg(AX5043_TMGTXBOOST              ,0x32); // per radio lab
+  ax5043WriteReg(AX5043_TMGTXSETTLE             ,0x14); // per radio lab
   ax5043WriteReg(AX5043_TMGRXBOOST              ,0x32);  // Receive PLL Boost Time.  Default is 0x32
   ax5043WriteReg(AX5043_TMGRXSETTLE             ,0x14); // Receive PLL settle time.  Default is 0x14
-  ax5043WriteReg(AX5043_TMGRXOFFSACQ            ,0x00);
-  ax5043WriteReg(AX5043_TMGRXCOARSEAGC          ,0x73);
-  ax5043WriteReg(AX5043_TMGRXRSSI               ,0x03);
-  ax5043WriteReg(AX5043_TMGRXPREAMBLE2          ,0x35);
-  ax5043WriteReg(AX5043_RSSIABSTHR              ,0xDD);
-  ax5043WriteReg(AX5043_BGNDRSSITHR             ,0x00);
+  ax5043WriteReg(AX5043_TMGRXOFFSACQ            ,0x00); // per radio lab
+  ax5043WriteReg(AX5043_TMGRXCOARSEAGC          ,0x73); // per radio lab
+  ax5043WriteReg(AX5043_TMGRXRSSI               ,0x03); // per radio lab
+  ax5043WriteReg(AX5043_TMGRXPREAMBLE2          ,0x17); // Preamble 2 timeout - This was 0x35 for GOLF.  Radio lab says 17
+  ax5043WriteReg(AX5043_RSSIABSTHR              ,0xE0); // This was DD in GOLF, radio lab says E0.  RSSI levels above this value indicate a busy channel.  We don't care with a full duplex radio
+  ax5043WriteReg(AX5043_BGNDRSSITHR             ,0x00); // per radio lab
   ax5043WriteReg(AX5043_PKTCHUNKSIZE            ,0x0D); // Set FIFO chunk size to max of 240 bytes
   ax5043WriteReg(AX5043_PKTACCEPTFLAGS          ,0x20); // 3F for debug, otherwise Set to 0x20 Bit 5 LRGP. 01 enables packets that span multiple fifo chunks.  We dont want that if we use HDLC framing
   ax5043WriteReg(AX5043_DACVALUE1               ,0x00);
@@ -340,23 +416,23 @@ static void ax5043_ax25_set_registers(void) {
    */
   ax5043WriteReg(AX5043_XTALOSC                 ,0x03);  // 0x04 for TXCO
   ax5043WriteReg(AX5043_XTALAMPL                ,0x07);  // 0x00 for TXCO
-  ax5043WriteReg(AX5043_0xF35                   ,0x10); // XTAL div = 1
-  /* XTAL load capacitance is added by the chip and is not external on the board. So we need to set the
-     * value here using formula C in pf = 8 + 0.5 * XTALCAP */
-  unsigned int xtal_cap = 5;  // TODO - G0KLA this should be a define as it is set for each crystal
-  ax5043WriteReg(AX5043_XTALCAP, xtal_cap);
 
   ax5043WriteReg(AX5043_0xF1C                   ,0x07); // Programming manual specifies this value
   ax5043WriteReg(AX5043_0xF21                   ,0x68); // TODO - Programming manual specifies 5C
   ax5043WriteReg(AX5043_0xF22                   ,0xFF); // TODO - Programming manual specifies 53
   ax5043WriteReg(AX5043_0xF23                   ,0x84); // TODO - Programming manual specifies 76
   ax5043WriteReg(AX5043_0xF26                   ,0x98); // TODO - Programming manual specifies 92
-  ax5043WriteReg(AX5043_0xF34                   ,0x28); /* PERFTUNE52 - RFDIV ON - Set to 08 for VHF */
 
-  ax5043WriteReg(AX5043_0xF44                   ,0x24); // In JB code but set to 24 and in programming manual.  Was 25 in GOLF code.
-  ax5043WriteReg(AX5043_MODCFGP                 ,0xE7); //  0xE7 disables PSK 0xE1 for PSK
+  /**
+   * PERFTUNE52
+   *
+   */
+  ax5043WriteReg(AX5043_0xF34                   ,0x28); /* PERFTUNE52 - Set to 28 if RFDIV ON in reg PLLVCODIV  - Set to 08 for VHF */
+  ax5043WriteReg(AX5043_0xF35                   ,0x10); // XTAL div = 1
 
-  ax5043WriteReg(AX5043_0xF00                   ,0x0F);  // Per programming manual
+  ax5043WriteReg(AX5043_0xF44                   ,0x25); // In JB code set to 24 and in programming manual.  Was 25 in GOLF code and frpm Radio Lab.
+  ax5043WriteReg(AX5043_MODCFGP                 ,0xE7); //  0xE7 disables PSK 0xE1 for PSK - but only needed if we actually want PSK?  Not in radio lab output
+
   ax5043WriteReg(AX5043_0xF0C                   ,0x00);  // Per programming manual, though 0x00 is the default
 
 }
@@ -412,13 +488,11 @@ static void axradio_wait_for_xtal(void) {
  */
 
 static void ax5043_ax25_set_registers_tx(void) {
-    ax5043WriteReg(AX5043_PLLLOOP                 ,0x0B);
+    ax5043WriteReg(AX5043_PLLLOOP                 ,0x0A);
     ax5043WriteReg(AX5043_PLLCPI                  ,0x10);
     ax5043WriteReg(AX5043_PLLVCODIV               ,0x24);  // sets the internal inductor.  Set to 0x30 for external needed on vhf
 
 //    ax5043WriteReg(AX5043_0xF0D                   ,0x03);  // Per J Brandenburg
-
-    ax5043WriteReg(AX5043_0xF18                   ,0x06); // Unclear what this does but comes from radiolab
 
     /* For AFSK we need another pair of registers for MARK / SPACE
       * AFSK(Mark/Space) = Freq*2^18/Fxtal + 1/2
@@ -430,8 +504,12 @@ static void ax5043_ax25_set_registers_tx(void) {
      ax5043WriteReg(AX5043_AFSKMARK1,           0x00);
      ax5043WriteReg(AX5043_AFSKMARK0,           0x14);
 
-     /* TODO - G0KLA - Signal filtering, for now per Jonathons code */
-     ax5043WriteReg(AX5043_MODCFGF                 ,0x03);
+     /* XTAL load capacitance is added by the chip and is not external on the board. So we need to set the
+        * value here using formula C in pf = 8 + 0.5 * XTALCAP */
+     unsigned int xtal_cap = 5;  // TODO - G0KLA this should be a define as it is set for each crystal
+     ax5043WriteReg(AX5043_XTALCAP, xtal_cap);
+     ax5043WriteReg(AX5043_0xF00                   ,0x0F);  // Per programming manual
+     ax5043WriteReg(AX5043_0xF18                   ,0x06);
 
 }
 
@@ -458,7 +536,7 @@ void ax5043_prepare_tx(void) {
 static void ax5043_ax25_set_registers_rx(void) {
 
     /* PLLLOOP configs PLL filter and sets freq A or B */
-   ax5043WriteReg(AX5043_PLLLOOP                 ,0x0B);  // 0B - Use FREQ A and 500kHz loop filter.  Set to 0A for 200kHz using less current
+   ax5043WriteReg(AX5043_PLLLOOP                 ,0x0A);  // 0B - Use FREQ A and 500kHz loop filter.  Set to 0A for 200kHz using less current
    ax5043WriteReg(AX5043_PLLCPI                  ,0x10);
    ax5043WriteReg(AX5043_PLLVCODIV               ,0x24);  // sets the internal inductor.  Set to 0x30 for external needed on vhf
 
@@ -468,14 +546,16 @@ static void ax5043_ax25_set_registers_rx(void) {
     * Freq Mark = 1200Hz
     * */
    ax5043WriteReg(AX5043_AFSKSPACE1,          0x00);
-   ax5043WriteReg(AX5043_AFSKSPACE0,          0xD9); // Per black magic
+   ax5043WriteReg(AX5043_AFSKSPACE0,          0x48); // D9 Per black magic
    ax5043WriteReg(AX5043_AFSKMARK1,           0x00);
-   ax5043WriteReg(AX5043_AFSKMARK0,           0x76);
-   /* AFSK detector bandwidth set as AFSKCTRL = 2 * log2 (Fxtal / 2^5 * bitrate * decimation) */
-   ax5043WriteReg(AX5043_AFSKCTRL,           0x08); // need to calculate for 9600  ***************** should be checked
+   ax5043WriteReg(AX5043_AFSKMARK0,           0x27); // 76 per black magic
 
-   ax5043WriteReg(AX5043_0xF00                   ,0x0F);
-   ax5043WriteReg(AX5043_0xF18                   ,0x02);
+   /* XTAL load capacitance is added by the chip and is not external on the board. So we need to set the
+      * value here using formula C in pf = 8 + 0.5 * XTALCAP */
+   unsigned int xtal_cap = 5;  // TODO - G0KLA this should be a define as it is set for each crystal
+   ax5043WriteReg(AX5043_XTALCAP, xtal_cap);
+   ax5043WriteReg(AX5043_0xF00                   ,0x0F);  // Per programming manual
+   ax5043WriteReg(AX5043_0xF18                   ,0x06); // I had 02, but not sure why or from where..
 
 
 
