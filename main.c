@@ -105,6 +105,9 @@ void startup(void)
      * and drivers running.  Here, SPI chip select gios require their direction to be set and
      * raised to high (not selected)
      */
+    gioSetDirection(gioPORTB,6);
+    gioSetBit(gioPORTB,1,1);
+    gioSetBit(gioPORTB,2,1);
     gioSetDirection(spiPORT1,7); // Make chip select pins be output
     gioSetDirection(spiPORT3,7); //
     gioSetDirection(spiPORT5,7); //
@@ -184,41 +187,29 @@ void startup(void)
 }
 void ConsoleTask(void *pvParameters){
     bool haveWaited,umbilicalAttached; //todo: Fix charger when we get that line in V1.2
-    GPIOInit(WatchdogFeed,NO_TASK,NO_MESSAGE,None);
+    //GPIOInit(WatchdogFeed,NO_TASK,NO_MESSAGE,None);
     ResetAllWatchdogs(); // This is started before MET and other tasks so just reporting in does not help
 
     /*
      * Now we have an OS going, so we call the Golf init routines, which use OS structures like
      * semaphores and queues.
      */
-    GPIOInit(BusDisabled,NO_TASK,NO_MESSAGE,None);  //To determine if this processor is the active one
     SerialInitPort(COM1,COM1_BAUD, 10,10);//Max of 38400 for the moment
     SerialInitPort(COM2,COM2_BAUD,10,10);
-    SPIInit(DCTDev);
-    SPIInit(MRAMDev);
-    initNV(ExternalMRAMData); // Make sure MRAM is initialized
+
+    // Initialize the SPI driver for our SPI devices
+
+    SPIInit(DCTDev0);
+    SPIInit(MRAM0Dev);
+    SPIInit(MRAM1Dev);
+    SPIInit(MRAM2Dev);
+    SPIInit(MRAM3Dev);
+    initMRAM(); // Make sure MRAM is initialized
     initMET();
     I2cInit(I2C1);
     I2cInit(I2C2);
     GPIOEzInit(LED1);
     GPIOEzInit(LED2);
-    GPIOEzInit(LED3);
-    GPIOEzInit(PAPower);
-    GPIOEzInit(DCTPower);
-    GPIOEzInit(Alert);
-    GPIOEzInit(PBEnable);
-    GPIOEzInit(IhuRfControl);
-    GPIOEzInit(Experiment1Enable);
-    GPIOEzInit(UmbilicalAttached);
-    GPIOEzInit(ChargerAttached);
-    GPIOInit(DCTInterrupt,ToRadio,DCTInterruptMsg,None);
-    /*
-     * These are for telemetry
-     */
-
-    GPIOInit(DCTFlag,ToRadio,DCTPowerFlagMsg,None);
-    GPIOInit(PAFlag,ToRadio,PAPowerFlagMsg,None);
-
 
 
     /*
@@ -228,30 +219,12 @@ void ConsoleTask(void *pvParameters){
 
     ResetAllWatchdogs(); // We waited a bit; better make sure the WDs are happy
     printID();
-     printf("FreeRTOS with"
- #if !configUSE_PREEMPTION
-             "OUT"
- #endif
-             " premption enabled;\n");
-
-
-        printf("Free heap size is %d\n",xPortGetFreeHeapSize());
-    {
-        uint32_t *addr= (uint32_t *)0xf008015c,value,megs,kilos,size;
-        value = ((*addr) & 0xFFFF);
-        megs = value/1024;
-        kilos = value % 1024;
-        printf("Flash memory size %dMb+%dKb; ",megs,kilos);
-        size = getSizeNV(ExternalMRAMData);
-        printf("MRAM size is 0x%x, structure size is 0x%x\n\n\n", size,sizeof(MRAMmap_t));
-
-     }
 
     /*
      * Time to wait for the post-release timer if we have to
      */
     haveWaited = ReadMRAMBoolState(StateInOrbit);
-    umbilicalAttached=GPIOIsOn(UmbilicalAttached);
+    umbilicalAttached = true;
     //todo:  Include this when the line is ready chargerAttached=GPIOIsOn(UmbilicalAttached);
 
     if(umbilicalAttached){

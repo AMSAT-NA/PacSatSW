@@ -59,7 +59,6 @@
 #include "LinearInterp.h"
 #include "Buzzer.h"
 #include "keyfile.h"
-#include "MinMaxCalcs.h"
 //Extern definition
 extern uint8_t SWCmdRing[SW_CMD_RING_SIZE],SWCmdIndex;
 
@@ -102,7 +101,7 @@ enum {
     ,noToneTx
     ,testLED
     ,restartCAN
-    ,initMRAM
+    ,doClearMRAM
     ,enbCanPrint
     ,dsbCanPrint
     ,EnableComPr
@@ -138,6 +137,12 @@ enum {
     ,HelpSetup
     ,Help
     ,Prime
+    ,MRAMWrEn
+    ,testAllMRAM
+    ,sizeMRAM
+    ,mramSleep
+    ,mramAwake
+    ,startRx
 };
 
 
@@ -156,14 +161,18 @@ commandPairs setupCommands[] = {
                                 ,{"test leds","Flash the LEDs in order",testLED}
                                 ,{"test adc1","Read group 1 of ADC",StartADC1}
                                 ,{"test adc2","Read group 2 of ADC",StartADC2}
+                                ,{"test mram","Write and read mram with n blocksize (4,8,16,32,64,128)",testAllMRAM}
+                                ,{"get mram size","Get the total size of all MRAMs",sizeMRAM}
+                                ,{"load key","Load an authorization key for uplink commands",LoadKey}
 
 };
 commandPairs debugCommands[] = {
 
                                  {"test scrub","Run the memory scrub routine once",TestMemScrub}
                                 ,{"test pll", "test ax5043 PLL frequency range",testPLLrange}
-                                ,{"init mram","Initializes MRAM state,WOD,Min/max but does not clear InOrbit--testing only",initMRAM}
-                                ,{"load key","Load an authorization key for uplink commands",LoadKey}
+                                ,{"start rx","Start up the 5043 receiver",startRx}
+                                ,{"clear mram","Initializes MRAM state,WOD,Min/max but does not clear InOrbit--testing only",
+                                  doClearMRAM}
                                 ,{"reset ihu","Reset this processor",reset}
                                 ,{"reset both","Reset both primary and secondary processor",resetBoth}
                                 ,{"reset can","Reset the CAN devices",restartCAN}
@@ -173,6 +182,9 @@ commandPairs debugCommands[] = {
                                 ,{"get downlink size","Debug-get sizes of downlink payloads and frames",showDownlinkSize}
                                 ,{"get temp","Get RT-IHU board temperature",getTemp}
                                 ,{"prime","Do prime number benchmark",Prime}
+                                ,{"mram wren","Write enable MRAM",MRAMWrEn}
+                                ,{"mram wake","Send wake command to MRAM",mramAwake}
+                                ,{"mram sleep","Send sleep command to MRAM",mramSleep}
                              };
 commandPairs commonCommands[] = {
                                   {"get i2c","What I2c devices are working?",getI2cState}
@@ -282,6 +294,39 @@ void RealConsoleTask(void)
             printf("Unknown command\n");
             break;
         }
+        case sizeMRAM:{
+            int i;
+            for (i=0;i<PACSAT_MAX_MRAMS;){
+                printf("MRAM%d size is %dkB",i,getMRAMSize(MRAM_Devices[i])/1024);
+                i++;
+                if(i%2 == 0){
+                    printf("\n");
+                } else {
+                    printf(", ");
+                }
+            }
+
+ //           printf("Size of MRAM0 is %dKB\n",getMRAMSize(MRAM0Dev)/1024);
+ //           printf("Size of MRAM1 is %dKB\n",getMRAMSize(MRAM1Dev)/1024);
+ //           printf("Size of MRAM2 is %dKB\n",getMRAMSize(MRAM2Dev)/1024);
+ //           printf("Size of MRAM3 is %dKB\n",getMRAMSize(MRAM3Dev)/1024);
+            break;
+        }
+        case testAllMRAM:{
+            int add = parseNumber(afterCommand);
+            testMRAM(add);
+            break;
+        }
+        case MRAMWrEn:{
+            bool stat;
+            stat=MRAMWriteEnable(MRAM0Dev);
+            printf("stat for MRAM 0 is %d; sr is %x\n",stat,ReadMRAMStatus(MRAM0Dev));
+            stat=MRAMWriteEnable(MRAM1Dev);
+            printf("stat for MRAM 1 is %d; sr is %x\n",stat,ReadMRAMStatus(MRAM1Dev));
+            //readNV(data,8,ExternalMRAMData,0);
+            //printf("MRAM at address 0 and 1 are now now %d and %d\n",data[0],data[1]);
+            break;
+        }
         case Prime:{
             int n, i,flag, count=0, ms1,ms2;
             int maxNumber = parseNumber(afterCommand);
@@ -308,14 +353,11 @@ void RealConsoleTask(void)
             printf("There are %d primes less than %d; This took %d centiseconds\n",count,maxNumber,(ms2-ms1));
             break;
         }
+#if 1
         case GetGpios:{
             int i;
             char *gpioNames[NumberOfGPIOs]={
-               "LED1","LED2","LED3","DCTPower","DCTFlag","DCTInterrupt","PAPower","PAFlag","Experiment1Enable",
-               "IHUCoordR0","IHUCoordL0",
-               "IHUCoordR1","IHUCoordL1","CommandStrobe","CommandBits","WhoAmI","I2c1Reset","I2c2Reset",
-               "BusDisabled","PBEnable","UmbilicalAttached","IhuRfControl","WatchdogFeed","Alert","SSPA10GHz","OneWire",
-               "RfPower","EttusSwitch","ChargerAttached"
+               "LED1","LED2","DCTInterrupt","CommandStrobe","CommandBits"
             };
             for (i=0;i<NumberOfGPIOs;i++){
                 if(i%4 == 0){
@@ -326,6 +368,7 @@ void RealConsoleTask(void)
             printf("\n");
             break;
         }
+#endif
          case GetCommands: {
             extern uint8_t SWCmdRing[SW_CMD_RING_SIZE];
             int i=0;
@@ -368,14 +411,6 @@ void RealConsoleTask(void)
             }
              break;
 
-        }
-        case EnablePA:{
-            GPIOSetOn(PAPower);
-            break;
-        }
-        case DisablePA:{
-            GPIOSetOff(PAPower);
-            break;
         }
         case RaiseTxFreq:{
             int number = parseNumber(afterCommand);
@@ -520,8 +555,18 @@ void RealConsoleTask(void)
 
              break;
          }
-        case initMRAM:{
-            MRAMInit();
+        case mramSleep:{
+            int num = parseNumber(afterCommand);
+            MRAMSleep(num);
+            break;
+        }
+        case mramAwake:{
+            int num = parseNumber(afterCommand);
+            MRAMWake(num);
+            break;
+        }
+        case doClearMRAM:{
+            SetupMRAM();
             WriteMRAMBoolState(StateInOrbit,true); // Don't get confused by in orbit state!
             break;
         }
@@ -545,19 +590,15 @@ void RealConsoleTask(void)
             break;
         }
         case testLED:{
-            GPIOSetOn(LED1);
-            GPIOSetOn(LED2);
-            GPIOSetOn(LED3);
-            vTaskDelay(SECONDS(2));
             GPIOSetOff(LED1);
-            vTaskDelay(SECONDS(2));
-            GPIOSetOn(LED1);
             GPIOSetOff(LED2);
             vTaskDelay(SECONDS(2));
-            GPIOSetOn(LED2);
-            GPIOSetOff(LED3);
+            GPIOSetOn(LED1);
             vTaskDelay(SECONDS(2));
-            GPIOSetOn(LED3);
+            GPIOSetOff(LED1);
+            GPIOSetOn(LED2);
+            vTaskDelay(SECONDS(2));
+            GPIOSetOff(LED2);
             break;
         }
 
@@ -575,21 +616,25 @@ void RealConsoleTask(void)
             SimulateSwCommand(SWCmdNSSpaceCraftOps,SWCmdOpsHealthMode,NULL,0);
             break;
         }
-#define primaryProc 1
-#define secondaryProc 2
-#define swapProc 0
-        case dropBus:{
-            SWIDoBusSwitch();
-            vTaskDelay(2); // Give the bus time to switch before doing anything else
-            break;
-        }
         case readMRAMsr:{
-            printf("MRAM status is %x\n",ReadMRAMStatus());
+            int i;
+            for (i=0;i<PACSAT_MAX_MRAMS;){
+                printf("MRAM%d: status %x",i,ReadMRAMStatus(MRAM_Devices[i]));
+                i++;
+                if(i%2 == 0){
+                    printf("\n");
+                } else {
+                    printf(", ");
+                }
+            }
             break;
         }
         case writeMRAMsr:{
             uint8_t stat = parseNumber(afterCommand);
-            WriteMRAMStatus(stat);
+            int i;
+            for (i=0;i<PACSAT_MAX_MRAMS;i++){
+                WriteMRAMStatus(MRAM_Devices[i],stat);
+            }
             break;
         }
         case internalWDTimeout:{
@@ -614,10 +659,6 @@ void RealConsoleTask(void)
         }
         case telem0:{
             DisplayTelemetry(0);
-            break;
-        }
-        case clrMinMax:{
-            ClearMinMax();
             break;
         }
         case enbCanPrint:{
@@ -679,9 +720,15 @@ void RealConsoleTask(void)
                 printf("Sending a tone\n");
                 AudioSetMixerSource(MixerSilence);  //Stop everything
                 AudioSetMixerSource(MixerTone);
+                ax5043StartTx();
                 break;
             }
         }
+        case startRx:{
+            ax5043StartRx();
+            break;
+        }
+
         case version:{
             printID();
             break;
@@ -754,23 +801,16 @@ void RealConsoleTask(void)
         }
 
         case getRSSI:{
-//            if(IAmStandbyCPU()){
-//                int rssi = get_rssi();
-//                printf("RSSI is %d\n",((int16_t)rssi) - 255);
-//            } else {
-//                printf("Only standby CPU has RSSI on the RT-IHU (for now)\n");
-//            }
-
+            int rssi = get_rssi();
+            printf("RSSI is %d\n",((int16_t)rssi) - 255);
             break;
         }
-#if 0
         case testRxFreq: {
             // This is so we can find what the receive frequency is on first build
             {
-                printf("I am not in control\n");
                 int freq = 145835000;
 
-                ax5043PowerOn();
+                ///ax5043PowerOn();
 
                 printf("Transmitting on receive freq: %d\n", freq);
 
@@ -805,7 +845,6 @@ void RealConsoleTask(void)
             }
             break;
         }
-#endif
 
         case testPLLrange:{
             test_pll_range();

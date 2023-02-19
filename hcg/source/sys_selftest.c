@@ -8,7 +8,7 @@
 */
 
 /* 
-* Copyright (C) 2009-2018 Texas Instruments Incorporated - www.ti.com  
+* Copyright (C) 2009-2018 Texas Instruments Incorporated - www.ti.com 
 * 
 * 
 *  Redistribution and use in source and binary forms, with or without 
@@ -2276,6 +2276,65 @@ void checkPLL1Slip(void)
         systemREG1->PLLCTL1 = pllctl1_bk;
     }
 }
+
+/** @fn void checkPLL2Slip(void)
+*   @brief Check PLL2 Slip detection logic.
+*
+*   This function checks PLL2 Slip detection logic.
+*/
+/* SourceId : SELFTEST_SourceId_038 */
+/* DesignId : SELFTEST_DesignId_031 */
+/* Requirements : HL_SR384 */
+void checkPLL2Slip(void)
+{
+    uint32 ghvsrc_bk;
+
+    /* Back up the the register GHVSRC */
+    ghvsrc_bk = systemREG1->GHVSRC;
+
+    /* Switch all clock domains to oscillator */
+    systemREG1->GHVSRC = 0x00000000U;
+	
+    /* Force a PLL2 Slip */
+    systemREG2->PLLCTL3 ^= 0x8000U;
+
+    /*SAFETYMCUSW 28 D MR:NA <APPROVED> "Hardware status bit read check" */
+    while((esmREG->SR4[0U] & 0x400U) != 0x400U)
+    {
+        /* Wait till ESM flag is set */
+    }
+
+    /* Disable PLL2 */
+    systemREG1->CSDISSET = 0x40U;
+
+    /* Wait till PLL2 is disabled */
+    /*SAFETYMCUSW 28 D MR:NA <APPROVED> "Hardware status bit read check" */
+    while((systemREG1->CSDIS & 0x40U) == 0U)
+    {
+    } /* Wait */
+
+    /* Restore the PLL 2 multiplier value */
+    systemREG2->PLLCTL3 ^= 0x8000U;
+
+    /* Enable PLL2 */
+    systemREG1->CSDISCLR = 0x40U;
+
+    /* Wait till PLL2 is disabled */
+    /*SAFETYMCUSW 28 D MR:NA <APPROVED> "Hardware status bit read check" */
+    while((systemREG1->CSDIS & 0x40U) != 0U)
+    {
+    } /* Wait */
+
+    /* Switch back to the initial clock source */
+    systemREG1->GHVSRC = ghvsrc_bk;
+
+    /* Clear PLL slip flag */
+    systemREG1->GBLSTAT = 0x300U;
+
+    /* Clear ESM flag */
+    esmREG->SR4[0U] = 0x400U;
+}
+
 
 /** @fn void checkRAMAddrParity(void)
 *   @brief Check TCRAM Address parity error detection and signaling mechanism.

@@ -93,7 +93,7 @@ void hetInit(void)
                   | (uint32)((uint32)0U << 7U)
                   | (uint32)((uint32)0U << 6U)
                   | (uint32)((uint32)0U << 5U)
-                  | (uint32)((uint32)1U << 4U)
+                  | (uint32)((uint32)0U << 4U)
                   | (uint32)((uint32)0U << 3U)
                   | (uint32)((uint32)0U << 2U)
                   | (uint32)((uint32)0U << 1U)
@@ -117,7 +117,6 @@ void hetInit(void)
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
-                 | (uint32) 0x00004000U
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
@@ -127,7 +126,8 @@ void hetInit(void)
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
-                 | (uint32) 0x00000010U
+                 | (uint32) 0x00000000U
+                 | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
@@ -151,7 +151,7 @@ void hetInit(void)
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
-                 | (uint32) 0x00004000U
+                 | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
@@ -195,7 +195,7 @@ void hetInit(void)
                     | (uint32) 0x00000000U
                     | (uint32) 0x00000000U
                     | (uint32) 0x00000000U
-                    | (uint32) 0x00000010U
+                    | (uint32) 0x00000000U
                     | (uint32) 0x00000000U
                     | (uint32) 0x00000000U
                     | (uint32) 0x00000000U
@@ -217,9 +217,6 @@ void hetInit(void)
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
-                 | (uint32) 0x00010000U
-                 | (uint32) 0x00000000U
-                 | (uint32) 0x00004000U
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
@@ -228,9 +225,12 @@ void hetInit(void)
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
-                 | (uint32) 0x00000020U
-                 | (uint32) 0x00000010U
-                 | (uint32) 0x00000008U
+                 | (uint32) 0x00000000U
+                 | (uint32) 0x00000000U
+                 | (uint32) 0x00000000U
+                 | (uint32) 0x00000000U
+                 | (uint32) 0x00000000U
+                 | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000000U;
@@ -249,7 +249,7 @@ void hetInit(void)
                   | (uint32) 0x00000000U
                   | (uint32) 0x00000000U
                   | (uint32) 0x00000008U
-                  | (uint32) 0x00000000U
+                  | (uint32) 0x00000004U
                   | (uint32) 0x00000002U
                   | (uint32) 0x00000001U;
 
@@ -373,9 +373,9 @@ void hetInit(void)
     /** - Set HET pins default output value */
     hetREG2->DOUT = (uint32)((uint32)0U << 18U)
                   | (uint32)((uint32)0U << 17U)
-                  | (uint32)((uint32)1U << 16U)
+                  | (uint32)((uint32)0U << 16U)
                   | (uint32)((uint32)0U << 15U)
-                  | (uint32)((uint32)1U << 14U)
+                  | (uint32)((uint32)0U << 14U)
                   | (uint32)((uint32)0U << 13U)
                   | (uint32)((uint32)0U << 12U)
                   | (uint32)((uint32)0U << 11U)
@@ -394,9 +394,9 @@ void hetInit(void)
     /** - Set HET pins direction */
     hetREG2->DIR = (uint32) 0x00000000U
                  | (uint32) 0x00000000U
-                 | (uint32) 0x00010000U
                  | (uint32) 0x00000000U
-                 | (uint32) 0x00004000U
+                 | (uint32) 0x00000000U
+                 | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
@@ -415,9 +415,9 @@ void hetInit(void)
     /** - Set HET pins open drain enable */
     hetREG2->PDR = (uint32) 0x00000000U
                  | (uint32) 0x00000000U
-                 | (uint32) 0x00010000U
                  | (uint32) 0x00000000U
-                 | (uint32) 0x00004000U
+                 | (uint32) 0x00000000U
+                 | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
@@ -436,9 +436,6 @@ void hetInit(void)
     /** - Set HET pins pullup/down enable */
     hetREG2->PULDIS = (uint32) 0x00000000U
                     | (uint32) 0x00000000U
-                    | (uint32) 0x00010000U
-                    | (uint32) 0x00000000U
-                    | (uint32) 0x00004000U
                     | (uint32) 0x00000000U
                     | (uint32) 0x00000000U
                     | (uint32) 0x00000000U
@@ -446,9 +443,12 @@ void hetInit(void)
                     | (uint32) 0x00000000U
                     | (uint32) 0x00000000U
                     | (uint32) 0x00000000U
-                    | (uint32) 0x00000040U
                     | (uint32) 0x00000000U
-                    | (uint32) 0x00000010U
+                    | (uint32) 0x00000000U
+                    | (uint32) 0x00000000U
+                    | (uint32) 0x00000000U
+                    | (uint32) 0x00000000U
+                    | (uint32) 0x00000000U
                     | (uint32) 0x00000000U
                     | (uint32) 0x00000000U
                     | (uint32) 0x00000000U
@@ -457,9 +457,6 @@ void hetInit(void)
     /** - Set HET pins pullup/down select */
     hetREG2->PSL = (uint32) 0x00000000U
                  | (uint32) 0x00000000U
-                 | (uint32) 0x00010000U
-                 | (uint32) 0x00000000U
-                 | (uint32) 0x00004000U
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
@@ -467,9 +464,12 @@ void hetInit(void)
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
-                 | (uint32) 0x00000040U
                  | (uint32) 0x00000000U
-                 | (uint32) 0x00000010U
+                 | (uint32) 0x00000000U
+                 | (uint32) 0x00000000U
+                 | (uint32) 0x00000000U
+                 | (uint32) 0x00000000U
+                 | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000000U
@@ -515,8 +515,8 @@ void hetInit(void)
     *     - Loop resolution prescaler
     *     - High resolution prescaler
     */
-    hetREG2->PFR = (uint32)((uint32) 6U << 8U)
-                | ((uint32) 3U);
+    hetREG2->PFR = (uint32)((uint32) 7U << 8U)
+                | ((uint32) 0U);
 
    /** - Parity control register
     *     - Enable/Disable Parity check

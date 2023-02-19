@@ -13,7 +13,6 @@
 #include "nonvol.h"
 #include "spiDriver.h"
 #include "CANSupport.h"
-#include "MinMaxCalcs.h"
 
 static const MRAMmap_t *ptr = (MRAMmap_t *) 0;
 
@@ -342,7 +341,7 @@ uint32_t ReadMRAMDCTDriveHighPower(void){
  * Those are all the read/write routines for the MRAM.  Below are the initialization routines
  */
 
-void MRAMInitStates() {
+void SetupMRAMStates() {
     /*
      * These are initialized by preflight init.  That means that these values are the ones
      * that are in MRAM when we first power up in orbit.
@@ -428,28 +427,7 @@ bool updateCRC(uint32_t address, uint32_t size) {
     return (returnCode);
 }
 
-// This function initializes the MRAM for flight
-bool MRAMInitWOD(void) {
-    int i;
-    //uint8_t zeros[6]={0,0,0,0,0,0};
-    wodSpecific_t wodData;
-    bool NVstat;
-    MRAMmap_t *mram=0;
-    memset(&wodData,0,sizeof(wodSpecific_t));
-    for(i=0; i<MAX_WOD_SAVED; i++){
-        NVstat = writeNV(&wodData, sizeof(wodSpecific_t), ExternalMRAMData,
-                         (int) &(mram->WODHousekeeping[i].wodHKPayload.wodInfo));
-        NVstat &= writeNV(&wodData, sizeof(wodSpecific_t), ExternalMRAMData,
-                          (int) &(mram->WODScience[i].wodRadPayload.wodInfo));
 
-        NVstat &= writeNV(&wodData, sizeof(wodSpecific_t), ExternalMRAMData,
-                          (int) &(mram->WODRagnarok[i].wodRagPayload.wodInfo));
-
-
-
-    }
-    return NVstat;
-}
 void IHUInitSaved(void){
     /*
      * This initializes the MRAM that has to happen with a new IHU, but which
@@ -461,14 +439,13 @@ void IHUInitSaved(void){
     WriteMRAMDCTDriveHighPower(DCT_DEFAULT_HIGH_POWER);
     WriteMRAMDCTDriveLowPower(DCT_DEFAULT_LOW_POWER);
 }
-int MRAMInit(void){
-    bool stat;
+int SetupMRAM(void){
     uint32_t size = getSizeNV(ExternalMRAMData);
-    MRAMInitStates(); //This should be first.  It might overwrite part of MRAM.
+    initMRAM(); //Get the sizes etc.
+    SetupMRAMStates(); //This should be first.  It might overwrite part of MRAM.
     printf("Set to start in safe mode\n");
     printf("WOD Frequency,size set to Default, and WOD Indices initialized\n");
 
-    ClearMinMax();
     WriteMinMaxResetSeconds(0); // Clear sets reset time to THIS epoch.  We need preflight init epoch
     WriteMinMaxResetEpoch(0);
 
@@ -483,11 +460,6 @@ int MRAMInit(void){
     //POST_CalculateAndSaveCRC(); /* Initialize correct Flash CRC */
     printf("CRC calculated for init code and full code (TBD)\n");
 
-    stat = MRAMInitWOD();
-    printf("WOD Storage and All variables initialized and ready for flight\n");
-    if(!stat){
-        printf("...but MRAM WOD init returned an error!!!\n");
-    }
     WriteMRAMVersionNumber();
     printf("MRAM Version Number Initialized\n");
     printf("MRAM size found to be %d bytes\n",size);

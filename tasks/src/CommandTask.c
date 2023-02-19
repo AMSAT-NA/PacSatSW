@@ -24,7 +24,6 @@
 #include "canDriver.h"
 #include "inet.h"
 #include "ax5043_access.h"
-#include "MinMaxCalcs.h"
 
 #define command_print if(PrintCommandInfo)printf
 
@@ -100,7 +99,6 @@ void CommandTask(void *pvParameters)
          * run on a timer.
          */
         ReportToWatchdog(CommandWD);
-        GPIOSetOn(LED3); // Light off just in case
         if(gotSomething && (msg.MsgType == CmdControlHasChanged)) {
             /*
              * We have switched control type.  If we are not in control, but were before then we want to
@@ -114,7 +112,7 @@ void CommandTask(void *pvParameters)
 
         } else if(gotSomething){
             /* Here we actually received a message, so there is a command */
-            GPIOSetOff(LED3); // THere was a command.  Tell a human for ground testing
+            //GPIOSetOff(LED3); // THere was a command.  Tell a human for ground testing
             JustReleasedFromBooster = false;
             if(FallbackTimerActive){
                 /*
@@ -141,7 +139,7 @@ void CommandTask(void *pvParameters)
             }
         } else {
             // Just another timed thing not really related to this task
-            GPIOSetOn(LED3); // Turn the light off (so command light was on about 2 seconds)
+            //GPIOSetOn(LED3); // Turn the light off (so command light was on about 2 seconds)
         }
     }
 }

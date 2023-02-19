@@ -259,8 +259,8 @@ static void ax5043_set_registers(void) {
   ax5043WriteReg(AX5043_FSKDEV2                 ,0x00);
   ax5043WriteReg(AX5043_FSKDEV1                 ,0x00);
   ax5043WriteReg(AX5043_FSKDEV0                 ,0x00);
-  //  ax5043WriteReg(AX5043_MODCFGA                 ,0x05);
-  ax5043WriteReg(AX5043_MODCFGA                 ,0x06); // TXSE
+  ax5043WriteReg(AX5043_MODCFGA                 ,0x05);
+  //ax5043WriteReg(AX5043_MODCFGA                 ,0x06); // TXSE
   ax5043WriteReg(AX5043_TXRATE2                 ,0x00);
   ax5043WriteReg(AX5043_TXRATE1                 ,0x04);
   ax5043WriteReg(AX5043_TXRATE0                 ,0xEA);

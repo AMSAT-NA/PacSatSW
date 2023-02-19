@@ -61,116 +61,28 @@ static bool GPIOUsable[NumberOfGPIOs];
  */
 
 
-//    LED1,LED2,LED3,DCT,DCT_FLAG,DCT_INTERRUPT,PA,PA_FLAG,EXP1,IHUCoordR0,IHUCoordL0,
-//     IHUCoordR1,IHUCoordL1,COMMAND_STROBE,
-
-static const GPIOInfo IHUCoordR0Info = {
-                                        GPIOR0Port,
-                                        GPIOR0Pin,
-                                        1,
-                                        GPIO_OFF,
-                                        GPIO_OUT,
-                                        false,false, // No interrupts
-                                        false,false  // Not open collector nor initially tristate
-};
-static const GPIOInfo IHUCoordR1Info = {
-                                        GPIOR1Port,
-                                        GPIOR1Pin,
-                                        1,
-                                        GPIO_OFF,
-                                        GPIO_OUT,
-                                        false,false, // No interrupts
-                                        false,false  // Not open collector nor initially tristate
-};
-static const GPIOInfo IHUCoordL0Info = {
-                                        GPIOL0Port,
-                                        GPIOL0Pin,
-                                        1,
-                                        GPIO_UNUSED,
-                                        GPIO_IN,
-                                        true,true, // Can interrupt on either rising or falling edge
-                                        false,false  // Not open collector nor initially tristate
-
-};
-static const GPIOInfo IHUCoordL1Info = {
-                                        GPIOL1Port,
-                                        GPIOL1Pin,
-                                        1,
-                                        GPIO_UNUSED,
-                                        GPIO_IN,
-                                        true,true, // Can interrupt on either rising or falling edge
-                                        false,false  // Not open collector nor initially tristate
-
-};
-
 
 static const GPIOInfo LED1Info = {
                                   GPIOLed1Port//GPIOLed3Port,
                                   ,GPIOLed1Pin
                                   ,1
-                                  ,GPIO_ON //Actually this turns the LED off
+                                  ,GPIO_OFF
                                   ,GPIO_OUT
                                   ,false,false // No interrupts
-                                  ,true,false  // Open collector, not tristate
+                                  ,false,false  // Open collector, not tristate
 
 };
 static const GPIOInfo LED2Info = {
                                   GPIOLed2Port
                                   ,GPIOLed2Pin
                                   ,1
-                                  ,GPIO_ON
+                                  ,GPIO_OFF
                                   ,GPIO_OUT
                                   ,false,false // No interrupts
-                                  ,true,false  // Open collector, not tristate
+                                  ,false,false  // Open collector, not tristate
 
 };
-static const GPIOInfo LED3Info = {
-                                  GPIOLed3Port
-                                  ,GPIOLed3Pin
-                                  ,1
-                                  ,GPIO_ON
-                                  ,GPIO_OUT
-                                  ,false,false // No interrupts
-                                  ,true,false  // Open collector, not tristate
-};
-static const GPIOInfo AX5043PowerInfo = {
-                                         GPIO_DCTPowerPort
-                                         ,GPIO_DCTPowerPin
-                                         ,1
-                                         ,GPIO_OFF //Init to stay off (will not work for V1.0)
-                                         ,GPIO_OUT
-                                         ,false,false // No interrupts
-                                         ,false,false // Not Open collector nor tristate
-};
 
-static const GPIOInfo AX5043FlagInfo = {
-                                        GPIO_DCTFlagPort
-                                        ,GPIO_DCTFlagPin
-                                        ,1
-                                        ,GPIO_UNUSED
-                                        ,GPIO_IN
-                                        ,true,false // Interrupts on one edge only
-                                        ,false,false // Not Open collector nor tristate
-};
-
-static const GPIOInfo PAPowerInfo = {
-                                     GPIO_PAPowerPort // This is for the DCT power amp
-                                     ,GPIO_PAPowerPin
-                                     ,1
-                                     ,GPIO_OFF
-                                     ,GPIO_OUT
-                                     ,false,false // No interrupts
-                                     ,false,false // Not Open collector nor tristate
-};
-static const GPIOInfo PAFlagInfo = {
-                                    GPIO_PAFlagPort
-                                    ,GPIO_PAFlagPin
-                                    ,1     // Number of bits
-                                    ,GPIO_UNUSED // Input GPIOs don't have a default state
-                                    ,GPIO_IN
-                                    ,true,false //Interrupts on one edge only
-                                    ,false,false // Not Open collector nor tristate
-};
 
 static const GPIOInfo CommandStrobeInfo = {
                                            GPIOCommandStrobePort
@@ -203,167 +115,6 @@ static const GPIOInfo AX5043InterruptInfo = {
 
 
 
-static const GPIOInfo Exp1Info = {
-                                  GPIO_Exp1EnablePort
-                                  ,GPIO_Exp1EnablePin
-                                  ,1
-                                  ,GPIO_OFF // Default off
-                                  ,GPIO_OUT
-                                  ,false,false // No interrupts
-                                  ,false,true  //  Init as tristate, but not open collector
-};
-static const GPIOInfo WhoAmIInfo = {
-                                    GPIOWhoAmIPort
-                                    ,GPIOWhoAmIPin
-                                    ,1
-                                    ,GPIO_UNUSED // Default off
-                                    ,GPIO_IN
-                                    ,false,false // No interrupts
-                                    ,false,false // Not Open collector nor tristate
-};
-static const GPIOInfo AttachedInfo = {
-                                      GPIO_AttachedPort
-                                      ,GPIO_AttachedPin
-                                      ,1
-                                      ,GPIO_UNUSED // Default off
-                                      ,GPIO_IN
-                                      ,false,false // No interrupts
-                                      ,false,false // Not Open collector nor tristate
-};
-
-static const GPIOInfo I2c1ResetInfo = {
-                                       GPIOI2c1ResetPort // Will be GPIO I2c1ResetPort
-                                       ,GPIOI2c1ResetPin  //Will be GPIO I2c1ResetPin
-                                       ,1
-                                       ,GPIO_ON // Default on
-                                       ,GPIO_OUT
-                                       ,false,false // No interrupts
-                                       ,false,true  // Not Open collector, but init tristate
-};
-static const GPIOInfo I2c2ResetInfo = {
-                                       GPIOI2c2ResetPort // Will be GPIO I2c1ResetPort
-                                       ,GPIOI2c2ResetPin  //Will be GPIO I2c1ResetPin
-                                       ,1
-                                       ,GPIO_ON // Default on
-                                       ,GPIO_OUT
-                                       ,false,false // No interrupts
-                                       ,false,true       // Not Open collector, but init tristate
-};
-static const GPIOInfo IHaveBusInfo = {
-                                      GPIOIHaveBusPort
-                                      ,GPIOIHaveBusPin
-                                      ,1
-                                      ,GPIO_UNUSED
-                                      ,GPIO_IN
-                                      ,false,false // No interrupts
-                                      ,false,false // Not Open collector nor tristate
-};
-
-static const GPIOInfo PBEnableInfo = {
-                                      GPIO_PBEnablePort
-                                      ,GPIO_PBEnablePin
-                                      ,1
-                                      ,GPIO_OFF // Default off
-                                      ,GPIO_OUT
-                                      ,false,false
-                                      ,false,true // Not Open collector, but init tristate
-};
-static const GPIOInfo RFCtrlInfo = {
-                                    GPIO_RfCtrlPort
-                                    ,GPIO_RfCtrlPin
-                                    ,1
-                                    ,GPIO_OFF // Default off
-                                    ,GPIO_OUT
-                                    ,false,false
-                                    ,false,true // Not open collector, but init tristate
-};
-
-static const GPIOInfo WatchdogFeedInfo = {
-                                         GPIO_WatchdogPort
-                                         ,GPIO_WatchdogPin
-                                         ,1
-                                         ,GPIO_ON //Default to high per spec sheet
-                                         ,GPIO_OUT
-                                         ,false,false // No interrupts
-                                         ,false,false // Not Open collector nor tristate
-};
-static const GPIOInfo AlertInfo = {
-                                         GPIOAlertPort
-                                         ,GPIOAlertPin
-                                         ,1
-                                         ,GPIO_ON
-                                         ,GPIO_OUT
-                                         ,false,false // No interrupts
-                                         ,false,true  // Not Open collector, but init tristate
-};
-static const GPIOInfo SSPA10GHzInfo = {
-                                         GPIO_10GHzSspaPort
-                                         ,GPIO_10GHzSspaPin
-                                         ,1
-                                         ,GPIO_ON //Start turned off (inverted logic)
-                                         ,GPIO_OUT
-                                         ,false,false // No interrupts
-                                         ,false,true  // Not Open collector, but init tristate
-};
-static const GPIOInfo OneWireInfo = {
-                                         GPIO_OneWirePort
-                                         ,GPIO_OneWirePin
-                                         ,1
-                                         ,GPIO_OFF //Start turned off
-                                         ,GPIO_OUT
-                                         ,false,false // No interrupts
-                                         ,true,false  //  Is open collector
-};
-
-
-
-static const GPIOInfo ChargerAttachedInfo = {
-        GPIO_ChargeAttPort,
-        GPIO_ChargeAttPin,
-        1, /*Number of bits*/
-        GPIO_OFF,
-        GPIO_IN
-        ,false,false // No interrupts
-        ,false,false  // Not Open collector, but init tristate
-
-};
-static const GPIOInfo EttusPwrInfo = {
-        GPIO_SDRPwrPort,
-        GPIO_SDRPwrPin,
-        1,
-        GPIO_OFF, /*Initial State when enabled*/
-        GPIO_OUT
-        ,false,false // No interrupts
-        ,true,true  // Open collector
-};
-
-static const GPIOInfo RfPowerInfo = {
-        GPIO_RFPwrCtlPort,
-        GPIO_RFPwrCtlPin,
-        1,
-        GPIO_OFF, /*Initial State when enabled*/
-        GPIO_OUT
-        ,false,false // No interrupts
-        ,false,true  // Not Open collector, but init tristate
-};
-
-#if 0 /* For Golf-1 */
-static const GPIOInfo Exp2Info = {
-                                  GPIO_Exp2EnablePort
-                                  ,GPIO_Exp2EnablePin
-                                  ,1
-                                  ,false // Default off
-                                  ,GPIO_OUT
-};
-
-static const GPIOInfo Exp4Info = {
-                                  GPIO_Exp4EnablePort
-                                  ,GPIO_Exp4EnablePin
-                                  ,1
-                                  ,GPIO_OFF // Default off
-                                  ,GPIO_OUT
-};
-#endif
 /*
  * Use this array to index to the correct GPIOInfoStructure based on the GPIO
  * enum index.
@@ -371,16 +122,11 @@ static const GPIOInfo Exp4Info = {
 
 static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] =
 {
- &LED1Info,&LED2Info,&LED3Info,&AX5043PowerInfo,&AX5043FlagInfo,&AX5043InterruptInfo,&PAPowerInfo,&PAFlagInfo,
- &Exp1Info,&IHUCoordR0Info,&IHUCoordL0Info,&IHUCoordR1Info,&IHUCoordL1Info,&CommandStrobeInfo,&CommandBitsInfo,
- &WhoAmIInfo,&I2c1ResetInfo,&I2c2ResetInfo,&IHaveBusInfo,&PBEnableInfo,&AttachedInfo,&RFCtrlInfo,&WatchdogFeedInfo,
- &AlertInfo,&SSPA10GHzInfo,&OneWireInfo,&RfPowerInfo,&EttusPwrInfo,&ChargerAttachedInfo
+ &LED1Info,&LED2Info,&AX5043InterruptInfo,&CommandStrobeInfo,&CommandBitsInfo
 };
 
 static int GPIOInterruptLastIndex = 0;
-static Gpio_Use GPIOInterruptList[8]={None}; /*List of GPIOs that support interrupts*/
-//static Gpio_Use gioInterruptList[]={CommandStrobe,DCTInterrupt,IHUCoordL0,IHUCoordL1,None}; /*List of GPIOs that support interrupts*/
-//static bool gioInterruptBothEdgeList[]={false,false,true,true};
+static Gpio_Use GPIOInterruptList[NumberOfGPIOs]={None}; /*List of GPIOs that support interrupts*/
 static IntertaskMessageType GPIOMessage[NumberOfGPIOs];
 static DestinationTask GPIOMessageDestination[NumberOfGPIOs];
 static Gpio_Use GPIOAuxGPIO1[NumberOfGPIOs];
@@ -443,16 +189,6 @@ bool GPIOInit( Gpio_Use whichGpio,DestinationTask task, IntertaskMessageType msg
 
         uint16_t pinNum = thisGPIO->PinNum;
         gioPORT_t *thisPort = thisGPIO->GPIOPort;
-        if(whichGpio == OneWire){
-            // We will generalize this later
-            uint32_t andBits = 0xFFFFFFFF,orBits=0;;
-            andBits ^= (1<<pinNum);
-            orBits = (1<<pinNum);
-            thisPort->PDR |= orBits; // Open collector
-            thisPort->PULDIS &= andBits; // Force pull to be enabled
-            thisPort->PSL |= orBits; // Pull register is pull UP.
-            thisPort->DSET = orBits; // Start leaving it high-Z
-        } else {
             if(thisGPIO->OpenCollector || thisGPIO->initialStateTristate){
                 thisPort->PDR |= 1 << pinNum;  //Tri-state the pin if the output register is high
             }
@@ -461,7 +197,6 @@ bool GPIOInit( Gpio_Use whichGpio,DestinationTask task, IntertaskMessageType msg
             } else {
                 thisPort->DCLR = (1<<pinNum);
             }
-        }
     } else {
 
         /* Here the direction is in so check for and set up interrupt possibilities */

@@ -42,30 +42,6 @@ void print8BitVolts(uint8_t volt8,uint16_t maxV){
            (interpVal/100),((interpVal%100)+5)/10);
 }
 
-bool AntennaAsk(void){
-    char receivedChar;
-    bool releaseOK=false;
-    /*
-     * For antenna deployment, make double sure this is not an accident
-     */
-    //      if (GPIORead(UmbilicalAttached) == 0) {
-    if(GPIORead(UmbilicalAttached) == 1){
-        printf("Umbilical is attached! Are you sure? ");
-    }
-    printf(
-            "Type any key within 5 seconds to abort deploying\n\r");
-    if (SerialGetChar(PRINTF_COM, &receivedChar, SECONDS(5))) {
-        releaseOK = false;
-    } else {
-        releaseOK = true; /* Umbilical not connected and first Y was entered */
-    }
-
-    if(!releaseOK){
-        printf("Deploy command aborted\n\r");
-    }
-    return releaseOK;
-}
-
 uint16_t parseNumber(char *afterCommand){
     return (uint16_t)strtol(afterCommand,&nextNum,0);
 }
@@ -160,7 +136,7 @@ void receiveLine(COM_NUM ioCom, char *commandString, char prompt, bool echo) {
 }
 void PreflightInitNow(CanIDNode cameFrom){
     int size;
-    size=MRAMInit(); //This should be first.  It might overwrite part of MRAM.
+    size=SetupMRAM(); //This should be first.  It might overwrite part of MRAM.
     WriteMRAMBoolState(StateInOrbit,false);
     //todo: The rest of the stuff has not been implemented yet
     printf("WOD Frequency,size set to Default, and WOD Indices initialized\n");
@@ -227,30 +203,9 @@ void DisplayTelemetry(uint32_t typeRequested){
 }
 
 void printID(void){
-    int boardVersion;
-    {
-        // Get the board version from the ADC (hey, that's how it is wired!)
-        adcData_t data[4];
-        int i=0;
-        adcResetFiFo(adcREG1,adcGROUP2);
-        adcStartConversion(adcREG1,adcGROUP2);
-        while(adcIsConversionComplete(adcREG1,adcGROUP2)==0){
-            // Really should be only one tick
-            vTaskDelay(1);
-        }
-        adcStopConversion(adcREG1,adcGROUP2);
-        adcGetData(adcREG1,adcGROUP2,data);
-        boardVersion = 0;
-        for(i=0;i<4;i++){
-            if(data[i].value > 50)boardVersion |= (1<<i);
-
-        }
-    }
-
-
     printf("\nAMSAT-NA PacSat Console\n");
     printf("Flight Software %s (built on %s at %s)\n",
-           RTIHU_FW_VERSION_STRING, __DATE__, __TIME__);
+           PACSAT_FW_VERSION_STRING, __DATE__, __TIME__);
     printf("   Built %s %s\n\n",__DATE__, __TIME__);//__GNUC__,__GNUC_MINOR__);
 
 #if defined (COMPILE_DEBUG)
@@ -263,12 +218,17 @@ void printID(void){
 #else
     printf("**X, E, U, or DEBUG Version: Not configured for flight**\n");
 #endif
-    printf("\nFree heap size is %d\n", xPortGetFreeHeapSize());
 #ifdef WATCHDOG_ENABLE
     printf("Watchdog Enabled\n");
 #else
     printf("Watchdog NOT Enabled\n");
 #endif
+    printf("Using FreeRTOS with"
+#if !configUSE_PREEMPTION
+            "OUT"
+#endif
+            " premption enabled;\n");
+
 
     printf("Free heap size is %d\n",xPortGetFreeHeapSize());
     {

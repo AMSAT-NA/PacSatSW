@@ -11,7 +11,7 @@
 /* Useful typedefs */
 #include <pacsat.h>
 #include "stdint.h"
-typedef enum {MRAMDev = 0, DCTDev = 1, NumberOfDevices} SPIDevice;
+typedef enum {MRAM0Dev = 0, MRAM1Dev = 1, MRAM2Dev=2, MRAM3Dev=3, DCTDev0 = 4,DCTDev1, InvalidSPI} SPIDevice;
 #define NUMBER_OF_BUSES 3
 typedef union {
     uint8_t byte[4];

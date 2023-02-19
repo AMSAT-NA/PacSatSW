@@ -10,10 +10,10 @@
 
 #include "MRAMmap.h"
 
-int MRAMInit(void);
+int SetupMRAM(void);
 void IHUInitSaved(void);
 
-bool MRAMInitWOD(void);
+bool SetupMRAMWOD(void);
 
 bool ReadMRAMBoolState(int index);
 void WriteMRAMBoolState(int index,bool state);
@@ -71,8 +71,6 @@ uint16_t ReadMRAMExitAutosafe(void);
 void WriteMRAMTimeout(TimeoutType type,uint32_t seconds);
 uint32_t ReadMRAMTimeout(TimeoutType type);
 
-uint8_t ReadMRAMStatus(void);
-void WriteMRAMStatus(uint8_t);
 
 uint32_t ReadMRAMCountdownAfterRelease(void);
 void WriteMRAMCountdownAfterRelease(uint32_t);
