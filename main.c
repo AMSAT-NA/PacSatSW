@@ -211,6 +211,7 @@ void ConsoleTask(void *pvParameters){
     GPIOEzInit(LED1);
     GPIOEzInit(LED2);
 
+    GPIOInit(DCTInterrupt,ToRadio,DCTInterruptMsg,None);
 
     /*
      * The rest of the code in the Console task that is in this module is just testing devices.
