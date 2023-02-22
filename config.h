@@ -11,6 +11,7 @@
 
 #ifndef GOLFCONFIG_H_
 #define GOLFCONFIG_H_
+
 #define PACSAT_NUMBER "0" // This is PacSat.
 #define GOLF_ID (PACSAT_NUMBER[0] - '0') /*Must change if number greater than 9*/
 #define ENGINEERING_MODEL
@@ -78,6 +79,17 @@
 #define SECONDS_AUTHENTICATION_MAX_AHEAD 300
 
 /*
+ * PACSAT Constants
+ */
+/* If you wish to transmit beyond the test bench then these need to be updated with a valid callsign */
+#define BBS_CALLSIGN PACSAT-12
+#define BROADCAST_CALLSIGN PACSAT-11
+#define DIGI_CALLSIGN PACSAT-1
+
+#define AX25_PKT_BUFFER_LEN 260 /* This is the maximum number of bytes a packet can have */
+#define MAX_CALLSIGN_LEN 10 /* Length of the String for an AX25 callsign including dash, 2 digit Digi, and null termination */
+
+/*
  * TASK INFORMATION This is the info like stack sizes and priorities for the tasks
  */
 #define CONSOLE_STACK_SIZE configMINIMAL_STACK_SIZE*11
@@ -103,6 +115,20 @@
 
 #define RADIO_STACK_SIZE configMINIMAL_STACK_SIZE*11
 #define RADIO_PRIORITY (tskIDLE_PRIORITY + 2)
+
+// PACSAT Task stack sizes and priorities
+#define RX_STACK_SIZE configMINIMAL_STACK_SIZE*11
+#define RX_PRIORITY (tskIDLE_PRIORITY + 4)
+
+#define TX_STACK_SIZE configMINIMAL_STACK_SIZE*11
+#define TX_PRIORITY (tskIDLE_PRIORITY + 3)
+
+#define PB_STACK_SIZE configMINIMAL_STACK_SIZE*11
+#define PB_PRIORITY (tskIDLE_PRIORITY + 2)
+
+#define UPLINK_STACK_SIZE configMINIMAL_STACK_SIZE*11
+#define UPLINK_PRIORITY (tskIDLE_PRIORITY + 2)
+
 
 // Telemetry constants
 #define SYNC_LFSR_LONG (0x47cd215d)

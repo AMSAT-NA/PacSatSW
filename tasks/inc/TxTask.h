@@ -2,7 +2,7 @@
  * TncTask.h
  *
  *  Created on: Dec 1, 2022
- *      Author: g0kla
+ *      Author: Chris E. Thompson, G0KLA
  */
 
 #ifndef TASKS_INC_TXTASK_H_

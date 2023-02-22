@@ -1,5 +1,5 @@
 /*
- * golf.h
+ * pacsat.h
  *
  *  Created on: Feb 26, 2019
  *      Author: burns
@@ -23,8 +23,15 @@
 #include "watchdogSupport.h"
 #include "gpioDriver.h"
 
-// Let's skip stdio which has a lot of stuff and just define printf
+/* These are defined in  */
+#define EXIT_SUCCESS 0
+#define EXIT_FAILURE 1
 
+/* GLOBAL VARIABLE DECLARATIONS - these are then defined in main.c
+ * Declare the queues that are available to all tasks */
+extern QueueHandle_t xPbPacketQueue;
+
+/* Let's skip stdio which has a lot of stuff and just define printf */
 extern int printf(const char *fmt, ...);
 extern int sprintf(char* str, const char *fmt, ...);
 

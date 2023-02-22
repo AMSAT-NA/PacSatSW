@@ -43,6 +43,7 @@
 #include "CommandTask.h"
 #include "TxTask.h"
 #include "RxTask.h"
+#include "PbTask.h"
 #include "TelemetryRadio.h"
 #include "RTISetup.h"
 #include "nonvol.h"
@@ -54,6 +55,9 @@
 #include "nonvolManagement.h"
 #include "consoleRoutines.h"
 
+/* Only needed for test routines */
+#include "ax25_util.h"
+
 
 #define FLIPBITS(x) (               \
         ((x & 0x80) >> 7) | ((x & 0x01) << 7) |    \
@@ -64,7 +68,8 @@
 //Forward routine
 void ConsoleTask(void *pvParameters);
 
-//Global Variables (most should not be done this way)
+//Global Variables Definitions (these are declared in pacsat.h or another header file where they are required)
+QueueHandle_t xPbPacketQueue; /* RTOS Queue for packets received and sent to the PB */
 bool CANPrintTelemetry,CANPrintCoord,CANPrintCommands,CANPrintAny,CANPrintCount,CANPrintErrors,CANPrintEttus;
 
 /*
@@ -191,7 +196,7 @@ void ConsoleTask(void *pvParameters){
     ResetAllWatchdogs(); // This is started before MET and other tasks so just reporting in does not help
 
     /*
-     * Now we have an OS going, so we call the Golf init routines, which use OS structures like
+     * Now we have an OS going, so we call the init routines, which use OS structures like
      * semaphores and queues.
      */
     SerialInitPort(COM1,COM1_BAUD, 10,10);//Max of 38400 for the moment
@@ -199,7 +204,8 @@ void ConsoleTask(void *pvParameters){
 
     // Initialize the SPI driver for our SPI devices
 
-    SPIInit(DCTDev0);
+    SPIInit(DCTDev0); // This is the receiver
+//    SPIInit(DCTDev1); // This is the transmitter
     SPIInit(MRAM0Dev);
     SPIInit(MRAM1Dev);
     SPIInit(MRAM2Dev);
@@ -243,13 +249,14 @@ void ConsoleTask(void *pvParameters){
         haveWaited = true;
     }
 #endif
+
+
     //////////////////////////////////////// Deployables //////////////////////////////////////////////////
 
     /*
      * Time to release the antennas.
      */
-    xTaskCreate(CANTask, "Can", CAN_STACK_SIZE,
-                NULL,CAN_PRIORITY, NULL);
+    xTaskCreate(CANTask, "Can", CAN_STACK_SIZE, NULL,CAN_PRIORITY, NULL);
 
     /*
      * We create the coordination task first.  It will get us switched into either "InControl" or "AliveNotControlling".
@@ -258,15 +265,15 @@ void ConsoleTask(void *pvParameters){
 //   xTaskCreate(CommandTask, "Command", COMMAND_STACK_SIZE,
 //                NULL,COMMAND_PRIORITY, NULL);
 
-     xTaskCreate(RxTask,"Radio",RADIO_STACK_SIZE,
-                NULL,RADIO_PRIORITY,NULL);
+     xTaskCreate(RxTask,"RxTask",RX_STACK_SIZE, NULL,RX_PRIORITY,NULL);
+     xTaskCreate(PbTask,"PbTask",PB_STACK_SIZE, NULL,PB_PRIORITY,NULL);
 
-//    xTaskCreate(TxTask,"Radio",RADIO_STACK_SIZE,
-//                NULL,RADIO_PRIORITY,NULL);
+//    xTaskCreate(TxTask,"Radio",RADIO_STACK_SIZE, NULL,RADIO_PRIORITY,NULL);
 
     //AlertFlashingWait(CENTISECONDS(50),CENTISECONDS(10),CENTISECONDS(3));
     AllTasksStarted = true;
     StartStableCount();
+
     // Now head off to do the real work of the console task
     RealConsoleTask();
 }

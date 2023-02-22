@@ -2,7 +2,7 @@
  * RxTask.h
  *
  *  Created on: Feb 8, 2022
- *      Author: g0kla
+ *      Author: Chris E. Thompson, G0KLA
  */
 
 #ifndef TASKS_INC_RXTASK_H_
