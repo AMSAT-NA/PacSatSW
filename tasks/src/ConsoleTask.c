@@ -147,7 +147,7 @@ enum {
 
 
 commandPairs setupCommands[] = {
-                                 {"init new proc","Init DCT stuff that will be set once for each unit",initSaved}
+                                {"init new proc","Init DCT stuff that will be set once for each unit",initSaved}
                                 ,{"start tx tone", "Send a tone with 5043", toneTx}
                                 ,{"stop tx tone", "Stop sending the tone",noToneTx}
                                 ,{"raise tx freq","Raise the telem frequency by n Hz",RaiseTxFreq}
@@ -168,7 +168,7 @@ commandPairs setupCommands[] = {
 };
 commandPairs debugCommands[] = {
 
-                                 {"test scrub","Run the memory scrub routine once",TestMemScrub}
+                                {"test scrub","Run the memory scrub routine once",TestMemScrub}
                                 ,{"test pll", "test ax5043 PLL frequency range",testPLLrange}
                                 ,{"start rx","Start up the 5043 receiver",startRx}
                                 ,{"clear mram","Initializes MRAM state,WOD,Min/max but does not clear InOrbit--testing only",
@@ -185,9 +185,9 @@ commandPairs debugCommands[] = {
                                 ,{"mram wren","Write enable MRAM",MRAMWrEn}
                                 ,{"mram wake","Send wake command to MRAM",mramAwake}
                                 ,{"mram sleep","Send sleep command to MRAM",mramSleep}
-                             };
+};
 commandPairs commonCommands[] = {
-                                  {"get i2c","What I2c devices are working?",getI2cState}
+                                 {"get i2c","What I2c devices are working?",getI2cState}
                                  ,{"get time","Display reset number and seconds",time}
                                  ,{"get status","Get some general status info",telem0}
                                  ,{"get rssi","Get the current RSSI reading from the AX5043 Rx",getRSSI}
@@ -218,7 +218,7 @@ commandPairs commonCommands[] = {
                                  ,{"helpsetup","List commands for setting up new board",HelpSetup}
                                  ,{"help","List common commands",Help}
                                  ,{"","",0}
-                                 };
+};
 
 char * ResetReasons[] = {
                          0,0,0,
@@ -306,10 +306,10 @@ void RealConsoleTask(void)
                 }
             }
 
- //           printf("Size of MRAM0 is %dKB\n",getMRAMSize(MRAM0Dev)/1024);
- //           printf("Size of MRAM1 is %dKB\n",getMRAMSize(MRAM1Dev)/1024);
- //           printf("Size of MRAM2 is %dKB\n",getMRAMSize(MRAM2Dev)/1024);
- //           printf("Size of MRAM3 is %dKB\n",getMRAMSize(MRAM3Dev)/1024);
+            //           printf("Size of MRAM0 is %dKB\n",getMRAMSize(MRAM0Dev)/1024);
+            //           printf("Size of MRAM1 is %dKB\n",getMRAMSize(MRAM1Dev)/1024);
+            //           printf("Size of MRAM2 is %dKB\n",getMRAMSize(MRAM2Dev)/1024);
+            //           printf("Size of MRAM3 is %dKB\n",getMRAMSize(MRAM3Dev)/1024);
             break;
         }
         case testAllMRAM:{
@@ -357,7 +357,7 @@ void RealConsoleTask(void)
         case GetGpios:{
             int i;
             char *gpioNames[NumberOfGPIOs]={
-               "LED1","LED2","DCTInterrupt","CommandStrobe","CommandBits"
+                                            "LED1","LED2","DCTInterrupt","CommandStrobe","CommandBits"
             };
             for (i=0;i<NumberOfGPIOs;i++){
                 if(i%4 == 0){
@@ -369,7 +369,7 @@ void RealConsoleTask(void)
             break;
         }
 #endif
-         case GetCommands: {
+        case GetCommands: {
             extern uint8_t SWCmdRing[SW_CMD_RING_SIZE];
             int i=0;
             printf("Commands received since reset: Hw=%d,Sw=%d\n\r",GetHWCmdCount(),GetSWCmdCount());
@@ -409,37 +409,37 @@ void RealConsoleTask(void)
             for(i=0;i<4;i++){
                 printf("Group 2.%d id=%d,value=%d\n",i,data[i].id,data[i].value);
             }
-             break;
+            break;
 
         }
         case RaiseTxFreq:{
             int number = parseNumber(afterCommand);
             DCTTxFreq += number;
             printf("TxFreq=%d\n",DCTTxFreq);
-            quick_setfreq(DCTTxFreq);
+            quick_setfreq(DCTDev0, DCTTxFreq);
             break;
         }
         case LowerTxFreq:{
             int number = parseNumber(afterCommand);
             DCTTxFreq -= number;
             printf("TxFreq=%d\n",DCTTxFreq);
-            quick_setfreq(DCTTxFreq);
+            quick_setfreq(DCTDev0, DCTTxFreq);
             break;
         }
         case RaiseRxFreq:{
-             int number = parseNumber(afterCommand);
-             DCTRxFreq += number;
-             printf("RxFreq=%d\n",DCTRxFreq);
-             quick_setfreq(DCTRxFreq);
-             break;
-         }
-         case LowerRxFreq:{
-             int number = parseNumber(afterCommand);
-             DCTRxFreq -= number;
-             printf("RxFreq=%d\n",DCTRxFreq);
-             quick_setfreq(DCTRxFreq);
-             break;
-         }
+            int number = parseNumber(afterCommand);
+            DCTRxFreq += number;
+            printf("RxFreq=%d\n",DCTRxFreq);
+            quick_setfreq(DCTDev1, DCTRxFreq);
+            break;
+        }
+        case LowerRxFreq:{
+            int number = parseNumber(afterCommand);
+            DCTRxFreq -= number;
+            printf("RxFreq=%d\n",DCTRxFreq);
+            quick_setfreq(DCTDev1, DCTRxFreq);
+            break;
+        }
         case SaveFreq:{
             printf("Saving Rx frequency %d and Tx frequency %d to MRAM\n",DCTRxFreq,DCTTxFreq);
             WriteMRAMTelemFreq(DCTTxFreq);
@@ -474,7 +474,7 @@ void RealConsoleTask(void)
             if(stat){
                 printf("Writing checksum=%x...",checksum);
                 stat = writeNV(&checksum,sizeof(LocalFlash->AuthenticateKey.keyChecksum),ExternalMRAMData,
-                              (int)&LocalFlash->AuthenticateKey.keyChecksum);
+                               (int)&LocalFlash->AuthenticateKey.keyChecksum);
             }
             if(stat){
                 printf("Writing valid\n");
@@ -518,43 +518,43 @@ void RealConsoleTask(void)
         }
 
         case showDownlinkSize:{
- #define memberSize(type, member) sizeof(((type *)0)->member)
-             printf("\nPayload Sizes: Header=%d,RTHealth=%d (common=%d,common2=%d,specific=%d),\nmin=%d,max=%d,WODHealth=%d,Diag=%d\n",
-                     sizeof(header_t),sizeof(realTimePayload_t),
-                     sizeof(commonRtMinmaxWodPayload_t),sizeof(commonRtWodPayload_t),sizeof(realtimeSpecific_t),
-                     sizeof(minValuesPayload_t),sizeof(maxValuesPayload_t),
-                     sizeof(WODHousekeepingPayload_t),sizeof(DiagnosticPayload_t));
-             printf("               RagnarokRT=%d,RagnarokWod=%d,RadiationRT=%d,RadiationWod=%d\n\n",
-                     sizeof(ragnarok_t),sizeof(WODRagnarokPayload_t),sizeof(radiation_t),sizeof(WODRadiationPayload_t));
+#define memberSize(type, member) sizeof(((type *)0)->member)
+            printf("\nPayload Sizes: Header=%d,RTHealth=%d (common=%d,common2=%d,specific=%d),\nmin=%d,max=%d,WODHealth=%d,Diag=%d\n",
+                   sizeof(header_t),sizeof(realTimePayload_t),
+                   sizeof(commonRtMinmaxWodPayload_t),sizeof(commonRtWodPayload_t),sizeof(realtimeSpecific_t),
+                   sizeof(minValuesPayload_t),sizeof(maxValuesPayload_t),
+                   sizeof(WODHousekeepingPayload_t),sizeof(DiagnosticPayload_t));
+            printf("               RagnarokRT=%d,RagnarokWod=%d,RadiationRT=%d,RadiationWod=%d\n\n",
+                   sizeof(ragnarok_t),sizeof(WODRagnarokPayload_t),sizeof(radiation_t),sizeof(WODRadiationPayload_t));
 
-             printf("Frame sizes: \n"
+            printf("Frame sizes: \n"
                     "      Payload Only,   Current Filler   Current Size\n");
 
-             printf("RT1        %03d           %03d             %03d\n"
+            printf("RT1        %03d           %03d             %03d\n"
                     "RT2        %03d           %03d             %03d\n",
-                     sizeof(realTimeMinFrame_t)-memberSize(realTimeMinFrame_t,filler),memberSize(realTimeMinFrame_t,filler),sizeof(realTimeMinFrame_t),
-                     sizeof(realTimeMaxFrame_t)-memberSize(realTimeMaxFrame_t,filler),memberSize(realTimeMaxFrame_t,filler),sizeof(realTimeMaxFrame_t));
+                    sizeof(realTimeMinFrame_t)-memberSize(realTimeMinFrame_t,filler),memberSize(realTimeMinFrame_t,filler),sizeof(realTimeMinFrame_t),
+                    sizeof(realTimeMaxFrame_t)-memberSize(realTimeMaxFrame_t,filler),memberSize(realTimeMaxFrame_t,filler),sizeof(realTimeMaxFrame_t));
 
-             printf("AllWOD1    %03d           %03d             %03d\n"
+            printf("AllWOD1    %03d           %03d             %03d\n"
                     "AllWOD2    %03d           %03d             %03d\n"
                     "AllWOD3    %03d           %03d             %03d\n",
-                     sizeof(allWOD1Frame_t)-memberSize(allWOD1Frame_t,filler),memberSize(allWOD1Frame_t,filler),sizeof(allWOD1Frame_t),
-                     sizeof(allWOD2Frame_t)-memberSize(allWOD2Frame_t,filler),memberSize(allWOD2Frame_t,filler),sizeof(allWOD2Frame_t),
-                     sizeof(allWOD3Frame_t)-memberSize(allWOD3Frame_t,filler),memberSize(allWOD3Frame_t,filler),sizeof(allWOD3Frame_t)
-                     );
-             printf("SafeData1  %03d           %03d             %03d\n"
+                    sizeof(allWOD1Frame_t)-memberSize(allWOD1Frame_t,filler),memberSize(allWOD1Frame_t,filler),sizeof(allWOD1Frame_t),
+                    sizeof(allWOD2Frame_t)-memberSize(allWOD2Frame_t,filler),memberSize(allWOD2Frame_t,filler),sizeof(allWOD2Frame_t),
+                    sizeof(allWOD3Frame_t)-memberSize(allWOD3Frame_t,filler),memberSize(allWOD3Frame_t,filler),sizeof(allWOD3Frame_t)
+            );
+            printf("SafeData1  %03d           %03d             %03d\n"
                     "SafeData2  %03d           %03d             %03d\n"
                     "SafeWOD    %03d           %03d             %03d\n"
                     "Diagnostic %03d           %03d             %03d\n"
-                ,sizeof(safeData1Frame_t)-memberSize(safeData1Frame_t,filler),memberSize(safeData1Frame_t,filler),sizeof(safeData1Frame_t)
-                ,sizeof(safeData2Frame_t)-memberSize(safeData2Frame_t,filler),memberSize(safeData2Frame_t,filler),sizeof(safeData2Frame_t)
-                ,sizeof(safeWODFrame_t)-memberSize(safeWODFrame_t,filler),memberSize(safeWODFrame_t,filler),sizeof(safeWODFrame_t)
-                ,sizeof(diagFrame_t)-memberSize(diagFrame_t,filler),memberSize(diagFrame_t,filler),sizeof(diagFrame_t)
-             );
-             printf("\nAllFrames = %d\n",sizeof(allFrames_t));
+                    ,sizeof(safeData1Frame_t)-memberSize(safeData1Frame_t,filler),memberSize(safeData1Frame_t,filler),sizeof(safeData1Frame_t)
+                    ,sizeof(safeData2Frame_t)-memberSize(safeData2Frame_t,filler),memberSize(safeData2Frame_t,filler),sizeof(safeData2Frame_t)
+                    ,sizeof(safeWODFrame_t)-memberSize(safeWODFrame_t,filler),memberSize(safeWODFrame_t,filler),sizeof(safeWODFrame_t)
+                    ,sizeof(diagFrame_t)-memberSize(diagFrame_t,filler),memberSize(diagFrame_t,filler),sizeof(diagFrame_t)
+            );
+            printf("\nAllFrames = %d\n",sizeof(allFrames_t));
 
-             break;
-         }
+            break;
+        }
         case mramSleep:{
             int num = parseNumber(afterCommand);
             MRAMSleep(num);
@@ -583,7 +583,7 @@ void RealConsoleTask(void)
             printf("All CAN buses restarted\n");
             for(i=10;i<=12;i++){
                 printf("CAN1 read return:  Msg Box=%d, status=%d\n",i,
-                        CANReadMessage(CAN1,i,&readData));
+                       CANReadMessage(CAN1,i,&readData));
                 printf("CAN2 read return:  Msg Box=%d, status=%d\n",i,
                        CANReadMessage(CAN2,i,&readData));
             }
@@ -708,24 +708,26 @@ void RealConsoleTask(void)
                 CANPrintAny = false; break;
             case 8:
                 CANPrintEttus = false; break;
-        }
+            }
             break;
         }
 
         case noToneTx:{
-                printf("Turning off tone; telemetry enabled\n");
-                AudioSetMixerSource(MixerSilence);
-                break;
+            printf("NOT IMPLEMENMTED\n");
+//            printf("Turning off tone; telemetry enabled\n");
+//            AudioSetMixerSource(MixerSilence);
+            break;
         case toneTx: {
-                printf("Sending a tone\n");
-                AudioSetMixerSource(MixerSilence);  //Stop everything
-                AudioSetMixerSource(MixerTone);
-                ax5043StartTx();
-                break;
-            }
+            printf("NOT IMPLEMENMTED\n");
+//            printf("Sending a tone\n");
+//            AudioSetMixerSource(MixerSilence);  //Stop everything
+//            AudioSetMixerSource(MixerTone);
+//            ax5043StartTx(DCTDev0);
+            break;
+        }
         }
         case startRx:{
-            ax5043StartRx();
+            ax5043StartRx(DCTDev1);
             break;
         }
 
@@ -782,72 +784,77 @@ void RealConsoleTask(void)
         }
 
         case getax5043:{
-            printf("AX5043_FIFOSTAT: %02x\n", ax5043ReadReg(AX5043_FIFOSTAT));
-            printf("AX5043_PWRMODE:: %02x\n", ax5043ReadReg(AX5043_PWRMODE));
-            printf("AX5043_XTALCAP: %d\n", ax5043ReadReg(AX5043_XTALCAP));
-            printf("AX5043_PLLLOOP: %02.2x\n", ax5043ReadReg(AX5043_PLLLOOP));
-            printf("AX5043_PLLCPI: %02.2x\n", ax5043ReadReg(AX5043_PLLCPI));
-            printf("AX5043_PLLVCOI: %02.2x\n", ax5043ReadReg(AX5043_PLLVCOI));
-            printf("AX5043_PLLRANGINGA: %02.2x\n", ax5043ReadReg(AX5043_PLLRANGINGA));
-            printf("AX5043_PLLVCODIV: %02.2x\n", ax5043ReadReg(AX5043_PLLVCODIV));
-            printf("AX5043_FREQA0: %x\n", ax5043ReadReg(AX5043_FREQA0));
-            printf("AX5043_FREQA1: %x\n", ax5043ReadReg(AX5043_FREQA1));
-            printf("AX5043_FREQA2: %x\n", ax5043ReadReg(AX5043_FREQA2));
-            printf("AX5043_FREQA3: %x\n", ax5043ReadReg(AX5043_FREQA3));
-            printf("AX5043_MODULATION: %x\n", ax5043ReadReg(AX5043_MODULATION));
-            printf("AX5043_TXPWRCOEFFB0: %x\n", ax5043ReadReg(AX5043_TXPWRCOEFFB0));
-            printf("AX5043_TXPWRCOEFFB1: %x\n", ax5043ReadReg(AX5043_TXPWRCOEFFB1));
+            SPIDevice dev = DCTDev0;
+            printf("AX5043 DEVICE: %d\n",dev);
+            printf(" FIFOSTAT: %02x\n", ax5043ReadReg(dev, AX5043_FIFOSTAT));
+            printf(" PWRMODE:: %02x\n", ax5043ReadReg(dev, AX5043_PWRMODE));
+            printf(" XTALCAP: %d\n", ax5043ReadReg(dev, AX5043_XTALCAP));
+            printf(" PLLLOOP: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLLOOP));
+            printf(" PLLCPI: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLCPI));
+            printf(" PLLVCOI: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLVCOI));
+            printf(" PLLRANGINGA: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLRANGINGA));
+            printf(" PLLVCODIV: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLVCODIV));
+            printf(" FREQ: %x", ax5043ReadReg(dev, AX5043_FREQA0));
+            printf(" %x", ax5043ReadReg(dev, AX5043_FREQA1));
+            printf(" %x", ax5043ReadReg(dev, AX5043_FREQA2));
+            printf(" %x\n", ax5043ReadReg(dev, AX5043_FREQA3));
+            printf(" MODULATION: %x\n", ax5043ReadReg(dev, AX5043_MODULATION));
+            printf(" TXPWRCOEFFB0: %x\n", ax5043ReadReg(dev, AX5043_TXPWRCOEFFB0));
+            printf(" TXPWRCOEFFB1: %x\n", ax5043ReadReg(dev, AX5043_TXPWRCOEFFB1));
+
             break;
         }
 
         case getRSSI:{
-            int rssi = get_rssi();
+            int rssi = getRssi(DCTDev1);
             printf("RSSI is %d\n",((int16_t)rssi) - 255);
             break;
         }
         case testRxFreq: {
             // This is so we can find what the receive frequency is on first build
-            {
-                int freq = 145835000;
-
-                ///ax5043PowerOn();
-
-                printf("Transmitting on receive freq: %d\n", freq);
-
-                uint8_t retVal = axradio_init_2m(freq);
-                printf("axradio_init_2m: %d\n",retVal);
-
-
-                retVal = mode_tx_2m();
-                printf("mode_tx_2m: %d\n",retVal);
-
-                ax5043WriteReg(AX5043_PWRMODE, AX5043_PWRSTATE_FULL_TX);
-                printf("Powerstate is FULL_TX\n");
-
-                printf("AX5043_XTALCAP: %d\n", ax5043ReadReg(AX5043_XTALCAP));
-
-                fifo_repeat_byte(0xAA, 100, 0);
-                fifo_repeat_byte(0xAA, 100, 0);
-                fifo_repeat_byte(0xAA, 100, 0);
-                fifo_repeat_byte(0xAA, 100, 0);
-                fifo_repeat_byte(0xAA, 100, 0);
-                fifo_repeat_byte(0xAA, 100, 0);
-                fifo_repeat_byte(0xAA, 100, 0);
-                fifo_repeat_byte(0xAA, 100, 0);
-                fifo_repeat_byte(0xAA, 100, 0);
-                fifo_repeat_byte(0xAA, 100, 0);
-                fifo_repeat_byte(0xAA, 100, 0);
-                fifo_repeat_byte(0xAA, 100, 0);
-                fifo_repeat_byte(0xAA, 100, 0);
-                fifo_repeat_byte(0xAA, 100, 0);
-
-                fifo_commit();
-            }
+            // {
+            //                int freq = 145835000;
+            //
+            //                ///ax5043PowerOn();
+            //
+            //                printf("Transmitting on receive freq: %d\n", freq);
+            //
+            //                uint8_t retVal = axradio_init_2m(freq);
+            //                printf("axradio_init_2m: %d\n",retVal);
+            //
+            //
+            //                retVal = mode_tx_2m();
+            //                printf("mode_tx_2m: %d\n",retVal);
+            //
+            //                ax5043WriteReg(AX5043_PWRMODE, AX5043_PWRSTATE_FULL_TX);
+            //                printf("Powerstate is FULL_TX\n");
+            //
+            //                printf("AX5043_XTALCAP: %d\n", ax5043ReadReg(AX5043_XTALCAP));
+            //
+            //                fifo_repeat_byte(0xAA, 100, 0);
+            //                fifo_repeat_byte(0xAA, 100, 0);
+            //                fifo_repeat_byte(0xAA, 100, 0);
+            //                fifo_repeat_byte(0xAA, 100, 0);
+            //                fifo_repeat_byte(0xAA, 100, 0);
+            //                fifo_repeat_byte(0xAA, 100, 0);
+            //                fifo_repeat_byte(0xAA, 100, 0);
+            //                fifo_repeat_byte(0xAA, 100, 0);
+            //                fifo_repeat_byte(0xAA, 100, 0);
+            //                fifo_repeat_byte(0xAA, 100, 0);
+            //                fifo_repeat_byte(0xAA, 100, 0);
+            //                fifo_repeat_byte(0xAA, 100, 0);
+            //                fifo_repeat_byte(0xAA, 100, 0);
+            //                fifo_repeat_byte(0xAA, 100, 0);
+            //
+            //                fifo_commit();
+            //            }
             break;
         }
 
         case testPLLrange:{
-            test_pll_range();
+            printf("Sorry, this was temporarily removed while two radio devices are being implemented\n");
+
+            //            test_pll_range(DCTDev0);
             break;
         }
         case HelpAll:{
@@ -906,7 +913,7 @@ void RealConsoleTask(void)
             break;
         }
 
-         default:
+        default:
             printf("Unknown command\n");
         }
     }

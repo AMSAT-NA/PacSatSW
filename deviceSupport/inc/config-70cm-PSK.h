@@ -386,15 +386,13 @@ static void ax5043_set_registers_rx(void) {
 
 #endif // LEGACY_GOLF
 
-// physical layer
-
-
-static const uint32_t axradio_phy_chanfreq[2] = { 0x1b3b5550,0x1b3b5550};//Primary and secondry
-static const uint8_t axradio_phy_chanpllrnginit[1] = { 0x09 };
-static const uint8_t axradio_phy_chanvcoiinit[1] = { 0x97 };
-static uint8_t axradio_phy_chanpllrng[1];
-static uint8_t axradio_phy_chanvcoi[1];
-static const uint8_t axradio_phy_vcocalib = 0;
+//// physical layer
+//static const uint32_t axradio_phy_chanfreq[2] = { 0x1b3b5550,0x1b3b5550};//Primary and secondry
+//static const uint8_t axradio_phy_chanpllrnginit[1] = { 0x09 };
+//static const uint8_t axradio_phy_chanvcoiinit[1] = { 0x97 };
+//static uint8_t axradio_phy_chanpllrng[1];
+//static uint8_t axradio_phy_chanvcoi[1];
+//static const uint8_t axradio_phy_vcocalib = 0;
 
 
 #if 0

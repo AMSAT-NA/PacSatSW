@@ -1,4 +1,5 @@
 
+#ifdef LEGACY_GOLF
 
 // TX: fcarrier=145.835MHz dev=  1.500kHz br=  1.200kBit/s pwr= 15.0dBm
 // RX: fcarrier=145.835MHz bw= 25.000kHz br=  1.200kBit/s
@@ -183,3 +184,4 @@ static const uint8_t  axradio_phy_vcocalib = 1;
 static const int8_t  axradio_phy_rssireference = 57;// 0xF9 + 64;
 static const int8_t axradio_phy_rssioffset = 64;
 
+#endif

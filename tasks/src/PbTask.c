@@ -63,13 +63,14 @@ If the File Number is not available for a file request then we send an error
 packet: NO
  */
 
-#include <PbTask.h>
 #include "FreeRTOS.h"
 #include "os_task.h"
 #include "ax25_util.h"
 #include "str_util.h"
+#include "PbTask.h"
 
 static uint8_t pb_packet_buffer[AX25_PKT_BUFFER_LEN];
+
 /* An entry on the PB list keeps track of the requester and where we are in the request process */
 struct pb_entry {
     uint8_t pb_type; /* DIR or FILE request */
@@ -102,7 +103,6 @@ static bool pb_shut = false;
 /* Local Function prototypes */
 void PbSendStatus();
 void PbMakeListStr(char *buffer, int len);
-
 bool PbTestStatus();
 
 /**
@@ -126,10 +126,10 @@ portTASK_FUNCTION_PROTO(PbTask, pvParameters)  {
     int pvtID = 0;
 
     /* create a RTOS software timer - TODO period should be in MRAM and changeable from the ground after reset of task */
-    handle = xTimerCreate( "PB", SECONDS(10), TRUE, &pvtID, PbSendStatus);
+    handle = xTimerCreate( "PB", SECONDS(20), TRUE, &pvtID, PbSendStatus);
     /* start the timer */
     timerStatus = xTimerStart(handle, 0);
-    if (timerStatus != pdPASS){
+    if (timerStatus != pdPASS) {
         debug_print("ERROR: Failed in init PB Status Timer\n");
 // TODO =>        ReportError(RTOSfailure, FALSE, ReturnAddr, (int) PbTask); /* failed to create the RTOS timer */
     }
@@ -179,6 +179,16 @@ void PbSendStatus() {
  //       char command[len]; // now put the list in a buffer of the right size
  //       strlcpy((char *)command, (char *)buffer,sizeof(command));
         debug_print("%s %s\n",CALL, buffer);
+        /* Add to the queue and wait for 10ms to see if space is available */
+        uint8_t byteBuf[] = {0xA0,0x84,0x98,0x92,0xA6,0xA8,0x00,0xA0,0x8C,0xA6,0x66,
+                             0x40,0x40,0x17,0x03,0xF0,0x50,0x42,0x3A,0x20,0x45,0x6D,0x70,0x74,0x79,0x2E,0x0D};
+
+        BaseType_t xStatus = xQueueSendToBack( xTxPacketQueue, &byteBuf, CENTISECONDS(1) );
+        if( xStatus != pdPASS ) {
+            /* The send operation could not complete because the queue was full */
+            debug_print("TX QUEUE FULL: Could not add to Packet Queue\n");
+            // TODO - we should log this error and downlink in telemetry
+        }
         //int rc = send_raw_packet(g_broadcast_callsign, CALL, PID_NO_PROTOCOL, command, sizeof(command));
         return;
     }

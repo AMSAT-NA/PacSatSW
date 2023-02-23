@@ -10,35 +10,33 @@
 #include "os_task.h"
 
 #include "ax5043_access.h"
-//#include "ax5043-ax25.h"
-#include "ax5043-2M-AFSK.h"
-#include "ax5043-2M-AFSK-externs.h"
+#include "ax5043-ax25.h"
+//#include "ax5043-2M-AFSK.h"
+//#include "ax5043-2M-AFSK-externs.h"
 #include "ax25_util.h"
 
 /* Local variables */
 static uint8_t PAPowerFlagCnt=0,DCTPowerFlagCnt=0;
-uint8_t axradio_rxbuffer[AX25_PKT_BUFFER_LEN];
-
-/* Local Forward declarations */
-uint8_t getRssi();
+static uint8_t axradio_rxbuffer[AX25_PKT_BUFFER_LEN];
+static SPIDevice device = DCTDev0;
 
 
 portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
 
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)RadioWD ); // TODO - just reuse the Radio task name for now
-    InitInterTask(ToRadio, 10);
+    InitInterTask(ToRxTask, 10);
     ResetAllWatchdogs();
     printf("Initializing Rx\n");
 
-    /* This is defined in ax25_util.h, declared in main.c */
-    xPbPacketQueue = xQueueCreate( 5, AX25_PKT_BUFFER_LEN * sizeof( uint8_t ) );
+    /* This is defined in pacsat.h, declared here */
+    xPbPacketQueue = xQueueCreate( PB_PACKET_QUEUE_LEN, AX25_PKT_BUFFER_LEN * sizeof( uint8_t ) );
     if (xPbPacketQueue == NULL) {
         /* The queue could not be created.  This is fatal and should only happen in test if we are short of memory at startup */
         debug_print("FATAL ERROR: Could not create PB Packet Queue\n");
     }
 
     /* Initialize the Radio RX */
-    ax5043StartRx();
+    ax5043StartRx(device);
 
     while(1) {
         Intertask_Message messageReceived;
@@ -46,13 +44,13 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
         uint8_t rssi = 0;
 
         ReportToWatchdog(CurrentTaskWD);
-        status = WaitInterTask(ToRadio, CENTISECONDS(10), &messageReceived);  // This is triggered when there is RX data on the FIFO
+        status = WaitInterTask(ToRxTask, CENTISECONDS(10), &messageReceived);  // This is triggered when there is RX data on the FIFO
         ReportToWatchdog(CurrentTaskWD);
-        rssi = getRssi();
+        rssi = getRssi(device);
         if (rssi > 170) {
             debug_print("RSSI: %d   ",rssi);
-            debug_print("FRMRX: %d   ",ax5043ReadReg(AX5043_FRAMING) & 0x80 ); // FRAMING Pkt start bit detected - will print 128
-            debug_print("RADIO: %d\n",ax5043ReadReg(AX5043_RADIOSTATE) & 0xF ); // Radio State bits 0-3
+            debug_print("FRMRX: %d   ",ax5043ReadReg(device, AX5043_FRAMING) & 0x80 ); // FRAMING Pkt start bit detected - will print 128
+            debug_print("RADIO: %d\n",ax5043ReadReg(device, AX5043_RADIOSTATE) & 0xF ); // Radio State bits 0-3
         }
 
         if (status==1) { // We received a message
@@ -68,26 +66,26 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
 
             case DCTInterruptMsg:
 
-                if ((ax5043ReadReg(AX5043_PWRMODE) & 0x0F) == AX5043_PWRSTATE_FULL_RX) {
+                if ((ax5043ReadReg(device, AX5043_PWRMODE) & 0x0F) == AX5043_PWRSTATE_FULL_RX) {
 
                     printf("Interrupt while in FULL_RX mode\n");
                     //printf("IRQREQUEST1: %02x\n", ax5043ReadReg(AX5043_IRQREQUEST1));
                     //printf("IRQREQUEST0: %02x\n", ax5043ReadReg(AX5043_IRQREQUEST0));
                     //printf("FIFOSTAT: %02x\n", ax5043ReadReg(AX5043_FIFOSTAT));
 
-                    if ((ax5043ReadReg(AX5043_FIFOSTAT) & 0x01) != 1) { // FIFO not empty
+                    if ((ax5043ReadReg(device, AX5043_FIFOSTAT) & 0x01) != 1) { // FIFO not empty
                         debug_print("FIFO NOT EMPTY\n");
-                        uint8_t fifo_cmd = ax5043ReadReg(AX5043_FIFODATA); // read command
+                        uint8_t fifo_cmd = ax5043ReadReg(device, AX5043_FIFODATA); // read command
                         uint8_t len = (fifo_cmd & 0xE0) >> 5; // top 3 bits encode payload len
                         if (len == 7)
-                            len = ax5043ReadReg(AX5043_FIFODATA); // 7 means variable length, -> get length byte
+                            len = ax5043ReadReg(device, AX5043_FIFODATA); // 7 means variable length, -> get length byte
                         fifo_cmd &= 0x1F;
 
                         if (fifo_cmd == AX5043_FIFOCMD_DATA) {
                             debug_print("FIFO CMD: %d LEN:%d\n",fifo_cmd,len);
                             uint8_t loc = 0;
                             while (len--) {
-                                axradio_rxbuffer[loc] = ax5043ReadReg(AX5043_FIFODATA);
+                                axradio_rxbuffer[loc] = ax5043ReadReg(device, AX5043_FIFODATA);
                                 debug_print("%x ",axradio_rxbuffer[loc]);
                                 loc++;
                             }
@@ -123,13 +121,4 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
     }
 }
 
-uint8_t getRssi() {
-    int8_t byteVal;
-    int16_t wordVal;
-    byteVal = (int8_t)ax5043ReadReg(AX5043_RSSI);
-    wordVal = (int16_t)byteVal;
-    wordVal -=64;
-    wordVal +=255;
-    return (uint8_t)wordVal;
-}
 

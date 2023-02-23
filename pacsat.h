@@ -29,7 +29,8 @@
 
 /* GLOBAL VARIABLE DECLARATIONS - these are then defined in main.c
  * Declare the queues that are available to all tasks */
-extern QueueHandle_t xPbPacketQueue;
+extern QueueHandle_t xPbPacketQueue; // This holds packets that need to be processed by the Pacsat Broadcast task
+extern QueueHandle_t xTxPacketQueue; // This queue holds packets that are going to be transmitted
 
 /* Let's skip stdio which has a lot of stuff and just define printf */
 extern int printf(const char *fmt, ...);

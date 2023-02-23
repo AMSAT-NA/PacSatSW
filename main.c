@@ -70,7 +70,10 @@ void ConsoleTask(void *pvParameters);
 
 //Global Variables Definitions (these are declared in pacsat.h or another header file where they are required)
 QueueHandle_t xPbPacketQueue; /* RTOS Queue for packets received and sent to the PB */
+QueueHandle_t xTxPacketQueue; /* RTOS Queue for packets sent to the TX */
 bool CANPrintTelemetry,CANPrintCoord,CANPrintCommands,CANPrintAny,CANPrintCount,CANPrintErrors,CANPrintEttus;
+
+
 
 /*
  * Diagnostic payload pieces for each processor
@@ -204,8 +207,8 @@ void ConsoleTask(void *pvParameters){
 
     // Initialize the SPI driver for our SPI devices
 
-    SPIInit(DCTDev0); // This is the receiver
-//    SPIInit(DCTDev1); // This is the transmitter
+    SPIInit(DCTDev0); // This is the transmitter on UHF
+    SPIInit(DCTDev1); // This is the first receiver on VHF
     SPIInit(MRAM0Dev);
     SPIInit(MRAM1Dev);
     SPIInit(MRAM2Dev);
@@ -217,7 +220,7 @@ void ConsoleTask(void *pvParameters){
     GPIOEzInit(LED1);
     GPIOEzInit(LED2);
 
-    GPIOInit(DCTInterrupt,ToRadio,DCTInterruptMsg,None);
+    GPIOInit(DCTInterrupt,ToRxTask,DCTInterruptMsg,None);
 
     /*
      * The rest of the code in the Console task that is in this module is just testing devices.
@@ -268,7 +271,7 @@ void ConsoleTask(void *pvParameters){
      xTaskCreate(RxTask,"RxTask",RX_STACK_SIZE, NULL,RX_PRIORITY,NULL);
      xTaskCreate(PbTask,"PbTask",PB_STACK_SIZE, NULL,PB_PRIORITY,NULL);
 
-//    xTaskCreate(TxTask,"Radio",RADIO_STACK_SIZE, NULL,RADIO_PRIORITY,NULL);
+    xTaskCreate(TxTask,"Radio",RADIO_STACK_SIZE, NULL,RADIO_PRIORITY,NULL);
 
     //AlertFlashingWait(CENTISECONDS(50),CENTISECONDS(10),CENTISECONDS(3));
     AllTasksStarted = true;

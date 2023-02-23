@@ -54,6 +54,7 @@
 
 //#include <unistd.h>
 #include <stdint.h>
+#include "spiDriver.h"
 
 #define AXRADIO_ERR_NOERROR                     0x00 //!< Operation successful
 #define AXRADIO_ERR_NOTSUPPORTED                0x01 //!< Operation not supported
@@ -442,60 +443,53 @@ struct axradio_address_mask {
     uint8_t mask[4];
 };
 
-unsigned int ax5043ReadReg(unsigned int reg);
-void ax5043WriteReg(unsigned int reg, unsigned int val);
+/* Global Variables referenced in this file */
+extern const uint32_t axradio_phy_chanfreq[];
+extern const uint8_t axradio_phy_chanpllrnginit[];
+extern uint8_t axradio_phy_chanpllrng[];
+extern const uint8_t axradio_phy_vcocalib;
+extern uint8_t axradio_phy_chanvcoi[];
+extern const uint8_t axradio_phy_chanvcoiinit[];
 
-void ax5043_prepare_tx(void);
+//unsigned int ax5043ReadReg(unsigned int reg);
+//void ax5043WriteReg(unsigned int reg, unsigned int val);
+
+void ax5043_prepare_tx(SPIDevice device);
 uint32_t ReadMRAMTelemFreq(void);
 
-static void axradio_wait_for_xtal(void);
-
-uint8_t mode_tx_70cm(void);
-
-extern uint8_t ax5043_off(void);
-extern uint8_t ax5043_off_xtal(void);
-
-
-
-static uint8_t axradio_get_pllvcoi(void);
-static uint8_t ax5043_receiver_on_continuous(void);
-
-static void ax5043_set_registers(void);
-static void ax5043_set_registers_tx(void);
-static void ax5043_set_registers_rx(void);
-
+static void axradio_wait_for_xtal(SPIDevice device);
+uint8_t mode_tx_70cm(SPIDevice device);
+extern uint8_t ax5043_off(SPIDevice device);
+extern uint8_t ax5043_off_xtal(SPIDevice device);
+static uint8_t axradio_get_pllvcoi(SPIDevice device);
+static uint8_t ax5043_receiver_on_continuous(SPIDevice device);
+static void ax5043_set_registers(SPIDevice device);
+static void ax5043_set_registers_tx(SPIDevice device);
+static void ax5043_set_registers_rx(SPIDevice device);
 static int32_t axradio_conv_freq_fromhz(int32_t f);
 static int32_t axradio_conv_freq_tohz(int32_t f);
-
-static uint16_t axradio_framing_append_crc(uint8_t *pkt, uint16_t cnt);
-
+//static uint16_t axradio_framing_append_crc(uint8_t *pkt, uint16_t cnt);
 //static uint8_t ax5043_readfifo(uint8_t axradio_rxbuffer[], uint8_t len);
 
 struct axradio_address {
     uint8_t addr[4];
 };
 
-static uint8_t axradio_setfreq(int32_t f);
-static uint8_t ax5043_reset(void);
-
-
-uint8_t receive_packet_70cm(void);
-
-uint8_t axradio_init_70cm(int32_t freq);
-
-uint8_t mode_rx_70cm(void);
-
-
-void quick_setfreq(int32_t f);
-void start_ax25_rx();
-void start_ax25_tx();
-uint16_t fifo_free();
-void fifo_repeat_byte(uint8_t b, uint8_t count, uint8_t flags);
-void fifo_commit();
-void fifo_queue_buffer(uint8_t *buf, uint8_t len, uint8_t flags);
-void fifo_send_sync(int final);
-uint8_t transmit_psk();
-void fifo_commit();
-void fifo_repeat_byte(uint8_t b, uint8_t count, uint8_t flags);
-void fifo_queue_buffer(uint8_t *buf, uint8_t len, uint8_t flags);
-uint16_t fifo_free();
+static uint8_t axradio_setfreq(SPIDevice device, int32_t f);
+static uint8_t ax5043_reset(SPIDevice device);
+uint8_t receive_packet_70cm(SPIDevice device);
+uint8_t axradio_init_70cm(SPIDevice device, int32_t freq);
+uint8_t mode_rx_70cm(SPIDevice device);
+void quick_setfreq(SPIDevice device, int32_t f);
+void start_ax25_rx(SPIDevice device);
+void start_ax25_tx(SPIDevice device);
+uint16_t fifo_free(SPIDevice device);
+void fifo_repeat_byte(SPIDevice device, uint8_t b, uint8_t count, uint8_t flags);
+void fifo_commit(SPIDevice device);
+void fifo_queue_buffer(SPIDevice device, uint8_t *buf, uint8_t len, uint8_t flags);
+//void fifo_send_sync(int final);
+void fifo_commit(SPIDevice device);
+void fifo_repeat_byte(SPIDevice device, uint8_t b, uint8_t count, uint8_t flags);
+void fifo_queue_buffer(SPIDevice device, uint8_t *buf, uint8_t len, uint8_t flags);
+uint16_t fifo_free(SPIDevice device);
+uint8_t getRssi(SPIDevice device);

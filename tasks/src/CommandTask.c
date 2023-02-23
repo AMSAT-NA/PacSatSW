@@ -14,6 +14,7 @@
 #include "serialDriver.h"
 #include "het.h"
 #include "gpioDriver.h"
+#include "spiDriver.h"
 #include "MET.h"
 #include "nonvolManagement.h"
 #include "UplinkCommands.h"
@@ -34,6 +35,7 @@ extern int32_t WODHkStoreIndex,WODSciStoreIndex;
 extern rt1Errors_t localErrorCollection;
 
 static uint8_t SWCmdCount,HWCmdCount;
+static SPIDevice device = DCTDev0;
 
 /*
  * Forward Routines
@@ -105,9 +107,9 @@ void CommandTask(void *pvParameters)
              * start up the command receiver
              */
 #ifdef FOR_RECEIVE
-                ax5043StartRx();
+                ax5043StartRx(device);
 #else
-                ax5043StopRx();
+                ax5043StopRx(device);
 #endif
 
         } else if(gotSomething){

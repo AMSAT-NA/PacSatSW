@@ -25,6 +25,8 @@
 
 /* Includes ------------------------------------------------------------------*/
 
+#ifdef LEGACY_GOLF
+
 #include <pacsat.h>
 #include "stdint.h"
 #include "stdio.h"
@@ -34,6 +36,7 @@
 #include "os_semphr.h"
 
 #include "gpioDriver.h"
+#include "spiDriver.h"
 #include "TelemetryRadio.h"
 #include "watchdogSupport.h"
 #include "interTaskNotify.h"
@@ -508,3 +511,4 @@ void copyAndPack(uint8_t *byteBuf, FECBufferReturn *newBuffer, bool *startWithSy
     //printf("At end of copyAndPack: count: %d, partial: %d, bytes: %d\n", count, *partial, *bytes);
 }
  
+#endif

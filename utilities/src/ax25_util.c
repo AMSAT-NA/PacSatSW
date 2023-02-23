@@ -45,6 +45,7 @@ int decode_call(uint8_t *c, char *call) {
 
 /**
  * Convert a callsign to AX25 format
+ * TODO - this was pasted in but has not been refactored and tested yet
  */
 int encode_call(char *name, unsigned char *buf, int final_call, char command) {
     int ct   = 0;

@@ -52,6 +52,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#ifdef LEGACY_GOLF
 #include <pacsat.h>
 #include <stdio.h>
 
@@ -611,27 +612,27 @@ uint8_t mode_rx_2m() {
 	return AXRADIO_ERR_NOERROR;
 }
 
-
-uint8_t ax5043_off(void)
-{
-    uint8_t retVal;
-
-	retVal = ax5043_off_xtal();
-	if (retVal != AXRADIO_ERR_NOERROR) {
-		return retVal;
-	}
-
-	ax5043WriteReg(AX5043_PWRMODE, AX5043_PWRSTATE_POWERDOWN);
-
-	return AXRADIO_ERR_NOERROR;
-}
-
-uint8_t ax5043_off_xtal(void)
-{
-    ax5043WriteReg(AX5043_PWRMODE, AX5043_PWRSTATE_XTAL_ON);
-    ax5043WriteReg(AX5043_LPOSCCONFIG, 0x00); // LPOSC off
-    return AXRADIO_ERR_NOERROR;
-}
+/// MOVED TO ax5043_access.c
+//uint8_t ax5043_off(void)
+//{
+//    uint8_t retVal;
+//
+//	retVal = ax5043_off_xtal();
+//	if (retVal != AXRADIO_ERR_NOERROR) {
+//		return retVal;
+//	}
+//
+//	ax5043WriteReg(AX5043_PWRMODE, AX5043_PWRSTATE_POWERDOWN);
+//
+//	return AXRADIO_ERR_NOERROR;
+//}
+//
+//uint8_t ax5043_off_xtal(void)
+//{
+//    ax5043WriteReg(AX5043_PWRMODE, AX5043_PWRSTATE_XTAL_ON);
+//    ax5043WriteReg(AX5043_LPOSCCONFIG, 0x00); // LPOSC off
+//    return AXRADIO_ERR_NOERROR;
+//}
 
 static uint8_t ax5043_init_registers_tx(void)
 {
@@ -744,3 +745,4 @@ uint8_t get_rssi() {
     wordVal +=255;
     return (uint8_t)wordVal;
 }
+#endif

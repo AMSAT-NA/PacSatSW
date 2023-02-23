@@ -53,6 +53,8 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //#include <unistd.h>
+
+#ifdef LEGACY_GOLF
 #include <stdint.h>
 
 #define AXRADIO_ERR_NOERROR                     0x00 //!< Operation successful
@@ -485,3 +487,4 @@ uint8_t mode_rx_2m(void);
 
 
 void quick_setfreq(int32_t f);
+#endif
