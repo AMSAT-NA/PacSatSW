@@ -1081,6 +1081,7 @@ void start_ax25_rx(SPIDevice device) {
     //uint8_t retVal;
     ax5043WriteReg(device, AX5043_PINFUNCIRQ, 0x0); //disable IRQs
     freq = ReadMRAMTelemFreq(); // TODO - should be RX Freq, use TX for testing *****************************************************************
+    freq = 436800000;
     debug_print("In start_rx, Setting freq to %d\n", freq); //DEBUG RBG
     if ((status = axradio_init_70cm(device, freq)) != AXRADIO_ERR_NOERROR) {
         printf("ERROR: In start_rx, axradio_init_70cm returned: %d", status);
@@ -1208,14 +1209,13 @@ void fifo_queue_buffer(SPIDevice device, uint8_t *buf, uint8_t len, uint8_t flag
   while(len--) {
     ax5043WriteReg(device, AX5043_FIFODATA, *buf++);
   }
-  //ax5043_writefifo(&axradio_txbuffer[axradio_txbuffer_cnt], cnt);
 }
 
 uint16_t fifo_free(SPIDevice device) {
   return (256*ax5043ReadReg(device, AX5043_FIFOFREE1) + ax5043ReadReg(device, AX5043_FIFOFREE0));
 }
 
-uint8_t getRssi(SPIDevice device) {
+uint8_t get_rssi(SPIDevice device) {
     int8_t byteVal;
     int16_t wordVal;
     byteVal = (int8_t)ax5043ReadReg(device, AX5043_RSSI);

@@ -5,12 +5,15 @@
  *      Author: g0kla
  */
 
+#include "ctype.h"
+
 #include "pacsat.h"
 #include "ax5043_access.h"
 #include "ax5043-ax25.h"
 #include "TxTask.h"
 #include "FreeRTOS.h"
 #include "os_task.h"
+#include "ax25_util.h"
 
 void radio_set_power(uint32_t regVal);
 
@@ -18,8 +21,8 @@ static uint8_t tx_packet_buffer[AX25_PKT_BUFFER_LEN];
 static SPIDevice device = DCTDev1;
 
 /* Test Buffer PB Empty */
-uint8_t byteBuf[] = {0xA0,0x84,0x98,0x92,0xA6,0xA8,0x00,0xA0,0x8C,0xA6,0x66,
-                     0x40,0x40,0x17,0x03,0xF0,0x50,0x42,0x3A,0x20,0x45,0x6D,0x70,0x74,0x79,0x2E,0x0D};
+//uint8_t byteBuf[] = {0xA0,0x84,0x98,0x92,0xA6,0xA8,0x00,0xA0,0x8C,0xA6,0x66,
+//                     0x40,0x40,0x17,0x03,0xF0,0x50,0x42,0x3A,0x20,0x45,0x6D,0x70,0x74,0x79,0x2E,0x0D};
 
 portTASK_FUNCTION_PROTO(TxTask, pvParameters)  {
 
@@ -48,18 +51,16 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)  {
         uint8_t pktend_flag = 0x02;
         uint8_t raw_no_crc_flag = 0x18; // Flag of 0x18 is RAW no CRC
 
-        int numbytes = sizeof(byteBuf);
         ReportToWatchdog(CurrentTaskWD);
         BaseType_t xStatus = xQueueReceive( xTxPacketQueue, &tx_packet_buffer, CENTISECONDS(10) );  // TODO - adjust block time vs watchdog
+        ReportToWatchdog(CurrentTaskWD);
         if( xStatus == pdPASS ) {
             /* Data was successfully received from the queue */
-            //        vTaskDelay(pdMS_TO_TICKS(5*1000));
-            ReportToWatchdog(CurrentTaskWD);
-
+            int numbytes = tx_packet_buffer[0] - 1; // first byte holds number of bytes
             //        printf("FIFO_FREE 1: %d\n",fifo_free());
             ax5043WriteReg(device, AX5043_FIFOSTAT, 3); // clear FIFO data & flags
             fifo_repeat_byte(device, 0x7E, 10, raw_no_crc_flag); // repeat the packet delimiter
-            fifo_queue_buffer(device, tx_packet_buffer, numbytes, pktstart_flag|pktend_flag);
+            fifo_queue_buffer(device, tx_packet_buffer+1, numbytes, pktstart_flag|pktend_flag);
             //       printf("FIFO_FREE 2: %d\n",fifo_free());
             fifo_commit(device);
             //       printf("INFO: Waiting for transmission to complete\n");
@@ -83,30 +84,104 @@ void radio_set_power(uint32_t regVal) {
     ax5043WriteReg(device, AX5043_TXPWRCOEFFB1,regVal>>8);
 }
 
+/**
+ * tx_make_packet()
+ * Create an AX25 packet
+ * from and to callsigns are strings will nul termination
+ * pid byte is F0, BB or BD
+ * bytes is a buffer of length len that is sent in the body of the packet
+ * raw_bytes must be allocated by the caller and contains the packet.  The length is
+ * stored in the first byte, which will not be transmitted.
+ *
+ */
+bool tx_make_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t *bytes, uint8_t len, uint8_t *raw_bytes) {
+    uint8_t packet_len;
+    uint8_t header_len = 17;
+    int i;
+    unsigned char buf[7];
+    int l = encode_call(to_callsign, buf, false, 0);
+    if (l != true) return false;
+    for (i=0; i<7; i++)
+        raw_bytes[i+1] = buf[i];
+    l = encode_call(from_callsign, buf, true, 0);
+    if (l != true) return false;
+    for (i=0; i<7; i++)
+        raw_bytes[i+8] = buf[i];
+    raw_bytes[15] = 0x03; // UI Frame control byte
+    raw_bytes[16] = pid;
 
-//void radio_setup_9600bps_tx() {
-//    ax5043WriteReg(AX5043_MODULATION              ,0x07); //(G)MSK Modulation
-//
-//    /* TXRATE = BITRATE/Fxtal * 2^24 + 1/2
-//     * Where Fxtal = 16,000,000
-//     */
-//    /* Set the data rate to 0x2753 for 9600bps */
-//    ax5043WriteReg(AX5043_TXRATE2                 ,0x00);
-//    ax5043WriteReg(AX5043_TXRATE1                 ,0x27);
-//    ax5043WriteReg(AX5043_TXRATE0                 ,0x53);
-//
-//    /* Set the Frequency Deviation */
-//    /* Where FSKDEV = (m *1/2*bitrate) / Fxtal * 2^24 + 1/2
-//     * and modulation index m = 0.5 (which makes it MSK)*/
-//    /* Set FSK Deviation to 09D5 for 9600bps MSK */
-//    ax5043WriteReg(AX5043_FSKDEV2,             0x00);
-//    ax5043WriteReg(AX5043_FSKDEV1,             0x09);
-//    ax5043WriteReg(AX5043_FSKDEV0,             0xD5);
-//
-//    /* Frequency Shape */
-//    // No shaping for normal AX.25.  For GMSK we can use 0.5
-//    ax5043WriteReg(AX5043_MODCFGF,             0x00); // TODO - should this be 0.5 (Guassian BT = 0.5) for normal G3RUH
-//
-//
-//}
+    for (i=0; i< len; i++) {
+        raw_bytes[i+header_len] = bytes[i];
+    }
+    packet_len = len + header_len;
+    raw_bytes[0] = packet_len; /* Number of bytes */
+
+    if (true) {
+        for (i=0; i< packet_len; i++) {
+            if (isprint(raw_bytes[i]))
+                printf("%c",raw_bytes[i]);
+            else
+                printf(" ");
+        }
+        for (i=0; i< packet_len; i++) {
+            printf("%02x ",raw_bytes[i]);
+            if (i%40 == 0 && i!=0) printf("\n");
+        }
+    }
+
+    if (true)
+        debug_print(" .. %d bytes\n", packet_len);
+
+    return true;
+
+}
+
+/**
+ * tx_send_packet()
+ * Create and queue an AX25 packet on the TX queue
+ * from and to callsigns are strings will nul termination
+ * pid byte is F0, BB or BD
+ * bytes is a buffer of length len that is sent in the body of the packet
+ * The TX takes are of HDLC framing and CRC
+ *
+ */
+bool tx_send_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t *bytes, uint8_t len) {
+    uint8_t raw_bytes[AX25_PKT_BUFFER_LEN]; // position 0 will hold the number of bytes
+    bool rc = tx_make_packet(from_callsign, to_callsign, pid, bytes, len, raw_bytes);
+
+    BaseType_t xStatus = xQueueSendToBack( xTxPacketQueue, &raw_bytes, CENTISECONDS(1) );
+    if( xStatus != pdPASS ) {
+        /* The send operation could not complete because the queue was full */
+        debug_print("TX QUEUE FULL: Could not add to Packet Queue\n");
+        // TODO - we should log this error and downlink in telemetry
+    }
+
+    return true;
+}
+
+bool tx_test_make_packet() {
+    debug_print("## SELF TEST: tx_test_make_packet\n");
+    bool rc = true;
+    uint8_t raw_bytes[AX25_PKT_BUFFER_LEN]; // position 0 will hold the number of bytes
+    char *from_callsign = "PACSAT-12";
+    char *to_callsign = "AC2CZ-2";
+    uint8_t pid = 0xbb;
+    uint8_t bytes[] = {0,1,2,3,4,5,6,7,8,9};
+    uint8_t len = 10;
+    int l = tx_make_packet(from_callsign, to_callsign, pid, bytes, len, raw_bytes);
+
+    BaseType_t xStatus = xQueueSendToBack( xTxPacketQueue, &raw_bytes, CENTISECONDS(1) );
+    if( xStatus != pdPASS ) {
+        /* The send operation could not complete because the queue was full */
+        debug_print("TX QUEUE FULL: Could not add to Packet Queue\n");
+        // TODO - we should log this error and downlink in telemetry
+    }
+
+    if (rc == FALSE) {
+        debug_print("## FAILED SELF TEST: pb_test_status\n");
+    } else {
+        debug_print("## PASSED SELF TEST: pb_test_status\n");
+    }
+    return rc;
+}
 

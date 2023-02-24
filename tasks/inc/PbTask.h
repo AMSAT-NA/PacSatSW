@@ -110,6 +110,7 @@ typedef struct t_broadcast_request_header AX25_HEADER;
  * Routine prototypes
  */
 void PbTask(void *pvParameters);
-
+bool pb_test_callsigns();
+bool pb_test_status();
 
 #endif /* TASKS_INC_PBTASK_H_ */

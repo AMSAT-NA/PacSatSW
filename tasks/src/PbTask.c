@@ -68,6 +68,7 @@ packet: NO
 #include "ax25_util.h"
 #include "str_util.h"
 #include "PbTask.h"
+#include "TxTask.h"
 
 static uint8_t pb_packet_buffer[AX25_PKT_BUFFER_LEN];
 
@@ -101,9 +102,9 @@ static bool pb_shut = false;
 
 
 /* Local Function prototypes */
-void PbSendStatus();
-void PbMakeListStr(char *buffer, int len);
-bool PbTestStatus();
+int pb_send_ok(char *from_callsign);
+void pb_send_status();
+void pb_make_list_str(char *buffer, int len);
 
 /**
  * The PB task monitors the PB Packet Queue and processes received packets.  It keeps track of stations
@@ -115,24 +116,19 @@ portTASK_FUNCTION_PROTO(PbTask, pvParameters)  {
     ResetAllWatchdogs();
     debug_print("Initializing PB Task\n");
 
-#ifdef DEBUG
-    bool rc = PbTestStatus();     if (rc == FALSE) { debug_print("FAILED SELF TEST: PbTestStatus\n"); }
-
-#endif
-
     /* Setup a timer to send the status periodically */
     xTimerHandle handle;
     volatile portBASE_TYPE timerStatus;
     int pvtID = 0;
 
     /* create a RTOS software timer - TODO period should be in MRAM and changeable from the ground after reset of task */
-    handle = xTimerCreate( "PB", SECONDS(20), TRUE, &pvtID, PbSendStatus);
-    /* start the timer */
-    timerStatus = xTimerStart(handle, 0);
-    if (timerStatus != pdPASS) {
-        debug_print("ERROR: Failed in init PB Status Timer\n");
-// TODO =>        ReportError(RTOSfailure, FALSE, ReturnAddr, (int) PbTask); /* failed to create the RTOS timer */
-    }
+//    handle = xTimerCreate( "PB", SECONDS(5), TRUE, &pvtID, PbSendStatus);
+//    /* start the timer */
+//    timerStatus = xTimerStart(handle, 0);
+//    if (timerStatus != pdPASS) {
+//        debug_print("ERROR: Failed in init PB Status Timer\n");
+//// TODO =>        ReportError(RTOSfailure, FALSE, ReturnAddr, (int) PbTask); /* failed to create the RTOS timer */
+//    }
 
     while(1) {
 
@@ -146,6 +142,7 @@ portTASK_FUNCTION_PROTO(PbTask, pvParameters)  {
             decode_call(&pb_packet_buffer[8], from_callsign);
             decode_call(&pb_packet_buffer[1], to_callsign);
             debug_print("PB: %s>%s:\n",from_callsign, to_callsign);
+            pb_send_ok(from_callsign);
         }
         ReportToWatchdog(CurrentTaskWD);
 
@@ -153,7 +150,25 @@ portTASK_FUNCTION_PROTO(PbTask, pvParameters)  {
 }
 
 /**
- * PbSendStatus()
+ * pb_send_ok()
+ *
+ * Send a UI frame from the broadcast callsign to the station with PID BB and the
+ * text OK <callsign>0x0Drequest_list
+ */
+int pb_send_ok(char *from_callsign) {
+    int rc = true;
+    char buffer[3 + MAX_CALLSIGN_LEN]; // OK + 10 char for callsign with SSID
+    strlcpy(buffer,"OK ", sizeof(buffer));
+    strlcat(buffer, from_callsign, sizeof(buffer));
+    int len = 3 + strlen(from_callsign);
+    buffer[len] = 0x0D; // this replaces the string termination
+    rc = tx_send_packet(BROADCAST_CALLSIGN, from_callsign, PID_FILE, (uint8_t *)buffer, len);
+
+    return rc;
+}
+
+/**
+ * pb_send_status()
  *
  * This is called from an RTOS timer to send the status periodically
  * Puts a packet with the current status of the PB into the TxQueue
@@ -161,12 +176,14 @@ portTASK_FUNCTION_PROTO(PbTask, pvParameters)  {
  * Returns void to be compatible with timer callbacks
  *
  */
-void PbSendStatus() {
+void pb_send_status() {
+    ReportToWatchdog(CurrentTaskWD);
     debug_print("PB Status being sent...\n");
 
     if (pb_shut) {
         char shut[] = "PB Closed.";
-//////////        int rc = send_raw_packet(g_broadcast_callsign, PBSHUT, PID_NO_PROTOCOL, shut, sizeof(shut));
+        int rc = tx_send_packet(BROADCAST_CALLSIGN, PBSHUT, PID_NO_PROTOCOL, (uint8_t *)shut, strlen(shut));
+        ReportToWatchdog(CurrentTaskWD);
         return;
     } else  {
         char buffer[25];
@@ -174,25 +191,29 @@ void PbSendStatus() {
         if (number_on_pb == MAX_PB_LENGTH) {
             CALL = PBFULL;
         }
-        PbMakeListStr(buffer, sizeof(buffer));
-        int len = strlen(buffer);
- //       char command[len]; // now put the list in a buffer of the right size
- //       strlcpy((char *)command, (char *)buffer,sizeof(command));
-        debug_print("%s %s\n",CALL, buffer);
+        pb_make_list_str(buffer, sizeof(buffer));
+        uint8_t len = strlen(buffer);
+        debug_print("SENDING: %s %s\n",CALL, buffer);
         /* Add to the queue and wait for 10ms to see if space is available */
-        uint8_t byteBuf[] = {0xA0,0x84,0x98,0x92,0xA6,0xA8,0x00,0xA0,0x8C,0xA6,0x66,
-                             0x40,0x40,0x17,0x03,0xF0,0x50,0x42,0x3A,0x20,0x45,0x6D,0x70,0x74,0x79,0x2E,0x0D};
-
+//        uint8_t byteBuf[] = {27, 0xA0,0x84,0x98,0x92,0xA6,0xA8,0x00,0xA0,0x8C,0xA6,0x66,
+//                             0x40,0x40,0x17,0x03,0xF0,0x50,0x42,0x3A,0x20,0x45,0x6D,0x70,0x74,0x79,0x2E,0x0D};
+        uint8_t byteBuf[] =  {0x1a,0xa0,0x84,0x98,0x92,0xa6,0xa8,0x00,0xa0,0x82,0x86,0xa6,
+                               0x82,0xa8,0x17,0x03,0xf0,0x50,0x42,0x20,0x45,0x6d,0x70,0x74,0x79,0x2e };
+//        uint8_t byteBuf[AX25_PKT_BUFFER_LEN]; // position 0 will hold the number of bytes
+//        int rc = make_packet(BROADCAST_CALLSIGN, CALL, PID_NO_PROTOCOL, (uint8_t *)buffer, len, byteBuf);
+        ReportToWatchdog(CurrentTaskWD);
         BaseType_t xStatus = xQueueSendToBack( xTxPacketQueue, &byteBuf, CENTISECONDS(1) );
         if( xStatus != pdPASS ) {
             /* The send operation could not complete because the queue was full */
             debug_print("TX QUEUE FULL: Could not add to Packet Queue\n");
             // TODO - we should log this error and downlink in telemetry
         }
-        //int rc = send_raw_packet(g_broadcast_callsign, CALL, PID_NO_PROTOCOL, command, sizeof(command));
+    //    int rc = send_raw_packet(BROADCAST_CALLSIGN, CALL, PID_NO_PROTOCOL, (uint8_t *)buffer, len);
+        ReportToWatchdog(CurrentTaskWD);
         return;
     }
 }
+
 
 /**
  * pb_make_list_str()
@@ -200,7 +221,7 @@ void PbSendStatus() {
  * Build the status string that is periodically transmitted.
  * The *buffer to receive the string and its length len should be passed in.
  */
-void PbMakeListStr(char *buffer, int len) {
+void pb_make_list_str(char *buffer, int len) {
     if (number_on_pb == 0)
         strlcpy(buffer, "PB Empty.", len);
     else
@@ -215,7 +236,83 @@ void PbMakeListStr(char *buffer, int len) {
     }
 }
 
-bool PbTestStatus() {
-    PbSendStatus();
+bool pb_test_callsigns() {
+    debug_print("## SELF TEST: pb_test_callsigns\n");
+    bool rc = true;
+
+    /* Test encode callsigns */
+    char call1[] = "G0KLA";
+    char call2[] = "PACSAT";
+    char call3[] = "G0KLA-1";
+    char call4[] = "G0KLA-2";
+    char call5[] = "PACSAT-12";
+    uint8_t encoded_call[7];
+    int l = encode_call(call1, encoded_call, false, 0); if (l != true) return false;
+    l = encode_call(call2, encoded_call, false, 0); if (l != true) return false;
+    l = encode_call(call3, encoded_call, false, 0); if (l != true) return false;
+    l = encode_call(call4, encoded_call, false, 0); if (l != true) return false;
+    l = encode_call(call5, encoded_call, false, 0); if (l != true) return false;
+
+    /* Test decode callsigns */
+    uint8_t byteBuf[] = {27, 0xA0,0x84,0x98,0x92,0xA6,0xA8,0x00,0xA0,0x8C,0xA6,0x66,
+                          0x40,0x40,0x17,0x03,0xF0,0x50,0x42,0x3A,0x20,0x45,0x6D,0x70,0x74,0x79,0x2E,0x0D};
+ //   uint8_t byteBuf2[] =  {0x1a,0xa0,0x84,0x98,0x92,0xa6,0xa8,0x00,0xa0,0x82,0x86,0xa6,
+ //                          0x82,0xa8,0x17,0x03,0xf0,0x50,0x42,0x20,0x45,0x6d,0x70,0x74,0x79,0x2e };
+    char from_callsign[10];
+    char to_callsign[10];
+
+    decode_call(&byteBuf[1], to_callsign);
+    decode_call(&byteBuf[8], from_callsign);
+    debug_print("PB: %s>%s: lens %d %d\n",from_callsign, to_callsign, strlen(from_callsign), strlen(to_callsign));
+
+    uint8_t out_to_callsign[7];
+    uint8_t out_from_callsign[7];
+    l = encode_call(to_callsign, out_to_callsign, false, 0);
+    if (l != true) return false;
+    int i;
+    printf("%s: ",to_callsign);
+    for (i=0; i<7;i++) {
+        if (byteBuf[i+1] != out_to_callsign[i]) {
+            printf("err->");
+            rc = false;
+        }
+        printf("%x ",out_to_callsign[i]);
+    }
+    printf("\n");
+
+    l = encode_call(from_callsign, out_from_callsign, true, 0);
+    if (l != true) return false;
+    printf("%s: ",from_callsign);
+    for (i=0; i<7;i++) {
+        if (byteBuf[i+8] != out_from_callsign[i]) {
+            printf("err->");
+            rc = false;
+        }
+        printf("%x ",out_from_callsign[i]);
+    }
+
+    char new_callsign[10];
+    decode_call(&out_from_callsign[0], new_callsign);
+    debug_print("Decodes to:%s: len %d \n",new_callsign, strlen(new_callsign));
+    printf("\n");
+
+    if (rc == FALSE) {
+        debug_print("## FAILED SELF TEST: pb_test_callsigns\n");
+    } else {
+        debug_print("## PASSED SELF TEST: pb_test_callsigns\n");
+    }
+    return rc;
+}
+
+bool pb_test_status() {
+    debug_print("## SELF TEST: pb_test_status\n");
+    bool rc = true;
+    int l = pb_send_ok("G0KLA");  if (l == false) rc = false;
+    l = pb_send_ok("G0KLA-11");  if (l == false) rc = false;
+    if (rc == FALSE) {
+        debug_print("## FAILED SELF TEST: pb_test_status\n");
+    } else {
+        debug_print("## PASSED SELF TEST: pb_test_status\n");
+    }
     return true;
 }

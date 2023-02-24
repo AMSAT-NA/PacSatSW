@@ -59,6 +59,10 @@
 #include "LinearInterp.h"
 #include "Buzzer.h"
 #include "keyfile.h"
+
+#include "TxTask.h" // for test routines
+#include "PbTask.h" // for test routines
+
 //Extern definition
 extern uint8_t SWCmdRing[SW_CMD_RING_SIZE],SWCmdIndex;
 
@@ -143,6 +147,9 @@ enum {
     ,mramSleep
     ,mramAwake
     ,startRx
+    ,testCallsigns
+    ,testTx
+    ,testPb
 };
 
 
@@ -185,6 +192,10 @@ commandPairs debugCommands[] = {
                                 ,{"mram wren","Write enable MRAM",MRAMWrEn}
                                 ,{"mram wake","Send wake command to MRAM",mramAwake}
                                 ,{"mram sleep","Send sleep command to MRAM",mramSleep}
+                                ,{"test callsigns","Test the AX25 callsign routines",testCallsigns}
+                                ,{"test tx","Test the Pacsat TX Packet routines",testTx}
+                                ,{"test pb","Test the Pacsat Broadcast routines",testPb}
+
 };
 commandPairs commonCommands[] = {
                                  {"get i2c","What I2c devices are working?",getI2cState}
@@ -806,7 +817,7 @@ void RealConsoleTask(void)
         }
 
         case getRSSI:{
-            int rssi = getRssi(DCTDev1);
+            int rssi = get_rssi(DCTDev1);
             printf("RSSI is %d\n",((int16_t)rssi) - 255);
             break;
         }
@@ -857,6 +868,21 @@ void RealConsoleTask(void)
             //            test_pll_range(DCTDev0);
             break;
         }
+
+        /* G0KLA TEST ROUTINES */
+        case testCallsigns:{
+            bool rc = pb_test_callsigns();
+            break;
+        }
+        case testPb:{
+            bool rc = pb_test_status();
+            break;
+        }
+        case testTx:{
+            bool rc = tx_test_make_packet();
+            break;
+        }
+
         case HelpAll:{
             int numSpace=0;
             char *srchStrng;

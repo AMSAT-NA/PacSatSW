@@ -14,6 +14,7 @@
  *  based on code in pb.c by OZ6BL et al, which was released with the GNU GPL
  *
  */
+#include "ctype.h"
 
 #include "pacsat.h"
 
@@ -44,10 +45,14 @@ int decode_call(uint8_t *c, char *call) {
 }
 
 /**
- * Convert a callsign to AX25 format
- * TODO - this was pasted in but has not been refactored and tested yet
+ * Convert a callsign to AX25 format.
+ * The callsign is a null terminated strin in name
+ * The encoded callsign is written into buf, which must have space allocated by the
+ * calling process.
+ * Final call is set to true if this is the last call, as per the AX25 spec.
+ * The AX25 command/response bit is stored in the destination (to) callsign
  */
-int encode_call(char *name, unsigned char *buf, int final_call, char command) {
+int encode_call(char *name, uint8_t *buf, int final_call, uint8_t command) {
     int ct   = 0;
     int ssid = 0;
     const char *p = name;
@@ -60,8 +65,8 @@ int encode_call(char *name, unsigned char *buf, int final_call, char command) {
             break;
 
         if (!isalnum(c)) {
-//            debug_print("ax25_utils: invalid symbol in callsign '%s'\n", name);
-            return 1;
+            debug_print("ax25_utils: invalid symbol in callsign '%s'\n", name);
+            return false;
         }
 
         buf[ct] = c << 1;
@@ -76,25 +81,32 @@ int encode_call(char *name, unsigned char *buf, int final_call, char command) {
     }
 
     if (*p != '\0') {
+        p++; // skip the dash
+        /* We don't have the sscanf function so do some ascii magic here instead to calc ssid */
+        ssid = *p - 48; // 48 is the ascii value for 1
         p++;
-
-//        if (sscanf(p, "%d", &ssid) != 1 || ssid < 0 || ssid > 15) {
-//            debug_print("ax25_utils: SSID must follow '-' and be numeric in the range 0-15 - '%s'\n", name);
-//            return EXIT_FAILURE;
-//        }
+        if (*p != '\0') {
+            ssid = ssid * 10 + *p - 48;
+        }
+        debug_print("ssid: %d\n",ssid);
+        if (ssid < 0 || ssid > 15) {
+            debug_print("ax25_utils: SSID must follow '-' and be numeric in the range 0-15 - '%s'\n", name);
+            return false;
+         }
     }
 
-    buf[6] = ((ssid + '0') << 1) & 0x1E;
+    /* SSID goes in bits 1-4 */
+    buf[6] = (ssid << 1) & 0x1E;
     command = (command & 0b1) << 7;
     buf[6] = buf[6] | command;
     if (final_call)
         buf[6] = buf[6] | 0x01;
-    return 0;
+    return true;
 }
 
 int test_ax25_util_decode_calls() {
     debug_print("   TEST: AX25 UTIL DECODE CALLS\n");
-//    char callsign[7] = "G0KLA";
+//    char *callsign = "G0KLA";
 //    unsigned char buffer[7];
 //    encode_call(callsign, buffer, 1, 0);
 //    int i = 0;

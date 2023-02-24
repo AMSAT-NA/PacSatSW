@@ -46,7 +46,7 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
         ReportToWatchdog(CurrentTaskWD);
         status = WaitInterTask(ToRxTask, CENTISECONDS(10), &messageReceived);  // This is triggered when there is RX data on the FIFO
         ReportToWatchdog(CurrentTaskWD);
-        rssi = getRssi(device);
+        rssi = get_rssi(device);
         if (rssi > 170) {
             debug_print("RSSI: %d   ",rssi);
             debug_print("FRMRX: %d   ",ax5043ReadReg(device, AX5043_FRAMING) & 0x80 ); // FRAMING Pkt start bit detected - will print 128

@@ -9,7 +9,7 @@
 #define UTILITIES_INC_AX25_UTIL_H_
 
 int decode_call(uint8_t *c, char *call);
-int encode_call(char *name, unsigned char *buf, int final_call, char command);
+int encode_call(char *name, uint8_t *buf, int final_call, uint8_t command);
 
 int test_ax25_util_decode_calls();
 

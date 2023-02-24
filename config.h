@@ -82,9 +82,9 @@
  * PACSAT Constants
  */
 /* If you wish to transmit beyond the test bench then these need to be updated with a valid callsign */
-#define BBS_CALLSIGN PACSAT-12
-#define BROADCAST_CALLSIGN PACSAT-11
-#define DIGI_CALLSIGN PACSAT-1
+#define BBS_CALLSIGN "PACSAT-12"
+#define BROADCAST_CALLSIGN "PACSAT-11"
+#define DIGI_CALLSIGN "PACSAT-1"
 
 #define AX25_PKT_BUFFER_LEN 260 /* This is the maximum number of bytes a packet can have */
 #define MAX_CALLSIGN_LEN 10 /* Length of the String for an AX25 callsign including dash, 2 digit Digi, and null termination */

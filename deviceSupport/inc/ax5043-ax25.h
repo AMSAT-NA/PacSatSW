@@ -492,4 +492,4 @@ void fifo_commit(SPIDevice device);
 void fifo_repeat_byte(SPIDevice device, uint8_t b, uint8_t count, uint8_t flags);
 void fifo_queue_buffer(SPIDevice device, uint8_t *buf, uint8_t len, uint8_t flags);
 uint16_t fifo_free(SPIDevice device);
-uint8_t getRssi(SPIDevice device);
+uint8_t get_rssi(SPIDevice device);
