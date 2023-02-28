@@ -19,14 +19,14 @@
 static uint8_t PAPowerFlagCnt=0,DCTPowerFlagCnt=0;
 static uint8_t axradio_rxbuffer[AX25_PKT_BUFFER_LEN];
 static SPIDevice device = DCTDev0;
-
+extern bool monitorPackets;
 
 portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
 
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)RadioWD ); // TODO - just reuse the Radio task name for now
     InitInterTask(ToRxTask, 10);
     ResetAllWatchdogs();
-    printf("Initializing Rx\n");
+//    printf("Initializing Rx\n");
 
     /* This is defined in pacsat.h, declared here */
     xPbPacketQueue = xQueueCreate( PB_PACKET_QUEUE_LEN, AX25_PKT_BUFFER_LEN * sizeof( uint8_t ) );
@@ -47,11 +47,12 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
         status = WaitInterTask(ToRxTask, CENTISECONDS(10), &messageReceived);  // This is triggered when there is RX data on the FIFO
         ReportToWatchdog(CurrentTaskWD);
         rssi = get_rssi(device);
-        if (rssi > 170) {
-            debug_print("RSSI: %d   ",rssi);
-            debug_print("FRMRX: %d   ",ax5043ReadReg(device, AX5043_FRAMING) & 0x80 ); // FRAMING Pkt start bit detected - will print 128
-            debug_print("RADIO: %d\n",ax5043ReadReg(device, AX5043_RADIOSTATE) & 0xF ); // Radio State bits 0-3
-        }
+//        if (monitorPackets)
+//            if (rssi > 170) {
+//                debug_print("RSSI: %d   ",rssi);
+//                debug_print("FRMRX: %d   ",ax5043ReadReg(device, AX5043_FRAMING) & 0x80 ); // FRAMING Pkt start bit detected - will print 128
+//                debug_print("RADIO: %d\n",ax5043ReadReg(device, AX5043_RADIOSTATE) & 0xF ); // Radio State bits 0-3
+//            }
 
         if (status==1) { // We received a message
             switch(messageReceived.MsgType){
@@ -68,13 +69,13 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
 
                 if ((ax5043ReadReg(device, AX5043_PWRMODE) & 0x0F) == AX5043_PWRSTATE_FULL_RX) {
 
-                    printf("Interrupt while in FULL_RX mode\n");
+                    //printf("Interrupt while in FULL_RX mode\n");
                     //printf("IRQREQUEST1: %02x\n", ax5043ReadReg(AX5043_IRQREQUEST1));
                     //printf("IRQREQUEST0: %02x\n", ax5043ReadReg(AX5043_IRQREQUEST0));
                     //printf("FIFOSTAT: %02x\n", ax5043ReadReg(AX5043_FIFOSTAT));
 
                     if ((ax5043ReadReg(device, AX5043_FIFOSTAT) & 0x01) != 1) { // FIFO not empty
-                        debug_print("FIFO NOT EMPTY\n");
+                        //debug_print("FIFO NOT EMPTY\n");
                         uint8_t fifo_cmd = ax5043ReadReg(device, AX5043_FIFODATA); // read command
                         uint8_t len = (fifo_cmd & 0xE0) >> 5; // top 3 bits encode payload len
                         if (len == 7)
@@ -86,16 +87,17 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
                             uint8_t loc = 0;
                             while (len--) {
                                 axradio_rxbuffer[loc] = ax5043ReadReg(device, AX5043_FIFODATA);
-                                debug_print("%x ",axradio_rxbuffer[loc]);
                                 loc++;
                             }
-                            debug_print("\n");
-//                            char from_callsign[AX25_CALLSIGN_LEN];
-//                            char to_callsign[AX25_CALLSIGN_LEN];
-//
-//                            decode_call(&axradio_rxbuffer[8], from_callsign);
-//                            decode_call(&axradio_rxbuffer[1], to_callsign);
-//                            debug_print("%s>%s:\n",from_callsign, to_callsign);
+                            if (monitorPackets) {
+                                print_packet("RX", &axradio_rxbuffer[1],loc);
+                            }
+
+                            /////// TODO === NEED TO PUT LEN (loc) at position 0!!
+                            ///  Also need to understand (from manual) all the bytes that are read here.
+                            ///  Why 3 extra at end??  Am I currently ignoring byte 0 because I thought it was
+                            // the length.  It has 3 in it.  What is it?  Flag byte??
+                            // Do we change queue to a struct with the length so this is clearer? ------ YES -------
 
                             /* Add to the queue and wait for 10ms to see if space is available */
                             BaseType_t xStatus = xQueueSendToBack( xPbPacketQueue, &axradio_rxbuffer, CENTISECONDS(1) );
@@ -106,7 +108,7 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
                             }
 
                         } else {
-                            debug_print("FIFO MESSAGE: %d LEN:%d\n",fifo_cmd,len);
+                            //debug_print("FIFO MESSAGE: %d LEN:%d\n",fifo_cmd,len);
 
                         }
                     }

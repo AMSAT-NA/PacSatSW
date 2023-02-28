@@ -75,6 +75,8 @@ extern bool InSafeMode,InScienceMode,InHealthMode;
 extern bool TransponderEnabled,onOrbit,SimDoppler;
 extern resetMemory_t SaveAcrossReset;
 extern char *ErrMsg[];
+extern bool monitorPackets;
+extern bool pb_shut;
 
 bool TestPlayDead=false;
 
@@ -149,7 +151,12 @@ enum {
     ,startRx
     ,testCallsigns
     ,testTx
-    ,testPb
+    ,testPbOk
+    ,testPbStatus
+    ,monitorOn
+    ,monitorOff
+    ,pbShut
+    ,pbOpen
 };
 
 
@@ -194,7 +201,12 @@ commandPairs debugCommands[] = {
                                 ,{"mram sleep","Send sleep command to MRAM",mramSleep}
                                 ,{"test callsigns","Test the AX25 callsign routines",testCallsigns}
                                 ,{"test tx","Test the Pacsat TX Packet routines",testTx}
-                                ,{"test pb","Test the Pacsat Broadcast routines",testPb}
+                                ,{"test pb ok","Test the Pacsat Broadcast by sending OK packet",testPbOk}
+                                ,{"test pb status","Send PB status",testPbStatus}
+                                ,{"monitor on","Monitor sent and received packets",monitorOn}
+                                ,{"monitor off","Stop monitoring packets",monitorOff}
+                                ,{"pb shut","Shut the PB",pbShut}
+                                ,{"pb open","Open the PB for use",pbOpen}
 
 };
 commandPairs commonCommands[] = {
@@ -874,12 +886,36 @@ void RealConsoleTask(void)
             bool rc = pb_test_callsigns();
             break;
         }
-        case testPb:{
+        case testPbOk:{
+            bool rc = pb_test_ok();
+            break;
+        }
+        case testPbStatus:{
             bool rc = pb_test_status();
             break;
         }
         case testTx:{
             bool rc = tx_test_make_packet();
+            break;
+        }
+        case monitorOn:{
+            monitorPackets=true;
+            printf("monitorPackets = true\n");
+            break;
+        }
+        case monitorOff:{
+            monitorPackets=false;
+            printf("monitorPackets = false\n");
+            break;
+        }
+        case pbShut:{
+            pb_shut=true;
+            printf("pb_shut = true\n");
+            break;
+        }
+        case pbOpen:{
+            pb_shut=false;
+            printf("pb_shut = false\n");
             break;
         }
 

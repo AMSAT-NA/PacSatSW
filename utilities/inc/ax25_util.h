@@ -10,6 +10,7 @@
 
 int decode_call(uint8_t *c, char *call);
 int encode_call(char *name, uint8_t *buf, int final_call, uint8_t command);
+int print_packet(char *label, uint8_t *packet, int len);
 
 int test_ax25_util_decode_calls();
 

@@ -63,12 +63,19 @@ If the File Number is not available for a file request then we send an error
 packet: NO
  */
 
+#include <strings.h> // TODO - do we really need this?  How much space does it use.  Used for strncasecmp
+
+#include "pacsat.h"
 #include "FreeRTOS.h"
 #include "os_task.h"
 #include "ax25_util.h"
 #include "str_util.h"
 #include "PbTask.h"
 #include "TxTask.h"
+#include "pacsat_dir.h"
+#ifdef DEBUG
+#include "time.h"
+#endif
 
 static uint8_t pb_packet_buffer[AX25_PKT_BUFFER_LEN];
 
@@ -98,13 +105,18 @@ static PB_ENTRY pb_list[MAX_PB_LENGTH];
 
 static uint8_t number_on_pb = 0; /* This keeps track of how many stations are in the pb_list array */
 static uint8_t current_station_on_pb = 0; /* This keeps track of which station we will send data to next */
-static bool pb_shut = false;
+extern bool pb_shut;
 
 
 /* Local Function prototypes */
 int pb_send_ok(char *from_callsign);
+int pb_send_err(char *from_callsign, int err);
 void pb_send_status();
 void pb_make_list_str(char *buffer, int len);
+int pb_add_request(char *from_callsign, int type, DIR_NODE * node, int file_id, int offset, void *holes, int num_of_holes);
+void pb_process_frame(char *from_callsign, char *to_callsign, uint8_t *data, int len);
+int get_num_of_dir_holes(int request_len);
+int pb_handle_dir_request(char *from_callsign, unsigned char *data, int len);
 
 /**
  * The PB task monitors the PB Packet Queue and processes received packets.  It keeps track of stations
@@ -122,7 +134,7 @@ portTASK_FUNCTION_PROTO(PbTask, pvParameters)  {
     int pvtID = 0;
 
     /* create a RTOS software timer - TODO period should be in MRAM and changeable from the ground after reset of task */
-//    handle = xTimerCreate( "PB", SECONDS(5), TRUE, &pvtID, PbSendStatus);
+//    handle = xTimerCreate( "PB", SECONDS(10), TRUE, &pvtID, pb_send_status);
 //    /* start the timer */
 //    timerStatus = xTimerStart(handle, 0);
 //    if (timerStatus != pdPASS) {
@@ -141,7 +153,8 @@ portTASK_FUNCTION_PROTO(PbTask, pvParameters)  {
 
             decode_call(&pb_packet_buffer[8], from_callsign);
             decode_call(&pb_packet_buffer[1], to_callsign);
-            debug_print("PB: %s>%s:\n",from_callsign, to_callsign);
+            debug_print("PB: %s>%s: Len: %d\n",from_callsign, to_callsign, pb_packet_buffer[0]);
+            pb_process_frame(from_callsign, to_callsign, &pb_packet_buffer[0], pb_packet_buffer[0]);
             pb_send_ok(from_callsign);
         }
         ReportToWatchdog(CurrentTaskWD);
@@ -168,6 +181,35 @@ int pb_send_ok(char *from_callsign) {
 }
 
 /**
+ * pb_send_err()
+ *
+ * Send a UI frame to the station containing an error response.  The error values are defined in
+ * the header file
+ *
+ * returns TRUE unless it is unable to send the data to the TX Radio Queue
+ *
+ */
+int pb_send_err(char *from_callsign, int err) {
+    int rc = TRUE;
+    char err_str[2];
+    snprintf(err_str, 3, "%d",err);
+    // TODO --------------------------  We can cal length BUT not size the buffer!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    char buffer[25];
+    int len = 6 + strlen(err_str)+ strlen(from_callsign); // NO -XX + 10 char for callsign with SSID
+    char CR = 0x0d;
+    strlcpy(buffer,"NO -", sizeof(buffer));
+    strlcat(buffer, err_str, sizeof(buffer));
+    strlcat(buffer," ", sizeof(buffer));
+    strlcat(buffer, from_callsign, sizeof(buffer));
+    strncat(buffer,&CR,1); // very specifically add just one char to the end of the string for the CR
+    rc = tx_send_packet(BROADCAST_CALLSIGN, from_callsign, PID_FILE, (uint8_t *)buffer, len);
+//    rc = send_raw_packet(g_broadcast_callsign, from_callsign, PID_FILE, (unsigned char *)buffer, sizeof(buffer));
+
+    return rc;
+}
+
+
+/**
  * pb_send_status()
  *
  * This is called from an RTOS timer to send the status periodically
@@ -178,37 +220,25 @@ int pb_send_ok(char *from_callsign) {
  */
 void pb_send_status() {
     ReportToWatchdog(CurrentTaskWD);
-    debug_print("PB Status being sent...\n");
+    //debug_print("PB Status being sent...\n");
 
     if (pb_shut) {
         char shut[] = "PB Closed.";
         int rc = tx_send_packet(BROADCAST_CALLSIGN, PBSHUT, PID_NO_PROTOCOL, (uint8_t *)shut, strlen(shut));
+        debug_print("SENDING: %s |%s|\n",PBSHUT, shut);
         ReportToWatchdog(CurrentTaskWD);
         return;
     } else  {
-        char buffer[25];
+        //char buffer[25];
         char * CALL = PBLIST;
         if (number_on_pb == MAX_PB_LENGTH) {
             CALL = PBFULL;
         }
-        pb_make_list_str(buffer, sizeof(buffer));
-        uint8_t len = strlen(buffer);
-        debug_print("SENDING: %s %s\n",CALL, buffer);
-        /* Add to the queue and wait for 10ms to see if space is available */
-//        uint8_t byteBuf[] = {27, 0xA0,0x84,0x98,0x92,0xA6,0xA8,0x00,0xA0,0x8C,0xA6,0x66,
-//                             0x40,0x40,0x17,0x03,0xF0,0x50,0x42,0x3A,0x20,0x45,0x6D,0x70,0x74,0x79,0x2E,0x0D};
-        uint8_t byteBuf[] =  {0x1a,0xa0,0x84,0x98,0x92,0xa6,0xa8,0x00,0xa0,0x82,0x86,0xa6,
-                               0x82,0xa8,0x17,0x03,0xf0,0x50,0x42,0x20,0x45,0x6d,0x70,0x74,0x79,0x2e };
-//        uint8_t byteBuf[AX25_PKT_BUFFER_LEN]; // position 0 will hold the number of bytes
-//        int rc = make_packet(BROADCAST_CALLSIGN, CALL, PID_NO_PROTOCOL, (uint8_t *)buffer, len, byteBuf);
-        ReportToWatchdog(CurrentTaskWD);
-        BaseType_t xStatus = xQueueSendToBack( xTxPacketQueue, &byteBuf, CENTISECONDS(1) );
-        if( xStatus != pdPASS ) {
-            /* The send operation could not complete because the queue was full */
-            debug_print("TX QUEUE FULL: Could not add to Packet Queue\n");
-            // TODO - we should log this error and downlink in telemetry
-        }
-    //    int rc = send_raw_packet(BROADCAST_CALLSIGN, CALL, PID_NO_PROTOCOL, (uint8_t *)buffer, len);
+        //pb_make_list_str(buffer, sizeof(buffer));
+        uint8_t buffer[] = "PB Empty.";
+        uint8_t len = strlen((char *)buffer);
+        debug_print("SENDING: %s |%s|\n",CALL, buffer);
+       int rc = tx_send_packet(BROADCAST_CALLSIGN, CALL, PID_NO_PROTOCOL, buffer, len);
         ReportToWatchdog(CurrentTaskWD);
         return;
     }
@@ -235,6 +265,208 @@ void pb_make_list_str(char *buffer, int len) {
             strlcat(buffer, " ", len);
     }
 }
+
+/**
+ * pb_add_request()
+ *
+ * Add a callsign and its request to the PB
+ *
+ * Make a copy of all the data because the original packet will be purged soon from the
+ * circular buffer
+ * Note that when we are adding an item the variable number_on_pb is pointing to the
+ * empty slot where we want to insert data because the number is one greater than the
+ * array index (which starts at 0)
+ *
+ * returns TRUE it it succeeds or FAIL if the PB is shut or full
+ *
+ */
+int pb_add_request(char *from_callsign, int type, DIR_NODE * node, int file_id, int offset, void *holes, int num_of_holes) {
+    debug_print("PB: Adding %s\n", from_callsign);
+    if (pb_shut) return FALSE;
+    if (number_on_pb == MAX_PB_LENGTH) {
+        return FALSE; // PB full
+    }
+
+//    /* Each station can only be on the PB once, so reject if the callsign is already in the list */
+//    for (int i=0; i < number_on_pb; i++) {
+//        if ((strcmp(pb_list[i].callsign, from_callsign) == 0)) {
+//            return EXIT_FAILURE; // Station is already on the PB
+//        }
+//    }
+//
+//    strlcpy(pb_list[number_on_pb].callsign, from_callsign, MAX_CALLSIGN_LEN);
+//    pb_list[number_on_pb].pb_type = type;
+//    pb_list[number_on_pb].file_id = file_id;
+//    pb_list[number_on_pb].offset = offset;
+//    pb_list[number_on_pb].request_time = time(0);
+//    pb_list[number_on_pb].hole_num = num_of_holes;
+//    pb_list[number_on_pb].current_hole_num = 0;
+//    pb_list[number_on_pb].node = node;
+//    if (num_of_holes > 0) {
+//        if (type == PB_DIR_REQUEST_TYPE) {
+//            DIR_DATE_PAIR *dir_holes = (DIR_DATE_PAIR *)holes;
+//            DIR_DATE_PAIR *hole_list = (DIR_DATE_PAIR *)malloc(num_of_holes * sizeof(DIR_DATE_PAIR));
+//            for (int i=0; i<num_of_holes; i++) {
+//                hole_list[i].start = dir_holes[i].start;
+//                hole_list[i].end = dir_holes[i].end;
+//            }
+//            pb_list[number_on_pb].hole_list = hole_list;
+//        } else {
+//            FILE_DATE_PAIR *file_holes = (FILE_DATE_PAIR *)holes;
+//            FILE_DATE_PAIR *hole_list = (FILE_DATE_PAIR *)malloc(num_of_holes * sizeof(FILE_DATE_PAIR));
+//            for (int i=0; i<num_of_holes; i++) {
+//                hole_list[i].offset = file_holes[i].offset;
+//                hole_list[i].length = file_holes[i].length;
+//            }
+//            pb_list[number_on_pb].hole_list = hole_list;
+//        }
+//    }
+//    number_on_pb++;
+
+    return TRUE;
+}
+
+/**
+ * pb_process_frame()
+ *
+ * process a UI frame received from a ground station.  This may contain a Pacsat Broadcast request,
+ * otherwise it can be ignored.
+ * This is called from the main processing loop whenever a frame is received.
+ *
+ */
+void pb_process_frame(char *from_callsign, char *to_callsign, uint8_t *data, int len) {
+    if (strcasecmp(to_callsign, BBS_CALLSIGN) == 0) {
+        // this was sent to the BBS Callsign and we can ignore it
+        debug_print("BBS Request - Ignored\n");
+    } else if (strcasecmp(to_callsign, BROADCAST_CALLSIGN) == 0) {
+        // this was sent to the Broadcast Callsign
+
+        struct t_broadcast_request_header *broadcast_request_header;
+        broadcast_request_header = (struct t_broadcast_request_header *)data;
+        debug_print("Broadcast Request: pid: %02x \n", broadcast_request_header->pid & 0xff);
+        if ((broadcast_request_header->pid & 0xff) == PID_DIRECTORY) {
+            pb_handle_dir_request(from_callsign, data, len);
+        }
+        if ((broadcast_request_header->pid & 0xff) == PID_FILE) {
+            // File Request
+            //pb_handle_file_request(from_callsign, data, len);
+        }
+    } else {
+        debug_print("PB: Packet Ignored\n");
+    }
+}
+
+
+int get_num_of_dir_holes(int request_len) {
+    int num_of_holes = (request_len - sizeof(AX25_HEADER) - sizeof(DIR_REQ_HEADER)) / sizeof(DIR_DATE_PAIR);
+    return num_of_holes;
+}
+
+DIR_DATE_PAIR * get_dir_holes_list(unsigned char *data) {
+    DIR_DATE_PAIR *holes = (DIR_DATE_PAIR *)(data + sizeof(AX25_HEADER) + sizeof(DIR_REQ_HEADER) );
+    return holes;
+}
+
+#ifdef DEBUG
+void pb_debug_print_dir_holes(DIR_DATE_PAIR *holes, int num_of_holes) {
+    debug_print(" - %d holes: ",num_of_holes);
+    int i;
+    for (i=0; i< num_of_holes; i++) {
+        char buf[30];
+        time_t now = holes[i].start;
+        strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", gmtime(&now));
+        debug_print("%s,", buf);
+        now = holes[i].end;
+        strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", gmtime(&now));
+        debug_print("%s ", buf);
+    }
+    debug_print("\n");
+}
+
+void pb_debug_print_dir_req(unsigned char *data, int len) {
+    DIR_REQ_HEADER *dir_header;
+    dir_header = (DIR_REQ_HEADER *)(data + sizeof(AX25_HEADER));
+    debug_print("DIR REQ: flags: %02x BLK_SIZE: %04x ", dir_header->flags & 0xff, dir_header->block_size &0xffff);
+    if ((dir_header->flags & 0b11) == 0b00) {
+        /* There is a holes list */
+        int num_of_holes = get_num_of_dir_holes(len);
+        if (num_of_holes == 0)
+            debug_print("- missing hole list\n");
+        else {
+            DIR_DATE_PAIR *holes = get_dir_holes_list(data); //(DIR_DATE_PAIR *)(data + BROADCAST_REQUEST_HEADER_SIZE + DIR_REQUEST_HEADER_SIZE );
+ //           pb_debug_print_dir_holes(holes, num_of_holes);
+        }
+    }
+}
+#endif
+
+/**
+ * pb_handle_dir_request()
+ *
+ * Process a dir request from a ground station
+ *
+ * Returns TRUE if the request could be processed, even if the
+ * station was not added to the PB.  Only returns FALSE if there is
+ * an unexpected error, such as the TX Radio Queue is unavailable.
+ */
+int pb_handle_dir_request(char *from_callsign, unsigned char *data, int len) {
+    // Dir Request
+    int rc=TRUE;
+    DIR_REQ_HEADER *dir_header;
+    dir_header = (DIR_REQ_HEADER *)(data + sizeof(AX25_HEADER));
+
+    // TODO - we do not check bit 5, which must be 1 or the version bits, which must be 00.
+
+    /* least sig 2 bits of flags are 00 if this is a fill request */
+    if ((dir_header->flags & 0b11) == 0b00) {
+#ifdef DEBUG
+        pb_debug_print_dir_req(data, len);
+#endif
+        debug_print("DIR FILL REQUEST: flags: %02x BLK_SIZE: %04x\n", dir_header->flags & 0xff, dir_header->block_size &0xffff);
+
+        /* Get the number of holes in this request and make sure it is in a valid range */
+        int num_of_holes = get_num_of_dir_holes(len);
+        if (num_of_holes < 1 || num_of_holes > AX25_MAX_DATA_LEN / sizeof(DIR_DATE_PAIR)) {
+            /* This does not have a valid holes list */
+            rc = pb_send_err(from_callsign, PB_ERR_FILE_INVALID_PACKET);
+            if (rc != TRUE) {
+                debug_print("\n Error : Could not send ERR Response to TNC \n");
+                return FALSE;
+            }
+            return TRUE;
+        }
+        /* Add to the PB if we can*/
+        DIR_DATE_PAIR * holes = get_dir_holes_list(data);
+        if (pb_add_request(from_callsign, PB_DIR_REQUEST_TYPE, NULL, 0, 0, holes, num_of_holes) == TRUE) {
+            // ACK the station
+            rc = pb_send_ok(from_callsign);
+            if (rc != TRUE) {
+                debug_print("\n Error : Could not send OK Response to TNC \n");
+                return FALSE;
+            }
+        } else {
+            // the protocol says NO -1 means temporary problem. e.g. shut or you are already on the PB, and -2 means permanent
+            rc = pb_send_err(from_callsign, PB_ERR_TEMPORARY);
+            if (rc != TRUE) {
+                debug_print("\n Error : Could not send ERR Response to TNC \n");
+                return FALSE;
+            }
+        }
+    } else {
+        /* There are no other valid DIR Requests other than a fill */
+        rc = pb_send_err(from_callsign, PB_ERR_FILE_INVALID_PACKET);
+        if (rc != TRUE) {
+            debug_print("\n Error : Could not send ERR Response to TNC \n");
+            return FALSE;
+        }
+    }
+    return rc;
+}
+
+
+/**
+ * TEST FUNCTIONS FOLLOW
+ */
 
 bool pb_test_callsigns() {
     debug_print("## SELF TEST: pb_test_callsigns\n");
@@ -304,11 +536,43 @@ bool pb_test_callsigns() {
     return rc;
 }
 
+bool pb_test_ok() {
+    debug_print("## SELF TEST: pb_test_ok\n");
+    bool rc = true;
+    int l = pb_send_ok("G0KLA");  if (l == false) rc = false;
+    if (rc == FALSE) {
+        debug_print("## FAILED SELF TEST: pb_test_ok\n");
+    } else {
+        debug_print("## PASSED SELF TEST: pb_test_ok\n");
+    }
+    return true;
+}
+
 bool pb_test_status() {
     debug_print("## SELF TEST: pb_test_status\n");
     bool rc = true;
-    int l = pb_send_ok("G0KLA");  if (l == false) rc = false;
-    l = pb_send_ok("G0KLA-11");  if (l == false) rc = false;
+
+    /* Add to the queue and wait for 10ms to see if space is available */
+//        uint8_t byteBuf[] = {27, 0xA0,0x84,0x98,0x92,0xA6,0xA8,0x00,0xA0,0x8C,0xA6,0x66,
+//                             0x40,0x40,0x17,0x03,0xF0,0x50,0x42,0x3A,0x20,0x45,0x6D,0x70,0x74,0x79,0x2E,0x0D};
+//        uint8_t byteBuf[] =  {0x1a,0xa0,0x84,0x98,0x92,0xa6,0xa8,0x00,0xa0,0x82,0x86,0xa6,
+//                               0x82,0xa8,0x17,0x03,0xf0,0x50,0x42,0x20,0x45,0x6d,0x70,0x74,0x79,0x2e };
+//       uint8_t byteBuf[AX25_PKT_BUFFER_LEN]; // position 0 will hold the number of bytes
+//
+//       int rc = tx_make_packet(BROADCAST_CALLSIGN, CALL, PID_NO_PROTOCOL, buffer, len, byteBuf);
+
+
+    pb_send_status();
+
+    //        BaseType_t xStatus = xQueueSendToBack( xTxPacketQueue, &byteBuf, CENTISECONDS(1) );
+    //        if( xStatus != pdPASS ) {
+    //            /* The send operation could not complete because the queue was full */
+    //            debug_print("TX QUEUE FULL: Could not add to Packet Queue\n");
+    //            // TODO - we should log this error and downlink in telemetry
+    //        }
+    //    //    int rc = send_raw_packet(BROADCAST_CALLSIGN, CALL, PID_NO_PROTOCOL, (uint8_t *)buffer, len);
+    //        ReportToWatchdog(CurrentTaskWD);
+
     if (rc == FALSE) {
         debug_print("## FAILED SELF TEST: pb_test_status\n");
     } else {

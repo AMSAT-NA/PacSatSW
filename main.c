@@ -71,7 +71,8 @@ void ConsoleTask(void *pvParameters);
 //Global Variables Definitions (these are declared in pacsat.h or another header file where they are required)
 QueueHandle_t xPbPacketQueue; /* RTOS Queue for packets received and sent to the PB */
 QueueHandle_t xTxPacketQueue; /* RTOS Queue for packets sent to the TX */
-bool CANPrintTelemetry,CANPrintCoord,CANPrintCommands,CANPrintAny,CANPrintCount,CANPrintErrors,CANPrintEttus;
+bool CANPrintTelemetry,CANPrintCoord,CANPrintCommands,CANPrintAny,CANPrintCount,CANPrintErrors,CANPrintEttus,
+    pb_shut, monitorPackets;
 
 
 

@@ -19,6 +19,7 @@ void radio_set_power(uint32_t regVal);
 
 static uint8_t tx_packet_buffer[AX25_PKT_BUFFER_LEN];
 static SPIDevice device = DCTDev1;
+extern bool monitorPackets;
 
 /* Test Buffer PB Empty */
 //uint8_t byteBuf[] = {0xA0,0x84,0x98,0x92,0xA6,0xA8,0x00,0xA0,0x8C,0xA6,0x66,
@@ -29,7 +30,7 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)  {
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)RadioWD ); // TODO - just reuse the Radio task name for now
     InitInterTask(ToTxTask, 10);
     ResetAllWatchdogs();
-    printf("Initializing TX\n");
+//    printf("Initializing TX\n");
 
     /* This is defined in pacsat.h, declared here */
     xTxPacketQueue = xQueueCreate( TX_PACKET_QUEUE_LEN, AX25_PKT_BUFFER_LEN * sizeof( uint8_t ) );
@@ -63,6 +64,8 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)  {
             fifo_queue_buffer(device, tx_packet_buffer+1, numbytes, pktstart_flag|pktend_flag);
             //       printf("FIFO_FREE 2: %d\n",fifo_free());
             fifo_commit(device);
+            if (monitorPackets)
+                print_packet("TX", tx_packet_buffer+1,numbytes);
             //       printf("INFO: Waiting for transmission to complete\n");
             while (ax5043ReadReg(device, AX5043_RADIOSTATE) != 0) {
                 vTaskDelay(1);
@@ -94,7 +97,7 @@ void radio_set_power(uint32_t regVal) {
  * stored in the first byte, which will not be transmitted.
  *
  */
-bool tx_make_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t *bytes, uint8_t len, uint8_t *raw_bytes) {
+bool tx_make_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t *bytes, int len, uint8_t *raw_bytes) {
     uint8_t packet_len;
     uint8_t header_len = 17;
     int i;
@@ -116,21 +119,18 @@ bool tx_make_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t
     packet_len = len + header_len;
     raw_bytes[0] = packet_len; /* Number of bytes */
 
-    if (true) {
-        for (i=0; i< packet_len; i++) {
-            if (isprint(raw_bytes[i]))
-                printf("%c",raw_bytes[i]);
-            else
-                printf(" ");
-        }
-        for (i=0; i< packet_len; i++) {
-            printf("%02x ",raw_bytes[i]);
-            if (i%40 == 0 && i!=0) printf("\n");
-        }
-    }
-
-    if (true)
-        debug_print(" .. %d bytes\n", packet_len);
+//    if (true) {
+//        for (i=0; i< packet_len; i++) {
+//            if (isprint(raw_bytes[i]))
+//                printf("%c",raw_bytes[i]);
+//            else
+//                printf(" ");
+//        }
+//        for (i=0; i< packet_len; i++) {
+//            printf("%02x ",raw_bytes[i]);
+//            if (i%40 == 0 && i!=0) printf("\n");
+//        }
+//    }
 
     return true;
 
@@ -145,7 +145,7 @@ bool tx_make_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t
  * The TX takes are of HDLC framing and CRC
  *
  */
-bool tx_send_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t *bytes, uint8_t len) {
+bool tx_send_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t *bytes, int len) {
     uint8_t raw_bytes[AX25_PKT_BUFFER_LEN]; // position 0 will hold the number of bytes
     bool rc = tx_make_packet(from_callsign, to_callsign, pid, bytes, len, raw_bytes);
 

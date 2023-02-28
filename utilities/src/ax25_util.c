@@ -88,7 +88,7 @@ int encode_call(char *name, uint8_t *buf, int final_call, uint8_t command) {
         if (*p != '\0') {
             ssid = ssid * 10 + *p - 48;
         }
-        debug_print("ssid: %d\n",ssid);
+//        debug_print("ssid: %d\n",ssid);
         if (ssid < 0 || ssid > 15) {
             debug_print("ax25_utils: SSID must follow '-' and be numeric in the range 0-15 - '%s'\n", name);
             return false;
@@ -103,6 +103,24 @@ int encode_call(char *name, uint8_t *buf, int final_call, uint8_t command) {
         buf[6] = buf[6] | 0x01;
     return true;
 }
+
+int print_packet(char *label, uint8_t *packet, int len) {
+    int loc;
+    char from_callsign[MAX_CALLSIGN_LEN];
+    char to_callsign[MAX_CALLSIGN_LEN];
+
+    decode_call(&packet[7], from_callsign);
+    decode_call(&packet[0], to_callsign);
+    debug_print("%s: %s>%s: ",label, from_callsign, to_callsign);
+    for (loc=15; loc<len; loc++)
+        debug_print("%x ",packet[loc]);
+    debug_print("\n");
+    return true;
+}
+
+/**
+ * Test routines follow
+ */
 
 int test_ax25_util_decode_calls() {
     debug_print("   TEST: AX25 UTIL DECODE CALLS\n");
