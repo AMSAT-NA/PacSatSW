@@ -179,7 +179,7 @@ int pb_send_ok(char *from_callsign) {
     strlcat(buffer, from_callsign, sizeof(buffer));
     int len = 3 + strlen(from_callsign);
     buffer[len] = 0x0D; // this replaces the string termination
-    rc = tx_send_packet(BROADCAST_CALLSIGN, from_callsign, PID_FILE, (uint8_t *)buffer, len);
+    rc = tx_send_packet(BROADCAST_CALLSIGN, from_callsign, PID_FILE, (uint8_t *)buffer, len, BLOCK_IF_QUEUE_FULL);
 
     return rc;
 }
@@ -205,7 +205,7 @@ int pb_send_err(char *from_callsign, int err) {
     strlcat(buffer," ", sizeof(buffer));
     strlcat(buffer, from_callsign, sizeof(buffer));
     strncat(buffer,&CR,1); // very specifically add just one char to the end of the string for the CR
-    rc = tx_send_packet(BROADCAST_CALLSIGN, from_callsign, PID_FILE, (uint8_t *)buffer, len);
+    rc = tx_send_packet(BROADCAST_CALLSIGN, from_callsign, PID_FILE, (uint8_t *)buffer, len, BLOCK_IF_QUEUE_FULL);
 
     return rc;
 }
@@ -222,6 +222,8 @@ int pb_send_err(char *from_callsign, int err) {
  * NOTE that pb_status_buffer is declared static because allocating a buffer of this
  * size causes a crash when this is called from a timer.
  *
+ * We MUST NOT BLOCK because this can be called from a timer.  If the TX queue is full then we skip sending status
+ *
  */
 void pb_send_status() {
     ReportToWatchdog(CurrentTaskWD);
@@ -229,7 +231,7 @@ void pb_send_status() {
 
     if (pb_shut) {
         char shut[] = "PB Closed.";
-        int rc = tx_send_packet(BROADCAST_CALLSIGN, PBSHUT, PID_NO_PROTOCOL, (uint8_t *)shut, strlen(shut));
+        int rc = tx_send_packet(BROADCAST_CALLSIGN, PBSHUT, PID_NO_PROTOCOL, (uint8_t *)shut, strlen(shut), DONT_BLOCK_IF_QUEUE_FULL);
         debug_print("SENDING: %s |%s|\n",PBSHUT, shut);
         ReportToWatchdog(CurrentTaskWD);
         return;
@@ -243,7 +245,8 @@ void pb_send_status() {
 //        uint8_t buffer[] = "PB Empty.";
         uint8_t len = strlen((char *)pb_status_buffer);
         debug_print("SENDING: %s |%s|\n",CALL, pb_status_buffer);
-       int rc = tx_send_packet(BROADCAST_CALLSIGN, CALL, PID_NO_PROTOCOL, (uint8_t *)pb_status_buffer, len);
+
+       int rc = tx_send_packet(BROADCAST_CALLSIGN, CALL, PID_NO_PROTOCOL, (uint8_t *)pb_status_buffer, len, DONT_BLOCK_IF_QUEUE_FULL);
         ReportToWatchdog(CurrentTaskWD);
         return;
     }

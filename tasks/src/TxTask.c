@@ -17,7 +17,8 @@
 
 void radio_set_power(uint32_t regVal);
 
-static uint8_t tx_packet_buffer[AX25_PKT_BUFFER_LEN];
+static uint8_t tx_packet_buffer[AX25_PKT_BUFFER_LEN]; /* Buffer used when data copied from tx queue */
+static uint8_t tmp_packet_buffer[AX25_PKT_BUFFER_LEN]; /* Buffer used when constructing new packets. position 0 will hold the number of bytes */
 static SPIDevice device = DCTDev1;
 extern bool monitorPackets;
 
@@ -145,11 +146,13 @@ bool tx_make_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t
  * The TX takes are of HDLC framing and CRC
  *
  */
-bool tx_send_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t *bytes, int len) {
-    uint8_t raw_bytes[AX25_PKT_BUFFER_LEN]; // position 0 will hold the number of bytes
-    bool rc = tx_make_packet(from_callsign, to_callsign, pid, bytes, len, raw_bytes);
-
-    BaseType_t xStatus = xQueueSendToBack( xTxPacketQueue, &raw_bytes, CENTISECONDS(1) );
+bool tx_send_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t *bytes, int len, bool block) {
+    //uint8_t raw_bytes[AX25_PKT_BUFFER_LEN];
+    bool rc = tx_make_packet(from_callsign, to_callsign, pid, bytes, len, tmp_packet_buffer);
+    TickType_t xTicksToWait = 0;
+    if (block)
+        xTicksToWait = CENTISECONDS(1);
+    BaseType_t xStatus = xQueueSendToBack( xTxPacketQueue, &tmp_packet_buffer, xTicksToWait );
     if( xStatus != pdPASS ) {
         /* The send operation could not complete because the queue was full */
         debug_print("TX QUEUE FULL: Could not add to Packet Queue\n");
@@ -159,22 +162,26 @@ bool tx_send_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t
     return true;
 }
 
+/**
+ * TEST ROUTINES FOLLOW
+ */
+
 bool tx_test_make_packet() {
     debug_print("## SELF TEST: tx_test_make_packet\n");
     bool rc = true;
-    uint8_t raw_bytes[AX25_PKT_BUFFER_LEN]; // position 0 will hold the number of bytes
+    //uint8_t raw_bytes[AX25_PKT_BUFFER_LEN]; // position 0 will hold the number of bytes
     char *from_callsign = "PACSAT-12";
     char *to_callsign = "AC2CZ-2";
     uint8_t pid = 0xbb;
     uint8_t bytes[] = {0,1,2,3,4,5,6,7,8,9};
     uint8_t len = 10;
-    int l = tx_make_packet(from_callsign, to_callsign, pid, bytes, len, raw_bytes);
+    rc = tx_make_packet(from_callsign, to_callsign, pid, bytes, len, tmp_packet_buffer);
 
-    BaseType_t xStatus = xQueueSendToBack( xTxPacketQueue, &raw_bytes, CENTISECONDS(1) );
+    BaseType_t xStatus = xQueueSendToBack( xTxPacketQueue, &tmp_packet_buffer, CENTISECONDS(1) );
     if( xStatus != pdPASS ) {
         /* The send operation could not complete because the queue was full */
         debug_print("TX QUEUE FULL: Could not add to Packet Queue\n");
-        // TODO - we should log this error and downlink in telemetry
+        rc = FALSE;
     }
 
     if (rc == FALSE) {
