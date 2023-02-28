@@ -89,6 +89,7 @@
 #define AX25_MAX_DATA_LEN 240 /* This is the maximum number of bytes a packet can have */
 #define AX25_PKT_BUFFER_LEN 260 /* This is the length of the buffers in the TX RX queues */
 #define MAX_CALLSIGN_LEN 10 /* Length of the String for an AX25 callsign including dash, 2 digit Digi, and null termination */
+#define MAX_PB_HOLES_LIST_BYTES 222 /* The max length of a holes list = ( AX25_MAX_DATA_LEN - 17 ) to nearest 6 */
 
 /*
  * TASK INFORMATION This is the info like stack sizes and priorities for the tasks

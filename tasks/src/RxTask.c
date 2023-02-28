@@ -81,10 +81,18 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
                         if (len == 7)
                             len = ax5043ReadReg(device, AX5043_FIFODATA); // 7 means variable length, -> get length byte
                         fifo_cmd &= 0x1F;
-
+                        /* Note that the length byte and header byte are not included in the length of the packet
+                           but length does include the flag byte */
+                        uint8_t fifo_flags = ax5043ReadReg(device, AX5043_FIFODATA); // read command
+                        len--;
                         if (fifo_cmd == AX5043_FIFOCMD_DATA) {
-                            debug_print("FIFO CMD: %d LEN:%d\n",fifo_cmd,len);
+                            debug_print("FIFO CMD:%d LEN:%d FLAGS:%x\n",fifo_cmd,len, fifo_flags);
+                            if (fifo_flags != 0x03) {
+                                // TODO - log something here?  This should never happen??
+                                debug_print("ERROR in received FIFO Flags\n");
+                            }
                             uint8_t loc = 0;
+                            axradio_rxbuffer[loc++] = len-1; // remove the flag byte from the length
                             while (len--) {
                                 axradio_rxbuffer[loc] = ax5043ReadReg(device, AX5043_FIFODATA);
                                 loc++;

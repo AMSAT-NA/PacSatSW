@@ -153,6 +153,8 @@ enum {
     ,testTx
     ,testPbOk
     ,testPbStatus
+    ,testPbList
+    ,testPbClearList
     ,monitorOn
     ,monitorOff
     ,pbShut
@@ -202,7 +204,9 @@ commandPairs debugCommands[] = {
                                 ,{"test callsigns","Test the AX25 callsign routines",testCallsigns}
                                 ,{"test tx","Test the Pacsat TX Packet routines",testTx}
                                 ,{"test pb ok","Test the Pacsat Broadcast by sending OK packet",testPbOk}
-                                ,{"test pb status","Send PB status",testPbStatus}
+                                ,{"send pb status","Send PB status",testPbStatus}
+                                ,{"test pb list","Test the PB List add and remove functions",testPbList}
+                                ,{"clear pb list","Clear the PB List add remove all stations",testPbClearList}
                                 ,{"monitor on","Monitor sent and received packets",monitorOn}
                                 ,{"monitor off","Stop monitoring packets",monitorOff}
                                 ,{"pb shut","Shut the PB",pbShut}
@@ -892,6 +896,14 @@ void RealConsoleTask(void)
         }
         case testPbStatus:{
             bool rc = pb_test_status();
+            break;
+        }
+        case testPbList:{
+            bool rc = pb_test_list();
+            break;
+        }
+        case testPbClearList:{
+            bool rc = pb_clear_list();
             break;
         }
         case testTx:{
