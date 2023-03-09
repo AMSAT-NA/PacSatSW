@@ -52,6 +52,7 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)  {
         uint8_t pktstart_flag = 0x01;
         uint8_t pktend_flag = 0x02;
         uint8_t raw_no_crc_flag = 0x18; // Flag of 0x18 is RAW no CRC
+        uint8_t preamble_length = 32; // TODO - Set programatically!!!!  10 for 1200 bps - Radio lab recommends 32 for 9600, may need as much as 56.
 
         ReportToWatchdog(CurrentTaskWD);
         BaseType_t xStatus = xQueueReceive( xTxPacketQueue, &tx_packet_buffer, CENTISECONDS(10) );  // TODO - adjust block time vs watchdog
@@ -61,7 +62,8 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)  {
             int numbytes = tx_packet_buffer[0] - 1; // first byte holds number of bytes
             //        printf("FIFO_FREE 1: %d\n",fifo_free());
             ax5043WriteReg(device, AX5043_FIFOSTAT, 3); // clear FIFO data & flags
-            fifo_repeat_byte(device, 0x7E, 10, raw_no_crc_flag); // repeat the packet delimiter
+            fifo_repeat_byte(device, 0x7E, preamble_length, raw_no_crc_flag); // repeat the preamble bytes  ///  TODO - preamble length needs to be 20 for 9600
+            fifo_commit(device);
             fifo_queue_buffer(device, tx_packet_buffer+1, numbytes, pktstart_flag|pktend_flag);
             //       printf("FIFO_FREE 2: %d\n",fifo_free());
             fifo_commit(device);

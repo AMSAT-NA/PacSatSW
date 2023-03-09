@@ -166,7 +166,8 @@ void ax5043StartRx(SPIDevice device){
         PowerOn[device] = true;
     }
     if(!Rxing[device]){
-        start_ax25_rx(device);
+//        start_ax25_rx(device, RATE_1200);
+        start_ax25_rx(device, RATE_9600);
         Rxing[device]=true; Txing[device]=false;
     }
 }
@@ -187,7 +188,8 @@ void ax5043StartTx(SPIDevice device){
         ax5043PowerOn(device);
         PowerOn[device] = true;
     }
-    start_ax25_tx(device);
+//    start_ax25_tx(device, RATE_1200);
+    start_ax25_tx(device, RATE_9600);
     Txing[device] = true; Rxing[device] = false;
 }
 void ax5043StopTx(SPIDevice device){
