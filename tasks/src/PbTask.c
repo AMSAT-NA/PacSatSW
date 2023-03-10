@@ -63,7 +63,7 @@ If the File Number is not available for a file request then we send an error
 packet: NO
  */
 
-#include <strings.h> // TODO - do we really need this?  How much space does it use.  Used for strncasecmp
+#include <strings.h> // TODO - do we really need this?  How much space does it use.
 
 #include "pacsat.h"
 #include "FreeRTOS.h"
@@ -244,7 +244,7 @@ void pb_send_status() {
         pb_make_list_str(pb_status_buffer, sizeof(pb_status_buffer));
 //        uint8_t buffer[] = "PB Empty.";
         uint8_t len = strlen((char *)pb_status_buffer);
-        debug_print("SENDING: %s |%s|\n",CALL, pb_status_buffer);
+//        debug_print("SENDING: %s |%s|\n",CALL, pb_status_buffer);
 
        int rc = tx_send_packet(BROADCAST_CALLSIGN, CALL, PID_NO_PROTOCOL, (uint8_t *)pb_status_buffer, len, DONT_BLOCK_IF_QUEUE_FULL);
         ReportToWatchdog(CurrentTaskWD);
@@ -287,7 +287,7 @@ void pb_debug_print_list() {
 void pb_debug_print_list_item(int i) {
     debug_print("--%s Ty:%d File:%d Off:%d Holes:%d Cur:%d",pb_list[i].callsign,pb_list[i].pb_type,pb_list[i].file_id,
             pb_list[i].offset,pb_list[i].hole_num,pb_list[i].current_hole_num);
-    char buf[30];
+//    char buf[30];
 //    time_t now = pb_list[i].request_time;
 //    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", gmtime(&now));
     debug_print(" at:%d", pb_list[i].request_time);
@@ -332,10 +332,10 @@ int pb_add_request(char *from_callsign, int type, DIR_NODE * node, int file_id, 
     pb_list[number_on_pb].pb_type = type;
     pb_list[number_on_pb].file_id = file_id;
     pb_list[number_on_pb].offset = offset;
-    logicalTime_t time;
-    getTime(&time);
-    debug_print(" at time: Resets=%i,seconds=%i\n",time.IHUresetCnt,time.METcount);
-    pb_list[number_on_pb].request_time = time.METcount;
+    //logicalTime_t time;
+    //getTime(&time);
+    //debug_print(" at time: Resets=%i,seconds=%i\n",time.IHUresetCnt,time.METcount);
+    pb_list[number_on_pb].request_time = getSeconds();
     pb_list[number_on_pb].hole_num = num_of_holes;
     pb_list[number_on_pb].current_hole_num = 0;
     pb_list[number_on_pb].node = node;
@@ -425,11 +425,13 @@ int pb_remove_request(int pos) {
  */
 int pb_clear_list() {
     if (number_on_pb == 0) return TRUE;
-    int i;
+    int i, rc;
     int num = number_on_pb;
     for (i=0; i < num; i++) {
-        pb_remove_request(number_on_pb - i - 1); // remove from end so we minimize copying of data
+        rc = pb_remove_request(number_on_pb - i - 1); // remove from end so we minimize copying of data
+        if (rc != TRUE) return FALSE;
     }
+    return TRUE;
 }
 
 /**

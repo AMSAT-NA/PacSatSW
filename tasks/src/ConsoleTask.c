@@ -62,6 +62,7 @@
 
 #include "TxTask.h" // for test routines
 #include "PbTask.h" // for test routines
+#include "pacsat_header.h" // for test routines
 
 //Extern definition
 extern uint8_t SWCmdRing[SW_CMD_RING_SIZE],SWCmdIndex;
@@ -149,12 +150,15 @@ enum {
     ,mramSleep
     ,mramAwake
     ,startRx
+    ,testPacsat
     ,testCallsigns
     ,testTx
     ,testPbOk
     ,testPbStatus
     ,testPbList
     ,testPbClearList
+    ,testPfh
+    ,testPfhFiles
     ,monitorOn
     ,monitorOff
     ,pbShut
@@ -201,12 +205,15 @@ commandPairs debugCommands[] = {
                                 ,{"mram wren","Write enable MRAM",MRAMWrEn}
                                 ,{"mram wake","Send wake command to MRAM",mramAwake}
                                 ,{"mram sleep","Send sleep command to MRAM",mramSleep}
+                                ,{"test pacsat","Run all of the PACSAT self tst routines",testPacsat}
                                 ,{"test callsigns","Test the AX25 callsign routines",testCallsigns}
                                 ,{"test tx","Test the Pacsat TX Packet routines",testTx}
                                 ,{"test pb ok","Test the Pacsat Broadcast by sending OK packet",testPbOk}
                                 ,{"send pb status","Send PB status",testPbStatus}
                                 ,{"test pb list","Test the PB List add and remove functions",testPbList}
                                 ,{"clear pb list","Clear the PB List add remove all stations",testPbClearList}
+                                ,{"test pfh","Test the Pacsat File Header Routines",testPfh}
+                                ,{"test psf","Test the Pacsat Files in MRAM",testPfhFiles}
                                 ,{"monitor on","Monitor sent and received packets",monitorOn}
                                 ,{"monitor off","Stop monitoring packets",monitorOff}
                                 ,{"pb shut","Shut the PB",pbShut}
@@ -886,6 +893,17 @@ void RealConsoleTask(void)
         }
 
         /* G0KLA TEST ROUTINES */
+        case testPacsat:{
+
+            if(! pb_test_callsigns()) {  debug_print("### Callsign TEST FAILED\n"); break; }
+            if(! pb_test_list()) {  debug_print("### pb list TEST FAILED\n"); break; }
+            if(! pb_clear_list()) {  debug_print("### pb list clear TEST FAILED\n"); break; }
+            if(! tx_test_make_packet()) {  debug_print("### tx make packet TEST FAILED\n"); break; }
+            if(! test_pfh()) {  debug_print("### pfh TEST FAILED\n"); break; }
+            if(! test_pfh_files()) {  debug_print("### pfh TEST FILES FAILED\n"); break; }
+            debug_print("### ALL TESTS PASSED\n");
+            break;
+        }
         case testCallsigns:{
             bool rc = pb_test_callsigns();
             break;
@@ -908,6 +926,14 @@ void RealConsoleTask(void)
         }
         case testTx:{
             bool rc = tx_test_make_packet();
+            break;
+        }
+        case testPfh:{
+            bool rc = test_pfh();
+            break;
+        }
+        case testPfhFiles:{
+            bool rc = test_pfh_files();
             break;
         }
         case monitorOn:{
