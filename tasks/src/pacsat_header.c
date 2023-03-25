@@ -44,6 +44,7 @@
 #include <ctype.h>
 #include "pacsat.h"
 #include "pacsat_header.h"
+#include "pacsat_dir.h"
 #include "str_util.h"
 #include "inet.h"
 #include "MRAMmap.h"
@@ -61,7 +62,8 @@ uint8_t * pfh_store_char_field(uint8_t *buffer, uint16_t id, uint8_t val);
 uint8_t * pfh_store_short_int_field(uint8_t *buffer, uint16_t id, uint16_t val);
 uint8_t * pfh_store_int_field(uint8_t *buffer, uint16_t id, uint32_t val);
 uint8_t * pfh_store_str_field(uint8_t *buffer, uint16_t id, uint8_t len, char* str);
-
+bool make_test_header(HEADER *pfh, uint32_t fh, unsigned int file_id, char *filename, char *source, char *destination,
+                      char *title, char *user_filename, char *msg1);
 /**
  * pfh_new_header()
  *
@@ -524,6 +526,50 @@ uint8_t * pfh_store_str_field(uint8_t *buffer, uint16_t id, uint8_t len, char* s
  * TEST ROUTINES FOLLOW
  */
 
+bool make_test_header(HEADER *pfh, uint32_t fh, unsigned int file_id, char *filename, char *source, char *destination,
+                      char *title, char *user_filename, char *msg1) {
+    if (pfh == NULL) return FALSE;
+    /* Required Header Information */
+    pfh->fileId = file_id;
+    strlcpy(pfh->fileName,filename, sizeof(pfh->fileName));
+    strlcpy(pfh->fileExt,PSF_FILE_EXT, sizeof(pfh->fileExt));
+
+    uint32_t now = 1678570897 + fh; // This is just for testing
+    pfh->createTime = now;
+    pfh->modifiedTime = now;
+    pfh->SEUflag = 1;
+    pfh->fileType = PFH_TYPE_ASCII;
+
+    /* Extended Header Information */
+    strlcpy(pfh->source,source, sizeof(pfh->source));
+
+   pfh->uploadTime = now;  /// TODO - this should be ZERO and set when we load into dir.  Use 0 just for initial testing.
+    pfh->downloadCount = 0;
+    strlcpy(pfh->destination,destination, sizeof(pfh->destination));
+    pfh->downloadTime = 0;
+    pfh->expireTime = now + 30*24*60*60;  // use for testing
+    pfh->priority = 0;
+
+    /* Optional Header Information */
+    strlcpy(pfh->title,title, sizeof(pfh->title));
+    strlcpy(pfh->userFileName,user_filename, sizeof(pfh->userFileName));
+
+    uint8_t buffer3[256];
+    uint32_t body_size = strlen(msg1);
+    uint16_t body_offset = pfh_generate_header_bytes(pfh, body_size, buffer3);
+
+    /* Write the header */
+
+    bool rc = dir_mram_write_file(fh, buffer3, body_offset, file_id, pfh->uploadTime, body_offset, (10000 + fh * 10000));
+    if (!rc) {  debug_print("Write MRAM PF header - FAILED\n"); return FALSE; }
+
+    /* Then the file data */
+    rc = dir_mram_append_to_file(fh, (uint8_t *)msg1, body_size);
+    if (!rc) {  debug_print("Write MRAM file data - FAILED\n"); return FALSE; }
+
+    return rc;
+}
+
 int test_pfh() {
     printf("##### TEST PACSAT HEADER:\n");
     int rc = TRUE;
@@ -605,12 +651,12 @@ int test_pfh() {
         printf("##### TEST PACSAT HEADER: fail:\n");
 
 
-    return TRUE;
+    return rc;
 
 }
 
 int test_pfh_files() {
-    printf("##### TEST PACSAT FILES:\n");
+    printf("##### TEST PACSAT FILE:\n");
     int rc = TRUE;
 
     int size = 0;
@@ -636,25 +682,21 @@ int test_pfh_files() {
     int crc_passed = false;
     int file_start_address = 20000;
     HEADER pfh;
- //   pfh_extract_header(&pfh, header, sizeof(header), &size, &crc_passed);
- //   pfh_debug_print(&pfh);
+    pfh_extract_header(&pfh, header, sizeof(header), &size, &crc_passed);
+    debug_print("PFH Extracted from buffer:\n");
+    pfh_debug_print(&pfh);
 
     // Write the header into MRAM FAT
-    static const MRAMmap_t *LocalFlash = 0;
-//    MramFATFile_t file;
-//    file.file_id = pfh.fileId;
-//    file.file_size = pfh.fileSize;
-//    file.upload_time = pfh.uploadTime;
-//    file.address = file_start_address;
-//    rc = writeNV(file.file_id,sizeof(uint32_t),ExternalMRAMData,(int)&LocalFlash->MRAMFiles[0].file_id);
-//    if (!rc) {  debug_print("Write MRAM FAT header - FAILED\n"); return FALSE; }
-//    rc = writeNV(header,sizeof(header),ExternalMRAMData,(int)file_start_address);
-//    if (!rc) {  debug_print("Write MRAM PF header - FAILED\n"); return FALSE; }
+    uint32_t time = getSeconds();
+
+    rc = dir_mram_write_file(0, header, sizeof(header), 0x0347, time, sizeof(header), file_start_address);
+    if (!rc) {  debug_print("Write MRAM PF header - FAILED\n"); return FALSE; }
 
     uint8_t buffer2[256];
     HEADER pfh2;
     rc = readNV(buffer2, sizeof(buffer2),ExternalMRAMData, (int)file_start_address);
     pfh_extract_header(&pfh2, buffer2, sizeof(buffer2), &size, &crc_passed);
+    debug_print("PFH Extracted from MRAM:\n");
     pfh_debug_print(&pfh2);
     if (pfh2.fileId != 0x0347) {  debug_print("File id wrong - FAILED\n"); return FALSE; }
     if (pfh2.fileSize != 81374) {  debug_print("Size wrong - FAILED\n"); return FALSE; }
@@ -666,6 +708,92 @@ int test_pfh_files() {
         return FALSE;
     }
 
+    if (rc == TRUE)
+        printf("##### TEST PACSAT FILE: success:\n");
+    else
+        printf("##### TEST PACSAT FILE: fail:\n");
+    return rc;
+}
+
+int test_pfh_make_files() {
+    static const MRAMmap_t *LocalFlash = 0;
+    // Make a pacsat file to save
+    debug_print("Make 4 PPSF and save to MRAM\n");
+    HEADER pfh3;
+
+    uint32_t numOfFiles = 3;
+    char *msg1 = "Hi there,\nThis is a test message\n73 Chris\n";
+    int i;
+    for (i=0; i< numOfFiles; i++) {
+        int id = (i + 1) * 10;
+        pfh_new_header(&pfh3);
+        char file_id_str[5];
+        snprintf(file_id_str, 5, "%04x",id);
+        char title_str[35];
+        snprintf(title_str, 35, "Test Message %d",id);
+        make_test_header(&pfh3, i, id, file_id_str, "AC2CZ", "G0KLA", title_str, "userfile.txt", msg1);
+    }
+
+    char *msg2 = "Every PACSAT file will start with the byte 0xaa followed by the byte 0x55.  \n\
+This flag is followed by the rest of the PACSAT File Header (PFH).  A valid \n\
+PFH contains all of the items of the Mandatory Header (Section  3), and it may\n\
+also contain all items of the Extended Header (Section 4) and any number of\n\
+Optional Header items (Section 5).  All HEADER ITEMS are encoded using a \n\
+standard syntax, described in Section 2.  \n\
+\n\
+The PFH is terminated by a special header item, after which the file body \n\
+begins.\n\
+\n\
+Thus, there are 3 forms of PACSAT file header:\n\
+\n\
+<0xaa><0x55><Mandatory hdr><Hdr end>\n\
+\n\
+<0xaa><0x55><Mandatory hdr><Extended hdr><Hdr end>\n\
+\n\
+<0xaa><0x55><Mandatory hdr><Extended hdr>[<Optional    Items> . . . ]<Hdr end>\n";
+
+    make_test_header(&pfh3, 3, 40, "0028", "AC2CZ", "VE2TCP", "Extract of PACSAT Header", "pfh_header.txt", msg2);
+    numOfFiles++;
+
+    bool rc = writeNV(&numOfFiles,sizeof(uint32_t),ExternalMRAMData,(int)&LocalFlash->NumberOfFiles);
+
+    debug_print("Load the files and confirm\n");
+
+    HEADER pfh4;
+    pfh_new_header(&pfh4);
+
+    int size;
+    int crc_passed = false;
+    uint8_t buffer2[256];
+    MRAM_FILE mram_fh;
+    for (i=0; i< numOfFiles-1; i++) {
+        dir_mram_get_node(i, &mram_fh);
+        rc = readNV(buffer2, mram_fh.body_offset,ExternalMRAMData, mram_fh.address);
+        pfh_extract_header(&pfh4, buffer2, sizeof(buffer2), &size, &crc_passed);
+        if (!crc_passed) { debug_print("CRC FAILED\n"); return FALSE;}
+        pfh_debug_print(&pfh4);
+        if (pfh4.fileId != (i+1)*10) {  debug_print("ID wrong for file %d - FAILED\n",i); return FALSE; }
+        if (pfh4.fileSize != 217) {  debug_print("Size %d wrong for file %d - FAILED\n",pfh4.fileSize,i); return FALSE; }
+        if (strcmp(pfh4.source, "AC2CZ")) {  debug_print("Source str wrong - FAILED\n"); return FALSE; }
+        if (strcmp(pfh4.destination, "G0KLA")) {  debug_print("Destination str wrong - FAILED\n"); return FALSE; }
+        if (mram_fh.body_offset != pfh4.bodyOffset) {  debug_print("Wrong body offset fh: %d pfh: %d- FAILED\n",mram_fh.body_offset, pfh4.bodyOffset); return FALSE; }
+        if (mram_fh.file_size != pfh4.fileSize) {  debug_print("Wrong file size fh: %d pfh: %d- FAILED\n",mram_fh.file_size, pfh4.fileSize); return FALSE; }
+    }
+
+    i = 3;
+    dir_mram_get_node(3, &mram_fh);
+    rc = readNV(buffer2, mram_fh.body_offset,ExternalMRAMData, mram_fh.address);
+    pfh_extract_header(&pfh4, buffer2, sizeof(buffer2), &size, &crc_passed);
+    if (!crc_passed) { debug_print("CRC FAILED\n"); return FALSE;}
+    pfh_debug_print(&pfh4);
+    if (pfh4.fileId != 40){  debug_print("ID wrong for file %d - FAILED\n",i); return FALSE; }
+    if (pfh4.fileSize != 915) {  debug_print("Size wrong for file %d is %d - FAILED\n",i,pfh4.fileSize); return FALSE; }
+    if (strcmp(pfh4.source, "AC2CZ")) {  debug_print("Source str wrong - FAILED\n"); return FALSE; }
+    if (strcmp(pfh4.destination, "VE2TCP")) {  debug_print("Destination str wrong - FAILED\n"); return FALSE; }
+    if (strcmp(pfh4.title, "Extract of PACSAT Header")) {  debug_print("Title str wrong - FAILED\n"); return FALSE; }
+    if (mram_fh.body_offset != pfh4.bodyOffset) {  debug_print("Wrong body offset fh: %d pfh: %d- FAILED\n",mram_fh.body_offset, pfh4.bodyOffset); return FALSE; }
+    if (mram_fh.file_size != pfh4.fileSize) {  debug_print("Wrong file size fh: %d pfh: %d- FAILED\n",mram_fh.file_size, pfh4.fileSize); return FALSE; }
+    if (strcmp(pfh4.fileName, "0028")) {  debug_print("File name str |%s| wrong - FAILED\n",pfh4.fileName); return FALSE; }
 
     if (rc == TRUE)
         printf("##### TEST PACSAT FILES: success:\n");
@@ -673,7 +801,7 @@ int test_pfh_files() {
         printf("##### TEST PACSAT FILES: fail:\n");
 
 
-    return TRUE;
+    return rc;
 }
 
 

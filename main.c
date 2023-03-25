@@ -44,6 +44,7 @@
 #include "TxTask.h"
 #include "RxTask.h"
 #include "PbTask.h"
+#include "pacsat_dir.h"
 #include "TelemetryRadio.h"
 #include "RTISetup.h"
 #include "nonvol.h"
@@ -269,10 +270,15 @@ void ConsoleTask(void *pvParameters){
 //   xTaskCreate(CommandTask, "Command", COMMAND_STACK_SIZE,
 //                NULL,COMMAND_PRIORITY, NULL);
 
+    /* Load the directory from MRAM and perform some integrity checks */
+//    dir_load();
+
      xTaskCreate(RxTask,"RxTask",RX_STACK_SIZE, NULL,RX_PRIORITY,NULL);
      xTaskCreate(PbTask,"PbTask",PB_STACK_SIZE, NULL,PB_PRIORITY,NULL);
 
-    xTaskCreate(TxTask,"Radio",RADIO_STACK_SIZE, NULL,RADIO_PRIORITY,NULL);
+    xTaskCreate(TxTask,"Radio",RADIO_STACK_SIZE, NULL,TX_PRIORITY,NULL);
+
+    printf("Free heap size after tasks launched: %d\n",xPortGetFreeHeapSize());
 
     //AlertFlashingWait(CENTISECONDS(50),CENTISECONDS(10),CENTISECONDS(3));
     AllTasksStarted = true;
