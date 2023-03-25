@@ -69,11 +69,13 @@ packet: NO
 #include "FreeRTOS.h"
 #include "os_task.h"
 #include "MET.h"
+#include "inet.h"
 #include "ax25_util.h"
 #include "str_util.h"
 #include "PbTask.h"
 #include "TxTask.h"
 #include "pacsat_dir.h"
+#include "crc16.h"
 
 static uint8_t data_bytes[AX25_MAX_DATA_LEN]; /* Static buffer used to store file bytes loaded from MRAM */
 static uint8_t pb_packet_buffer[AX25_PKT_BUFFER_LEN]; /* Static buffer used to store packet as it is assembled and before copy to TX queue */
@@ -83,8 +85,7 @@ static char pb_status_buffer[135]; // 10 callsigns * 13 bytes + 4 + nul
 struct pb_entry {
     uint8_t pb_type; /* DIR or FILE request */
     char callsign[MAX_CALLSIGN_LEN];
-    MRAM_FILE node; /* The node that we should broadcast next if this is a DIR request */
-    uint32_t file_handle; /* File handle of the file or PFH we are broadcasting */
+    DIR_NODE *node; /* The node that we should broadcast next if this is a DIR request.  Physically stored in the DIR linked list */
     uint32_t offset; /* The current offset in the file we are broadcasting or the PFH we are transmitting */
     uint8_t block_size; /* The maximum size of broadcasts. THIS IS CURRENTLY IGNORED but in theory is sent from the ground for file requests */
     uint8_t hole_list[MAX_PB_HOLES_LIST_BYTES]; /* This is a DIR or FILE hole list */
@@ -115,7 +116,7 @@ void pb_send_status();
 void pb_make_list_str(char *buffer, int len);
 void pb_debug_print_list();
 void pb_debug_print_list_item(int i);
-int pb_add_request(char *from_callsign, int type, MRAM_FILE * node, int file_id, int offset, void *holes, int num_of_holes);
+int pb_add_request(char *from_callsign, int type, DIR_NODE * node, int file_id, int offset, void *holes, int num_of_holes);
 int pb_remove_request(int pos);
 void pb_process_frame(char *from_callsign, char *to_callsign, uint8_t *data, int len);
 int get_num_of_dir_holes(int request_len);
@@ -123,7 +124,7 @@ int pb_handle_dir_request(char *from_callsign, unsigned char *data, int len);
 void pb_debug_print_dir_holes(DIR_DATE_PAIR *holes, int num_of_holes);
 void pb_debug_print_file_holes(FILE_DATE_PAIR *holes, int num_of_holes);
 int pb_next_action();
-bool pb_make_dir_broadcast_packet(MRAM_FILE *node, uint8_t *data_bytes, uint32_t *offset);
+int pb_make_dir_broadcast_packet(DIR_NODE *node, uint8_t *data_bytes, uint32_t *offset);
 
 /**
  * The PB task monitors the PB Packet Queue and processes received packets.  It keeps track of stations
@@ -296,8 +297,12 @@ void pb_debug_print_list() {
 }
 
 void pb_debug_print_list_item(int i) {
-    debug_print("--%s Ty:%d File:%d Off:%d Holes:%d Cur:%d",pb_list[i].callsign,pb_list[i].pb_type,pb_list[i].node.file_id,
-            pb_list[i].offset,pb_list[i].hole_num,pb_list[i].current_hole_num);
+    debug_print("--%s Ty:%d ",pb_list[i].callsign,pb_list[i].pb_type);
+    if (pb_list[i].node != NULL)
+        debug_print("File: %04x ",pb_list[i].node->mram_file->file_id);
+    else
+        debug_print("File: NULL ");
+    debug_print("Off:%d Holes:%d Cur:%d",pb_list[i].offset,pb_list[i].hole_num,pb_list[i].current_hole_num);
 //    char buf[30];
 //    time_t now = pb_list[i].request_time;
 //    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", gmtime(&now));
@@ -324,7 +329,7 @@ void pb_debug_print_list_item(int i) {
  * returns TRUE it it succeeds or FAIL if the PB is shut or full
  *
  */
-int pb_add_request(char *from_callsign, int type, MRAM_FILE * node, int file_id, int offset, void *holes, int num_of_holes) {
+int pb_add_request(char *from_callsign, int type, DIR_NODE * node, int file_id, int offset, void *holes, int num_of_holes) {
     debug_print("PB: Request from %s ", from_callsign);
     if (pb_shut) return FALSE;
     if (number_on_pb == MAX_PB_LENGTH) {
@@ -342,7 +347,6 @@ int pb_add_request(char *from_callsign, int type, MRAM_FILE * node, int file_id,
 
     strlcpy(pb_list[number_on_pb].callsign, from_callsign, MAX_CALLSIGN_LEN);
     pb_list[number_on_pb].pb_type = type;
-    pb_list[number_on_pb].file_handle = 0;
     pb_list[number_on_pb].offset = offset;
     //logicalTime_t time;
     //getTime(&time);
@@ -351,20 +355,20 @@ int pb_add_request(char *from_callsign, int type, MRAM_FILE * node, int file_id,
     pb_list[number_on_pb].request_time = secs;
     pb_list[number_on_pb].hole_num = num_of_holes;
     pb_list[number_on_pb].current_hole_num = 0;
-
-    if (node == NULL) {
-        pb_list[number_on_pb].node.file_id = file_id;
-        pb_list[number_on_pb].node.file_size = 0;
-        pb_list[number_on_pb].node.upload_time = 0;
-        pb_list[number_on_pb].node.address = 0;
-        pb_list[number_on_pb].node.body_offset = 0;
-    } else {
-        pb_list[number_on_pb].node.file_id = node->file_id;
-        pb_list[number_on_pb].node.file_size = node->file_size;
-        pb_list[number_on_pb].node.upload_time = node->upload_time;
-        pb_list[number_on_pb].node.address = node->address;
-        pb_list[number_on_pb].node.body_offset = node->body_offset;
-    }
+    pb_list[number_on_pb].node = node;
+//    if (node == NULL) {
+//        pb_list[number_on_pb].node.file_id = file_id;
+//        pb_list[number_on_pb].node.file_size = 0;
+//        pb_list[number_on_pb].node.upload_time = 0;
+//        pb_list[number_on_pb].node.address = 0;
+//        pb_list[number_on_pb].node.body_offset = 0;
+//    } else {
+//        pb_list[number_on_pb].node.file_id = node->file_id;
+//        pb_list[number_on_pb].node.file_size = node->file_size;
+//        pb_list[number_on_pb].node.upload_time = node->upload_time;
+//        pb_list[number_on_pb].node.address = node->address;
+//        pb_list[number_on_pb].node.body_offset = node->body_offset;
+//    }
 
     if (num_of_holes > 0) {
         if (type == PB_DIR_REQUEST_TYPE) {
@@ -415,7 +419,6 @@ int pb_remove_request(int pos) {
         for (i = pos + 1; i < number_on_pb; i++) {
             strlcpy(pb_list[i-1].callsign, pb_list[i].callsign, MAX_CALLSIGN_LEN);
             pb_list[i-1].pb_type = pb_list[i].pb_type;
-            pb_list[i-1].file_handle = pb_list[i].file_handle;
             pb_list[i-1].offset = pb_list[i].offset;
             pb_list[i-1].request_time = pb_list[i].request_time;
             if (pb_list[i].hole_num > 0) {
@@ -424,13 +427,12 @@ int pb_remove_request(int pos) {
                     pb_list[i-1].hole_list[j] = pb_list[i].hole_list[j];
             }
             pb_list[i-1].hole_num = pb_list[i].hole_num;
-//            memcpy(&pb_list[i].node, &pb_list[i-1].node, sizeof(DIR_NODE)); // this does not seem to work, hmm.
-
-            pb_list[i-1].node.file_id = pb_list[i].node.file_id;
-            pb_list[i-1].node.file_size = pb_list[i].node.file_size;
-            pb_list[i-1].node.upload_time = pb_list[i].node.upload_time;
-            pb_list[i-1].node.address = pb_list[i].node.address;
-            pb_list[i-1].node.body_offset = pb_list[i].node.body_offset;
+            pb_list[i-1].node = pb_list[i].node;
+//            pb_list[i-1].node.file_id = pb_list[i].node.file_id;
+//            pb_list[i-1].node.file_size = pb_list[i].node.file_size;
+//            pb_list[i-1].node.upload_time = pb_list[i].node.upload_time;
+//            pb_list[i-1].node.address = pb_list[i].node.address;
+//            pb_list[i-1].node.body_offset = pb_list[i].node.body_offset;
             pb_list[i-1].current_hole_num = pb_list[i].current_hole_num;
         }
     }
@@ -658,8 +660,8 @@ int pb_next_action() {
 
         int current_hole_num = pb_list[current_station_on_pb].current_hole_num;
         DIR_DATE_PAIR *holes = (DIR_DATE_PAIR *)pb_list[current_station_on_pb].hole_list;
-        uint32_t file_handle = NO_FILE; //dir_get_pfh_by_date(holes[current_hole_num], pb_list[current_station_on_pb].file_handle, &pb_list[current_station_on_pb].node);
-        if (file_handle == NO_FILE) {
+        DIR_NODE *node = dir_get_pfh_by_date(holes[current_hole_num], pb_list[current_station_on_pb].node);
+        if (node == NULL) {
             /* We have finished the broadcasts for this hole, or there were no records for the hole, move to the next hole if there is one. */
             // TODO - need to test this logic.  If we list 10 holes with no data and then 1 hole with data, then do we miss our turn on the PB 10 times?
             pb_list[current_station_on_pb].current_hole_num++; /* Increment now.  If the data is bad and we can't make a frame, we want to move on to the next */
@@ -679,46 +681,52 @@ int pb_next_action() {
             /* We found a dir header */
 
             debug_print("DIR BD Offset %d: ", pb_list[current_station_on_pb].offset);
-            pb_list[current_station_on_pb].file_handle = file_handle; // store this so we carry on from this point in the dir
 
-//
             /* Store the offset and pass it into the function that makes the broadcast packet.  The offset after
              * the broadcast is returned in this offset variable.  It equals the length of the PFH if the whole header
              * has been broadcast. */
             uint32_t offset = pb_list[current_station_on_pb].offset;
-            int data_len = pb_make_dir_broadcast_packet(&pb_list[current_station_on_pb].node, data_bytes, &offset);
-            if (data_len == 0) {debug_print("** Could not create the test DIR Broadcast frame\n");
+            int data_len = pb_make_dir_broadcast_packet(node, data_bytes, &offset);
+            if (data_len == 0) {
+                debug_print("** Could not create the test DIR Broadcast frame\n");
+                /* To avoid a loop where we keep hitting this error, we remove the station from the PB */
+                // TODO - this is a serious issue and we should log/report it in telemetry
+                pb_remove_request(current_station_on_pb);
                 return FALSE; }
+            ReportToWatchdog(CurrentTaskWD);
 
             /* Send the fill and finish */
-//            int rc = send_raw_packet(g_broadcast_callsign, QST, PID_DIRECTORY, data_bytes, data_len);
-//            //int rc = send_raw_packet('K', g_bbs_callsign, QST, PID_DIRECTORY, data_bytes, data_len);
-//            if (rc != TRUE) {
-//                error_print("Could not send broadcast packet to TNC \n");
-//                // TODO - we shoud remove the request here?
-//                return FALSE;
-//            }
-//
-//            /* check if we sent the whole PFH or if it is split into more than one broadcast */
-//            if (offset == node->pfh->bodyOffset) {
-//                /* Then we have sent this whole PFH */
-//                pb_list[current_station_on_pb].node = node->next; /* Store where we are in this broadcast of DIR fills */
-//                pb_list[current_station_on_pb].offset = 0; /* Reset this ready to send the next one */
-//
-//                if (node->next == NULL) {
-//                    /* There are no more records, we are at the end of the list, move to next hole if there is one */
-//                    pb_list[current_station_on_pb].current_hole_num++;
-//                    if (pb_list[current_station_on_pb].current_hole_num == pb_list[current_station_on_pb].hole_num) {
-//                        /* We have finished this hole list */
-//                        debug_print("Added last hole for request from %s\n", pb_list[current_station_on_pb].callsign);
-//                        pb_remove_request(current_station_on_pb);
-//                        /* If we removed a station then we don't want/need to increment the current station pointer */
-//                        return TRUE;
-//                    }
-//                }
-//            } else {
-//                pb_list[current_station_on_pb].offset = offset; /* Store the offset so we send the next part of the PFH next time */
-//            }
+            int rc = tx_send_packet(BROADCAST_CALLSIGN, QST, PID_DIRECTORY, data_bytes, data_len, BLOCK_IF_QUEUE_FULL);
+            ReportToWatchdog(CurrentTaskWD);
+
+            if (rc != TRUE) {
+                debug_print("Could not send broadcast packet to TNC \n");
+                /* To avoid a loop where we keep hitting this error, we remove the station from the PB */
+                // TODO - this is a serious issue and we should log/report it in telemetry
+                pb_remove_request(current_station_on_pb);
+                return FALSE;
+            }
+
+            /* check if we sent the whole PFH or if it is split into more than one broadcast */
+            if (offset == node->mram_file->body_offset) {
+                /* Then we have sent this whole PFH */
+                pb_list[current_station_on_pb].node = node->next; /* Store where we are in this broadcast of DIR fills */
+                pb_list[current_station_on_pb].offset = 0; /* Reset this ready to send the next one */
+
+                if (node->next == NULL) {
+                    /* There are no more records, we are at the end of the list, move to next hole if there is one */
+                    pb_list[current_station_on_pb].current_hole_num++;
+                    if (pb_list[current_station_on_pb].current_hole_num == pb_list[current_station_on_pb].hole_num) {
+                        /* We have finished this hole list */
+                        debug_print("Added last hole for request from %s\n", pb_list[current_station_on_pb].callsign);
+                        pb_remove_request(current_station_on_pb);
+                        /* If we removed a station then we don't want/need to increment the current station pointer */
+                        return TRUE;
+                    }
+                }
+            } else {
+                pb_list[current_station_on_pb].offset = offset; /* Store the offset so we send the next part of the PFH next time */
+            }
 
 
         }
@@ -840,7 +848,7 @@ int pb_next_action() {
       frames which are part of the same file's PFH are tagged with this number.
 
       offset     This is  the offset from the start of the PFH for the first data
-      byte in this frame.BROADCAST_REQUEST_HEADER_SIZE
+      byte in this frame.
 
       t_old     Number of seconds since 00:00:00 1/1/80. See below.
 
@@ -860,19 +868,18 @@ int pb_next_action() {
       RETURNS the length of the data packet created
 
  */
-bool pb_make_dir_broadcast_packet(MRAM_FILE *node, uint8_t *data_bytes, uint32_t *offset) {
+int pb_make_dir_broadcast_packet(DIR_NODE *node, uint8_t *data_bytes, uint32_t *offset) {
     int length = 0;
+    PB_DIR_HEADER *dir_broadcast = (PB_DIR_HEADER *)data_bytes;
+    uint8_t flag = 0;
 
-#ifdef 0
-    PB_DIR_HEADER dir_broadcast;
-    char flag = 0;
-    ///////////////////////// TODO - some logic here to set the E bit if this is the entire PFH otherwise deal with offset etc
-    if (node->pfh->bodyOffset < MAX_DIR_PFH_LENGTH) {
+    if (node->mram_file->body_offset < MAX_DIR_PFH_LENGTH) {
         flag |= 1UL << E_BIT; // Set the E bit, All of this header is contained in the broadcast frame
     }
-    dir_broadcast.offset = *offset;
-    dir_broadcast.flags = flag;
-    dir_broadcast.file_id = node->pfh->fileId;
+    // get the endianness right
+    dir_broadcast->offset = htotl(*offset);
+    dir_broadcast->flags = flag;
+    dir_broadcast->file_id = htotl(node->mram_file->file_id);
 
     /* The dates guarantee:
      "There   are  no  files  other  than  this  file   with
@@ -883,54 +890,37 @@ bool pb_make_dir_broadcast_packet(MRAM_FILE *node, uint8_t *data_bytes, uint32_t
       t_new is 1 second before the upload time of the next file
      */
     if (node->prev != NULL)
-        dir_broadcast.t_old = node->prev->pfh->uploadTime + 1;
+        dir_broadcast->t_old = htotl(node->prev->mram_file->upload_time + 1);
     else
-        dir_broadcast.t_old = 0;
+        dir_broadcast->t_old = 0;
     if (node->next != NULL)
-        dir_broadcast.t_new = node->next->pfh->uploadTime - 1;
+        dir_broadcast->t_new = htotl(node->next->mram_file->upload_time - 1);
     else {
-        dir_broadcast.t_new = node->pfh->uploadTime; // no files past this one so use its own uptime for now
+        dir_broadcast->t_new = htotl(node->mram_file->upload_time); // no files past this one so use its own uptime for now
         flag |= 1UL << N_BIT; /* Set the N bit to say this is the newest file on the server */
     }
 
-    char psf_filename[MAX_FILE_PATH_LEN];
-    pfh_make_filename(node->pfh->fileId,get_dir_folder(), psf_filename, MAX_FILE_PATH_LEN);
-    FILE * f = fopen(psf_filename, "r");
-    if (f == NULL) {
-        return 0;
-    }
-    int buffer_size = node->pfh->bodyOffset - *offset;  /* This is how much we have left to read */
+    int buffer_size = node->mram_file->body_offset - *offset;  /* This is how much we have left to read */
     if (buffer_size <= 0) return 0; /* This is a failure as we return length 0 */
     if (buffer_size >= MAX_DIR_PFH_LENGTH) {
         /* If we have an offset then we have already sent part of this, send the next part */
         // TODO - pass the offset into this function..
         buffer_size = MAX_DIR_PFH_LENGTH;
     }
-    unsigned char buffer[buffer_size];
-    if (*offset != 0)
-        if (fseek( f, *offset, SEEK_SET ) != 0) {
-            return 0; /* This is a failure as we return length 0 */
-        }
-    int num = fread(buffer, sizeof(char), buffer_size, f);
-    if (num != buffer_size) {
-        fclose(f);
+
+    /* Read the data into the data_bytes buffer after the header bytes */
+    int rc = dir_mram_read_file_chunk(node->mram_file,  data_bytes + sizeof(PB_DIR_HEADER), buffer_size, *offset) ;
+    if (rc != TRUE) {
         return 0; // Error with the read
     }
-    fclose(f);
-    *offset = *offset + num;
-    /* Copy the bytes into the frame */
-    unsigned char *header = (unsigned char *)&dir_broadcast;
-    int i;
-    for (i=0; i<sizeof(PB_DIR_HEADER);i++ )
-        data_bytes[i] = header[i];
-    for (i=0; i<num; i++)
-        data_bytes[i+sizeof(PB_DIR_HEADER)] = buffer[i];
+    *offset = *offset + buffer_size;
 
-    length = sizeof(PB_DIR_HEADER) + num +2;
+    length = sizeof(PB_DIR_HEADER) + buffer_size +2;
+    // TODO - no checksum yet
     int checksum = gen_crc(data_bytes, length-2);
     //debug_print("crc: %04x\n",checksum);
 
-    /* Despite everything being little endian, the CRC needs to be in network byte order, or big endian */
+    /* Despite the Pacsat protocol being little endian, the CRC needs to be in network byte order, or big endian */
     unsigned char one = (unsigned char)(checksum & 0xff);
     unsigned char two = (unsigned char)((checksum >> 8) & 0xff);
     data_bytes[length-1] = one;
@@ -945,7 +935,7 @@ bool pb_make_dir_broadcast_packet(MRAM_FILE *node, uint8_t *data_bytes, uint32_t
 //          printf("%02x ",data_bytes[i]);
 //          if (i%8 == 0 && i!=0) printf("\n");
 //  }
-#endif
+
     return length; // return length of header + pfh + crc
 }
 
@@ -1099,9 +1089,12 @@ int pb_test_list() {
 
     pb_debug_print_list();
 
-    MRAM_FILE test_node;
-    test_node.file_id = 3;
-    test_node.body_offset = 56;
+    MRAM_FILE test_file;
+    test_file.file_id = 3;
+    test_file.body_offset = 56;
+
+    DIR_NODE test_node;
+    test_node.mram_file = &test_file;
 
     // Test PB Full
     debug_print("ADD Calls and test FULL\n");
@@ -1149,8 +1142,8 @@ int pb_test_list() {
     if (strcmp(pb_list[current_station_on_pb].callsign, "AA1AAA-10") != 0) {printf("** Mismatched callsign current call after remove 5\n"); return FALSE;}
     if (strcmp(pb_list[5].callsign, "GG1GGG-13") != 0) {printf("** Mismatched callsign 5\n"); return FALSE;}
     /* Also confirm that the node copied over correctly */
-    if (pb_list[5].node.file_id != 3) {printf("** Mismatched file id for entry 5\n"); return FALSE;}
-    if (pb_list[5].node.body_offset != 56) {printf("** Mismatched body offset for entry 5\n"); return FALSE;}
+    if (pb_list[5].node->mram_file->file_id != 3) {printf("** Mismatched file id for entry 5\n"); return FALSE;}
+    if (pb_list[5].node->mram_file->body_offset != 56) {printf("** Mismatched body offset for entry 5\n"); return FALSE;}
     if (strcmp(pb_list[8].callsign, "JJ1JJJ-12") != 0) {printf("** Mismatched callsign 8\n"); return FALSE;}
 
     debug_print("Remove current station\n");

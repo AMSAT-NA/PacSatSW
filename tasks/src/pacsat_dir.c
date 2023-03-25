@@ -316,8 +316,10 @@ DIR_NODE * dir_get_pfh_by_date(DIR_DATE_PAIR pair, DIR_NODE *p ) {
     while (p != NULL) {
         DIR_NODE *node = p;
         p = p->next;
-        if (node->mram_file->upload_time >= pair.start && node->mram_file->upload_time <= pair.end)
+        if (node->mram_file->upload_time >= pair.start && node->mram_file->upload_time <= pair.end) {
+            debug_print("-> returning: %d\n",node->mram_file->file_id);
             return node;
+        }
     }
 
     return NULL;
@@ -429,7 +431,7 @@ void dir_debug_print(DIR_NODE *p) {
         debug_print("..Empty Dir List\n");
     while (p != NULL) {
         //pfh_debug_print(p->pfh);
-        debug_print("File id: %d up:%d\n",p->mram_file->file_id, p->mram_file->upload_time);
+        debug_print("File id: %04x up:%d\n",p->mram_file->file_id, p->mram_file->upload_time);
         p = p->next;
     }
 }
@@ -510,7 +512,19 @@ bool dir_mram_append_to_file(uint32_t file_handle, uint8_t *data, uint32_t lengt
 /**
  *
  */
-bool dir_mram_read_file_chunk(uint32_t file_handle, uint8_t *data, uint32_t chunk_length, uint32_t offset) {
+bool dir_mram_read_file_chunk(MRAM_FILE *mram_file, uint8_t *data, uint32_t chunk_length, uint32_t offset) {
+    bool rc;
+
+    if (mram_file->file_size < offset + chunk_length) {
+        debug_print("Read MRAM File size shorter than read amount. Read FAILED\n");
+        return FALSE;
+    }
+    // Read the data
+    rc = readNV(data, chunk_length, ExternalMRAMData, (int)(mram_file->address + offset));
+    if (!rc) {
+        debug_print("Read MRAM File data header - FAILED\n");
+        return FALSE;
+    }
 
     return TRUE;
 }

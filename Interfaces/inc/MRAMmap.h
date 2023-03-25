@@ -88,8 +88,21 @@ typedef struct _authKey {
 
 #define MRAM_VERSION 1
 
-/* This is a very simple file allocation table for testing the Pacsat Directory */
+/* This is a very simple file allocation table for testing the Pacsat Directory
+ * It also caches the most common Pacsat file Header meta data so we can quickly find files.
+ * Specifically upload_time and file_id
+ * address and file_size are needed to manage the data for the file.  body_offset is the length
+ * of the Pacsat file header and is stored so the header can be read more efficiently.  The
+ * alternative is to read the header byte by byte and parse it or to read a block larger than the
+ * header and extract it.  The header is variable length, which its length stores in one of its fields.
+ * TODO:  Would it be better to parse the headers when we load the DIR and then store the upload_time
+ * and file_id in the DIR_NODE.  This would seperate the meta data from the File System implementation,
+ * but it might be too slow at boot, when the dir is loaded.
+ * For now the upload_time and file_id are cached here when a file is created or updated.
+ *
+ * */
 typedef struct mram_node {
+    uint32_t file_handle; /* Self reference to the place in MRAMFiles that this record is stored */
     uint32_t upload_time;
     uint32_t file_id;
     uint32_t address; /* The address in MRAM where the data starts for this file */

@@ -33,7 +33,7 @@ bool dir_mram_get_node(uint32_t file_handle, MRAM_FILE * dir_node);
 bool dir_mram_write_file(uint32_t file_handle, uint8_t *data, uint32_t length, uint32_t file_id, uint32_t upload_time,
                          uint16_t body_offset, uint32_t address);
 bool dir_mram_append_to_file(uint32_t file_handle, uint8_t *data, uint32_t length );
-bool dir_mram_read_file_chunk(uint32_t file_handle, uint8_t *data, uint32_t chunk_length, uint32_t offset);
+bool dir_mram_read_file_chunk(MRAM_FILE *mram_file, uint8_t *data, uint32_t chunk_length, uint32_t offset);
 DIR_NODE * dir_get_pfh_by_date(DIR_DATE_PAIR pair, DIR_NODE *p );
 DIR_NODE * dir_get_node_by_id(int file_id);
 
