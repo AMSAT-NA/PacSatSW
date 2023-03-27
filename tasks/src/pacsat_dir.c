@@ -17,6 +17,10 @@
 #include "PbTask.h"
 #include "pacsat_header.h"
 #include "pacsat_dir.h"
+#include "inet.h"
+#ifdef DEBUG
+#include "time.h"
+#endif
 
 /* Dir variables */
 static DIR_NODE *dir_head = NULL;  // the head of the directory linked list
@@ -267,10 +271,10 @@ int dir_load() {
             debug_print("Read MRAM FAT - FAILED\n");
             return FALSE;
         }
-        debug_print("%d: Id: %04x ",file_handle,mram_file.file_id);
-        debug_print("Size: %d ",mram_file.file_size);
-        debug_print("Address: %d ",mram_file.address);
-        debug_print("Uploaded: %d\n",mram_file.upload_time);
+//        debug_print("%d: Id: %04x ",file_handle,mram_file.file_id);
+//        debug_print("Size: %d ",mram_file.file_size);
+//        debug_print("Address: %d ",mram_file.address);
+//        debug_print("Uploaded: %d\n",mram_file.upload_time);
 
         rc = dir_load_pacsat_file(&mram_file);
         if (rc != TRUE) {
@@ -324,45 +328,6 @@ DIR_NODE * dir_get_pfh_by_date(DIR_DATE_PAIR pair, DIR_NODE *p ) {
 
     return NULL;
 }
-//uint32_t dir_get_pfh_by_date(DIR_DATE_PAIR pair, uint32_t file_handle, MRAM_FILE *pfh_node ) {
-//    MRAM_FILE dir_node;
-//    uint32_t numOfFiles = 0;
-//    bool rc;
-//
-//    if (pfh_node == NULL) {
-//        return NO_FILE; // error
-//    }
-//
-//    rc = readNV(&numOfFiles, sizeof(uint32_t),ExternalMRAMData, (int)&(LocalFlash->NumberOfFiles));
-//    if (!rc) {
-//        debug_print("Read MRAM number of files - FAILED\n");
-//        return NO_FILE;
-//    }
-//
-//    while (file_handle < numOfFiles) {
-//        rc = dir_mram_get_node(file_handle++,&dir_node);
-//        if (!rc) {
-//            debug_print("Read MRAM FAT - FAILED\n");
-//            return NO_FILE;
-//        }
-//        debug_print("%d: Id: %04x ",file_handle,dir_node.file_id);
-//        debug_print("Size: %d ",dir_node.file_size);
-//        debug_print("Address: %d ",dir_node.address);
-//        debug_print("Uploaded: %d\n",dir_node.upload_time);
-//        if (dir_node.upload_time >= pair.start && dir_node.upload_time <= pair.end) {
-////            memcpy(&dir_node, pfh_node, sizeof(DIR_NODE));
-//            pfh_node->file_id = dir_node.file_id;
-//            pfh_node->file_size = dir_node.file_size;
-//            pfh_node->address = dir_node.address;
-//            pfh_node->upload_time = dir_node.upload_time;
-//            pfh_node->body_offset = dir_node.body_offset;
-//            return file_handle;
-//        }
-//
-//    }
-//
-//    return NO_FILE;
-//}
 
 /**
  * dir_get_node_by_id()
@@ -379,43 +344,8 @@ DIR_NODE * dir_get_node_by_id(int file_id) {
     }
     return NULL;
 }
-//uint32_t dir_get_node_by_id(int file_id, MRAM_FILE *pfh_node) {
-//    MRAM_FILE dir_node;
-//    uint32_t numOfFiles = 0;
-//    uint32_t file_handle = 0;
-//    bool rc;
-//
-//    if (pfh_node == NULL) {
-//        return NO_FILE; // error
-//    }
-//
-//    rc = readNV(&numOfFiles, sizeof(uint32_t),ExternalMRAMData, (int)&(LocalFlash->NumberOfFiles));
-//    if (!rc) {
-//        debug_print("Read MRAM number of files - FAILED\n");
-//        return NO_FILE;
-//    }
-//
-//    while (file_handle < numOfFiles) {
-//        rc = dir_mram_get_node(file_handle++,&dir_node);
-//        if (!rc) {
-//            debug_print("Read MRAM FAT - FAILED\n");
-//            return NO_FILE;
-//        }
-//        debug_print("%d: Id: %04x ",file_handle,dir_node.file_id);
-//        debug_print("Size: %d ",dir_node.file_size);
-//        debug_print("Uploaded: %d\n",dir_node.upload_time);
-//        if (pfh_node->file_id == dir_node.file_id) {
-//            pfh_node->file_id = dir_node.file_id;
-//            pfh_node->file_size = dir_node.file_size;
-//            pfh_node->address = dir_node.address;
-//            pfh_node->upload_time = dir_node.upload_time;
-//            pfh_node->body_offset = dir_node.body_offset;
-//            return file_handle;
-//        }
-//    }
-//
-//    return NO_FILE;
-//}
+
+#ifdef DEBUG
 
 /**
  * dir_debug_print()
@@ -431,10 +361,15 @@ void dir_debug_print(DIR_NODE *p) {
         debug_print("..Empty Dir List\n");
     while (p != NULL) {
         //pfh_debug_print(p->pfh);
-        debug_print("File id: %04x up:%d\n",p->mram_file->file_id, p->mram_file->upload_time);
+        char buf[30];
+         time_t now = p->mram_file->upload_time + 2208988800L;
+         strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", gmtime(&now));
+        debug_print("File id: %04x up:%d %s\n",p->mram_file->file_id, p->mram_file->upload_time,buf);
         p = p->next;
     }
 }
+
+#endif /* DEBUG */
 
 /**
  * SIMPLE MRAM FILE SYSTEM FOLLOWS
@@ -529,6 +464,8 @@ bool dir_mram_read_file_chunk(MRAM_FILE *mram_file, uint8_t *data, uint32_t chun
     return TRUE;
 }
 
+#ifdef DEBUG
+
 /**
  * TEST ROUTINES FOLLOW
  *
@@ -616,3 +553,5 @@ int test_pacsat_dir() {
         printf("##### TEST PACSAT DIR: fail\n");
     return rc;
 }
+
+#endif /* DEBUG */

@@ -522,6 +522,8 @@ uint8_t * pfh_store_str_field(uint8_t *buffer, uint16_t id, uint8_t len, char* s
     return buffer + len;
 }
 
+#ifdef DEBUG
+
 /**
  * TEST ROUTINES FOLLOW
  */
@@ -543,7 +545,7 @@ bool make_test_header(HEADER *pfh, uint32_t fh, unsigned int file_id, char *file
     /* Extended Header Information */
     strlcpy(pfh->source,source, sizeof(pfh->source));
 
-   pfh->uploadTime = now;  /// TODO - this should be ZERO and set when we load into dir.  Use 0 just for initial testing.
+    pfh->uploadTime = now;  /// TODO - this should be ZERO and set when we load into dir.  Use 0 just for initial testing.
     pfh->downloadCount = 0;
     strlcpy(pfh->destination,destination, sizeof(pfh->destination));
     pfh->downloadTime = 0;
@@ -804,5 +806,4 @@ Thus, there are 3 forms of PACSAT file header:\n\
     return rc;
 }
 
-
-
+#endif /* DEBUG */

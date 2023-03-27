@@ -61,6 +61,13 @@ A DIR or FILE request is added to the PB assuming we have space on the PB list
 
 If the File Number is not available for a file request then we send an error
 packet: NO
+
+NOTE: The TMS570 is big endian.  All of the protocols are little endian.  So we have some
+byte shuffling to do.  All data directly received from the ground is in little endian
+order.
+When we store data in a value or structure internally we need to convert it to big endian
+
+
  */
 
 #include <strings.h> // TODO - do we really need this?  How much space does it use.
@@ -76,8 +83,11 @@ packet: NO
 #include "TxTask.h"
 #include "pacsat_dir.h"
 #include "crc16.h"
+#ifdef DEBUG
+#include "time.h"
+#endif
 
-static uint8_t data_bytes[AX25_MAX_DATA_LEN]; /* Static buffer used to store file bytes loaded from MRAM */
+static uint8_t data_buffer[AX25_MAX_DATA_LEN]; /* Static buffer used to store file bytes loaded from MRAM */
 static uint8_t pb_packet_buffer[AX25_PKT_BUFFER_LEN]; /* Static buffer used to store packet as it is assembled and before copy to TX queue */
 static char pb_status_buffer[135]; // 10 callsigns * 13 bytes + 4 + nul
 
@@ -88,7 +98,7 @@ struct pb_entry {
     DIR_NODE *node; /* The node that we should broadcast next if this is a DIR request.  Physically stored in the DIR linked list */
     uint32_t offset; /* The current offset in the file we are broadcasting or the PFH we are transmitting */
     uint8_t block_size; /* The maximum size of broadcasts. THIS IS CURRENTLY IGNORED but in theory is sent from the ground for file requests */
-    uint8_t hole_list[MAX_PB_HOLES_LIST_BYTES]; /* This is a DIR or FILE hole list */
+    uint8_t hole_list[MAX_PB_HOLES_LIST_BYTES]; /* This is a DIR or FILE hole list and it has been converted to BIG ENDIAN */
     uint8_t hole_num; /* The number of holes from the request */
     uint8_t current_hole_num; /* The next hole number from the request that we should process when this one is done */
     uint32_t request_time; /* The time the request was received for timeout purposes */
@@ -286,6 +296,7 @@ void pb_make_list_str(char *buffer, int len) {
     }
 }
 
+#ifdef DEBUG
 void pb_debug_print_list() {
     char buffer[256];
     pb_make_list_str(buffer, sizeof(buffer));
@@ -303,10 +314,11 @@ void pb_debug_print_list_item(int i) {
     else
         debug_print("File: NULL ");
     debug_print("Off:%d Holes:%d Cur:%d",pb_list[i].offset,pb_list[i].hole_num,pb_list[i].current_hole_num);
-//    char buf[30];
-//    time_t now = pb_list[i].request_time;
-//    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", gmtime(&now));
-    debug_print(" at:%d", pb_list[i].request_time);
+
+    char buf[30];
+    time_t now = pb_list[i].request_time;
+    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", gmtime(&now));
+    debug_print(" at:%d %s ", pb_list[i].request_time, buf);
 
     if (pb_list[i].pb_type == PB_DIR_REQUEST_TYPE)
         pb_debug_print_dir_holes((DIR_DATE_PAIR *)pb_list[i].hole_list, pb_list[i].hole_num);
@@ -314,6 +326,7 @@ void pb_debug_print_list_item(int i) {
         pb_debug_print_file_holes((FILE_DATE_PAIR *)pb_list[i].hole_list, pb_list[i].hole_num);
 }
 
+#endif
 
 /**
  * pb_add_request()
@@ -376,16 +389,16 @@ int pb_add_request(char *from_callsign, int type, DIR_NODE * node, int file_id, 
             DIR_DATE_PAIR *dir_hole_list = (DIR_DATE_PAIR *) pb_list[number_on_pb].hole_list;
             int i;
             for (i=0; i<num_of_holes; i++) {
-                dir_hole_list[i].start = dir_holes[i].start;
-                dir_hole_list[i].end = dir_holes[i].end;
+                dir_hole_list[i].start = ttohl(dir_holes[i].start);
+                dir_hole_list[i].end = ttohl(dir_holes[i].end);
             }
         } else {
             FILE_DATE_PAIR *file_holes = (FILE_DATE_PAIR *)holes;
             FILE_DATE_PAIR *file_hole_list = (FILE_DATE_PAIR *)pb_list[number_on_pb].hole_list;
             int i;
             for (i=0; i<num_of_holes; i++) {
-                file_hole_list[i].offset = file_holes[i].offset;
-                file_hole_list[i].length = file_holes[i].length;
+                file_hole_list[i].offset = file_holes[i].offset; // todo, how to convert from little endian
+                file_hole_list[i].length = ttohs(file_holes[i].length);
             }
         }
     }
@@ -512,18 +525,26 @@ DIR_DATE_PAIR * get_dir_holes_list(unsigned char *data) {
     return holes;
 }
 
+#ifdef DEBUG
+/*
+  * According to the Time protocol in RFC 868 it is 2208988800L.
+  * The time is the number of seconds since 00:00 (midnight) 1 January 1900 GMT, such that the time 1 is 12:00:01 am
+  * on 1 January 1900 GMT; this base will serve until the year 2036.
+  * However, the TI time library has 1900-01-01 06:00 as time zero, so we need to subtract 6 hours or 21600 seconds
+  * giving 2208967200
+  */
 void pb_debug_print_dir_holes(DIR_DATE_PAIR *holes, int num_of_holes) {
     debug_print(" - %d holes: ",num_of_holes);
     int i;
     for (i=0; i< num_of_holes; i++) {
-        debug_print("%x - %x, ",holes[i].start, holes[i].end);
-//        char buf[30];
-//        time_t now = holes[i].start;
-//        strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", gmtime(&now));
-//        debug_print("%s,", buf);
-//        now = holes[i].end;
-//        strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", gmtime(&now));
-//        debug_print("%s ", buf);
+        debug_print("%x - %x, ",ttohl(holes[i].start), ttohl(holes[i].end));
+        char buf[30];
+        time_t now = ttohl(holes[i].start) + 2208988800L;
+        strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", gmtime(&now));
+        debug_print("%s,", buf);
+        now = ttohl(holes[i].end) + 2208988800L;
+        strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", gmtime(&now));
+        debug_print("%s ", buf);
     }
     debug_print("\n");
 }
@@ -548,10 +569,14 @@ void pb_debug_print_dir_req(unsigned char *data, int len) {
             debug_print("- missing hole list\n");
         else {
             DIR_DATE_PAIR *holes = get_dir_holes_list(data); //(DIR_DATE_PAIR *)(data + BROADCAST_REQUEST_HEADER_SIZE + DIR_REQUEST_HEADER_SIZE );
+#ifdef DEBUG
             pb_debug_print_dir_holes(holes, num_of_holes);
+#endif
         }
     }
 }
+
+#endif /* DEBUG */
 
 /**
  * pb_handle_dir_request()
@@ -686,7 +711,7 @@ int pb_next_action() {
              * the broadcast is returned in this offset variable.  It equals the length of the PFH if the whole header
              * has been broadcast. */
             uint32_t offset = pb_list[current_station_on_pb].offset;
-            int data_len = pb_make_dir_broadcast_packet(node, data_bytes, &offset);
+            int data_len = pb_make_dir_broadcast_packet(node, data_buffer, &offset);
             if (data_len == 0) {
                 debug_print("** Could not create the test DIR Broadcast frame\n");
                 /* To avoid a loop where we keep hitting this error, we remove the station from the PB */
@@ -696,7 +721,7 @@ int pb_next_action() {
             ReportToWatchdog(CurrentTaskWD);
 
             /* Send the fill and finish */
-            int rc = tx_send_packet(BROADCAST_CALLSIGN, QST, PID_DIRECTORY, data_bytes, data_len, BLOCK_IF_QUEUE_FULL);
+            int rc = tx_send_packet(BROADCAST_CALLSIGN, QST, PID_DIRECTORY, data_buffer, data_len, BLOCK_IF_QUEUE_FULL);
             ReportToWatchdog(CurrentTaskWD);
 
             if (rc != TRUE) {
@@ -908,7 +933,7 @@ int pb_make_dir_broadcast_packet(DIR_NODE *node, uint8_t *data_bytes, uint32_t *
         buffer_size = MAX_DIR_PFH_LENGTH;
     }
 
-    /* Read the data into the data_bytes buffer after the header bytes */
+    /* Read the data into the mram_data_bytes buffer after the header bytes */
     int rc = dir_mram_read_file_chunk(node->mram_file,  data_bytes + sizeof(PB_DIR_HEADER), buffer_size, *offset) ;
     if (rc != TRUE) {
         return 0; // Error with the read
@@ -926,7 +951,7 @@ int pb_make_dir_broadcast_packet(DIR_NODE *node, uint8_t *data_bytes, uint32_t *
     data_bytes[length-1] = one;
     data_bytes[length-2] = two;
 
-//  if (check_crc(data_bytes, length+2) != 0) {
+//  if (check_crc(mram_data_bytes, length+2) != 0) {
 //      error_print("CRC does not match\n");
 //      return 0;
 //  }
@@ -939,6 +964,7 @@ int pb_make_dir_broadcast_packet(DIR_NODE *node, uint8_t *data_bytes, uint32_t *
     return length; // return length of header + pfh + crc
 }
 
+#ifdef DEBUG
 
 /***********************************************************************************************
  *
@@ -1179,3 +1205,4 @@ int pb_test_list() {
     return rc;
 }
 
+#endif /* DEBUG */

@@ -150,6 +150,7 @@ enum {
     ,mramSleep
     ,mramAwake
     ,startRx
+#ifdef DEBUG
     ,testPacsat
     ,testCallsigns
     ,testTx
@@ -160,6 +161,8 @@ enum {
     ,testPfh
     ,testPfhFiles
     ,makePfhFiles
+    ,testDir
+#endif
     ,monitorOn
     ,monitorOff
     ,pbShut
@@ -167,7 +170,6 @@ enum {
     ,mramLs
     ,dirLoad
     ,dirClear
-    ,testDir
     ,listDir
 };
 
@@ -211,6 +213,7 @@ commandPairs debugCommands[] = {
                                 ,{"mram wren","Write enable MRAM",MRAMWrEn}
                                 ,{"mram wake","Send wake command to MRAM",mramAwake}
                                 ,{"mram sleep","Send sleep command to MRAM",mramSleep}
+#ifdef DEBUG
                                 ,{"test pacsat","Run all of the PACSAT self tst routines",testPacsat}
                                 ,{"test callsigns","Test the AX25 callsign routines",testCallsigns}
                                 ,{"test tx","Test the Pacsat TX Packet routines",testTx}
@@ -221,6 +224,8 @@ commandPairs debugCommands[] = {
                                 ,{"test pfh","Test the Pacsat File Header Routines",testPfh}
                                 ,{"test psf","Test the Pacsat Files in MRAM",testPfhFiles}
                                 ,{"make psf","Make a set of test Pacsat Files in MRAM",makePfhFiles}
+                                ,{"test dir","Test the Pacsat Directory.  The command 'make psf' must already have been run",testDir}
+#endif
                                 ,{"monitor on","Monitor sent and received packets",monitorOn}
                                 ,{"monitor off","Stop monitoring packets",monitorOff}
                                 ,{"pb shut","Shut the PB",pbShut}
@@ -228,7 +233,6 @@ commandPairs debugCommands[] = {
                                 ,{"mram ls","List the files in MRAM",mramLs}
                                 ,{"load dir","Load the directory from MRAM",dirLoad}
                                 ,{"clear dir","Clear the directory but leave the files in MRAM",dirClear}
-                                ,{"test dir","Test the Pacsat Directory.  The command 'make psf' must already have been run",testDir}
                                 ,{"list dir","List the Pacsat Directory.",listDir}
 
 };
@@ -904,6 +908,7 @@ void RealConsoleTask(void)
             break;
         }
 
+#ifdef DEBUG
         /* G0KLA TEST ROUTINES */
         case testPacsat:{
 
@@ -955,6 +960,13 @@ void RealConsoleTask(void)
             bool rc = test_pfh_make_files();
             break;
         }
+        case testDir:{
+            bool rc = test_pacsat_dir();
+            break;
+        }
+
+#endif /* DEBUG */
+
         case monitorOn:{
             monitorPackets=true;
             printf("monitorPackets = true\n");
@@ -1026,10 +1038,6 @@ void RealConsoleTask(void)
             break;
         }
 
-        case testDir:{
-            bool rc = test_pacsat_dir();
-            break;
-        }
 
         case listDir:{
             bool rc = dir_debug_print(NULL); // pass NULL to print from the head of the list
