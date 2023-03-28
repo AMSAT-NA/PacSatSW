@@ -32,7 +32,7 @@
 #define CRCLENGTH 2
 
 int check_crc(unsigned char *buf, int length);
-unsigned short gen_crc(unsigned char *buf, int length);
+unsigned short crc16(unsigned char *buf, int length);
 
 
 

@@ -271,7 +271,12 @@ void ConsoleTask(void *pvParameters){
 //                NULL,COMMAND_PRIORITY, NULL);
 
     /* Load the directory from MRAM and perform some integrity checks */
-//    dir_load();
+    int rc = dir_load();
+    if (rc != TRUE) {
+        debug_print("ERROR: Could not load the directory from MRAM\n");
+        // TODO - pretty fatal - need to handle or log this error
+    }
+    printf("Free heap size after dir loaded: %d\n",xPortGetFreeHeapSize());
 
      xTaskCreate(RxTask,"RxTask",RX_STACK_SIZE, NULL,RX_PRIORITY,NULL);
      xTaskCreate(PbTask,"PbTask",PB_STACK_SIZE, NULL,PB_PRIORITY,NULL);

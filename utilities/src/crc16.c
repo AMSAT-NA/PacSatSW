@@ -27,7 +27,7 @@
 */
 
 
-short gen_crc(unsigned char *buf, int length) {
+short crc16(unsigned char *buf, int length) {
     short crc = 0;
     int y, i;
 
@@ -49,7 +49,7 @@ short gen_crc(unsigned char *buf, int length) {
 
 int check_crc(unsigned char *buf, int length)
 {
-    short crc = gen_crc(buf, length);
+    short crc = crc16(buf, length);
 
     if (crc != 0)
         return 0;

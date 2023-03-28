@@ -130,11 +130,16 @@ int pb_add_request(char *from_callsign, int type, DIR_NODE * node, int file_id, 
 int pb_remove_request(int pos);
 void pb_process_frame(char *from_callsign, char *to_callsign, uint8_t *data, int len);
 int get_num_of_dir_holes(int request_len);
+FILE_DATE_PAIR * get_file_holes_list(unsigned char *data);
+int get_num_of_file_holes(int request_len);
 int pb_handle_dir_request(char *from_callsign, unsigned char *data, int len);
+int pb_handle_file_request(char *from_callsign, uint8_t *data, int len);
 void pb_debug_print_dir_holes(DIR_DATE_PAIR *holes, int num_of_holes);
 void pb_debug_print_file_holes(FILE_DATE_PAIR *holes, int num_of_holes);
 int pb_next_action();
 int pb_make_dir_broadcast_packet(DIR_NODE *node, uint8_t *data_bytes, uint32_t *offset);
+int pb_broadcast_next_file_chunk(MRAM_FILE *mram_file, int offset, int length, int file_size);
+int pb_make_file_broadcast_packet(MRAM_FILE *mram_file, uint8_t *data_bytes, int number_of_bytes_read, int offset, int chunk_includes_last_byte);
 
 /**
  * The PB task monitors the PB Packet Queue and processes received packets.  It keeps track of stations
@@ -152,9 +157,9 @@ portTASK_FUNCTION_PROTO(PbTask, pvParameters)  {
     int pvtPbStatusTimerID = 0; // timer id
 
     /* create a RTOS software timer - TODO period should be in MRAM and changeable from the ground using xTimerChangePeriod() */
-    pbStatusTimerHandle = xTimerCreate( "PB STATUS", SECONDS(10), TRUE, &pvtPbStatusTimerID, pb_send_status); // auto reload timer
+    pbStatusTimerHandle = xTimerCreate( "PB STATUS", SECONDS(30), TRUE, &pvtPbStatusTimerID, pb_send_status); // auto reload timer
     /* start the timer */
-//    timerStatus = xTimerStart(pbStatusTimerHandle, 0); // Block time of zero as this can not block
+    timerStatus = xTimerStart(pbStatusTimerHandle, 0); // Block time of zero as this can not block
     if (timerStatus != pdPASS) {
         debug_print("ERROR: Failed in init PB Status Timer\n");
 // TODO =>        ReportError(RTOSfailure, FALSE, ReturnAddr, (int) PbTask); /* failed to create the RTOS timer */
@@ -369,19 +374,6 @@ int pb_add_request(char *from_callsign, int type, DIR_NODE * node, int file_id, 
     pb_list[number_on_pb].hole_num = num_of_holes;
     pb_list[number_on_pb].current_hole_num = 0;
     pb_list[number_on_pb].node = node;
-//    if (node == NULL) {
-//        pb_list[number_on_pb].node.file_id = file_id;
-//        pb_list[number_on_pb].node.file_size = 0;
-//        pb_list[number_on_pb].node.upload_time = 0;
-//        pb_list[number_on_pb].node.address = 0;
-//        pb_list[number_on_pb].node.body_offset = 0;
-//    } else {
-//        pb_list[number_on_pb].node.file_id = node->file_id;
-//        pb_list[number_on_pb].node.file_size = node->file_size;
-//        pb_list[number_on_pb].node.upload_time = node->upload_time;
-//        pb_list[number_on_pb].node.address = node->address;
-//        pb_list[number_on_pb].node.body_offset = node->body_offset;
-//    }
 
     if (num_of_holes > 0) {
         if (type == PB_DIR_REQUEST_TYPE) {
@@ -397,7 +389,7 @@ int pb_add_request(char *from_callsign, int type, DIR_NODE * node, int file_id, 
             FILE_DATE_PAIR *file_hole_list = (FILE_DATE_PAIR *)pb_list[number_on_pb].hole_list;
             int i;
             for (i=0; i<num_of_holes; i++) {
-                file_hole_list[i].offset = file_holes[i].offset; // todo, how to convert from little endian
+                file_hole_list[i].offset = ttoh24(file_holes[i].offset); // convert from little endian
                 file_hole_list[i].length = ttohs(file_holes[i].length);
             }
         }
@@ -441,11 +433,6 @@ int pb_remove_request(int pos) {
             }
             pb_list[i-1].hole_num = pb_list[i].hole_num;
             pb_list[i-1].node = pb_list[i].node;
-//            pb_list[i-1].node.file_id = pb_list[i].node.file_id;
-//            pb_list[i-1].node.file_size = pb_list[i].node.file_size;
-//            pb_list[i-1].node.upload_time = pb_list[i].node.upload_time;
-//            pb_list[i-1].node.address = pb_list[i].node.address;
-//            pb_list[i-1].node.body_offset = pb_list[i].node.body_offset;
             pb_list[i-1].current_hole_num = pb_list[i].current_hole_num;
         }
     }
@@ -507,7 +494,7 @@ void pb_process_frame(char *from_callsign, char *to_callsign, uint8_t *data, int
         }
         if ((broadcast_request_header->pid & 0xff) == PID_FILE) {
             // File Request
-            //pb_handle_file_request(from_callsign, data, len);
+            pb_handle_file_request(from_callsign, data, len);
         }
     } else {
         debug_print("PB: Packet Ignored\n");
@@ -525,13 +512,24 @@ DIR_DATE_PAIR * get_dir_holes_list(unsigned char *data) {
     return holes;
 }
 
+
+int get_num_of_file_holes(int request_len) {
+    int num_of_holes = (request_len - sizeof(AX25_HEADER) - sizeof(FILE_REQ_HEADER)) / sizeof(FILE_DATE_PAIR);
+    return num_of_holes;
+}
+
+FILE_DATE_PAIR * get_file_holes_list(unsigned char *data) {
+    FILE_DATE_PAIR *holes = (FILE_DATE_PAIR *)(data + sizeof(AX25_HEADER) + sizeof(FILE_REQ_HEADER) );
+    return holes;
+}
+
+
 #ifdef DEBUG
 /*
-  * According to the Time protocol in RFC 868 it is 2208988800L.
-  * The time is the number of seconds since 00:00 (midnight) 1 January 1900 GMT, such that the time 1 is 12:00:01 am
-  * on 1 January 1900 GMT; this base will serve until the year 2036.
-  * However, the TI time library has 1900-01-01 06:00 as time zero, so we need to subtract 6 hours or 21600 seconds
-  * giving 2208967200
+  * According to the Time protocol in RFC 868 2208988800L is the number of seconds since 00:00 (midnight) 1 January 1900 GMT,
+  * such that the time 1 is 12:00:01 am on 1 January 1900 GMT; this base will serve until the year 2036.
+  * TI time library has 1900-01-01 06:00 as time zero.  We only use this hack for debug to confirm the dates
+  * have the right endianness and were parsed correctly.
   */
 void pb_debug_print_dir_holes(DIR_DATE_PAIR *holes, int num_of_holes) {
     debug_print(" - %d holes: ",num_of_holes);
@@ -587,7 +585,7 @@ void pb_debug_print_dir_req(unsigned char *data, int len) {
  * station was not added to the PB.  Only returns FALSE if there is
  * an unexpected error, such as the TX Radio Queue is unavailable.
  */
-int pb_handle_dir_request(char *from_callsign, unsigned char *data, int len) {
+int pb_handle_dir_request(char *from_callsign, uint8_t *data, int len) {
     // Dir Request
     int rc=TRUE;
     DIR_REQ_HEADER *dir_header;
@@ -600,7 +598,7 @@ int pb_handle_dir_request(char *from_callsign, unsigned char *data, int len) {
 #ifdef DEBUG
         pb_debug_print_dir_req(data, len);
 #endif
-        debug_print("DIR FILL REQUEST: flags: %02x BLK_SIZE: %04x\n", dir_header->flags & 0xff, dir_header->block_size &0xffff);
+        debug_print("DIR FILL REQUEST: flags: %02x BLK_SIZE: %04x\n", dir_header->flags & 0xff, ttohs(dir_header->block_size &0xffff));
 
         /* Get the number of holes in this request and make sure it is in a valid range */
         int num_of_holes = get_num_of_dir_holes(len);
@@ -638,6 +636,123 @@ int pb_handle_dir_request(char *from_callsign, unsigned char *data, int len) {
             return FALSE;
         }
     }
+    return rc;
+}
+
+/**
+ * pb_handle_file_request()
+ *
+ * Parse the data from a Broadcast File Request and add an entry on the PB.
+ *
+ * Returns TRUE if the station was added to the PB, otherwise it
+ * returns FALSE
+ */
+int pb_handle_file_request(char *from_callsign, uint8_t *data, int len) {
+    // File Request
+    int rc=TRUE;
+    int num_of_holes = 0;
+    FILE_REQ_HEADER *file_header;
+    file_header = (FILE_REQ_HEADER *)(data + sizeof(AX25_HEADER));
+    uint32_t file_id = ttohl(file_header->file_id);
+    uint8_t flag = (file_header->flags & 0b11);
+
+    debug_print("FILE REQUEST: flags: %02x file: %04x BLK_SIZE: %04x\n", file_header->flags & 0xff, file_id,
+                ttohs(file_header->block_size));
+
+    /* First, does the file exist */
+    DIR_NODE * node = dir_get_node_by_id(file_id);
+    if (node == NULL) {
+        rc = pb_send_err(from_callsign, PB_ERR_FILE_NOT_AVAILABLE);
+        if (rc != TRUE) {
+            debug_print("\n Error : Could not send ERR Response to TNC \n");
+            //exit(FALSE);
+        }
+        return FALSE;
+    }
+
+    switch (flag) {
+
+    case PB_START_SENDING_FILE : {
+        /* least sig 2 bits of flags are 00 if this is a request to send a new file */
+        // Add to the PB
+        debug_print(" - send whole file\n");
+        if (pb_add_request(from_callsign, PB_FILE_REQUEST_TYPE, node, file_id, 0, 0, 0) == TRUE) {
+            // ACK the station
+            rc = pb_send_ok(from_callsign);
+            if (rc != TRUE) {
+                debug_print("\n Error : Could not send OK Response to TNC \n");
+                //exit(FALSE);
+            }
+        } else {
+            // the protocol says NO -1 means temporary problem. e.g. shut and -2 means permanent
+            rc = pb_send_err(from_callsign, PB_ERR_TEMPORARY); // shut or closed
+            if (rc != TRUE) {
+                debug_print("\n Error : Could not send ERR Response to TNC \n");
+                //exit(FALSE);
+            }
+            return FALSE;
+        }
+        break;
+
+    }
+    case PB_STOP_SENDING_FILE : {
+        /* A station can only stop a file broadcast if they started it */
+        debug_print(" - stop sending file\n");
+        debug_print("\n NOT IMPLEMENTED YET : Unable to handle a file download cancel request \n");
+        return FALSE;
+    }
+    case PB_FILE_HOLE_LIST : {
+        /* Process the hole list for the file */
+        num_of_holes = get_num_of_file_holes(len);
+        if (num_of_holes < 1 || num_of_holes > AX25_MAX_DATA_LEN / sizeof(FILE_DATE_PAIR)) {
+            /* This does not have a valid holes list */
+            rc = pb_send_err(from_callsign, PB_ERR_FILE_INVALID_PACKET);
+            if (rc != TRUE) {
+                debug_print("Error : Could not send ERR Response to TNC \n");
+                //exit(FALSE);
+            }
+            return FALSE;
+        }
+        FILE_DATE_PAIR * holes = get_file_holes_list(data);
+#ifdef DEBUG
+        pb_debug_print_file_holes(holes, num_of_holes);
+#endif
+        /* We could check the integrity of the holes list.  The offset should be inside the file length
+         * but note that the ground station can just give FFFF as the upper length for a hole*/
+//      for (int i=0; i < num_of_holes; i++) {
+//          if (holes[i].offset >= node->pfh->fileSize) {
+//              /* This does not have a valid holes list */
+//              rc = pb_send_err(from_callsign, PB_ERR_FILE_INVALID_PACKET);
+//              if (rc != TRUE) {
+//                  error_print("\n Error : Could not send ERR Response to TNC \n");
+//                  //exit(FALSE);
+//              }
+//              return FALSE;
+//          }
+//      }
+        if (pb_add_request(from_callsign, PB_FILE_REQUEST_TYPE, node, file_id, 0, holes, num_of_holes) == TRUE) {
+            // ACK the station
+            rc = pb_send_ok(from_callsign);
+            if (rc != TRUE) {
+                debug_print("Error : Could not send OK Response to TNC \n");
+                //exit(FALSE);
+            }
+        } else {
+            return FALSE;
+        }
+        break;
+    }
+
+    default : {
+        rc = pb_send_err(from_callsign, PB_ERR_FILE_INVALID_PACKET);
+        if (rc != TRUE) {
+            debug_print("Error : Could not send ERR Response to TNC \n");
+            //exit(FALSE);
+        }
+        return FALSE;
+    }
+
+    } /* switch */
     return rc;
 }
 
@@ -760,17 +875,15 @@ int pb_next_action() {
      *  Process Request to broadcast a file or parts of a file
      */
     } else if (pb_list[current_station_on_pb].pb_type == PB_FILE_REQUEST_TYPE) {
-#ifdef 0
+
         debug_print("Preparing FILE Broadcast for %s\n",pb_list[current_station_on_pb].callsign);
 
-        char psf_filename[MAX_FILE_PATH_LEN];
-        pfh_make_filename(pb_list[current_station_on_pb].node->pfh->fileId,get_dir_folder(), psf_filename, MAX_FILE_PATH_LEN);
 
         if (pb_list[current_station_on_pb].hole_num == 0) {
             /* Request to broadcast the whole file */
             /* SEND THE NEXT CHUNK OF THE FILE BASED ON THE OFFSET */
-            int number_of_bytes_read = pb_broadcast_next_file_chunk(pb_list[current_station_on_pb].node->pfh, psf_filename,
-                    pb_list[current_station_on_pb].offset, PB_FILE_DEFAULT_BLOCK_SIZE, pb_list[current_station_on_pb].node->pfh->fileSize);
+            int number_of_bytes_read = pb_broadcast_next_file_chunk(pb_list[current_station_on_pb].node->mram_file,
+                    pb_list[current_station_on_pb].offset, PB_FILE_DEFAULT_BLOCK_SIZE, pb_list[current_station_on_pb].node->mram_file->file_size);
             pb_list[current_station_on_pb].offset += number_of_bytes_read;
             if (number_of_bytes_read == 0) {
                 pb_remove_request(current_station_on_pb);
@@ -779,7 +892,7 @@ int pb_next_action() {
             }
 
             /* If we are done then remove this request */
-            if (pb_list[current_station_on_pb].offset >= pb_list[current_station_on_pb].node->pfh->fileSize) {
+            if (pb_list[current_station_on_pb].offset >= pb_list[current_station_on_pb].node->mram_file->file_size) {
                 pb_remove_request(current_station_on_pb);
                 /* If we removed a station then we don't want/need to increment the current station pointer */
                 return TRUE;
@@ -789,12 +902,12 @@ int pb_next_action() {
             /* Request to fill holes in the file */
             int current_hole_num = pb_list[current_station_on_pb].current_hole_num;
             debug_print("Preparing Fill %d of %d from FILE %04x for %s --",(current_hole_num+1), pb_list[current_station_on_pb].hole_num,
-                    pb_list[current_station_on_pb].file_id, pb_list[current_station_on_pb].callsign);
+                    pb_list[current_station_on_pb].node->mram_file->file_id, pb_list[current_station_on_pb].callsign);
 
-            FILE_DATE_PAIR *holes = pb_list[current_station_on_pb].hole_list;
+            FILE_DATE_PAIR *holes = (FILE_DATE_PAIR *)pb_list[current_station_on_pb].hole_list;
 
             if (pb_list[current_station_on_pb].offset == 0) {
-                /* Then this is probablly a new hole, initialize to the start of it */
+                /* Then this is probably a new hole, initialize to the start of it */
                 pb_list[current_station_on_pb].offset = holes[current_hole_num].offset;
             }
             debug_print("  Chunk from %d length %d at offset %d\n",holes[current_hole_num].offset, holes[current_hole_num].length, pb_list[current_station_on_pb].offset);
@@ -803,8 +916,9 @@ int pb_next_action() {
              * still has the following remaining bytes */
             int remaining_length_of_hole = holes[current_hole_num].offset + holes[current_hole_num].length - pb_list[current_station_on_pb].offset;
 
-            int number_of_bytes_read = pb_broadcast_next_file_chunk(pb_list[current_station_on_pb].node->pfh, psf_filename,
-                    pb_list[current_station_on_pb].offset, remaining_length_of_hole, pb_list[current_station_on_pb].node->pfh->fileSize);
+            int number_of_bytes_read = pb_broadcast_next_file_chunk(pb_list[current_station_on_pb].node->mram_file,
+                    pb_list[current_station_on_pb].offset, remaining_length_of_hole, pb_list[current_station_on_pb].node->mram_file->file_size);
+
             pb_list[current_station_on_pb].offset += number_of_bytes_read;
             if (number_of_bytes_read == 0) {
                 pb_remove_request(current_station_on_pb);
@@ -812,7 +926,7 @@ int pb_next_action() {
                 return TRUE;
             }
             if (pb_list[current_station_on_pb].offset >= holes[current_hole_num].offset + holes[current_hole_num].length
-                    || pb_list[current_station_on_pb].offset >= pb_list[current_station_on_pb].node->pfh->fileSize) {
+                    || pb_list[current_station_on_pb].offset >= pb_list[current_station_on_pb].node->mram_file->file_size) {
                 /* We have finished this hole, or we are at the end of the file */
                 pb_list[current_station_on_pb].current_hole_num++;
                 if (pb_list[current_station_on_pb].current_hole_num == pb_list[current_station_on_pb].hole_num) {
@@ -826,7 +940,7 @@ int pb_next_action() {
                 }
             }
         }
-#endif
+
     }
 
     current_station_on_pb++;
@@ -942,7 +1056,7 @@ int pb_make_dir_broadcast_packet(DIR_NODE *node, uint8_t *data_bytes, uint32_t *
 
     length = sizeof(PB_DIR_HEADER) + buffer_size +2;
     // TODO - no checksum yet
-    int checksum = gen_crc(data_bytes, length-2);
+    int checksum = crc16(data_bytes, length-2);
     //debug_print("crc: %04x\n",checksum);
 
     /* Despite the Pacsat protocol being little endian, the CRC needs to be in network byte order, or big endian */
@@ -963,6 +1077,118 @@ int pb_make_dir_broadcast_packet(DIR_NODE *node, uint8_t *data_bytes, uint32_t *
 
     return length; // return length of header + pfh + crc
 }
+
+/**
+ * pb_braodcast_next_file_chunk()
+ *
+ * Broadcast a chunk of a file at a given offset with a given length.
+ * At this point we already have the file on the PB, so we have validated
+ * that it exists.  Any errors at this point are unrecoverable and should
+ * result in the request being removed from the PB.
+ *
+ * Returns the offset to be stored for the next transmission or zero if there is an error.
+ *
+ */
+int pb_broadcast_next_file_chunk(MRAM_FILE *mram_file, int offset, int length, int file_size) {
+    int rc = TRUE;
+
+    if (length > PB_FILE_DEFAULT_BLOCK_SIZE)
+        length = PB_FILE_DEFAULT_BLOCK_SIZE;
+    uint32_t number_of_bytes_read = length;
+
+    // TODO - this is where the logic would go to check the block size that the client sends and potentially use that
+
+    /* Read the data into the mram_data_bytes buffer after the header bytes */
+    if (number_of_bytes_read > file_size - offset)
+        number_of_bytes_read = file_size - offset;
+    rc = dir_mram_read_file_chunk(mram_file,  data_buffer + sizeof(PB_FILE_HEADER), number_of_bytes_read, offset) ;
+    if (rc != TRUE) {
+        return 0; // Error with the read, zero bytes read
+    }
+    debug_print("Read %d bytes from %04x\n", number_of_bytes_read, mram_file->file_id);
+
+    int chunk_includes_last_byte = false;
+
+    if (offset + number_of_bytes_read >= file_size)
+        chunk_includes_last_byte = true;
+
+    debug_print("FILE BB to send: ");
+
+    int data_len = pb_make_file_broadcast_packet(mram_file, data_buffer, number_of_bytes_read, offset, chunk_includes_last_byte);
+    if (data_len == 0) {
+        /* Hmm, something went badly wrong here.
+         * TODO: We better remove this request or we will keep
+         * hitting this error.  It's unclear what went wrong do we mark the file as not available?
+         * Or just remove this request without an error?  But then the client will automatically
+         * request this file again.. */
+        debug_print("** Could not create the test DIR Broadcast frame\n");
+        return TRUE;
+    }
+
+    /* Send the broadcast and finish */
+    /* Send the fill and finish */
+    rc = tx_send_packet(BROADCAST_CALLSIGN, QST, PID_FILE, data_buffer, data_len, BLOCK_IF_QUEUE_FULL);
+    ReportToWatchdog(CurrentTaskWD);
+    if (rc != TRUE) {
+        debug_print("Could not send FILE broadcast packet to TNC \n");
+        return TRUE;
+    }
+
+    return number_of_bytes_read;
+}
+
+/**
+ * pb_make_file_broadcast_packet()
+ *
+ *  Returns packet in unsigned char *data_bytes
+
+flags          A bit field as follows:
+
+     7  6  5  4  3  2  1  0
+    /----------------------\
+    |*  *  E  0  V  V  Of L|
+    \----------------------/
+
+L              1    length field is present
+               0    length field not present
+
+Of             1    offset is a byte offset from the beginning of the file.
+               0    offset is a block number (not currently used).
+
+VV                  Two bit version identifier.  This version is 0.
+
+E              1    Last byte of frame is the last byte of the file.
+               0    Not last.
+
+0                   Always 0.
+
+*                   Reserved, must be 0.
+ */
+int pb_make_file_broadcast_packet(MRAM_FILE *mram_file, uint8_t *data_bytes, int number_of_bytes_read, int offset, int chunk_includes_last_byte) {
+    int length = 0;
+    PB_FILE_HEADER *file_broadcast_header = (PB_FILE_HEADER *)data_bytes;
+
+    char flag = 0;
+    if (chunk_includes_last_byte) {
+        flag |= 1UL << E_BIT; // Set the E bit, this is the last chunk of this file
+    }
+    file_broadcast_header->offset = ttoh24(offset); // this conversion is symetrical and is equivalent to htot24()
+    file_broadcast_header->flags = flag;
+    file_broadcast_header->file_id = htotl(mram_file->file_id);
+
+    length = sizeof(PB_FILE_HEADER) + number_of_bytes_read +2;
+    int checksum = crc16(data_bytes, length-2);
+    //debug_print("crc: %04x\n",checksum);
+
+    /* Despite everything being little endian, the CRC needs to be in network byte order, or big endian */
+    unsigned char one = (unsigned char)(checksum & 0xff);
+    unsigned char two = (unsigned char)((checksum >> 8) & 0xff);
+    data_bytes[length-1] = one;
+    data_bytes[length-2] = two;
+
+    return length; // return length of header + pfh + crc
+}
+
 
 #ifdef DEBUG
 

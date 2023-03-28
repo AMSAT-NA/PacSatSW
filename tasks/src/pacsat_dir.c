@@ -226,7 +226,8 @@ void dir_free() {
  * Load a PACSAT file from MRAM and store it in the directory
  */
 bool dir_load_pacsat_file(MRAM_FILE *mram_file) {
-    debug_print("Loading: %d from addr: %d \n", mram_file->file_id, mram_file->address);
+//    debug_print("Loading: %d from addr: %d \n", mram_file->file_id, mram_file->address);
+
 //    int err = dir_validate_file(pfh,psf_name);
 //    if (err != ER_NONE) {
 //        error_print("Err: %d - validating: %s\n", err, psf_name);
@@ -263,7 +264,7 @@ int dir_load() {
         debug_print("Read MRAM number of files - FAILED\n");
         return FALSE;
     }
-    debug_print("Loading %d files\n",numOfFiles);
+    debug_print("Loading %d files .. ",numOfFiles);
 
     while (file_handle < numOfFiles) {
         rc = dir_mram_get_node(file_handle++,&mram_file);
@@ -283,8 +284,8 @@ int dir_load() {
              * files! */
         }
     }
-    debug_print("LOADED DIR:\n");
-    dir_debug_print(dir_head);
+    debug_print("DONE:\n");
+    //dir_debug_print(dir_head);
     return TRUE;
 }
 
@@ -445,7 +446,8 @@ bool dir_mram_append_to_file(uint32_t file_handle, uint8_t *data, uint32_t lengt
 }
 
 /**
- *
+ *  A simple (and not very safe) routine to read a chunk from MRAM
+ *  Undefined if you read too much or outside the chip!
  */
 bool dir_mram_read_file_chunk(MRAM_FILE *mram_file, uint8_t *data, uint32_t chunk_length, uint32_t offset) {
     bool rc;
