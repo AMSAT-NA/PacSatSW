@@ -556,12 +556,20 @@ bool make_test_header(HEADER *pfh, uint32_t fh, unsigned int file_id, char *file
     strlcpy(pfh->title,title, sizeof(pfh->title));
     strlcpy(pfh->userFileName,user_filename, sizeof(pfh->userFileName));
 
-    uint8_t buffer3[256];
     uint32_t body_size = strlen(msg1);
+    uint16_t body_checksum = 0;
+    int j=0;
+    /* Calc Body Checksum */
+    while (j<body_size) {
+        body_checksum += (uint8_t)msg1[j++] & 0xff;
+    }
+    debug_print("Body CRC: %04x\n",body_checksum);
+    pfh->bodyCRC = body_checksum;
+
+    uint8_t buffer3[256];
     uint16_t body_offset = pfh_generate_header_bytes(pfh, body_size, buffer3);
 
     /* Write the header */
-
     bool rc = dir_mram_write_file(fh, buffer3, body_offset, file_id, pfh->uploadTime, body_offset, (10000 + fh * 10000));
     if (!rc) {  debug_print("Write MRAM PF header - FAILED\n"); return FALSE; }
 
