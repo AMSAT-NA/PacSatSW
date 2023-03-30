@@ -619,7 +619,7 @@ static void ax5043_ax25_set_registers_tx(SPIDevice device, bool rate_9600) {
     }
      /* XTAL load capacitance is added by the chip and is not external on the board. So we need to set the
         * value here using formula C in pf = 8 + 0.5 * XTALCAP */
-     unsigned int xtal_cap = 5;  // TODO - G0KLA this should be a define as it is set for each crystal
+     unsigned int xtal_cap = 7;  // TODO - G0KLA this should be a define as it is set for each crystal
      ax5043WriteReg(device, AX5043_XTALCAP, xtal_cap);
      ax5043WriteReg(device, AX5043_0xF00                   ,0x0F);  // Per programming manual
      ax5043WriteReg(device, AX5043_0xF18                   ,0x06);
@@ -666,7 +666,7 @@ static void ax5043_ax25_set_registers_rx(SPIDevice device, bool rate_9600) {
    }
    /* XTAL load capacitance is added by the chip and is not external on the board. So we need to set the
       * value here using formula C in pf = 8 + 0.5 * XTALCAP */
-   unsigned int xtal_cap = 5;  // TODO - G0KLA this should be a define as it is set for each crystal
+   unsigned int xtal_cap = 7;  // TODO - G0KLA this should be a define as it is set for each crystal
    ax5043WriteReg(device, AX5043_XTALCAP, xtal_cap);
    ax5043WriteReg(device, AX5043_0xF00                   ,0x0F);  // Per programming manual
    ax5043WriteReg(device, AX5043_0xF18                   ,0x06); // I had 02, but not sure why or from where..
