@@ -563,7 +563,7 @@ bool make_test_header(HEADER *pfh, uint32_t fh, unsigned int file_id, char *file
     while (j<body_size) {
         body_checksum += (uint8_t)msg1[j++] & 0xff;
     }
-    debug_print("Body CRC: %04x\n",body_checksum);
+ //   debug_print("Body CRC: %04x\n",body_checksum);
     pfh->bodyCRC = body_checksum;
 
     uint8_t buffer3[256];
