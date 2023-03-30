@@ -82,14 +82,17 @@
  * PACSAT Constants
  */
 /* If you wish to transmit beyond the test bench then these need to be updated with a valid callsign */
-#define BBS_CALLSIGN "PACSAT-12"
-#define BROADCAST_CALLSIGN "PACSAT-11"
-#define DIGI_CALLSIGN "PACSAT-1"
+#define BBS_CALLSIGN "VE2TCP-12"
+#define BROADCAST_CALLSIGN "VE2TCP-11"
+#define DIGI_CALLSIGN "VE2TCP-1"
 
 #define AX25_MAX_DATA_LEN 240 /* This is the maximum number of bytes a packet can have */
 #define AX25_PKT_BUFFER_LEN 260 /* This is the length of the buffers in the TX RX queues */
 #define MAX_CALLSIGN_LEN 10 /* Length of the String for an AX25 callsign including dash, 2 digit Digi, and null termination */
 #define MAX_PB_HOLES_LIST_BYTES 222 /* The max length of a holes list = ( AX25_MAX_DATA_LEN - 17 ) to nearest 6 */
+
+#define PB_MAX_PERIOD_FOR_CLIENTS_IN_SECONDS 30
+#define MAX_PKTS_IN_TX_PKT_QUEUE_FOR_TNC_TO_BE_BUSY 4
 
 /*
  * TASK INFORMATION This is the info like stack sizes and priorities for the tasks

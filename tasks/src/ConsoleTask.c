@@ -62,7 +62,8 @@
 
 #include "TxTask.h" // for test routines
 #include "PbTask.h" // for test routines
-
+#include "pacsat_header.h" // for test routines
+#include "pacsat_dir.h" // for dir commands and test routines
 //Extern definition
 extern uint8_t SWCmdRing[SW_CMD_RING_SIZE],SWCmdIndex;
 
@@ -149,16 +150,27 @@ enum {
     ,mramSleep
     ,mramAwake
     ,startRx
+#ifdef DEBUG
+    ,testPacsat
     ,testCallsigns
     ,testTx
     ,testPbOk
     ,testPbStatus
     ,testPbList
     ,testPbClearList
+    ,testPfh
+    ,testPfhFiles
+    ,makePfhFiles
+    ,testDir
+#endif
     ,monitorOn
     ,monitorOff
     ,pbShut
     ,pbOpen
+    ,mramLs
+    ,dirLoad
+    ,dirClear
+    ,listDir
 };
 
 
@@ -201,16 +213,27 @@ commandPairs debugCommands[] = {
                                 ,{"mram wren","Write enable MRAM",MRAMWrEn}
                                 ,{"mram wake","Send wake command to MRAM",mramAwake}
                                 ,{"mram sleep","Send sleep command to MRAM",mramSleep}
+#ifdef DEBUG
+                                ,{"test pacsat","Run all of the PACSAT self tst routines",testPacsat}
                                 ,{"test callsigns","Test the AX25 callsign routines",testCallsigns}
                                 ,{"test tx","Test the Pacsat TX Packet routines",testTx}
                                 ,{"test pb ok","Test the Pacsat Broadcast by sending OK packet",testPbOk}
                                 ,{"send pb status","Send PB status",testPbStatus}
                                 ,{"test pb list","Test the PB List add and remove functions",testPbList}
                                 ,{"clear pb list","Clear the PB List add remove all stations",testPbClearList}
+                                ,{"test pfh","Test the Pacsat File Header Routines",testPfh}
+                                ,{"test psf","Test the Pacsat Files in MRAM",testPfhFiles}
+                                ,{"make psf","Make a set of test Pacsat Files in MRAM",makePfhFiles}
+                                ,{"test dir","Test the Pacsat Directory.  The command 'make psf' must already have been run",testDir}
+#endif
                                 ,{"monitor on","Monitor sent and received packets",monitorOn}
                                 ,{"monitor off","Stop monitoring packets",monitorOff}
                                 ,{"pb shut","Shut the PB",pbShut}
                                 ,{"pb open","Open the PB for use",pbOpen}
+                                ,{"mram ls","List the files in MRAM",mramLs}
+                                ,{"load dir","Load the directory from MRAM",dirLoad}
+                                ,{"clear dir","Clear the directory but leave the files in MRAM",dirClear}
+                                ,{"list dir","List the Pacsat Directory.",listDir}
 
 };
 commandPairs commonCommands[] = {
@@ -885,7 +908,22 @@ void RealConsoleTask(void)
             break;
         }
 
+#ifdef DEBUG
         /* G0KLA TEST ROUTINES */
+        case testPacsat:{
+
+            if(! pb_test_callsigns()) {  debug_print("### Callsign TEST FAILED\n"); break; }
+            if(! pb_test_list()) {  debug_print("### pb list TEST FAILED\n"); break; }
+            if(! pb_clear_list()) {  debug_print("### pb list clear TEST FAILED\n"); break; }
+            if(! tx_test_make_packet()) {  debug_print("### tx make packet TEST FAILED\n"); break; }
+            if(! test_pfh()) {  debug_print("### pfh TEST FAILED\n"); break; }
+            if(! test_pfh_files()) {  debug_print("### pfh TEST FILES FAILED\n"); break; }
+
+            //if(! test_pfh_make_files()) {  debug_print("### pfh TEST MAKE FILES FAILED\n"); break; }
+
+            debug_print("### ALL TESTS PASSED\n");
+            break;
+        }
         case testCallsigns:{
             bool rc = pb_test_callsigns();
             break;
@@ -910,6 +948,25 @@ void RealConsoleTask(void)
             bool rc = tx_test_make_packet();
             break;
         }
+        case testPfh:{
+            bool rc = test_pfh();
+            break;
+        }
+        case testPfhFiles:{
+            bool rc = test_pfh_files();
+            break;
+        }
+        case makePfhFiles:{
+            bool rc = test_pfh_make_files();
+            break;
+        }
+        case testDir:{
+            bool rc = test_pacsat_dir();
+            break;
+        }
+
+#endif /* DEBUG */
+
         case monitorOn:{
             monitorPackets=true;
             printf("monitorPackets = true\n");
@@ -928,6 +985,62 @@ void RealConsoleTask(void)
         case pbOpen:{
             pb_shut=false;
             printf("pb_shut = false\n");
+            break;
+        }
+        case mramLs:{
+            printf("MRAM Directory Listing\n");
+            static const MRAMmap_t *LocalFlash = 0;
+            MRAM_FILE mramFile;
+            int j = 0;
+            uint32_t numOfFiles = 0;
+            bool rc;
+
+            rc = readNV(&numOfFiles, sizeof(uint32_t),ExternalMRAMData, (int)&(LocalFlash->NumberOfFiles));
+            if (!rc) {
+                debug_print("Read MRAM number of files - FAILED\n");
+                break;
+            }
+            debug_print("-- files: %d\n",numOfFiles);
+
+            while (j < numOfFiles) {
+//                rc = readNV(&mramFile, sizeof(mramFile),ExternalMRAMData, (int)&(LocalFlash->MRAMFiles[j++]));
+                rc = dir_mram_get_node(j,&mramFile);
+                if (!rc) {
+                    debug_print("Read MRAM FAT - FAILED\n");
+                    break;
+                }
+                printf("%d: Id: %04x ",j,mramFile.file_id);
+                printf("Size: %d ",mramFile.file_size);
+                printf("Header Len: %d ",mramFile.body_offset);
+                printf("Address: %d ",mramFile.address);
+                printf("Uploaded: %d\n",mramFile.upload_time);
+                j++;
+                uint8_t buffer[256];
+                uint32_t len = mramFile.file_size;
+                if (len > sizeof(buffer))
+                    len = sizeof(buffer);
+                rc = readNV(&buffer, len ,ExternalMRAMData, (int)mramFile.address);
+                int q;
+                for (q=0; q< sizeof(buffer); q++) {
+                    printf("%02x ", buffer[q]);
+                    if (q != 0 && q % 20 == 0 ) printf("\n");
+                }
+                printf("\n");
+            }
+            break;
+        }
+        case dirLoad:{
+            bool rc = dir_load();
+            break;
+        }
+        case dirClear:{
+            dir_free();
+            break;
+        }
+
+
+        case listDir:{
+            bool rc = dir_debug_print(NULL); // pass NULL to print from the head of the list
             break;
         }
 
