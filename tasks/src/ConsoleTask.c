@@ -168,9 +168,11 @@ enum {
     ,pbShut
     ,pbOpen
     ,mramLs
+    ,mramHxd
     ,dirLoad
     ,dirClear
     ,listDir
+    ,heapFree
 };
 
 
@@ -230,10 +232,12 @@ commandPairs debugCommands[] = {
                                 ,{"monitor off","Stop monitoring packets",monitorOff}
                                 ,{"pb shut","Shut the PB",pbShut}
                                 ,{"pb open","Open the PB for use",pbOpen}
-                                ,{"mram ls","List the files in MRAM",mramLs}
+                                ,{"ls","List the files in MRAM",mramLs}
+                                ,{"hxd","Display Hex for file number",mramHxd}
                                 ,{"load dir","Load the directory from MRAM",dirLoad}
                                 ,{"clear dir","Clear the directory but leave the files in MRAM",dirClear}
                                 ,{"list dir","List the Pacsat Directory.",listDir}
+                                ,{"heap free","Show free bytes in the heap.",heapFree}
 
 };
 commandPairs commonCommands[] = {
@@ -1015,18 +1019,37 @@ void RealConsoleTask(void)
                 printf("Address: %d ",mramFile.address);
                 printf("Uploaded: %d\n",mramFile.upload_time);
                 j++;
-                uint8_t buffer[256];
-                uint32_t len = mramFile.file_size;
-                if (len > sizeof(buffer))
-                    len = sizeof(buffer);
-                rc = readNV(&buffer, len ,ExternalMRAMData, (int)mramFile.address);
-                int q;
-                for (q=0; q< sizeof(buffer); q++) {
-                    printf("%02x ", buffer[q]);
-                    if (q != 0 && q % 20 == 0 ) printf("\n");
-                }
-                printf("\n");
             }
+            break;
+        }
+        case mramHxd:{
+            int fileHandle = parseNumber(afterCommand);
+            printf("MRAM FILE: %d\n",fileHandle);
+
+            bool rc;
+            MRAM_FILE mramFile;
+            rc = dir_mram_get_node(fileHandle,&mramFile);
+            if (!rc) {
+                debug_print("Read MRAM FAT - FAILED\n");
+                break;
+            }
+            printf("%d: Id: %04x ",fileHandle,mramFile.file_id);
+            printf("Size: %d ",mramFile.file_size);
+            printf("Header Len: %d ",mramFile.body_offset);
+            printf("Address: %d ",mramFile.address);
+            printf("Uploaded: %d\n",mramFile.upload_time);
+
+            uint8_t buffer[256];
+            uint32_t len = mramFile.file_size;
+            if (len > sizeof(buffer))
+                len = sizeof(buffer);
+            rc = readNV(&buffer, len ,ExternalMRAMData, (int)mramFile.address);
+            int q;
+            for (q=0; q< sizeof(buffer); q++) {
+                printf("%02x ", buffer[q]);
+                if (q != 0 && q % 20 == 0 ) printf("\n");
+            }
+            printf("\n");
             break;
         }
         case dirLoad:{
@@ -1041,6 +1064,11 @@ void RealConsoleTask(void)
 
         case listDir:{
             bool rc = dir_debug_print(NULL); // pass NULL to print from the head of the list
+            break;
+        }
+
+        case heapFree:{
+            printf("Free heap size: %d\n",xPortGetFreeHeapSize());
             break;
         }
 

@@ -271,6 +271,7 @@ void ConsoleTask(void *pvParameters){
 //                NULL,COMMAND_PRIORITY, NULL);
 
     /* Load the directory from MRAM and perform some integrity checks */
+    printf("Free heap size before dir loaded: %d\n",xPortGetFreeHeapSize());
     int rc = dir_load();
     if (rc != TRUE) {
         debug_print("ERROR: Could not load the directory from MRAM\n");

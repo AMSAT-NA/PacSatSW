@@ -198,7 +198,7 @@ void dir_delete_node(DIR_NODE *node) {
         node->next->prev = node->prev;
         node->prev->next = node->next;
     }
-    debug_print("REMOVED: %d\n",node->mram_file->file_id);
+//    debug_print("REMOVED: %d\n",node->mram_file->file_id);
 //    pfh_debug_print(node->pfh);
     vPortFree(node->mram_file);
     vPortFree(node);

@@ -91,8 +91,8 @@
 #define MAX_CALLSIGN_LEN 10 /* Length of the String for an AX25 callsign including dash, 2 digit Digi, and null termination */
 #define MAX_PB_HOLES_LIST_BYTES 222 /* The max length of a holes list = ( AX25_MAX_DATA_LEN - 17 ) to nearest 6 */
 
-#define PB_MAX_PERIOD_FOR_CLIENTS_IN_SECONDS 30
-#define MAX_PKTS_IN_TX_PKT_QUEUE_FOR_TNC_TO_BE_BUSY 4
+#define PB_MAX_PERIOD_FOR_CLIENTS_IN_SECONDS 600  // TODO - Should be in MRAM and commandable.  10 mins
+#define MAX_PKTS_IN_TX_PKT_QUEUE_FOR_TNC_TO_BE_BUSY 2 // TODO - Should be in MRAM and commandable. 2
 
 /*
  * TASK INFORMATION This is the info like stack sizes and priorities for the tasks
