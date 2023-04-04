@@ -34,6 +34,8 @@ void dir_debug_print(DIR_NODE *p);
 
 /* This is used by the Simple MRAM FS */
 static const MRAMmap_t *LocalFlash = 0;
+static HEADER pfh_buffer; // Static allocation of a header to use when we need to load/save the header details
+static uint8_t pfh_byte_buffer[512]; /* Maximum size for a PFH TODO - what should size be.  STORE AS DEFINE */
 
 /**
  * dir_next_file_number()
@@ -87,7 +89,7 @@ DIR_NODE * dir_add_pfh(MRAM_FILE *new_mram_file) {
     mram_file->file_size = new_mram_file->file_size;
     mram_file->upload_time = new_mram_file->upload_time;
 
-    uint32_t now = getSeconds(); // Get the system time in seconds since the epoch
+    uint32_t now = getUnixTime(); // Get the time in seconds since the unix epoch
     if (new_node == NULL) return NULL; // ERROR
     if (dir_head == NULL) { // This is a new list
         dir_head = new_node;
@@ -133,11 +135,35 @@ DIR_NODE * dir_add_pfh(MRAM_FILE *new_mram_file) {
     // Now re-save the file with the new time if it changed, this recalculates the checksums
     if (resave) {
         bool rc = FALSE;
-        /////////////// TODO ------ NOT YET IMPLEMENTED!
-        debug_print("** NOT YET IMPLEMENTED - cant update upload time for fh: %d \n",mram_file->file_id);
-        //int rc = pfh_make_pacsat_file(mram_file, dir_folder);
-        //rc = pfh_update_pacsat_header(mram_file, get_dir_folder(), filename);
+        /* The length of the header and the file length do not change because we only change the upload time
+         * So we can just re-write the header on top of the old.  We load the existing one, change the
+         * upload time, then recalc the bytes and the checksums */
 
+        // load the PFH bytes from MRAM - body_offset is the length of the header.  It starts at offset 0
+        rc = dir_mram_read_file_chunk(mram_file,  pfh_byte_buffer, mram_file->body_offset, 0) ;
+        if (rc != TRUE) {
+            debug_print("** Could not read the header from MRAM for fh: %d to dir\n",mram_file->file_id);
+            dir_delete_node(new_node);
+            return NULL;
+        }
+
+        /* Extract the header from the loaded bytes */
+        int size = 0;
+        int crc_passed = false;
+        pfh_extract_header(&pfh_buffer, pfh_byte_buffer, mram_file->body_offset, &size, &crc_passed);
+        /* We don't check the CRC here.  If it is wrong, we hope that regenerating the header and saving it fixes
+         * the issue
+         * TODO - this could be a good error to log.
+         */
+
+        /* modify the uptime in the header */
+        pfh_buffer.uploadTime = mram_file->upload_time;
+
+        /* Regenerate the bytes and generate the checksums.  FileSize is body_offset + body_size */
+        uint16_t body_offset = pfh_generate_header_bytes(&pfh_buffer, mram_file->file_size - mram_file->body_offset, pfh_byte_buffer);
+
+        /* Write the header back to MRAM*/
+        dir_mram_write_file_chunk(mram_file, pfh_byte_buffer, mram_file->body_offset, 0); // Write the PFH data byte at offset 0
 
         if (rc != TRUE) {
             // we could not save this
@@ -442,6 +468,30 @@ bool dir_mram_append_to_file(uint32_t file_handle, uint8_t *data, uint32_t lengt
     rc = writeNV(&size,sizeof(uint32_t),ExternalMRAMData,(int)&(LocalFlash->MRAMFiles[file_handle].file_size));
     if (!rc) {  debug_print("Write MRAM FAT header - FAILED\n"); return FALSE; }
 
+    return TRUE;
+}
+
+/**
+ *  A simple (and not very safe) routine to write a chunk from MRAM
+ *  Undefined if you write too much or outside the chip!
+ *  If the data written extends the size of the file then the new size is stored in
+ *  the header
+ */
+bool dir_mram_write_file_chunk(MRAM_FILE *mram_file, uint8_t *data, uint32_t chunk_length, uint32_t offset) {
+
+    bool rc;
+    uint32_t size;
+    // Write the data
+    rc = writeNV(data,chunk_length,ExternalMRAMData,(int)(mram_file->address + offset));
+    if (!rc) {  debug_print("Write MRAM file data - FAILED\n"); return FALSE; }
+
+    // If this extends the file then write the new length
+    if (offset+chunk_length > mram_file->file_size) {
+        size = offset + chunk_length;
+        rc = writeNV(&size,sizeof(uint32_t),ExternalMRAMData,(int)&(LocalFlash->MRAMFiles[mram_file->file_handle].file_size));
+        mram_file->file_size = size;
+    if (!rc) {  debug_print("Write MRAM FAT header - FAILED\n"); return FALSE; }
+    }
     return TRUE;
 }
 

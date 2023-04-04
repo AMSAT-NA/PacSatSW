@@ -173,6 +173,8 @@ enum {
     ,dirClear
     ,listDir
     ,heapFree
+    ,setUnxTime
+    ,getUnxTime
 };
 
 
@@ -238,6 +240,8 @@ commandPairs debugCommands[] = {
                                 ,{"clear dir","Clear the directory but leave the files in MRAM",dirClear}
                                 ,{"list dir","List the Pacsat Directory.",listDir}
                                 ,{"heap free","Show free bytes in the heap.",heapFree}
+                                ,{"get unix time","Get the number of seconds since the Unix epoch",getUnxTime}
+                                ,{"set unix time","Set the number of seconds since Unix epoch",setUnxTime}
 
 };
 commandPairs commonCommands[] = {
@@ -1069,6 +1073,19 @@ void RealConsoleTask(void)
 
         case heapFree:{
             printf("Free heap size: %d\n",xPortGetFreeHeapSize());
+            break;
+        }
+
+        case getUnxTime:{
+            printf("Unix time in secs: %d\n",getUnixTime());
+            break;
+        }
+
+        case setUnxTime:{
+            static char *nextNum;
+            uint32_t t = (uint32_t)strtol(afterCommand,&nextNum,0);
+            printf("Setting unix time to: %d\n",t);
+            setUnixTime(t);
             break;
         }
 

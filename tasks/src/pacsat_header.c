@@ -49,6 +49,7 @@
 #include "inet.h"
 #include "MRAMmap.h"
 #include "nonvol.h"
+#include "MET.h"
 
 
 /* Local forward headers */
@@ -536,7 +537,7 @@ bool make_test_header(HEADER *pfh, uint32_t fh, unsigned int file_id, char *file
     strlcpy(pfh->fileName,filename, sizeof(pfh->fileName));
     strlcpy(pfh->fileExt,PSF_FILE_EXT, sizeof(pfh->fileExt));
 
-    uint32_t now = 1678570897 + fh; // This is just for testing
+    uint32_t now = getUnixTime();
     pfh->createTime = now;
     pfh->modifiedTime = now;
     pfh->SEUflag = 1;
@@ -545,7 +546,7 @@ bool make_test_header(HEADER *pfh, uint32_t fh, unsigned int file_id, char *file
     /* Extended Header Information */
     strlcpy(pfh->source,source, sizeof(pfh->source));
 
-    pfh->uploadTime = now;  /// TODO - this should be ZERO and set when we load into dir.  Use 0 just for initial testing.
+    pfh->uploadTime = 0;
     pfh->downloadCount = 0;
     strlcpy(pfh->destination,destination, sizeof(pfh->destination));
     pfh->downloadTime = 0;

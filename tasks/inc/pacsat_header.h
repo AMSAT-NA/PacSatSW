@@ -118,6 +118,7 @@ typedef struct {
 }
 HEADER;
 
+int pfh_extract_header(HEADER  *hdr, uint8_t *buffer, int nBytes, int *size, int *crc_passed);
 int pfh_generate_header_bytes(HEADER *pfh, int body_size, uint8_t *header_bytes);
 void pfh_debug_print(HEADER *pfh);
 int test_pfh();

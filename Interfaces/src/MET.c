@@ -42,6 +42,9 @@ static uint32_t timestampSeconds;
 /* Here is the current number of seconds in orbit */
 static uint32_t secondsInOrbit;
 
+/* Here is the current Unix time */
+static uint32_t unixTime;
+
 /*
  * Here are timestamps and callbacks for things that must be
  * tested against the time in orbit
@@ -131,6 +134,7 @@ static void METupdate(xTimerHandle x) {
     METcount++;
     timestampSeconds++;
     secondsInOrbit++;
+    unixTime++; // TODO - this is a quick implementation before we have a real time clock
     TicksAtLastSecond = xTaskGetTickCount();
     if(METcount > MET_STABLE_TIME*2) {  // No longer a short boot.
         ClearShortBootFlag();
@@ -154,6 +158,18 @@ static void METupdate(xTimerHandle x) {
     clockPhase++;  // It's ok if this wraps.  We only care about the bottom few bits
 }
 
+/**
+ * This returns the time based on the Unix epoch, or seconds since
+ * Jan 1 1970 UTC.
+ *
+ */
+uint32_t getUnixTime(void) {
+    return unixTime;
+}
+
+void setUnixTime(uint32_t time_in_seconds) {
+    unixTime = time_in_seconds;
+}
 
 /* These are to get the time for the individual satellite */
 void getTime(logicalTime_t *timeRecord) {

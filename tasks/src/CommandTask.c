@@ -212,7 +212,7 @@ void DispatchSoftwareCommand(SWCmdUplink *uplink,bool local){
      * If Command Time Checking was enabled and we got a command, we know it is working
      * so we can turn off the timeout function
      */
-    if(CommandTimeEnabled)
+    if(CommandTimeEnabled)   // TODO - is this missing { }??  Does this now just apply to the command_print?? - G0KLA
         //SetInternalSchedules(NoTimeCommandTimeout,TIMEOUT_NONE);
 
 
