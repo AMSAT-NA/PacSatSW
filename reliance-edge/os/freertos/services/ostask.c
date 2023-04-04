@@ -27,7 +27,7 @@
     @brief Implements task functions.
 */
 #include <FreeRTOS.h>
-#include <task.h>
+#include <os_task.h>
 
 #include <redfs.h>
 

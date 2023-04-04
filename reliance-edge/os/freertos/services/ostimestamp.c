@@ -30,7 +30,7 @@
     driver, only to provide accurate results with performance tests.
 */
 #include <FreeRTOS.h>
-#include <task.h>
+#include <os_task.h>
 
 #include <redfs.h>
 

@@ -44,7 +44,7 @@
     These examples may be useful to you as a reference; if you are lucky, one of
     them might even work for you.
 */
-#error "FreeRTOS block device not implemented"
+/* #error "FreeRTOS block device not implemented" */
 
 
 /*  If you need to include headers to access your block device, do so here.  For
