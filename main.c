@@ -51,6 +51,7 @@
 #include "errors.h"
 #include "nonvolManagement.h"
 #include "consoleRoutines.h"
+#include "mram.h"
 #include "redposix.h"
 
 
