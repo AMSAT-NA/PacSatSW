@@ -138,6 +138,11 @@ bool writeMRAM(int partition,
         return false;
     }
 
+    if (address + length > mramPartitionSize[partition]) {
+        ReportError(MRAMwrite, false, PortNumber, (int) address);
+        return false;
+    }
+
     /*
      * This code knows about the commands for and has been tested with
      * an external RAMTRON F-RAM and an Eversource MRAM.
@@ -181,6 +186,11 @@ bool readMRAM(int partition,
     base = getPartitionOffset(partition);
     if (base < 0) {
         ReportError(MRAMread, false, PortNumber, (int) partition);
+        return false;
+    }
+
+    if (address + length > mramPartitionSize[partition]) {
+        ReportError(MRAMread, false, PortNumber, (int) address);
         return false;
     }
 
