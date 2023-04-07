@@ -51,6 +51,7 @@
 #include "errors.h"
 #include "nonvolManagement.h"
 #include "consoleRoutines.h"
+#include "redposix.h"
 
 
 #define FLIPBITS(x) (               \
@@ -208,7 +209,6 @@ void ConsoleTask(void *pvParameters){
     GPIOEzInit(LED1);
     GPIOEzInit(LED2);
 
-
     /*
      * The rest of the code in the Console task that is in this module is just testing devices.
      * This is likely to disappear after we are comfortable with the stability of everything.
@@ -216,6 +216,27 @@ void ConsoleTask(void *pvParameters){
 
     ResetAllWatchdogs(); // We waited a bit; better make sure the WDs are happy
     printID();
+
+    if (red_init() == -1) {
+	printf("Unable to initialize filesystem: %s\n",
+	       red_strerror(red_errno));
+    } else {
+	if (red_mount("/") == -1) {
+	    if (red_errno == RED_EIO) {
+		printf("Filesystem mount failed due to corruption, remounting");
+		if (red_format("/") == -1) {
+		    printf("Unable to format filesystem: %s\n",
+			   red_strerror(red_errno));
+		} else {
+		    goto mount_error;
+		}
+	    } else {
+	    mount_error:
+		printf("Unable to mount filesystem: %s\n",
+		       red_strerror(red_errno));
+	    }
+	}
+    }
 
     /*
      * Time to wait for the post-release timer if we have to

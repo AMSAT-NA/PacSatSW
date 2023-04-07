@@ -30,7 +30,7 @@
 #include "rti.h"
 #include "esm.h"
 #include "adc.h"
-#include "mram.h:
+#include "mram.h"
 #include "ax5043-70cm-PSK.h"
 #include "ax5043-2M-AFSK-externs.h"
 #include "config-2M-AFSK.h"
@@ -60,6 +60,7 @@
 #include "LinearInterp.h"
 #include "Buzzer.h"
 #include "keyfile.h"
+#include "redposix.h"
 //Extern definition
 extern uint8_t SWCmdRing[SW_CMD_RING_SIZE],SWCmdIndex;
 
@@ -107,6 +108,9 @@ enum {
     ,dsbCanPrint
     ,EnableComPr
     ,DisableComPr
+    ,MountFS
+    ,UnMountFS
+    ,FormatFS
     ,GetRfPower
     ,SelectRFPowerLevels
     ,SetDCTDrivePower
@@ -194,6 +198,9 @@ commandPairs commonCommands[] = {
                                  ,{"get rssi","Get the current RSSI reading from the AX5043 Rx",getRSSI}
                                  ,{"get state","Mainly for debug: Get the current state of the downlink state machine",getState}
                                  ,{"get version","Get the software version number and build time",version}
+                                 ,{"mount fs","Mount the filesystem",MountFS}
+                                 ,{"unmount fs","unmount the filesystem",UnMountFS}
+                                 ,{"format fs","Format the filesystem",FormatFS}
                                  ,{"get rf power","Print the RF power settings",GetRfPower}
                                  ,{"get commands","Get a list the last 4 s/w commands",GetCommands}
                                  ,{"get gpios","Display the values of all GPIOS",GetGpios}
@@ -485,6 +492,39 @@ void RealConsoleTask(void)
                 printf("Invalidating stored key\n");
             }
             stat = writeNV(&magic,sizeof(LocalFlash->AuthenticateKey.magic),NVStatisticsArea,(int)&LocalFlash->AuthenticateKey.magic);
+            break;
+        }
+
+        case MountFS:
+        {
+            if (red_mount("/") == -1) {
+                printf("Unable to mount filesystem: %s\n",
+                       red_strerror(red_errno));
+            } else {
+                printf("Filesystem mounted\n");
+            }
+            break;
+        }
+
+        case UnMountFS:
+        {
+            if (red_umount("/") == -1) {
+                printf("Unable to unmount filesystem: %s\n",
+                       red_strerror(red_errno));
+            } else {
+                printf("Filesystem unmounted\n");
+            }
+            break;
+        }
+
+        case FormatFS:
+        {
+            if (red_format("/") == -1) {
+                printf("Unable to format filesystem: %s\n",
+                       red_strerror(red_errno));
+            } else {
+                printf("Filesystem formatted\n");
+            }
             break;
         }
 
