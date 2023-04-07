@@ -197,6 +197,7 @@ int32_t red_chdir(const char *pszPath);
 char *red_getcwd(char *pszBuffer, uint32_t ulBufferSize);
 #endif
 REDSTATUS *red_errnoptr(void);
+const char *red_strerror(int32_t errno);
 
 #endif /* REDCONF_API_POSIX */
 

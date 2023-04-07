@@ -3836,6 +3836,47 @@ static int32_t PosixReturn(
     return iReturn;
 }
 
+static struct {
+    int err;
+    const char *str;
+} strerrors[] = {
+    { RED_EPERM, "Operation not permitted" },
+    { RED_ENOENT, "No such file or directory" },
+    { RED_EIO, "I/O error" },
+    { RED_EBADF, "Bad file number" },
+    { RED_ENOMEM, "Out of memory" },
+    { RED_EBUSY, "Device or resource busy" },
+    { RED_EEXIST, "File exists" },
+    { RED_EXDEV, "Cross-device link" },
+    { RED_ENOTDIR, "Not a directory" },
+    { RED_EISDIR, "Is a directory" },
+    { RED_EINVAL, "Invalid argument" },
+    { RED_ENFILE, "File table overflow" },
+    { RED_EMFILE, "Too many open files" },
+    { RED_EFBIG, "File too large" },
+    { RED_ENOSPC, "No space left on device" },
+    { RED_EROFS, "Read-only file system" },
+    { RED_EMLINK, "Too many links" },
+    { RED_ERANGE, "Math result not representable" },
+    { RED_ENAMETOOLONG, "File name too long" },
+    { RED_ENOSYS, "Function not implemented" },
+    { RED_ENOTEMPTY, "Directory not empty" },
+    { RED_ENODATA, "No data available" },
+    { RED_EUSERS, "Too many users" },
+    { RED_ENOTSUPP, "Operation is not supported" },
+    { 0, NULL }
+};
+
+const char *red_strerror(int32_t errno)
+{
+    unsigned int i;
+
+    for (i = 0; strerrors[i].str; i++) {
+	if (errno == strerrors[i].err)
+	    return strerrors[i].str;
+    }
+    return "Unknown error";
+}
 
 #endif /* REDCONF_API_POSIX == 1 */
 
