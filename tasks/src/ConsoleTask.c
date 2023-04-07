@@ -1065,9 +1065,8 @@ void RealConsoleTask(void)
             break;
         }
 
-
         case listDir:{
-            bool rc = dir_debug_print(NULL); // pass NULL to print from the head of the list
+            dir_debug_print(NULL); // pass NULL to print from the head of the list
             break;
         }
 

@@ -69,7 +69,7 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
 
                 if ((ax5043ReadReg(device, AX5043_PWRMODE) & 0x0F) == AX5043_PWRSTATE_FULL_RX) {
 
-                    printf("Interrupt while in FULL_RX mode\n");
+                    //debug_print("Interrupt while in FULL_RX mode\n");
                     //printf("IRQREQUEST1: %02x\n", ax5043ReadReg(AX5043_IRQREQUEST1));
                     //printf("IRQREQUEST0: %02x\n", ax5043ReadReg(AX5043_IRQREQUEST0));
                     //printf("FIFOSTAT: %02x\n", ax5043ReadReg(AX5043_FIFOSTAT));
@@ -86,7 +86,7 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
                         uint8_t fifo_flags = ax5043ReadReg(device, AX5043_FIFODATA); // read command
                         len--;
                         if (fifo_cmd == AX5043_FIFOCMD_DATA) {
-                            debug_print("FIFO CMD:%d LEN:%d FLAGS:%x\n",fifo_cmd,len, fifo_flags);
+                            //debug_print("FIFO CMD:%d LEN:%d FLAGS:%x\n",fifo_cmd,len, fifo_flags);
                             if (fifo_flags != 0x03) {
                                 // TODO - log something here?  This should never happen??
                                 debug_print("ERROR in received FIFO Flags\n");

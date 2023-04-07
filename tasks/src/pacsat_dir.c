@@ -30,7 +30,6 @@ static uint32_t next_file_id = 0; // This is incremented when we add files for u
 /* Forward declarations */
 void dir_delete_node(DIR_NODE *node);
 void insert_after(DIR_NODE *p, DIR_NODE *new_node);
-void dir_debug_print(DIR_NODE *p);
 
 /* This is used by the Simple MRAM FS */
 static const MRAMmap_t *LocalFlash = 0;
@@ -83,6 +82,7 @@ DIR_NODE * dir_add_pfh(MRAM_FILE *new_mram_file) {
     DIR_NODE *new_node = (DIR_NODE *)pvPortMalloc(sizeof(DIR_NODE));
     MRAM_FILE *mram_file = (MRAM_FILE *)pvPortMalloc(sizeof(MRAM_FILE));
     new_node->mram_file = mram_file;
+    mram_file->file_handle = new_mram_file->file_handle;
     mram_file->file_id = new_mram_file->file_id;
     mram_file->address = new_mram_file->address;
     mram_file->body_offset = new_mram_file->body_offset;
@@ -155,15 +155,25 @@ DIR_NODE * dir_add_pfh(MRAM_FILE *new_mram_file) {
          * the issue
          * TODO - this could be a good error to log.
          */
+        if (size != mram_file->body_offset) {
+            debug_print("ERROR: Extracted Header size incorrect.  Could not update header.\n");
+            dir_delete_node(new_node);
+            return FALSE;
+        }
 
         /* modify the uptime in the header */
         pfh_buffer.uploadTime = mram_file->upload_time;
 
         /* Regenerate the bytes and generate the checksums.  FileSize is body_offset + body_size */
         uint16_t body_offset = pfh_generate_header_bytes(&pfh_buffer, mram_file->file_size - mram_file->body_offset, pfh_byte_buffer);
-
-        /* Write the header back to MRAM*/
-        dir_mram_write_file_chunk(mram_file, pfh_byte_buffer, mram_file->body_offset, 0); // Write the PFH data byte at offset 0
+        if (body_offset != mram_file->body_offset) {
+            debug_print("ERROR: Regenerated Header size incorrect.  Could not update header.\n");
+            dir_delete_node(new_node);
+            return FALSE;
+        }
+        /* Write the header back to MRAM and update the MRAM FAT entry with new upload_time*/
+        rc = dir_mram_write_file(mram_file->file_handle, pfh_byte_buffer, mram_file->body_offset, mram_file->file_id,
+                                 mram_file->upload_time, mram_file->body_offset, mram_file->address);
 
         if (rc != TRUE) {
             // we could not save this
@@ -172,6 +182,7 @@ DIR_NODE * dir_add_pfh(MRAM_FILE *new_mram_file) {
             return NULL;
         } else {
             debug_print("Saved: %d\n",mram_file->file_id);
+            new_mram_file->upload_time = mram_file->upload_time; // so this is passed back in case it is referenced by caller
             //pfh_debug_print(new_pfh);
         }
     }
@@ -424,6 +435,9 @@ bool dir_mram_write_file(uint32_t file_handle, uint8_t *data, uint32_t length, u
                          uint16_t body_offset, uint32_t address) {
 
     bool rc;
+    rc = writeNV(&file_handle,sizeof(uint32_t),ExternalMRAMData,(int)&(LocalFlash->MRAMFiles[file_handle].file_handle));
+        if (!rc) {  debug_print("Write MRAM FAT file_handle - FAILED\n");
+            return FALSE; }
     rc = writeNV(&file_id,sizeof(uint32_t),ExternalMRAMData,(int)&(LocalFlash->MRAMFiles[file_handle].file_id));
     if (!rc) {  debug_print("Write MRAM FAT file_id - FAILED\n");
         return FALSE; }

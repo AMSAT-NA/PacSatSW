@@ -290,7 +290,7 @@ int pfh_extract_header( HEADER  *hdr, uint8_t *buffer, int nBytes, int *size, in
         return FALSE;
     }
 
-  debug_print("CRC: %02x\n", crc_result);
+  //debug_print("CRC: %02x\n", crc_result);
     if (crc_result == hdr->headerCRC )
         *crc_passed = true;
     else

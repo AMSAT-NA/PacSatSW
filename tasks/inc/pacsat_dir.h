@@ -37,6 +37,7 @@ bool dir_mram_write_file_chunk(MRAM_FILE *mram_file, uint8_t *data, uint32_t chu
 bool dir_mram_read_file_chunk(MRAM_FILE *mram_file, uint8_t *data, uint32_t chunk_length, uint32_t offset);
 DIR_NODE * dir_get_pfh_by_date(DIR_DATE_PAIR pair, DIR_NODE *p );
 DIR_NODE * dir_get_node_by_id(int file_id);
+void dir_debug_print(DIR_NODE *p);
 
 /* Test functions */
 int test_pacsat_dir();
