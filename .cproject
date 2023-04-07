@@ -131,7 +131,7 @@
 									<listOptionValue builtIn="false" value="${PROJECT_ROOT}"/>
 									<listOptionValue builtIn="false" value="${PROJECT_ROOT}/utilities/inc"/>
 									<listOptionValue builtIn="false" value="${PROJECT_ROOT}/hcg/include"/>
-									<listOptionValue builtIn="false" value="/personal/ti/ccs1220/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include"/>
+									<listOptionValue builtIn="false" value="${CG_TOOL_ROOT}/include"/>
 									<listOptionValue builtIn="false" value="${PROJECT_ROOT}/FreeRTOS/inc"/>
 									<listOptionValue builtIn="false" value="${PROJECT_ROOT}/hcgExtras/inc"/>
 								</option>
@@ -163,7 +163,7 @@
 									<listOptionValue builtIn="false" value="${PROJECT_ROOT}"/>
 									<listOptionValue builtIn="false" value="${PROJECT_ROOT}/utilities/inc"/>
 									<listOptionValue builtIn="false" value="${PROJECT_ROOT}/hcg/include"/>
-									<listOptionValue builtIn="false" value="/personal/ti/ccs1220/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include"/>
+									<listOptionValue builtIn="false" value="${CG_TOOL_ROOT}/include"/>
 									<listOptionValue builtIn="false" value="${PROJECT_ROOT}/FreeRTOS/inc"/>
 									<listOptionValue builtIn="false" value="${PROJECT_ROOT}/hcgExtras/inc"/>
 								</option>
