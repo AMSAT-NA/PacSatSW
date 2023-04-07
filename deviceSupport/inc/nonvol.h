@@ -17,11 +17,22 @@
 #include <pacsat.h>
 #include "spiDriver.h"
 #include "stdint.h"
-#include "mram.h"
-typedef enum {LocalEEPROMData,ExternalMRAMData} NVType;
+
+typedef enum {
+    /* Storage for various statistics. */
+    NVStatisticsArea,
+
+    /* Area for the filesystem. */
+    NVFileSystem
+} NVType;
 
 bool writeNV(void const * const data, uint32_t dataLength, NVType memoryType, uint32_t address);
 bool readNV(void *data, uint32_t dataLength, NVType memoryType,  uint32_t address);
+
+/*
+ * Return the size of the non-volatile region.  This will initialize
+ * the non-volatile region, too, so no need to do any init calls.
+ */
 int getSizeNV(NVType type);
 
 #endif /* NONVOL_H_ */

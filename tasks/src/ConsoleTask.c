@@ -324,7 +324,7 @@ void RealConsoleTask(void)
             stat = writeEnableMRAM(num);
             printf("stat for MRAM %d is %d; sr is %x\n", num, stat,
 		   readMRAMStatus(num));
-            //readNV(data,8,ExternalMRAMData,0);
+            //readNV(data,8,NVStatisticsArea,0);
             //printf("MRAM at address 0 and 1 are now now %d and %d\n",data[0],data[1]);
             break;
         }
@@ -468,13 +468,13 @@ void RealConsoleTask(void)
             printf("\n");
             if(i==16){
                 printf("Writing key...");
-                stat = writeNV(key,sizeof(LocalFlash->AuthenticateKey.key),ExternalMRAMData,(int)&LocalFlash->AuthenticateKey.key);
+                stat = writeNV(key,sizeof(LocalFlash->AuthenticateKey.key),NVStatisticsArea,(int)&LocalFlash->AuthenticateKey.key);
             } else {
                 stat = false;
             }
             if(stat){
                 printf("Writing checksum=%x...",checksum);
-                stat = writeNV(&checksum,sizeof(LocalFlash->AuthenticateKey.keyChecksum),ExternalMRAMData,
+                stat = writeNV(&checksum,sizeof(LocalFlash->AuthenticateKey.keyChecksum),NVStatisticsArea,
                               (int)&LocalFlash->AuthenticateKey.keyChecksum);
             }
             if(stat){
@@ -483,7 +483,7 @@ void RealConsoleTask(void)
                 magic = 0;
                 printf("Invalidating stored key\n");
             }
-            stat = writeNV(&magic,sizeof(LocalFlash->AuthenticateKey.magic),ExternalMRAMData,(int)&LocalFlash->AuthenticateKey.magic);
+            stat = writeNV(&magic,sizeof(LocalFlash->AuthenticateKey.magic),NVStatisticsArea,(int)&LocalFlash->AuthenticateKey.magic);
             break;
         }
 

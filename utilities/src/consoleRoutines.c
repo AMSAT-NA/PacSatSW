@@ -237,7 +237,7 @@ void printID(void){
         megs = value/1024;
         kilos = value % 1024;
         printf("Flash memory size %dMb+%dKb; ",megs,kilos);
-        size = getSizeNV(ExternalMRAMData);
+        size = getSizeNV(NVStatisticsArea);
         printf("MRAM size is 0x%x, structure size is 0x%x\n\n\n", size,sizeof(MRAMmap_t));
 
     }

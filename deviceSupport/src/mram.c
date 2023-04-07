@@ -21,6 +21,9 @@ static uint32_t MRAMSize[PACSAT_MAX_MRAMS];
 static int numberOfMRAMs = 0;
 static int totalMRAMSize = 0;
 
+static int mramPartitionSize[MAX_MRAM_PARTITIONS] = { 0, 0 };
+static int mramPartitionOffset[MAX_MRAM_PARTITIONS] = { 0, 0 };
+
 static int addressToMRAMNum(uint32_t *addr)
 {
     int MRAMNumber = 0;
@@ -32,7 +35,7 @@ static int addressToMRAMNum(uint32_t *addr)
             return -1;
         }
     }
-    return MRAMNumber; //Assume MRAM values are in order
+    return MRAMNumber;
 }
 
 bool MRAMSleep(int mramNum)
@@ -84,7 +87,7 @@ bool writeEnableMRAM(int mramNum)
     command.byte[0] = FRAM_OP_WREN;
     /* Write enable */
     return SPISendCommand(MRAM_Devices[mramNum], command.word,
-			  1, NULL, 0, NULL, 0);
+                          1, NULL, 0, NULL, 0);
 }
 
 void writeMRAMStatus(int mramNum, uint8_t status)
@@ -101,18 +104,38 @@ void writeMRAMStatus(int mramNum, uint8_t status)
     SPISendCommand(MRAM_Devices[mramNum], command.word, 2, 0, 0, 0, 0);
 }
 
-int getSizeMRAM(void)
+int getSizeMRAM(int partition)
 {
-    if (numberOfMRAMs)
-        return totalMRAMSize;
-    return initMRAM();
+    if (partition < 0 || partition >= MAX_MRAM_PARTITIONS)
+        return 0;
+    if (!numberOfMRAMs) {
+        if (initMRAM() == 0)
+            return 0;
+    }
+    return mramPartitionSize[partition];
 }
 
-bool writeMRAM(void const * const data, uint32_t length, uint32_t address)
+static int getPartitionOffset(int partition)
+{
+    if (numberOfMRAMs == 0)
+        return -1;
+    if (partition < 0 || partition > MAX_MRAM_PARTITIONS)
+        return -1;
+
+    return mramPartitionOffset[partition];
+}
+
+bool writeMRAM(int partition,
+               void const * const data, uint32_t length, uint32_t address)
 {
     ByteToWord writeCommand, framAddress;
-    int mramNum;
+    int base, mramNum;
     SPIDevice mramDev;
+
+    base = getPartitionOffset(partition);
+    if (base < 0)
+        return false;
+    address += base;
 
     /*
      * This code knows about the commands for and has been tested with
@@ -121,8 +144,8 @@ bool writeMRAM(void const * const data, uint32_t length, uint32_t address)
 
     framAddress.word = address;
     mramNum = addressToMRAMNum(&framAddress.word);
-    if (mramDev < 0) {
-	return false;
+    if (mramNum < 0) {
+        return false;
     }
     writeEnableMRAM(mramNum);
     mramDev = MRAM_Devices[mramNum];
@@ -137,25 +160,31 @@ bool writeMRAM(void const * const data, uint32_t length, uint32_t address)
 
     /* Now write */
     SPISendCommand(mramDev, writeCommand.word, ADDRESS_BYTES+1,
-		   (uint8_t *) data, length, NULL, 0);
+                   (uint8_t *) data, length, NULL, 0);
 
     return true;
 }
 
-bool readMRAM(void *data, uint32_t length, uint32_t address)
+bool readMRAM(int partition,
+              void *data, uint32_t length, uint32_t address)
 {
     ByteToWord framAddress, ourAddress;
     SPIDevice mramDev;
-    int mramNum, retry;
+    int base, mramNum, retry;
 
     /*
      * See comments above regarding writing the MRAM
      */
 
+    base = getPartitionOffset(partition);
+    if (base < 0)
+        return false;
+    address += base;
+
     ourAddress.word = address;
     mramNum = addressToMRAMNum(&ourAddress.word);
-    if (mramDev < 0) {
-	return false;
+    if (mramNum < 0) {
+        return false;
     }
     mramDev = MRAM_Devices[mramNum];
 
@@ -166,16 +195,17 @@ bool readMRAM(void *data, uint32_t length, uint32_t address)
 
     retry = SPI_MRAM_RETRIES;
     while (retry-- > 0){
-	/* Retry a few times before we give up */
-	if (SPISendCommand(mramDev, framAddress.word, ADDRESS_BYTES+1, 0, 0,
-			   (uint8_t *) data, length)){
-	    //printf("Read %x from addr %x in MRAM %d, requested addr=%x\n",*(uint32_t *)data,ourAddress.word,(int)mramDev,nvAddress);
-	    return true;
-	}
-	//          IHUSoftErrorData.SPIRetries++;
+        /* Retry a few times before we give up */
+        if (SPISendCommand(mramDev, framAddress.word, ADDRESS_BYTES+1, 0, 0,
+                           (uint8_t *) data, length)){
+            //printf("Read %x from addr %x in MRAM %d, requested addr=%x\n",*(uint32_t *)data,ourAddress.word,(int)mramDev,nvAddress);
+            return true;
+        }
+        //          IHUSoftErrorData.SPIRetries++;
     }
     ReportError(SPIMramTimeout, TRUE, ReturnAddr,
-		(int)__builtin_return_address(0));
+                (int)__builtin_return_address(0));
+    return false;
 }
 
 static void writeMRAMWord(SPIDevice dev, uint32_t addr, uint32_t val)
@@ -218,7 +248,7 @@ int getMRAMSize(int mramNum)
     SPIDevice dev;
 
     if (mramNum >= PACSAT_MAX_MRAMS)
-        return;
+        return 0;
 
     dev = MRAM_Devices[mramNum];
 
@@ -261,12 +291,22 @@ int getMRAMSize(int mramNum)
 int initMRAM()
 {
     // Initialize status register to 0 so there are no memory banks write protected
-    int i;
+    int i, size;
+
+    /* Already initialized. */
+    if (numberOfMRAMs)
+	return totalMRAMSize;
 
     for (i=0; i<PACSAT_MAX_MRAMS; i++) {
-        totalMRAMSize += MRAMSize[i] = getMRAMSize(MRAM_Devices[i]);
+        size += MRAMSize[i] = getMRAMSize(MRAM_Devices[i]);
         if (MRAMSize[i] != 0)
             numberOfMRAMs++;
+    }
+    if (size > MRAM_PARTITION_0_SIZE) {
+        totalMRAMSize = size;
+        mramPartitionSize[0] = MRAM_PARTITION_0_SIZE;
+        mramPartitionSize[1] = size - MRAM_PARTITION_0_SIZE;
+        mramPartitionOffset[1] = MRAM_PARTITION_0_SIZE;
     }
     return totalMRAMSize;
 }
@@ -300,7 +340,7 @@ bool testMRAM(int size)
         write[i] = valBase+(i*4); // Put in the byte address of the word plus valbase.
     }
     for(addr=0;ok;addr+=size){ // Each loop is 1KByte
-        ok=writeNV(&write,size,ExternalMRAMData,addr);
+        ok=writeNV(&write,size,NVFileSystem,addr);
         if(!ok)break;
         if(addr % (1024*64) == 0){
             printf("%dKb written\n",addr/1024);
@@ -315,7 +355,7 @@ bool testMRAM(int size)
         write[i] = valBase+(i*4); // Put in the byte address of the word plus valbase.
     }
     for(addr=0;ok;addr+=size){ // Each loop is 1KByte
-        ok=readNV(&read,size,ExternalMRAMData,addr);
+        ok=readNV(&read,size,NVFileSystem,addr);
         if(!ok)break;
         for(i=0;i<(size/4);i++){
             if(read[i] != write[i]){
