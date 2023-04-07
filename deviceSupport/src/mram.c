@@ -3,9 +3,17 @@
  *
  *  Created on: Dec 11, 2022
  *      Author: bfisher
+ *  Heavily modified on Apr 7, 2023 by cminyard
  *
- *      Extract MRAM specific stuff from general NV code in nonvol.c
+ *  This provides access to SPI MRAM devices.  It find all available
+ *  MRAM devices and combines them together to appear as a single
+ *  device.  It then provides partition support; the MRAM device is
+ *  divided into sections by size.
  *
+ *  Currently, the first section is for holding statistics and the
+ *  second is for a filesystem.  The first partition is fixed size by
+ *  a #define and the second partition is the rest of the available
+ *  MRAM.
  */
 #include <stddef.h>
 #include "mram.h"
@@ -299,7 +307,6 @@ int getMRAMSize(int mramNum)
     }
     writeMRAMWord(dev, 0, saveVal0);  //Restore original address 0
     return i * sizeMultiple;
-
 }
 
 int initMRAM()
