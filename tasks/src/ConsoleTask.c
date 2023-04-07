@@ -30,6 +30,7 @@
 #include "rti.h"
 #include "esm.h"
 #include "adc.h"
+#include "mram.h:
 #include "ax5043-70cm-PSK.h"
 #include "ax5043-2M-AFSK-externs.h"
 #include "config-2M-AFSK.h"
