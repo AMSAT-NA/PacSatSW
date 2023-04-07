@@ -29,7 +29,6 @@
 #ifndef OSBDEV_CUSTOM_H
 #define OSBDEV_CUSTOM_H
 
-
 /*  Hi, there!  You might be seeing this error message and wondering what to do
     about it.  The gist of it is that FreeRTOS does not provide a standard
     interface for communicating with the block device.  You need to fill in
@@ -46,13 +45,8 @@
 */
 /* #error "FreeRTOS block device not implemented" */
 
-
-/*  If you need to include headers to access your block device, do so here.  For
-    example, if you are using an SD card driver whose interfaces are defined in
-    sd.h, that would be included here.
-#include <foobar.h>
-*/
-
+#include <redosserv.h>
+#include <nonvol.h>
 
 /** @brief Initialize a disk.
 
@@ -69,19 +63,15 @@ static REDSTATUS DiskOpen(
     uint8_t         bVolNum,
     BDEVOPENMODE    mode)
 {
-    REDSTATUS       ret;
+    if (bVolNum != 0) {
+        REDERROR();
+        return -RED_ENOSYS;
+    }
 
-    /*  Avoid warnings about unused function parameters.
-    */
-    (void)bVolNum;
-    (void)mode;
+    if (getSizeNV(NVFileSystem) == 0)
+        return -RED_ENOSYS;
 
-    /*  Insert code here to open/initialize the block device.
-    */
-    REDERROR();
-    ret = -RED_ENOSYS;
-
-    return ret;
+    return 0;
 }
 
 
@@ -97,18 +87,12 @@ static REDSTATUS DiskOpen(
 static REDSTATUS DiskClose(
     uint8_t     bVolNum)
 {
-    REDSTATUS   ret;
+    if (bVolNum != 0) {
+        REDERROR();
+        return -RED_ENOSYS;
+    }
 
-    /*  Avoid warnings about unused function parameters.
-    */
-    (void)bVolNum;
-
-    /*  Insert code here to close/deinitialize the block device.
-    */
-    REDERROR();
-    ret = -RED_ENOSYS;
-
-    return ret;
+    return 0;
 }
 
 
@@ -129,19 +113,21 @@ static REDSTATUS DiskGetGeometry(
     uint8_t     bVolNum,
     BDEVINFO   *pInfo)
 {
-    REDSTATUS   ret;
+    int size;
 
-    /*  Avoid warnings about unused function parameters.
-    */
-    (void)bVolNum;
-    (void)pInfo;
+    if (bVolNum != 0) {
+        REDERROR();
+        return -RED_ENOSYS;
+    }
 
-    /*  Insert code here to read the block device geometry.
-    */
-    REDERROR();
-    ret = -RED_ENOSYS;
+    size = getSizeNV(NVFileSystem);
+    if (size == 0)
+        return -RED_ENOSYS;
 
-    return ret;
+    pInfo->ulSectorSize = REDCONF_BLOCK_SIZE;
+    pInfo->ullSectorCount = size / REDCONF_BLOCK_SIZE;
+
+    return 0;
 }
 
 
@@ -164,21 +150,21 @@ static REDSTATUS DiskRead(
     uint32_t    ulSectorCount,
     void       *pBuffer)
 {
-    REDSTATUS   ret;
+    int startaddr, length;
 
-    /*  Avoid warnings about unused function parameters.
-    */
-    (void)bVolNum;
-    (void)ullSectorStart;
-    (void)ulSectorCount;
-    (void)pBuffer;
+    if (bVolNum != 0) {
+        REDERROR();
+	return -RED_ENOSYS;
+    }
 
-    /*  Insert code here to read sectors from the block device.
-    */
-    REDERROR();
-    ret = -RED_ENOSYS;
+    startaddr = ullSectorStart * REDCONF_BLOCK_SIZE;
+    length = ulSectorCount * REDCONF_BLOCK_SIZE;
+    if (!readNV(pBuffer, length, NVFileSystem, startaddr)) {
+	REDERROR();
+	return -RED_EINVAL;
+    }
 
-    return ret;
+    return 0;
 }
 
 
@@ -203,21 +189,21 @@ static REDSTATUS DiskWrite(
     uint32_t    ulSectorCount,
     const void *pBuffer)
 {
-    REDSTATUS   ret;
+    int startaddr, length;
 
-    /*  Avoid warnings about unused function parameters.
-    */
-    (void)bVolNum;
-    (void)ullSectorStart;
-    (void)ulSectorCount;
-    (void)pBuffer;
+    if (bVolNum != 0) {
+	REDERROR();
+	return -RED_ENOSYS;
+    }
 
-    /*  Insert code here to write sectors to the block device.
-    */
-    REDERROR();
-    ret = -RED_ENOSYS;
+    startaddr = ullSectorStart * REDCONF_BLOCK_SIZE;
+    length = ulSectorCount * REDCONF_BLOCK_SIZE;
+    if (!writeNV(pBuffer, length, NVFileSystem, startaddr)) {
+	REDERROR();
+	return -RED_EINVAL;
+    }
 
-    return ret;
+    return 0;
 }
 
 
@@ -234,20 +220,8 @@ static REDSTATUS DiskWrite(
 static REDSTATUS DiskFlush(
     uint8_t     bVolNum)
 {
-    REDSTATUS   ret;
-
-    /*  Avoid warnings about unused function parameters.
-    */
-    (void)bVolNum;
-
-    /*  Insert code here to flush the block device.  If writing to the block
-        device is inherently synchronous (no hardware or software cache), then
-        this can do nothing and return success.
-    */
-    REDERROR();
-    ret = -RED_ENOSYS;
-
-    return ret;
+    /* Data is written synchronously. */
+    return 0;
 }
 
 #endif /* REDCONF_READ_ONLY == 0 */
