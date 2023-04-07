@@ -22,21 +22,25 @@
 #include "spiDriver.h"
 #include "errors.h"
 #include "CANSupport.h"
-bool writeNV(void const * const data, uint32_t dataLength,NVType type, uint32_t nvAddress){
-    if (type == LocalEEPROMData){
+
+bool writeNV(void const * const data, uint32_t dataLength, NVType type,
+	     uint32_t nvAddress)
+{
+    if (type == LocalEEPROMData) {
         // This is here just in case there is a way to do this on RT-IHU
         return false;
-    } else if (type == ExternalMRAMData){
+    } else if (type == ExternalMRAMData) {
         /*
          * This code knows about the commands for and has been tested with
          * an external RAMTRON F-RAM and an Eversource MRAM.
          */
 
-        ByteToWord writeCommand,framAddress;
+        ByteToWord writeCommand, framAddress;
         SPIDevice mramDev;
+
         framAddress.word = nvAddress;
         mramDev = GetMRAMAndAddress(&framAddress.word);
-        if(mramDev == InvalidSPI){
+        if (mramDev == InvalidSPI) {
             return false;
         }
         MRAMWriteEnable(mramDev);
@@ -48,21 +52,24 @@ bool writeNV(void const * const data, uint32_t dataLength,NVType type, uint32_t 
         //printf("Write %x to addr %x in MRAM %d, requested addr=%x\n",
         //       *(uint32_t *)data,framAddress.word,(int)mramDev,nvAddress);
 
-        SPISendCommand(mramDev, writeCommand.word,ADDRESS_BYTES+1, /* Now write    */
-                       (uint8_t *)data,dataLength,  NULL,0);
+	/* Now write */
+        SPISendCommand(mramDev, writeCommand.word, ADDRESS_BYTES+1,
+                       (uint8_t *)data, dataLength, NULL, 0);
 
-        return TRUE;
+        return true;
     }
-    return FALSE;
+    return false;
 }
 
-bool readNV(void *data, uint32_t dataLength, NVType type, uint32_t nvAddress){
+bool readNV(void *data, uint32_t dataLength, NVType type, uint32_t nvAddress)
+{
     int retry;
     SPIDevice mramDev;
+
     if (type == LocalEEPROMData){
         return false;
     } else if (type == ExternalMRAMData){
-        ByteToWord framAddress,ourAddress;
+        ByteToWord framAddress, ourAddress;
 
         /*
          * See comments above regarding writing the MRAM
@@ -70,7 +77,7 @@ bool readNV(void *data, uint32_t dataLength, NVType type, uint32_t nvAddress){
 
         ourAddress.word = nvAddress;
         mramDev = GetMRAMAndAddress(&ourAddress.word);
-        if(mramDev == InvalidSPI){
+        if (mramDev == InvalidSPI) {
             return false;
         }
         framAddress.byte[1] = ourAddress.byte[1];  // Address is big-endian.
@@ -78,19 +85,20 @@ bool readNV(void *data, uint32_t dataLength, NVType type, uint32_t nvAddress){
         framAddress.byte[3] = ourAddress.byte[3];  // Address is big-endian.
         framAddress.byte[0] = FRAM_OP_READ;
 
-        retry=SPI_MRAM_RETRIES;
-        while(retry-- > 0){
+        retry = SPI_MRAM_RETRIES;
+        while (retry-- > 0){
             /* Retry a few times before we give up */
-            if(SPISendCommand(mramDev, framAddress.word,ADDRESS_BYTES+1,0,0,
-                              (uint8_t *)data, dataLength)){
+            if (SPISendCommand(mramDev, framAddress.word, ADDRESS_BYTES+1, 0, 0,
+			       (uint8_t *) data, dataLength)){
                 //printf("Read %x from addr %x in MRAM %d, requested addr=%x\n",*(uint32_t *)data,ourAddress.word,(int)mramDev,nvAddress);
-                return TRUE;
+                return true;
             }
             //          IHUSoftErrorData.SPIRetries++;
         }
-        ReportError(SPIMramTimeout,TRUE,ReturnAddr,(int)__builtin_return_address(0));
+        ReportError(SPIMramTimeout, TRUE, ReturnAddr,
+		    (int)__builtin_return_address(0));
     }
-    return FALSE;
+    return false;
 }
 
 
