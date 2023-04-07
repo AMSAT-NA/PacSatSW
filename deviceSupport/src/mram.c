@@ -133,18 +133,20 @@ bool writeMRAM(int partition,
     SPIDevice mramDev;
 
     base = getPartitionOffset(partition);
-    if (base < 0)
+    if (base < 0) {
+        ReportError(MRAMwrite, false, PortNumber, (int) partition);
         return false;
-    address += base;
+    }
 
     /*
      * This code knows about the commands for and has been tested with
      * an external RAMTRON F-RAM and an Eversource MRAM.
      */
 
-    framAddress.word = address;
+    framAddress.word = address + base;
     mramNum = addressToMRAMNum(&framAddress.word);
     if (mramNum < 0) {
+        ReportError(MRAMwrite, false, TaskNumber, (int) address);
         return false;
     }
     writeEnableMRAM(mramNum);
@@ -177,13 +179,15 @@ bool readMRAM(int partition,
      */
 
     base = getPartitionOffset(partition);
-    if (base < 0)
+    if (base < 0) {
+        ReportError(MRAMread, false, PortNumber, (int) partition);
         return false;
-    address += base;
+    }
 
-    ourAddress.word = address;
+    ourAddress.word = address + base;
     mramNum = addressToMRAMNum(&ourAddress.word);
     if (mramNum < 0) {
+        ReportError(MRAMread, false, TaskNumber, (int) address);
         return false;
     }
     mramDev = MRAM_Devices[mramNum];
@@ -295,7 +299,7 @@ int initMRAM()
 
     /* Already initialized. */
     if (numberOfMRAMs)
-	return totalMRAMSize;
+        return totalMRAMSize;
 
     for (i=0; i<PACSAT_MAX_MRAMS; i++) {
         size += MRAMSize[i] = getMRAMSize(MRAM_Devices[i]);
@@ -307,6 +311,10 @@ int initMRAM()
         mramPartitionSize[0] = MRAM_PARTITION_0_SIZE;
         mramPartitionSize[1] = size - MRAM_PARTITION_0_SIZE;
         mramPartitionOffset[1] = MRAM_PARTITION_0_SIZE;
+        printf("MRAMs initialized with %d mrams, %d total bytes\n",
+               numberOfMRAMs, totalMRAMSize);
+    } else {
+        printf("MRAM init failure, not enough space\n");
     }
     return totalMRAMSize;
 }
