@@ -15,24 +15,24 @@
 #include "CANSupport.h"
 #include "MET.h"
 
-const SPIDevice MRAM_Devices[PACSAT_MAX_MRAMS] =
+static const SPIDevice MRAM_Devices[PACSAT_MAX_MRAMS] =
     {MRAM0Dev, MRAM1Dev, MRAM2Dev, MRAM3Dev};
 static uint32_t MRAMSize[PACSAT_MAX_MRAMS];
 static int numberOfMRAMs = 0;
 static int totalMRAMSize = 0;
 
-SPIDevice GetMRAMAndAddress(uint32_t *addr)
+static int addressToMRAMNum(uint32_t *addr)
 {
     int MRAMNumber = 0;
 
     while (*addr >= MRAMSize[MRAMNumber]) {
-        *addr-=MRAMSize[MRAMNumber];
+        *addr -= MRAMSize[MRAMNumber];
         MRAMNumber++;
         if (MRAMNumber > numberOfMRAMs){
-            return InvalidSPI;
+            return -1;
         }
     }
-    return MRAM_Devices[MRAMNumber]; //Assume MRAM values are in order
+    return MRAMNumber; //Assume MRAM values are in order
 }
 
 bool MRAMSleep(int mramNum)
@@ -57,7 +57,7 @@ bool MRAMWake(int mramNum)
                           NULL, 0, NULL, 0);
 }
 
-uint8_t ReadMRAMStatus(SPIDevice mram)
+uint8_t readMRAMStatus(int mramNum)
 {
     /*
      * MRAM documentation says that if RDSR is executed immediately after READ, the results
@@ -66,32 +66,39 @@ uint8_t ReadMRAMStatus(SPIDevice mram)
     ByteToWord command;
     uint8_t data;
 
+    if (mramNum >= PACSAT_MAX_MRAMS)
+        return false;
     command.byte[0] = FRAM_OP_RDSR;
-    SPISendCommand(mram, command.word, 1, 0, 0, &data, 1);
-    SPISendCommand(mram, command.word, 1, 0, 0, &data, 1);
+    SPISendCommand(MRAM_Devices[mramNum], command.word, 1, 0, 0, &data, 1);
+    SPISendCommand(MRAM_Devices[mramNum], command.word, 1, 0, 0, &data, 1);
     return data;
 }
 
-bool MRAMWriteEnable(SPIDevice mramNum)
+bool writeEnableMRAM(int mramNum)
 {
-    bool stat;
     ByteToWord command;
+
+    if (mramNum >= PACSAT_MAX_MRAMS)
+        return false;
 
     command.byte[0] = FRAM_OP_WREN;
     /* Write enable */
-    stat = SPISendCommand(mramNum, command.word, 1, NULL, 0, NULL, 0);
-    return stat;
+    return SPISendCommand(MRAM_Devices[mramNum], command.word,
+			  1, NULL, 0, NULL, 0);
 }
 
-void WriteMRAMStatus(SPIDevice mramNum, uint8_t status)
+void writeMRAMStatus(int mramNum, uint8_t status)
 {
     ByteToWord command;
 
+    if (mramNum >= PACSAT_MAX_MRAMS)
+        return;
+
     command.byte[0] = FRAM_OP_WREN;
-    SPISendCommand(mramNum,command.word,1,0,0,0,0);
+    SPISendCommand(MRAM_Devices[mramNum], command.word, 1, 0, 0, 0, 0);
     command.byte[0] = FRAM_OP_WRSR;
     command.byte[1] = status;
-    SPISendCommand(mramNum,command.word,2,0,0,0,0);
+    SPISendCommand(MRAM_Devices[mramNum], command.word, 2, 0, 0, 0, 0);
 }
 
 int getSizeMRAM(void)
@@ -101,7 +108,77 @@ int getSizeMRAM(void)
     return initMRAM();
 }
 
-void writeMRAMWord(SPIDevice dev, uint32_t addr, uint32_t val)
+bool writeMRAM(void const * const data, uint32_t length, uint32_t address)
+{
+    ByteToWord writeCommand, framAddress;
+    int mramNum;
+    SPIDevice mramDev;
+
+    /*
+     * This code knows about the commands for and has been tested with
+     * an external RAMTRON F-RAM and an Eversource MRAM.
+     */
+
+    framAddress.word = address;
+    mramNum = addressToMRAMNum(&framAddress.word);
+    if (mramDev < 0) {
+	return false;
+    }
+    writeEnableMRAM(mramNum);
+    mramDev = MRAM_Devices[mramNum];
+
+    writeCommand.byte[0] = FRAM_OP_WRITE;
+    // The MRAM address is big endian, but so is the processor.
+    writeCommand.byte[1] = framAddress.byte[1];
+    writeCommand.byte[2] = framAddress.byte[2];
+    writeCommand.byte[3] = framAddress.byte[3];
+    //printf("Write %x to addr %x in MRAM %d, requested addr=%x\n",
+    //       *(uint32_t *)data,framAddress.word,(int)mramDev,nvAddress);
+
+    /* Now write */
+    SPISendCommand(mramDev, writeCommand.word, ADDRESS_BYTES+1,
+		   (uint8_t *) data, length, NULL, 0);
+
+    return true;
+}
+
+bool readMRAM(void *data, uint32_t length, uint32_t address)
+{
+    ByteToWord framAddress, ourAddress;
+    SPIDevice mramDev;
+    int mramNum, retry;
+
+    /*
+     * See comments above regarding writing the MRAM
+     */
+
+    ourAddress.word = address;
+    mramNum = addressToMRAMNum(&ourAddress.word);
+    if (mramDev < 0) {
+	return false;
+    }
+    mramDev = MRAM_Devices[mramNum];
+
+    framAddress.byte[1] = ourAddress.byte[1];  // Address is big-endian.
+    framAddress.byte[2] = ourAddress.byte[2];  // Address is big-endian.
+    framAddress.byte[3] = ourAddress.byte[3];  // Address is big-endian.
+    framAddress.byte[0] = FRAM_OP_READ;
+
+    retry = SPI_MRAM_RETRIES;
+    while (retry-- > 0){
+	/* Retry a few times before we give up */
+	if (SPISendCommand(mramDev, framAddress.word, ADDRESS_BYTES+1, 0, 0,
+			   (uint8_t *) data, length)){
+	    //printf("Read %x from addr %x in MRAM %d, requested addr=%x\n",*(uint32_t *)data,ourAddress.word,(int)mramDev,nvAddress);
+	    return true;
+	}
+	//          IHUSoftErrorData.SPIRetries++;
+    }
+    ReportError(SPIMramTimeout, TRUE, ReturnAddr,
+		(int)__builtin_return_address(0));
+}
+
+static void writeMRAMWord(SPIDevice dev, uint32_t addr, uint32_t val)
 {
     /*
      * This just makes the MRAM size routine easier to read
@@ -111,12 +188,11 @@ void writeMRAMWord(SPIDevice dev, uint32_t addr, uint32_t val)
 
     mramAddr.word = addr;
     mramAddr.byte[0] = FRAM_OP_WRITE;
-    MRAMWriteEnable(dev);
     //printf("Write %x to addr %x\n",value,addr);
     SPISendCommand(dev, mramAddr.word, ADDRESS_BYTES+1, &value, 4, 0, 0);
 }
 
-uint32_t readMRAMWord(SPIDevice dev, uint32_t addr)
+static uint32_t readMRAMWord(SPIDevice dev, uint32_t addr)
 {
     ByteToWord mramAddr;
     uint32_t value;
@@ -128,7 +204,7 @@ uint32_t readMRAMWord(SPIDevice dev, uint32_t addr)
     return value;
 }
 
-int getMRAMSize(SPIDevice dev)
+int getMRAMSize(int mramNum)
 {
     /*
      * This routine 'knows' about the FRAM and the on-board FLASH data sizes
@@ -138,7 +214,15 @@ int getMRAMSize(SPIDevice dev)
      */
     int i, sizeMultiple = 64*1024; //Assume smallest is 64K increasing in multiples of 64K.
     uint32_t saveVal0, saveValTest;
-    uint32_t addr0Val=0x1f2f3f97, testAddrVal = 0x994499ab;
+    uint32_t addr0Val = 0x1f2f3f97, testAddrVal = 0x994499ab;
+    SPIDevice dev;
+
+    if (mramNum >= PACSAT_MAX_MRAMS)
+        return;
+
+    dev = MRAM_Devices[mramNum];
+
+    writeEnableMRAM(mramNum);
 
     /*
      * Setup for test by reading and saving address 0; then write a random value into
@@ -155,13 +239,13 @@ int getMRAMSize(SPIDevice dev)
      * Now write a different number every "sizeMultiple" bytes and see if it wraps.
      */
 
-    for(i=1;i<32;i++){
+    for (i=1; i<32; i++) {
         uint32_t readBack;
         uint32_t testAddr = i * sizeMultiple;
         saveValTest = readMRAMWord(dev, testAddr);
         writeMRAMWord(dev, testAddr, testAddrVal);
         readBack = readMRAMWord(dev, 0);
-        if(readBack != addr0Val){
+        if (readBack != addr0Val) {
             //printf("Address 0 has changed to %x writing to addr %x\n",readBack,testAddr);
             break;
         } else {
@@ -186,6 +270,8 @@ int initMRAM()
     }
     return totalMRAMSize;
 }
+
+/* Test code below here. */
 
 bool testMRAM(int size)
 {

@@ -297,7 +297,7 @@ void RealConsoleTask(void)
         case sizeMRAM:{
             int i;
             for (i=0;i<PACSAT_MAX_MRAMS;){
-                printf("MRAM%d size is %dkB",i,getMRAMSize(MRAM_Devices[i])/1024);
+                printf("MRAM%d size is %dkB",i,getMRAMSize(i)/1024);
                 i++;
                 if(i%2 == 0){
                     printf("\n");
@@ -306,8 +306,8 @@ void RealConsoleTask(void)
                 }
             }
 
- //           printf("Size of MRAM0 is %dKB\n",getMRAMSize(MRAM0Dev)/1024);
- //           printf("Size of MRAM1 is %dKB\n",getMRAMSize(MRAM1Dev)/1024);
+ //           printf("Size of MRAM0 is %dKB\n",getMRAMSize(0)/1024);
+ //           printf("Size of MRAM1 is %dKB\n",getMRAMSize(1)/1024);
  //           printf("Size of MRAM2 is %dKB\n",getMRAMSize(MRAM2Dev)/1024);
  //           printf("Size of MRAM3 is %dKB\n",getMRAMSize(MRAM3Dev)/1024);
             break;
@@ -319,10 +319,11 @@ void RealConsoleTask(void)
         }
         case MRAMWrEn:{
             bool stat;
-            stat=MRAMWriteEnable(MRAM0Dev);
-            printf("stat for MRAM 0 is %d; sr is %x\n",stat,ReadMRAMStatus(MRAM0Dev));
-            stat=MRAMWriteEnable(MRAM1Dev);
-            printf("stat for MRAM 1 is %d; sr is %x\n",stat,ReadMRAMStatus(MRAM1Dev));
+            int num = parseNumber(afterCommand);
+
+            stat = writeEnableMRAM(num);
+            printf("stat for MRAM %d is %d; sr is %x\n", num, stat,
+		   readMRAMStatus(num));
             //readNV(data,8,ExternalMRAMData,0);
             //printf("MRAM at address 0 and 1 are now now %d and %d\n",data[0],data[1]);
             break;
@@ -619,7 +620,7 @@ void RealConsoleTask(void)
         case readMRAMsr:{
             int i;
             for (i=0;i<PACSAT_MAX_MRAMS;){
-                printf("MRAM%d: status %x",i,ReadMRAMStatus(MRAM_Devices[i]));
+                printf("MRAM%d: status %x",i,readMRAMStatus(i));
                 i++;
                 if(i%2 == 0){
                     printf("\n");
@@ -633,7 +634,7 @@ void RealConsoleTask(void)
             uint8_t stat = parseNumber(afterCommand);
             int i;
             for (i=0;i<PACSAT_MAX_MRAMS;i++){
-                WriteMRAMStatus(MRAM_Devices[i],stat);
+                writeMRAMStatus(i,stat);
             }
             break;
         }

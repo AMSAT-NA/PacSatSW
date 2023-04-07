@@ -44,16 +44,18 @@
 #define FRAM_512K_ADDRESS_LENGTH 2    /* This is for the RAMTRON F-RAM */
 #define FRAM_512K_ADDRESS_MAX 0xffff
 
-SPIDevice GetMRAMAndAddress(uint32_t *addr);
-int getMRAMSize(SPIDevice mram);
-uint8_t ReadMRAMStatus(SPIDevice mram);
-void WriteMRAMStatus(SPIDevice mram,uint8_t newStat);
-bool MRAMWriteEnable(SPIDevice mram);
+#define MAX_MRAM_PARTITIONS 2
+
+int getMRAMSize(int mramNum);
+uint8_t readMRAMStatus(int mramNum);
+void writeMRAMStatus(int mramNum, uint8_t newStat);
+bool writeEnableMRAM(int mramNum);
 int initMRAM(void);
 int getSizeMRAM(void);
+bool writeMRAM(void const * const data, uint32_t length, uint32_t address);
+bool readMRAM(void *data, uint32_t length, uint32_t address);
 bool MRAMSleep(int mramNum);
 bool MRAMWake(int mramNum);
 bool testMRAM(int add);
-extern const SPIDevice MRAM_Devices[PACSAT_MAX_MRAMS];
 
 #endif /* FRAM_H_ */
