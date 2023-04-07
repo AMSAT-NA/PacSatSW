@@ -50,6 +50,7 @@ uint8_t ReadMRAMStatus(SPIDevice mram);
 void WriteMRAMStatus(SPIDevice mram,uint8_t newStat);
 bool MRAMWriteEnable(SPIDevice mram);
 int initMRAM(void);
+int getSizeMRAM(void);
 bool MRAMSleep(int mramNum);
 bool MRAMWake(int mramNum);
 bool testMRAM(int add);

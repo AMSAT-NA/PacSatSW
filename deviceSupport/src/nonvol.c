@@ -101,4 +101,9 @@ bool readNV(void *data, uint32_t dataLength, NVType type, uint32_t nvAddress)
     return false;
 }
 
-
+int getSizeNV(NVType type)
+{
+    if (type != ExternalMRAMData)
+	return 0;
+    return getSizeMRAM();
+}

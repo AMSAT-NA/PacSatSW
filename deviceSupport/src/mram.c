@@ -94,13 +94,8 @@ void WriteMRAMStatus(SPIDevice mramNum, uint8_t status)
     SPISendCommand(mramNum,command.word,2,0,0,0,0);
 }
 
-int getSizeNV(NVType x)
+int getSizeMRAM(void)
 {
-    /*
-     * For this processor, the only NV memory is MRAM
-     */
-    if (x != ExternalMRAMData)
-        return 0;
     if (numberOfMRAMs)
         return totalMRAMSize;
     return initMRAM();
