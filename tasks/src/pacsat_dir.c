@@ -296,7 +296,7 @@ int dir_load() {
 
     debug_print("Loading directory from MRAM...\n");
 
-    rc = readNV(&numOfFiles, sizeof(uint32_t),ExternalMRAMData, (int)&(LocalFlash->NumberOfFiles));
+    rc = readNV(&numOfFiles, sizeof(uint32_t),NVStatisticsArea, (int)&(LocalFlash->NumberOfFiles));
     if (!rc) {
         debug_print("Read MRAM number of files - FAILED\n");
         return FALSE;
@@ -418,7 +418,7 @@ void dir_debug_print(DIR_NODE *p) {
  * Read a record from the file allocation table
  */
 bool dir_mram_get_node(uint32_t file_handle, MRAM_FILE * dir_node) {
-    bool rc = readNV(dir_node, sizeof(MRAM_FILE),ExternalMRAMData, (int)&(LocalFlash->MRAMFiles[file_handle]));
+    bool rc = readNV(dir_node, sizeof(MRAM_FILE),NVStatisticsArea, (int)&(LocalFlash->MRAMFiles[file_handle]));
     if (!rc) {
         debug_print("MRAM FAT read - FAILED\n");
         return FALSE;
@@ -435,25 +435,25 @@ bool dir_mram_write_file(uint32_t file_handle, uint8_t *data, uint32_t length, u
                          uint16_t body_offset, uint32_t address) {
 
     bool rc;
-    rc = writeNV(&file_handle,sizeof(uint32_t),ExternalMRAMData,(int)&(LocalFlash->MRAMFiles[file_handle].file_handle));
+    rc = writeNV(&file_handle,sizeof(uint32_t),NVStatisticsArea,(int)&(LocalFlash->MRAMFiles[file_handle].file_handle));
         if (!rc) {  debug_print("Write MRAM FAT file_handle - FAILED\n");
             return FALSE; }
-    rc = writeNV(&file_id,sizeof(uint32_t),ExternalMRAMData,(int)&(LocalFlash->MRAMFiles[file_handle].file_id));
+    rc = writeNV(&file_id,sizeof(uint32_t),NVStatisticsArea,(int)&(LocalFlash->MRAMFiles[file_handle].file_id));
     if (!rc) {  debug_print("Write MRAM FAT file_id - FAILED\n");
         return FALSE; }
-    rc = writeNV(&length,sizeof(uint32_t),ExternalMRAMData,(int)&(LocalFlash->MRAMFiles[file_handle].file_size));
+    rc = writeNV(&length,sizeof(uint32_t),NVStatisticsArea,(int)&(LocalFlash->MRAMFiles[file_handle].file_size));
     if (!rc) {  debug_print("Write MRAM FAT file_size - FAILED\n");
         return FALSE; }
-    rc = writeNV(&address,sizeof(uint32_t),ExternalMRAMData,(int)&(LocalFlash->MRAMFiles[file_handle].address));
+    rc = writeNV(&address,sizeof(uint32_t),NVStatisticsArea,(int)&(LocalFlash->MRAMFiles[file_handle].address));
     if (!rc) {  debug_print("Write MRAM FAT address - FAILED\n");
         return FALSE; }
-    rc = writeNV(&upload_time,sizeof(uint32_t),ExternalMRAMData,(int)&(LocalFlash->MRAMFiles[file_handle].upload_time));
+    rc = writeNV(&upload_time,sizeof(uint32_t),NVStatisticsArea,(int)&(LocalFlash->MRAMFiles[file_handle].upload_time));
     if (!rc) {  debug_print("Write MRAM FAT upload_time - FAILED\n");
         return FALSE; }
-    rc = writeNV(&body_offset,sizeof(uint16_t),ExternalMRAMData,(int)&(LocalFlash->MRAMFiles[file_handle].body_offset));
+    rc = writeNV(&body_offset,sizeof(uint16_t),NVStatisticsArea,(int)&(LocalFlash->MRAMFiles[file_handle].body_offset));
     if (!rc) {  debug_print("Write MRAM FAT body_offset - FAILED\n"); return FALSE; }
 
-    rc = writeNV(data,length,ExternalMRAMData,(int)address);
+    rc = writeNV(data,length,NVStatisticsArea,(int)address);
     if (!rc) {  debug_print("Write MRAM file data - FAILED\n");
         return FALSE; }
     return TRUE;
@@ -466,20 +466,20 @@ bool dir_mram_append_to_file(uint32_t file_handle, uint8_t *data, uint32_t lengt
     uint32_t size;
 
     // Read the address for the start of the file
-    rc = readNV(&address, sizeof(uint32_t),ExternalMRAMData, (int)&(LocalFlash->MRAMFiles[file_handle].address));
+    rc = readNV(&address, sizeof(uint32_t),NVStatisticsArea, (int)&(LocalFlash->MRAMFiles[file_handle].address));
     if (!rc) {  debug_print("Write MRAM FAT header - FAILED\n"); return FALSE; }
 
     // Read the existing size
-    rc = readNV(&size, sizeof(uint32_t),ExternalMRAMData, (int)&(LocalFlash->MRAMFiles[file_handle].file_size));
+    rc = readNV(&size, sizeof(uint32_t),NVStatisticsArea, (int)&(LocalFlash->MRAMFiles[file_handle].file_size));
     if (!rc) {  debug_print("Write MRAM FAT header - FAILED\n"); return FALSE; }
 
     // Append the data
-    rc = writeNV(data,length,ExternalMRAMData,(int)address+size);
+    rc = writeNV(data,length,NVStatisticsArea,(int)address+size);
     if (!rc) {  debug_print("Write MRAM file data - FAILED\n"); return FALSE; }
 
     // Write the new length
     size = size + length;
-    rc = writeNV(&size,sizeof(uint32_t),ExternalMRAMData,(int)&(LocalFlash->MRAMFiles[file_handle].file_size));
+    rc = writeNV(&size,sizeof(uint32_t),NVStatisticsArea,(int)&(LocalFlash->MRAMFiles[file_handle].file_size));
     if (!rc) {  debug_print("Write MRAM FAT header - FAILED\n"); return FALSE; }
 
     return TRUE;
@@ -496,13 +496,13 @@ bool dir_mram_write_file_chunk(MRAM_FILE *mram_file, uint8_t *data, uint32_t chu
     bool rc;
     uint32_t size;
     // Write the data
-    rc = writeNV(data,chunk_length,ExternalMRAMData,(int)(mram_file->address + offset));
+    rc = writeNV(data,chunk_length,NVStatisticsArea,(int)(mram_file->address + offset));
     if (!rc) {  debug_print("Write MRAM file data - FAILED\n"); return FALSE; }
 
     // If this extends the file then write the new length
     if (offset+chunk_length > mram_file->file_size) {
         size = offset + chunk_length;
-        rc = writeNV(&size,sizeof(uint32_t),ExternalMRAMData,(int)&(LocalFlash->MRAMFiles[mram_file->file_handle].file_size));
+        rc = writeNV(&size,sizeof(uint32_t),NVStatisticsArea,(int)&(LocalFlash->MRAMFiles[mram_file->file_handle].file_size));
         mram_file->file_size = size;
     if (!rc) {  debug_print("Write MRAM FAT header - FAILED\n"); return FALSE; }
     }
@@ -521,7 +521,7 @@ bool dir_mram_read_file_chunk(MRAM_FILE *mram_file, uint8_t *data, uint32_t chun
         return FALSE;
     }
     // Read the data
-    rc = readNV(data, chunk_length, ExternalMRAMData, (int)(mram_file->address + offset));
+    rc = readNV(data, chunk_length, NVStatisticsArea, (int)(mram_file->address + offset));
     if (!rc) {
         debug_print("Read MRAM File data header - FAILED\n");
         return FALSE;

@@ -44,15 +44,38 @@
 #define FRAM_512K_ADDRESS_LENGTH 2    /* This is for the RAMTRON F-RAM */
 #define FRAM_512K_ADDRESS_MAX 0xffff
 
-SPIDevice GetMRAMAndAddress(uint32_t *addr);
-int getMRAMSize(SPIDevice mram);
-uint8_t ReadMRAMStatus(SPIDevice mram);
-void WriteMRAMStatus(SPIDevice mram,uint8_t newStat);
-bool MRAMWriteEnable(SPIDevice mram);
+#define MAX_MRAM_PARTITIONS 2
+
+/*
+ * Size of partition 0.  This is the partition used by non-volatile
+ * management for various statistics.
+ *
+ * Partition 1 is whatever is left over.
+ */
+#define MRAM_PARTITION_0_SIZE 1024
+
+/* Initialize the MRAM system. */
 int initMRAM(void);
+
+/*
+ * Address the MRAM data by partition.  The MRAM code makes all the
+ * MRAM devices look like a single big device and parititions it.
+ */
+int getSizeMRAM(int partition);
+bool writeMRAM(int partition,
+	       void const * const data, uint32_t length, uint32_t address);
+bool readMRAM(int partition,
+	      void *data, uint32_t length, uint32_t address);
+
+/* Commands for addressing individual MRAM devices, mostly for status. */
+uint8_t readMRAMStatus(int mramNum);
+void writeMRAMStatus(int mramNum, uint8_t newStat);
+bool writeEnableMRAM(int mramNum);
+int getMRAMSize(int mramNum);
 bool MRAMSleep(int mramNum);
 bool MRAMWake(int mramNum);
+
+/* Test code. */
 bool testMRAM(int add);
-extern const SPIDevice MRAM_Devices[PACSAT_MAX_MRAMS];
 
 #endif /* FRAM_H_ */

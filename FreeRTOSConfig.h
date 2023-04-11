@@ -137,6 +137,7 @@
 #define INCLUDE_vTaskDelay						1
 #define INCLUDE_xTaskGetSchedulerState		  	1
 #define INCLUDE_uxTaskGetStackHighWaterMark 	1
+#define INCLUDE_xTaskGetCurrentTaskHandle	1
 
 //#define configASSERT( x ) if( ( x ) == pdFALSE ) { taskDISABLE_INTERRUPTS(); for( ;; ); }
 #define configASSERT( x ) if( ( x ) == pdFALSE ) {  extern void ProcessorReset(void); ProcessorReset(); }

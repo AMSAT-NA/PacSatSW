@@ -31,6 +31,7 @@
 #include "rti.h"
 #include "esm.h"
 #include "adc.h"
+#include "mram.h"
 #include "ax5043-2M-AFSK-externs.h"
 #include "config-2M-AFSK.h"
 
@@ -64,6 +65,7 @@
 #include "PbTask.h" // for test routines
 #include "pacsat_header.h" // for test routines
 #include "pacsat_dir.h" // for dir commands and test routines
+#include "redposix.h"
 //Extern definition
 extern uint8_t SWCmdRing[SW_CMD_RING_SIZE],SWCmdIndex;
 
@@ -113,6 +115,9 @@ enum {
     ,dsbCanPrint
     ,EnableComPr
     ,DisableComPr
+    ,MountFS
+    ,UnMountFS
+    ,FormatFS
     ,GetRfPower
     ,SelectRFPowerLevels
     ,SetDCTDrivePower
@@ -251,6 +256,9 @@ commandPairs commonCommands[] = {
                                  ,{"get rssi","Get the current RSSI reading from the AX5043 Rx",getRSSI}
                                  ,{"get state","Mainly for debug: Get the current state of the downlink state machine",getState}
                                  ,{"get version","Get the software version number and build time",version}
+                                 ,{"mount fs","Mount the filesystem",MountFS}
+                                 ,{"unmount fs","unmount the filesystem",UnMountFS}
+                                 ,{"format fs","Format the filesystem",FormatFS}
                                  ,{"get rf power","Print the RF power settings",GetRfPower}
                                  ,{"get commands","Get a list the last 4 s/w commands",GetCommands}
                                  ,{"get gpios","Display the values of all GPIOS",GetGpios}
@@ -355,7 +363,7 @@ void RealConsoleTask(void)
         case sizeMRAM:{
             int i;
             for (i=0;i<PACSAT_MAX_MRAMS;){
-                printf("MRAM%d size is %dkB",i,getMRAMSize(MRAM_Devices[i])/1024);
+                printf("MRAM%d size is %dkB",i,getMRAMSize(i)/1024);
                 i++;
                 if(i%2 == 0){
                     printf("\n");
@@ -364,10 +372,10 @@ void RealConsoleTask(void)
                 }
             }
 
-            //           printf("Size of MRAM0 is %dKB\n",getMRAMSize(MRAM0Dev)/1024);
-            //           printf("Size of MRAM1 is %dKB\n",getMRAMSize(MRAM1Dev)/1024);
-            //           printf("Size of MRAM2 is %dKB\n",getMRAMSize(MRAM2Dev)/1024);
-            //           printf("Size of MRAM3 is %dKB\n",getMRAMSize(MRAM3Dev)/1024);
+ //           printf("Size of MRAM0 is %dKB\n",getMRAMSize(0)/1024);
+ //           printf("Size of MRAM1 is %dKB\n",getMRAMSize(1)/1024);
+ //           printf("Size of MRAM2 is %dKB\n",getMRAMSize(MRAM2Dev)/1024);
+ //           printf("Size of MRAM3 is %dKB\n",getMRAMSize(MRAM3Dev)/1024);
             break;
         }
         case testAllMRAM:{
@@ -377,11 +385,12 @@ void RealConsoleTask(void)
         }
         case MRAMWrEn:{
             bool stat;
-            stat=MRAMWriteEnable(MRAM0Dev);
-            printf("stat for MRAM 0 is %d; sr is %x\n",stat,ReadMRAMStatus(MRAM0Dev));
-            stat=MRAMWriteEnable(MRAM1Dev);
-            printf("stat for MRAM 1 is %d; sr is %x\n",stat,ReadMRAMStatus(MRAM1Dev));
-            //readNV(data,8,ExternalMRAMData,0);
+            int num = parseNumber(afterCommand);
+
+            stat = writeEnableMRAM(num);
+            printf("stat for MRAM %d is %d; sr is %x\n", num, stat,
+		   readMRAMStatus(num));
+            //readNV(data,8,NVStatisticsArea,0);
             //printf("MRAM at address 0 and 1 are now now %d and %d\n",data[0],data[1]);
             break;
         }
@@ -415,7 +424,7 @@ void RealConsoleTask(void)
         case GetGpios:{
             int i;
             char *gpioNames[NumberOfGPIOs]={
-                                            "LED1","LED2","DCTInterrupt","CommandStrobe","CommandBits"
+               "LED1","LED2","DCTInterrupt","CommandStrobe","CommandBits"
             };
             for (i=0;i<NumberOfGPIOs;i++){
                 if(i%4 == 0){
@@ -427,7 +436,7 @@ void RealConsoleTask(void)
             break;
         }
 #endif
-        case GetCommands: {
+         case GetCommands: {
             extern uint8_t SWCmdRing[SW_CMD_RING_SIZE];
             int i=0;
             printf("Commands received since reset: Hw=%d,Sw=%d\n\r",GetHWCmdCount(),GetSWCmdCount());
@@ -525,14 +534,14 @@ void RealConsoleTask(void)
             printf("\n");
             if(i==16){
                 printf("Writing key...");
-                stat = writeNV(key,sizeof(LocalFlash->AuthenticateKey.key),ExternalMRAMData,(int)&LocalFlash->AuthenticateKey.key);
+                stat = writeNV(key,sizeof(LocalFlash->AuthenticateKey.key),NVStatisticsArea,(int)&LocalFlash->AuthenticateKey.key);
             } else {
                 stat = false;
             }
             if(stat){
                 printf("Writing checksum=%x...",checksum);
-                stat = writeNV(&checksum,sizeof(LocalFlash->AuthenticateKey.keyChecksum),ExternalMRAMData,
-                               (int)&LocalFlash->AuthenticateKey.keyChecksum);
+                stat = writeNV(&checksum,sizeof(LocalFlash->AuthenticateKey.keyChecksum),NVStatisticsArea,
+                              (int)&LocalFlash->AuthenticateKey.keyChecksum);
             }
             if(stat){
                 printf("Writing valid\n");
@@ -540,7 +549,40 @@ void RealConsoleTask(void)
                 magic = 0;
                 printf("Invalidating stored key\n");
             }
-            stat = writeNV(&magic,sizeof(LocalFlash->AuthenticateKey.magic),ExternalMRAMData,(int)&LocalFlash->AuthenticateKey.magic);
+            stat = writeNV(&magic,sizeof(LocalFlash->AuthenticateKey.magic),NVStatisticsArea,(int)&LocalFlash->AuthenticateKey.magic);
+            break;
+        }
+
+        case MountFS:
+        {
+            if (red_mount("/") == -1) {
+                printf("Unable to mount filesystem: %s\n",
+                       red_strerror(red_errno));
+            } else {
+                printf("Filesystem mounted\n");
+            }
+            break;
+        }
+
+        case UnMountFS:
+        {
+            if (red_umount("/") == -1) {
+                printf("Unable to unmount filesystem: %s\n",
+                       red_strerror(red_errno));
+            } else {
+                printf("Filesystem unmounted\n");
+            }
+            break;
+        }
+
+        case FormatFS:
+        {
+            if (red_format("/") == -1) {
+                printf("Unable to format filesystem: %s\n",
+                       red_strerror(red_errno));
+            } else {
+                printf("Filesystem formatted\n");
+            }
             break;
         }
 
@@ -611,8 +653,8 @@ void RealConsoleTask(void)
             );
             printf("\nAllFrames = %d\n",sizeof(allFrames_t));
 
-            break;
-        }
+             break;
+         }
         case mramSleep:{
             int num = parseNumber(afterCommand);
             MRAMSleep(num);
@@ -677,7 +719,7 @@ void RealConsoleTask(void)
         case readMRAMsr:{
             int i;
             for (i=0;i<PACSAT_MAX_MRAMS;){
-                printf("MRAM%d: status %x",i,ReadMRAMStatus(MRAM_Devices[i]));
+                printf("MRAM%d: status %x",i,readMRAMStatus(i));
                 i++;
                 if(i%2 == 0){
                     printf("\n");
@@ -691,7 +733,7 @@ void RealConsoleTask(void)
             uint8_t stat = parseNumber(afterCommand);
             int i;
             for (i=0;i<PACSAT_MAX_MRAMS;i++){
-                WriteMRAMStatus(MRAM_Devices[i],stat);
+                writeMRAMStatus(i,stat);
             }
             break;
         }
@@ -1003,7 +1045,7 @@ void RealConsoleTask(void)
             uint32_t numOfFiles = 0;
             bool rc;
 
-            rc = readNV(&numOfFiles, sizeof(uint32_t),ExternalMRAMData, (int)&(LocalFlash->NumberOfFiles));
+            rc = readNV(&numOfFiles, sizeof(uint32_t),NVStatisticsArea, (int)&(LocalFlash->NumberOfFiles));
             if (!rc) {
                 debug_print("Read MRAM number of files - FAILED\n");
                 break;
@@ -1047,7 +1089,7 @@ void RealConsoleTask(void)
             uint32_t len = mramFile.file_size;
             if (len > sizeof(buffer))
                 len = sizeof(buffer);
-            rc = readNV(&buffer, len ,ExternalMRAMData, (int)mramFile.address);
+            rc = readNV(&buffer, len ,NVStatisticsArea, (int)mramFile.address);
             int q;
             for (q=0; q< sizeof(buffer); q++) {
                 printf("%02x ", buffer[q]);

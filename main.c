@@ -28,6 +28,7 @@
 #include "adc.h"
 #include "FreeRTOS.h"
 #include "os_task.h"
+#include "mram.h"
 
 //Flight software headers
 #include "TMS570Hardware.h"
@@ -55,6 +56,7 @@
 #include "errors.h"
 #include "nonvolManagement.h"
 #include "consoleRoutines.h"
+#include "redposix.h"
 
 /* Only needed for test routines */
 #include "ax25_util.h"
@@ -215,7 +217,7 @@ void ConsoleTask(void *pvParameters){
     SPIInit(MRAM1Dev);
     SPIInit(MRAM2Dev);
     SPIInit(MRAM3Dev);
-    initMRAM(); // Make sure MRAM is initialized
+    initMRAM();
     initMET();
     I2cInit(I2C1);
     I2cInit(I2C2);
@@ -231,6 +233,27 @@ void ConsoleTask(void *pvParameters){
 
     ResetAllWatchdogs(); // We waited a bit; better make sure the WDs are happy
     printID();
+
+    if (red_init() == -1) {
+	printf("Unable to initialize filesystem: %s\n",
+	       red_strerror(red_errno));
+    } else {
+	if (red_mount("/") == -1) {
+	    if (red_errno == RED_EIO) {
+		printf("Filesystem mount failed due to corruption, remounting");
+		if (red_format("/") == -1) {
+		    printf("Unable to format filesystem: %s\n",
+			   red_strerror(red_errno));
+		} else {
+		    goto mount_error;
+		}
+	    } else {
+	    mount_error:
+		printf("Unable to mount filesystem: %s\n",
+		       red_strerror(red_errno));
+	    }
+	}
+    }
 
     /*
      * Time to wait for the post-release timer if we have to
