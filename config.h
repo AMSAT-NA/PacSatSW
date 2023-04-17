@@ -90,6 +90,7 @@
 #define AX25_PKT_BUFFER_LEN 260 /* This is the length of the buffers in the TX RX queues */
 #define MAX_CALLSIGN_LEN 10 /* Length of the String for an AX25 callsign including dash, 2 digit Digi, and null termination */
 #define MAX_PB_HOLES_LIST_BYTES 222 /* The max length of a holes list = ( AX25_MAX_DATA_LEN - 17 ) to nearest 6 */
+#define MAX_FILENAME_WITH_PATH_LEN 25 /* Max length of a filename with its path.  This requires a shallow dir structure. */
 
 #define PB_MAX_PERIOD_FOR_CLIENTS_IN_SECONDS 600  // TODO - Should be in MRAM and commandable.  10 mins
 #define MAX_PKTS_IN_TX_PKT_QUEUE_FOR_TNC_TO_BE_BUSY 2 // TODO - Should be in MRAM and commandable. 2

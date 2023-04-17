@@ -118,11 +118,11 @@ typedef struct {
 }
 HEADER;
 
-int pfh_extract_header(HEADER  *hdr, uint8_t *buffer, int nBytes, int *size, int *crc_passed);
+int pfh_extract_header(HEADER  *hdr, uint8_t *buffer, uint16_t nBytes, uint16_t *size, bool *crc_passed);
 int pfh_generate_header_bytes(HEADER *pfh, int body_size, uint8_t *header_bytes);
 void pfh_debug_print(HEADER *pfh);
 int test_pfh();
-int test_pfh_files();
+int test_pfh_file();
 int test_pfh_make_files();
 
 #endif /* TASKS_INC_PACSAT_HEADER_H_ */

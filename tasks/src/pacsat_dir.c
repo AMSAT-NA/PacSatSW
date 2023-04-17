@@ -18,6 +18,9 @@
 #include "pacsat_header.h"
 #include "pacsat_dir.h"
 #include "inet.h"
+#include "redposix.h"
+#include "str_util.h"
+
 #ifdef DEBUG
 #include "time.h"
 #endif
@@ -25,14 +28,14 @@
 /* Dir variables */
 static DIR_NODE *dir_head = NULL;  // the head of the directory linked list
 static DIR_NODE *dir_tail = NULL;  // the tail of the directory linked list
-static uint32_t next_file_id = 0; // This is incremented when we add files for upload.  Initialized when dir loaded.  TODO - keep only in MRAM
+static uint32_t highest_file_id = 0; // This is incremented when we add files for upload.  Initialized when dir loaded.  TODO - keep only in MRAM
 
 /* Forward declarations */
+DIR_NODE * dir_add_pfh(char *file_path, HEADER *new_pfh);
 void dir_delete_node(DIR_NODE *node);
 void insert_after(DIR_NODE *p, DIR_NODE *new_node);
 
 /* This is used by the Simple MRAM FS */
-static const MRAMmap_t *LocalFlash = 0;
 static HEADER pfh_buffer; // Static allocation of a header to use when we need to load/save the header details
 static uint8_t pfh_byte_buffer[512]; /* Maximum size for a PFH TODO - what should size be.  STORE AS DEFINE */
 
@@ -44,15 +47,19 @@ static uint8_t pfh_byte_buffer[512]; /* Maximum size for a PFH TODO - what shoul
  * never used.  We are supposed to "reserve" the file number when a DATA command is
  * received, but we need to allocate it before that.
  *
+ *
+ * TODO ******** Clearly this needs to be saved in MRAM as the next file number.  We carry on from this number
+ * even if all files are first deleted.  Otherwise we confuse the ground stations.
+ *
  */
 int dir_next_file_number() {
-    next_file_id++;
-    return next_file_id;
+    highest_file_id++;
+    return highest_file_id;
 }
 
 /**
  * dir_add_pfh()
- * Add an MRAM file header to the directory and return a pointer
+ * Add a pacsat file header to the directory and return a pointer
  * to the inserted DIR_NODE in the linked list.
  *
  * This handles the situation where the list is empty and creates the first item.
@@ -64,49 +71,47 @@ int dir_next_file_number() {
  * to find the insertion point.
  * If we find a header with the same upload_time then this must be a duplicate and it
  * is discarded.
- * To update an item correctly, remove it from the list, set the upload_time to zero and then call this routine to insert it at the end.
+ * To update an item correctly, remove it from the list, set the upload_time to zero
+ * and then call this routine to insert it at the end.
  *
  * If the upload_time was modified then the pacsat file header is resaved to disk
+ * * WARNING: This does not work if a header has fields that are not recognized by the sat.
+   * Uploaded files must have their PFHs parsed and resaved with their data saved at the right
+   * offset, before this process is run
  *
- * The linked list takes care of allocating and deallocating memory for the DIR_NODEs and the
- * MRAM_FILEs inside the DIR_NODEs.  The MRAM_FILE that is passed in has its contents copied
- * into the allocated structure.
+ * The linked list takes care of allocating and deallocating memory for the DIR_NODEs
  *
  * TODO Currently this memory is allocated on the heap with pvPortMalloc and pPortFree.  We may
  * want to change that to a completely static allocation and hold a free list for nodes that
  * are not used.  This could guarantee no memory fragmentation and the expense of complexity.
  *
  */
-DIR_NODE * dir_add_pfh(MRAM_FILE *new_mram_file) {
+DIR_NODE * dir_add_pfh(char *file_path, HEADER *new_pfh) {
     int resave = false;
     DIR_NODE *new_node = (DIR_NODE *)pvPortMalloc(sizeof(DIR_NODE));
-    MRAM_FILE *mram_file = (MRAM_FILE *)pvPortMalloc(sizeof(MRAM_FILE));
-    new_node->mram_file = mram_file;
-    mram_file->file_handle = new_mram_file->file_handle;
-    mram_file->file_id = new_mram_file->file_id;
-    mram_file->address = new_mram_file->address;
-    mram_file->body_offset = new_mram_file->body_offset;
-    mram_file->file_size = new_mram_file->file_size;
-    mram_file->upload_time = new_mram_file->upload_time;
+    new_node->file_id = new_pfh->fileId;
+    strlcpy(new_node->filename, file_path, MAX_FILENAME_WITH_PATH_LEN);
+    new_node->body_offset = new_pfh->bodyOffset;
+    new_node->upload_time = new_pfh->uploadTime;
 
     uint32_t now = getUnixTime(); // Get the time in seconds since the unix epoch
     if (new_node == NULL) return NULL; // ERROR
     if (dir_head == NULL) { // This is a new list
         dir_head = new_node;
         dir_tail = new_node;
-        if (mram_file->upload_time == 0) {
-            mram_file->upload_time = now;
+        if (new_node->upload_time == 0) {
+            new_node->upload_time = now;
             resave = true;
         }
         new_node->next = NULL;
         new_node->prev = NULL;
-    } else if (mram_file->upload_time == 0){
+    } else if (new_node->upload_time == 0){
         /* Insert this at the end of the list as the newest item.  Make sure it has a unique upload time */
-        if (dir_tail->mram_file->upload_time >= now) {
+        if (dir_tail->upload_time >= now) {
             /* We have added more than one file within 1 second.  Add this at the next available second. */
-            mram_file->upload_time = dir_tail->mram_file->upload_time+1;
+            new_node->upload_time = dir_tail->upload_time+1;
         } else {
-            mram_file->upload_time = now;
+            new_node->upload_time = now;
         }
         insert_after(dir_tail, new_node);
         resave = true;
@@ -114,11 +119,11 @@ DIR_NODE * dir_add_pfh(MRAM_FILE *new_mram_file) {
         /* Insert this at the right point, searching from the back*/
         DIR_NODE *p = dir_tail;
         while (p != NULL) {
-            if (p->mram_file->upload_time == mram_file->upload_time) {
+            if (p->upload_time == new_node->upload_time) {
                 debug_print("ERROR: Attempt to insert duplicate PFH: ");
                 //pfh_debug_print(mram_file);
                 return NULL; // this is a duplicate
-            } else if (p->mram_file->upload_time < mram_file->upload_time) {
+            } else if (p->upload_time < new_node->upload_time) {
                 insert_after(p, new_node);
                 break;
             } else if (p == dir_head) {
@@ -134,55 +139,33 @@ DIR_NODE * dir_add_pfh(MRAM_FILE *new_mram_file) {
     }
     // Now re-save the file with the new time if it changed, this recalculates the checksums
     if (resave) {
-        bool rc = FALSE;
         /* The length of the header and the file length do not change because we only change the upload time
-         * So we can just re-write the header on top of the old.  We load the existing one, change the
-         * upload time, then recalc the bytes and the checksums */
-
-        // load the PFH bytes from MRAM - body_offset is the length of the header.  It starts at offset 0
-        rc = dir_mram_read_file_chunk(mram_file,  pfh_byte_buffer, mram_file->body_offset, 0) ;
-        if (rc != TRUE) {
-            debug_print("** Could not read the header from MRAM for fh: %d to dir\n",mram_file->file_id);
-            dir_delete_node(new_node);
-            return NULL;
-        }
-
-        /* Extract the header from the loaded bytes */
-        int size = 0;
-        int crc_passed = false;
-        pfh_extract_header(&pfh_buffer, pfh_byte_buffer, mram_file->body_offset, &size, &crc_passed);
-        /* We don't check the CRC here.  If it is wrong, we hope that regenerating the header and saving it fixes
-         * the issue
-         * TODO - this could be a good error to log.
+         * So we can just re-write the header on top of the old with the new
+         * upload time.  This will recalc the bytes and the checksums
+         * WARNING: This does not work if a header has fields that are not recognized by the sat.
+         * Uploaded files must have their PFHs parsed and resaved before this process is run
          */
-        if (size != mram_file->body_offset) {
-            debug_print("ERROR: Extracted Header size incorrect.  Could not update header.\n");
-            dir_delete_node(new_node);
-            return FALSE;
-        }
+
 
         /* modify the uptime in the header */
-        pfh_buffer.uploadTime = mram_file->upload_time;
+        new_pfh->uploadTime = new_node->upload_time;
 
         /* Regenerate the bytes and generate the checksums.  FileSize is body_offset + body_size */
-        uint16_t body_offset = pfh_generate_header_bytes(&pfh_buffer, mram_file->file_size - mram_file->body_offset, pfh_byte_buffer);
-        if (body_offset != mram_file->body_offset) {
-            debug_print("ERROR: Regenerated Header size incorrect.  Could not update header.\n");
+        uint16_t body_offset = pfh_generate_header_bytes(new_pfh, new_pfh->fileSize - new_pfh->bodyOffset, pfh_byte_buffer);
+        if (body_offset != new_node->body_offset) {
+            debug_print("ERROR: Regenerated Header size is incorrect.  Could not update header.\n");
             dir_delete_node(new_node);
             return FALSE;
         }
-        /* Write the header back to MRAM and update the MRAM FAT entry with new upload_time*/
-        rc = dir_mram_write_file(mram_file->file_handle, pfh_byte_buffer, mram_file->body_offset, mram_file->file_id,
-                                 mram_file->upload_time, mram_file->body_offset, mram_file->address);
 
-        if (rc != TRUE) {
+        int32_t num = dir_fs_write_file_chunk(file_path, pfh_byte_buffer, body_offset, 0);
+        if (num == -1) {
             // we could not save this
-            debug_print("** Could not update the header for fh: %d to dir\n",mram_file->file_id);
+            debug_print("** Could not update the header for fh: %d to dir\n",new_node->file_id);
             dir_delete_node(new_node);
             return NULL;
         } else {
-            debug_print("Saved: %d\n",mram_file->file_id);
-            new_mram_file->upload_time = mram_file->upload_time; // so this is passed back in case it is referenced by caller
+            debug_print("Saved: %d\n",new_node->file_id);
             //pfh_debug_print(new_pfh);
         }
     }
@@ -237,7 +220,6 @@ void dir_delete_node(DIR_NODE *node) {
     }
 //    debug_print("REMOVED: %d\n",node->mram_file->file_id);
 //    pfh_debug_print(node->pfh);
-    vPortFree(node->mram_file);
     vPortFree(node);
 }
 
@@ -262,7 +244,7 @@ void dir_free() {
  *
  * Load a PACSAT file from MRAM and store it in the directory
  */
-bool dir_load_pacsat_file(MRAM_FILE *mram_file) {
+bool dir_load_pacsat_file(char *file_name) {
 //    debug_print("Loading: %d from addr: %d \n", mram_file->file_id, mram_file->address);
 
 //    int err = dir_validate_file(pfh,psf_name);
@@ -271,13 +253,27 @@ bool dir_load_pacsat_file(MRAM_FILE *mram_file) {
 //        return FALSE;
 //    }
     //pfh_debug_print(pfh);
-    DIR_NODE *p = dir_add_pfh(mram_file);
-    if (p == NULL) {
-        debug_print("** Could not add to dir\n");
+    char file_name_with_path[25];
+    snprintf(file_name_with_path, 25, "//%s",file_name);
+
+    // Read enough of the file to parse the PFH
+    int32_t rc = dir_fs_read_file_chunk(file_name_with_path, pfh_byte_buffer, sizeof(pfh_byte_buffer), 0);
+    if (rc == -1) {
+        debug_print("Error reading file: %s\n",file_name_with_path);
         return FALSE;
     }
-    if (mram_file->file_id > next_file_id)
-        next_file_id = mram_file->file_id;
+    uint16_t size;
+    bool crc_passed = FALSE;
+    pfh_extract_header(&pfh_buffer, pfh_byte_buffer, sizeof(pfh_byte_buffer), &size, &crc_passed);
+    if (!crc_passed) { debug_print("CRC FAILED\n"); return FALSE;}
+
+    DIR_NODE *p = dir_add_pfh(file_name_with_path, &pfh_buffer);
+    if (p == NULL) {
+        debug_print("** Could not add %s to dir\n", file_name_with_path);
+        return FALSE;
+    }
+    if (pfh_buffer.fileId > highest_file_id)
+        highest_file_id = pfh_buffer.fileId;
     return TRUE;
 }
 
@@ -289,40 +285,40 @@ bool dir_load_pacsat_file(MRAM_FILE *mram_file) {
  *
  */
 int dir_load() {
-    MRAM_FILE mram_file;
-    uint32_t numOfFiles = 0;
     bool rc;
-    int file_handle = 0;
+    REDDIR *pDir;
+    char * path = "//";
 
-    debug_print("Loading directory from MRAM...\n");
-
-    rc = readNV(&numOfFiles, sizeof(uint32_t),NVStatisticsArea, (int)&(LocalFlash->NumberOfFiles));
-    if (!rc) {
-        debug_print("Read MRAM number of files - FAILED\n");
+    printf("Loading Directory from %s:\n",path);
+    pDir = red_opendir(path);
+    if (pDir == NULL) {
+        printf("Unable to open dir: %s\n", red_strerror(red_errno));
         return FALSE;
     }
-    debug_print("Loading %d files .. ",numOfFiles);
 
-    while (file_handle < numOfFiles) {
-        rc = dir_mram_get_node(file_handle++,&mram_file);
-        if (!rc) {
-            debug_print("Read MRAM FAT - FAILED\n");
-            return FALSE;
-        }
-//        debug_print("%d: Id: %04x ",file_handle,mram_file.file_id);
-//        debug_print("Size: %d ",mram_file.file_size);
-//        debug_print("Address: %d ",mram_file.address);
-//        debug_print("Uploaded: %d\n",mram_file.upload_time);
-
-        rc = dir_load_pacsat_file(&mram_file);
+    REDDIRENT *pDirEnt;
+    red_errno = 0; /* Set error to zero so we can distinguish between a real error and the end of the DIR */
+    pDirEnt = red_readdir(pDir);
+    while (pDirEnt != NULL) {
+        debug_print("Loading: %s\n",pDirEnt->d_name);
+        rc = dir_load_pacsat_file(pDirEnt->d_name);
         if (rc != TRUE) {
-            debug_print("May need to remove potentially corrupt or duplicate PACSAT file: %d  id: %d\n", file_handle, mram_file.file_id);
+            debug_print("May need to remove potentially corrupt or duplicate PACSAT file: %d\n", pDirEnt->d_name);
             /* Don't automatically remove here, otherwise loading the dir twice actually deletes all the
              * files! */
         }
+        pDirEnt = red_readdir(pDir);
     }
+    if (red_errno != 0) {
+        printf("Error reading directory: %s\n", red_strerror(red_errno));
+
+    }
+    int32_t rc2 = red_closedir(pDir);
+    if (rc2 != 0) {
+        printf("Unable to close file: %s\n", red_strerror(red_errno));
+    }
+
     debug_print("DONE:\n");
-    //dir_debug_print(dir_head);
     return TRUE;
 }
 
@@ -358,8 +354,8 @@ DIR_NODE * dir_get_pfh_by_date(DIR_DATE_PAIR pair, DIR_NODE *p ) {
     while (p != NULL) {
         DIR_NODE *node = p;
         p = p->next;
-        if (node->mram_file->upload_time >= pair.start && node->mram_file->upload_time <= pair.end) {
-            debug_print("-> returning: %d\n",node->mram_file->file_id);
+        if (node->upload_time >= pair.start && node->upload_time <= pair.end) {
+            debug_print("-> returning file id: %04x name: %s\n",node->file_id, node->filename);
             return node;
         }
     }
@@ -376,7 +372,7 @@ DIR_NODE * dir_get_pfh_by_date(DIR_DATE_PAIR pair, DIR_NODE *p ) {
 DIR_NODE * dir_get_node_by_id(int file_id) {
     DIR_NODE *p = dir_head;
     while (p != NULL) {
-        if (p->mram_file->file_id == file_id)
+        if (p->file_id == file_id)
             return p;
         p = p->next;
     }
@@ -400,15 +396,108 @@ void dir_debug_print(DIR_NODE *p) {
     while (p != NULL) {
         //pfh_debug_print(p->pfh);
         char buf[30];
-         time_t now = p->mram_file->upload_time + 2208988800L;
+         time_t now = p->upload_time + 2208988800L;
          strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", gmtime(&now));
-        debug_print("File id: %04x up:%d %s\n",p->mram_file->file_id, p->mram_file->upload_time,buf);
+        debug_print("File id: %04x name: %s up:%d %s\n",p->file_id, p->filename, p->upload_time,buf);
         p = p->next;
     }
 }
 
 #endif /* DEBUG */
 
+/**
+ * FS FILE functions
+ *
+ */
+
+/**
+ * Write a file to the file system.  The file is first created or it is overwritten.
+ * The full path to the file must be specified.
+ *
+ * Returns the number of bytes written or -1 if there is an error.
+ *
+ */
+int32_t dir_fs_write_file_chunk(char *file_name_with_path, uint8_t *data, uint32_t length, uint32_t offset) {
+    int32_t fp;
+    int32_t numOfBytesWritten = -1;
+    int32_t rc;
+
+    fp = red_open(file_name_with_path, RED_O_CREAT | RED_O_WRONLY);
+    if (fp == -1) {
+        debug_print("Unable to open %s for writing: %s\n", file_name_with_path, red_strerror(red_errno));
+        return -1;
+    }
+
+    if (offset != 0) {
+        rc = red_lseek(fp, offset, RED_SEEK_SET);
+        if (rc == -1) {
+            debug_print("Unable to seek %s  to offset %d: %s\n", file_name_with_path, offset, red_strerror(red_errno));
+
+            rc = red_close(fp);
+            if (rc != 0) {
+                printf("Unable to close %s: %s\n", file_name_with_path, red_strerror(red_errno));
+            }
+            return -1;
+        }
+    }
+
+    numOfBytesWritten = red_write(fp, data, length);
+    if (numOfBytesWritten != length) {
+        printf("Write returned: %d\n",numOfBytesWritten);
+        if (numOfBytesWritten == -1) {
+            printf("Unable to write to %s: %s\n", file_name_with_path, red_strerror(red_errno));
+        }
+    }
+    rc = red_close(fp);
+    if (rc != 0) {
+        printf("Unable to close %s: %s\n", file_name_with_path, red_strerror(red_errno));
+    }
+
+    return numOfBytesWritten;
+}
+
+/**
+ * Read a chunk of bytes from a file in MRAM File system.
+ * The full path must be specified for the file.
+ *
+ * Returns the number of bytes read or -1 if there was an error.
+ *
+ */
+int32_t dir_fs_read_file_chunk(char *file_name_with_path, uint8_t *read_buffer, uint32_t length, uint32_t offset) {
+    int32_t rc;
+
+    int32_t fp = red_open(file_name_with_path, RED_O_RDONLY);
+    if (fp == -1) {
+        debug_print("Unable to open %s for reading: %s\n", file_name_with_path, red_strerror(red_errno));
+        return -1;
+    }
+
+    if (offset != 0) {
+        rc = red_lseek(fp, offset, RED_SEEK_SET);
+        if (rc == -1) {
+            debug_print("Unable to seek %s  to offset %d: %s\n", file_name_with_path, offset, red_strerror(red_errno));
+
+            rc = red_close(fp);
+            if (rc != 0) {
+                printf("Unable to close %s: %s\n", file_name_with_path, red_strerror(red_errno));
+            }
+            return -1;
+        }
+    }
+
+    int32_t numOfBytesRead = red_read(fp, read_buffer, length);
+    if (numOfBytesRead == -1) {
+        debug_print("Unable to read %s: %s\n", file_name_with_path, red_strerror(red_errno));
+    }
+
+    rc = red_close(fp);
+    if (rc != 0) {
+        printf("Unable to close %s: %s\n", file_name_with_path, red_strerror(red_errno));
+    }
+    return numOfBytesRead;
+}
+
+#ifdef USE_MRAM_TEST_FILESYSTEM_HACK
 /**
  * SIMPLE MRAM FILE SYSTEM FOLLOWS
  */
@@ -529,6 +618,7 @@ bool dir_mram_read_file_chunk(MRAM_FILE *mram_file, uint8_t *data, uint32_t chun
 
     return TRUE;
 }
+#endif
 
 #ifdef DEBUG
 
@@ -548,9 +638,9 @@ int test_pacsat_dir() {
     debug_print("TEST DIR LOAD\n");
     dir_load();
     dir_debug_print(dir_head);
-    if (dir_head->mram_file->file_id != 1) { printf("** Error creating file 1\n"); return EXIT_FAILURE; }
-    if (dir_head->next->mram_file->file_id != 2) { printf("** Error creating file 2\n"); return EXIT_FAILURE; }
-    if (dir_tail->mram_file->file_id != 4) { printf("** Error creating file 4\n"); return EXIT_FAILURE; }
+    if (dir_head->file_id != 1) { printf("** Error creating file 1\n"); return EXIT_FAILURE; }
+    if (dir_head->next->file_id != 2) { printf("** Error creating file 2\n"); return EXIT_FAILURE; }
+    if (dir_tail->file_id != 4) { printf("** Error creating file 4\n"); return EXIT_FAILURE; }
 
 #ifdef 0
     debug_print("DELETE HEAD\n");
