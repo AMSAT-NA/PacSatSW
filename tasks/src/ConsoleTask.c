@@ -118,6 +118,7 @@ enum {
     ,MountFS
     ,UnMountFS
     ,FormatFS
+    ,LsFS
     ,GetRfPower
     ,SelectRFPowerLevels
     ,SetDCTDrivePower
@@ -164,7 +165,7 @@ enum {
     ,testPbList
     ,testPbClearList
     ,testPfh
-    ,testPfhFiles
+    ,testPfhFile
     ,makePfhFiles
     ,testDir
 #endif
@@ -172,7 +173,6 @@ enum {
     ,monitorOff
     ,pbShut
     ,pbOpen
-    ,mramLs
     ,mramHxd
     ,dirLoad
     ,dirClear
@@ -231,7 +231,7 @@ commandPairs debugCommands[] = {
                                 ,{"test pb list","Test the PB List add and remove functions",testPbList}
                                 ,{"clear pb list","Clear the PB List add remove all stations",testPbClearList}
                                 ,{"test pfh","Test the Pacsat File Header Routines",testPfh}
-                                ,{"test psf","Test the Pacsat Files in MRAM",testPfhFiles}
+                                ,{"test psf","Test the Pacsat Files in MRAM",testPfhFile}
                                 ,{"make psf","Make a set of test Pacsat Files in MRAM",makePfhFiles}
                                 ,{"test dir","Test the Pacsat Directory.  The command 'make psf' must already have been run",testDir}
 #endif
@@ -239,7 +239,6 @@ commandPairs debugCommands[] = {
                                 ,{"monitor off","Stop monitoring packets",monitorOff}
                                 ,{"pb shut","Shut the PB",pbShut}
                                 ,{"pb open","Open the PB for use",pbOpen}
-                                ,{"ls","List the files in MRAM",mramLs}
                                 ,{"hxd","Display Hex for file number",mramHxd}
                                 ,{"load dir","Load the directory from MRAM",dirLoad}
                                 ,{"clear dir","Clear the directory but leave the files in MRAM",dirClear}
@@ -259,6 +258,7 @@ commandPairs commonCommands[] = {
                                  ,{"mount fs","Mount the filesystem",MountFS}
                                  ,{"unmount fs","unmount the filesystem",UnMountFS}
                                  ,{"format fs","Format the filesystem",FormatFS}
+                                 ,{"ls","List files and directories in the filesystem",LsFS}
                                  ,{"get rf power","Print the RF power settings",GetRfPower}
                                  ,{"get commands","Get a list the last 4 s/w commands",GetCommands}
                                  ,{"get gpios","Display the values of all GPIOS",GetGpios}
@@ -592,6 +592,38 @@ void RealConsoleTask(void)
             }
             break;
         }
+
+        case LsFS:
+        {
+
+            REDDIR *pDir;
+            char * path = "//";
+            printf("Name       Blks  Size \n");
+            printf("---------- ----- --------\n");
+            pDir = red_opendir(path);
+            if (pDir == NULL) {
+                printf("Unable to open dir: %s\n", red_strerror(red_errno));
+                break;
+            }
+
+            REDDIRENT *pDirEnt;
+            red_errno = 0; /* Set error to zero so we can distinguish between a real error and the end of the DIR */
+            pDirEnt = red_readdir(pDir);
+            while (pDirEnt != NULL) {
+                printf("%10s %5d %8d\n", pDirEnt->d_name, pDirEnt->d_stat.st_blocks, (int)pDirEnt->d_stat.st_size );
+                pDirEnt = red_readdir(pDir);
+            }
+            if (red_errno != 0) {
+                printf("Error reading directory: %s\n", red_strerror(red_errno));
+
+            }
+            int32_t rc = red_closedir(pDir);
+            if (rc != 0) {
+                printf("Unable to close file: %s\n", red_strerror(red_errno));
+            }
+            break;
+        }
+
 
         case GetRfPower:
             //printf("Safe Rf Power Level is %s\n",GetSafeRfPowerLevel()?"HIGH":"LOW");
@@ -974,7 +1006,7 @@ void RealConsoleTask(void)
             if(! pb_clear_list()) {  debug_print("### pb list clear TEST FAILED\n"); break; }
             if(! tx_test_make_packet()) {  debug_print("### tx make packet TEST FAILED\n"); break; }
             if(! test_pfh()) {  debug_print("### pfh TEST FAILED\n"); break; }
-            if(! test_pfh_files()) {  debug_print("### pfh TEST FILES FAILED\n"); break; }
+            if(! test_pfh_file()) {  debug_print("### pfh TEST FILE FAILED\n"); break; }
 
             //if(! test_pfh_make_files()) {  debug_print("### pfh TEST MAKE FILES FAILED\n"); break; }
 
@@ -1009,8 +1041,8 @@ void RealConsoleTask(void)
             bool rc = test_pfh();
             break;
         }
-        case testPfhFiles:{
-            bool rc = test_pfh_files();
+        case testPfhFile:{
+            bool rc = test_pfh_file();
             break;
         }
         case makePfhFiles:{
@@ -1044,67 +1076,44 @@ void RealConsoleTask(void)
             printf("pb_shut = false\n");
             break;
         }
-        case mramLs:{
-            printf("MRAM Directory Listing\n");
-            static const MRAMmap_t *LocalFlash = 0;
-            MRAM_FILE mramFile;
-            int j = 0;
-            uint32_t numOfFiles = 0;
-            bool rc;
 
-            rc = readNV(&numOfFiles, sizeof(uint32_t),NVConfigData, (int)&(LocalFlash->NumberOfFiles));
-            if (!rc) {
-                debug_print("Read MRAM number of files - FAILED\n");
+        case mramHxd: {
+            int numSpace=0;
+            char *srchStrng;
+            while(afterCommand[numSpace] == ' ') numSpace++;
+            srchStrng = &afterCommand[numSpace];
+            if(strlen(srchStrng)== 0){
+                printf("Usage: hxd <file name with path>\n");
                 break;
             }
-            debug_print("-- files: %d\n",numOfFiles);
-
-            while (j < numOfFiles) {
-//                rc = readNV(&mramFile, sizeof(mramFile),ExternalMRAMData, (int)&(LocalFlash->MRAMFiles[j++]));
-                rc = dir_mram_get_node(j,&mramFile);
-                if (!rc) {
-                    debug_print("Read MRAM FAT - FAILED\n");
-                    break;
+            char read_buffer[256];
+            int32_t fp = red_open(srchStrng, RED_O_RDONLY);
+            if (fp != -1) {
+                int32_t numOfBytesRead = red_read(fp, read_buffer, sizeof(read_buffer));
+                printf("Read returned: %d\n",numOfBytesRead);
+                if (numOfBytesRead == -1) {
+                    printf("Unable to read file: %s\n", red_strerror(red_errno));
+                } else {
+                    int q;
+                    for (q=0; q< numOfBytesRead; q++) {
+                        printf("%02x ", read_buffer[q]);
+                        if (q != 0 && q % 20 == 0 ) printf("\n");
+                    }
                 }
-                printf("%d: Id: %04x ",j,mramFile.file_id);
-                printf("Size: %d ",mramFile.file_size);
-                printf("Header Len: %d ",mramFile.body_offset);
-                printf("Address: %d ",mramFile.address);
-                printf("Uploaded: %d\n",mramFile.upload_time);
-                j++;
-            }
-            break;
-        }
-        case mramHxd:{
-            int fileHandle = parseNumber(afterCommand);
-            printf("MRAM FILE: %d\n",fileHandle);
 
-            bool rc;
-            MRAM_FILE mramFile;
-            rc = dir_mram_get_node(fileHandle,&mramFile);
-            if (!rc) {
-                debug_print("Read MRAM FAT - FAILED\n");
-                break;
-            }
-            printf("%d: Id: %04x ",fileHandle,mramFile.file_id);
-            printf("Size: %d ",mramFile.file_size);
-            printf("Header Len: %d ",mramFile.body_offset);
-            printf("Address: %d ",mramFile.address);
-            printf("Uploaded: %d\n",mramFile.upload_time);
-
-            uint8_t buffer[256];
-            uint32_t len = mramFile.file_size;
-            if (len > sizeof(buffer))
-                len = sizeof(buffer);
-            rc = readNV(&buffer, len ,NVConfigData, (int)mramFile.address);
-            int q;
-            for (q=0; q< sizeof(buffer); q++) {
-                printf("%02x ", buffer[q]);
-                if (q != 0 && q % 20 == 0 ) printf("\n");
+                int32_t rc = red_close(fp);
+                if (rc != 0) {
+                    printf("Unable to close file: %s\n", red_strerror(red_errno));
+                }
+            } else {
+                printf("Unable to open %s for reading: %s\n", srchStrng, red_strerror(red_errno));
             }
             printf("\n");
+
+
             break;
         }
+
         case dirLoad:{
             bool rc = dir_load();
             break;
