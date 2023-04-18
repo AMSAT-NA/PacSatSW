@@ -705,7 +705,7 @@ int test_pfh_files() {
 
     uint8_t buffer2[256];
     HEADER pfh2;
-    rc = readNV(buffer2, sizeof(buffer2),NVStatisticsArea, (int)file_start_address);
+    rc = readNV(buffer2, sizeof(buffer2),NVConfigData, (int)file_start_address);
     pfh_extract_header(&pfh2, buffer2, sizeof(buffer2), &size, &crc_passed);
     debug_print("PFH Extracted from MRAM:\n");
     pfh_debug_print(&pfh2);
@@ -766,7 +766,7 @@ Thus, there are 3 forms of PACSAT file header:\n\
     make_test_header(&pfh3, numOfFiles, numOfFiles+1, "psf_header", "AC2CZ", "VE2TCP", "Extract of PACSAT Header", "pfh_header.txt", msg2);
     numOfFiles++;
 
-    bool rc = writeNV(&numOfFiles,sizeof(uint32_t),NVStatisticsArea,(int)&LocalFlash->NumberOfFiles);
+    bool rc = writeNV(&numOfFiles,sizeof(uint32_t),NVConfigData,(int)&LocalFlash->NumberOfFiles);
 
     debug_print("Load the files and confirm\n");
 
@@ -779,7 +779,7 @@ Thus, there are 3 forms of PACSAT file header:\n\
     MRAM_FILE mram_fh;
     for (i=0; i< numOfFiles-1; i++) {
         dir_mram_get_node(i, &mram_fh);
-        rc = readNV(buffer2, mram_fh.body_offset,NVStatisticsArea, mram_fh.address);
+        rc = readNV(buffer2, mram_fh.body_offset,NVConfigData, mram_fh.address);
         pfh_extract_header(&pfh4, buffer2, sizeof(buffer2), &size, &crc_passed);
         if (!crc_passed) { debug_print("CRC FAILED\n"); return FALSE;}
         pfh_debug_print(&pfh4);
@@ -793,7 +793,7 @@ Thus, there are 3 forms of PACSAT file header:\n\
 
     i = numOfFiles-1;
     dir_mram_get_node(i, &mram_fh);
-    rc = readNV(buffer2, mram_fh.body_offset,NVStatisticsArea, mram_fh.address);
+    rc = readNV(buffer2, mram_fh.body_offset,NVConfigData, mram_fh.address);
     pfh_extract_header(&pfh4, buffer2, sizeof(buffer2), &size, &crc_passed);
     if (!crc_passed) { debug_print("CRC FAILED\n"); return FALSE;}
     pfh_debug_print(&pfh4);

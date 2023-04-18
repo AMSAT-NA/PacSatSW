@@ -363,7 +363,7 @@ void RealConsoleTask(void)
         case sizeMRAM:{
             int i;
             for (i=0;i<PACSAT_MAX_MRAMS;){
-                printf("MRAM%d size is %dkB",i,getMRAMSize(i)/1024);
+                printf("MRAM%d size is %dKBytes",i,getMRAMSize(i)/1024);
                 i++;
                 if(i%2 == 0){
                     printf("\n");
@@ -380,6 +380,13 @@ void RealConsoleTask(void)
         }
         case testAllMRAM:{
             int add = parseNumber(afterCommand);
+            int secret = parseNextNumber();
+            if (add == 0)add=4;
+            printf("NOTE:  This test will wipe out the file system and configuration values in MRAM.\n\n");
+            if(secret!=42){
+                printf("  To confirm you must give the command with a second argument of 42, for example 'test mram %d 42'\n",add);
+                break;
+            }
             testMRAM(add);
             break;
         }
@@ -390,7 +397,7 @@ void RealConsoleTask(void)
             stat = writeEnableMRAM(num);
             printf("stat for MRAM %d is %d; sr is %x\n", num, stat,
 		   readMRAMStatus(num));
-            //readNV(data,8,NVStatisticsArea,0);
+            //readNV(data,8,NVConfigData,0);
             //printf("MRAM at address 0 and 1 are now now %d and %d\n",data[0],data[1]);
             break;
         }
@@ -534,13 +541,13 @@ void RealConsoleTask(void)
             printf("\n");
             if(i==16){
                 printf("Writing key...");
-                stat = writeNV(key,sizeof(LocalFlash->AuthenticateKey.key),NVStatisticsArea,(int)&LocalFlash->AuthenticateKey.key);
+                stat = writeNV(key,sizeof(LocalFlash->AuthenticateKey.key),NVConfigData,(int)&LocalFlash->AuthenticateKey.key);
             } else {
                 stat = false;
             }
             if(stat){
                 printf("Writing checksum=%x...",checksum);
-                stat = writeNV(&checksum,sizeof(LocalFlash->AuthenticateKey.keyChecksum),NVStatisticsArea,
+                stat = writeNV(&checksum,sizeof(LocalFlash->AuthenticateKey.keyChecksum),NVConfigData,
                               (int)&LocalFlash->AuthenticateKey.keyChecksum);
             }
             if(stat){
@@ -549,7 +556,7 @@ void RealConsoleTask(void)
                 magic = 0;
                 printf("Invalidating stored key\n");
             }
-            stat = writeNV(&magic,sizeof(LocalFlash->AuthenticateKey.magic),NVStatisticsArea,(int)&LocalFlash->AuthenticateKey.magic);
+            stat = writeNV(&magic,sizeof(LocalFlash->AuthenticateKey.magic),NVConfigData,(int)&LocalFlash->AuthenticateKey.magic);
             break;
         }
 
@@ -1045,7 +1052,7 @@ void RealConsoleTask(void)
             uint32_t numOfFiles = 0;
             bool rc;
 
-            rc = readNV(&numOfFiles, sizeof(uint32_t),NVStatisticsArea, (int)&(LocalFlash->NumberOfFiles));
+            rc = readNV(&numOfFiles, sizeof(uint32_t),NVConfigData, (int)&(LocalFlash->NumberOfFiles));
             if (!rc) {
                 debug_print("Read MRAM number of files - FAILED\n");
                 break;
@@ -1089,7 +1096,7 @@ void RealConsoleTask(void)
             uint32_t len = mramFile.file_size;
             if (len > sizeof(buffer))
                 len = sizeof(buffer);
-            rc = readNV(&buffer, len ,NVStatisticsArea, (int)mramFile.address);
+            rc = readNV(&buffer, len ,NVConfigData, (int)mramFile.address);
             int q;
             for (q=0; q< sizeof(buffer); q++) {
                 printf("%02x ", buffer[q]);

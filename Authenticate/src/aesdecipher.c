@@ -15,15 +15,15 @@ bool InitEncryption(void){
 	int i;
 	bool stat;
 	uint32_t magic,checksum;
-	stat = readNV(&magic,sizeof(LocalFlash->AuthenticateKey.magic),NVStatisticsArea,(int)&LocalFlash->AuthenticateKey.magic);
+	stat = readNV(&magic,sizeof(LocalFlash->AuthenticateKey.magic),NVConfigData,(int)&LocalFlash->AuthenticateKey.magic);
 	if(stat){
-		stat = readNV(&checksum,sizeof(LocalFlash->AuthenticateKey.keyChecksum),NVStatisticsArea,
+		stat = readNV(&checksum,sizeof(LocalFlash->AuthenticateKey.keyChecksum),NVConfigData,
 		              (int)&LocalFlash->AuthenticateKey.keyChecksum);
 	}
 	if(stat && (magic == ENCRYPTION_KEY_MAGIC_VALUE)){
 		uint32_t calcChecksum=0;
 		printf("Reading encryption key from NVram\n");
-		stat = readNV(CKey,sizeof(LocalFlash->AuthenticateKey.key),NVStatisticsArea,(int)&LocalFlash->AuthenticateKey.key);
+		stat = readNV(CKey,sizeof(LocalFlash->AuthenticateKey.key),NVConfigData,(int)&LocalFlash->AuthenticateKey.key);
 		for(i=0;i<sizeof(CKey);i++){
 			calcChecksum += CKey[i];
 		}

@@ -70,24 +70,24 @@ void SetBooleanVal(bool bit,uint8_t *data){
 #define WRITE_UINT32(field,value) \
     bool NVstat;\
     StateSavingMRAM_t states;\
-    NVstat = readNV(&states, sizeof(StateSavingMRAM_t), NVStatisticsArea,\
+    NVstat = readNV(&states, sizeof(StateSavingMRAM_t), NVConfigData,\
                     (int) &(ptr->StatesInMRAM));\
     if (NVstat == FALSE)\
         ReportError(MRAMread, FALSE, ReturnAddr, (int) WriteMRAMWODFreq);\
     EncodeUint32(value,states.field);\
-    NVstat = writeNV(&states, sizeof(StateSavingMRAM_t), NVStatisticsArea,\
+    NVstat = writeNV(&states, sizeof(StateSavingMRAM_t), NVConfigData,\
                      (int) &(ptr->StatesInMRAM));\
     if (NVstat == FALSE)\
         ReportError(MRAMwrite, FALSE, CharString, (int)#field);
 #define WRITE_UINT16(field,value) \
     bool NVstat;\
     StateSavingMRAM_t states;\
-    NVstat = readNV(&states, sizeof(StateSavingMRAM_t), NVStatisticsArea,\
+    NVstat = readNV(&states, sizeof(StateSavingMRAM_t), NVConfigData,\
                     (int) &(ptr->StatesInMRAM));\
     if (NVstat == FALSE)\
         ReportError(MRAMread, FALSE, ReturnAddr, (int) WriteMRAMWODFreq);\
     EncodeUint16(value,states.field);\
-    NVstat = writeNV(&states, sizeof(StateSavingMRAM_t), NVStatisticsArea,\
+    NVstat = writeNV(&states, sizeof(StateSavingMRAM_t), NVConfigData,\
                      (int) &(ptr->StatesInMRAM));\
     if (NVstat == FALSE)\
         ReportError(MRAMwrite, FALSE, CharString, (int)#field);
@@ -95,7 +95,7 @@ void SetBooleanVal(bool bit,uint8_t *data){
 #define READ_UINT32(field,defaultOnFail)\
     bool NVstat;\
     StateSavingMRAM_t states;\
-    NVstat = readNV(&states, sizeof(StateSavingMRAM_t), NVStatisticsArea,\
+    NVstat = readNV(&states, sizeof(StateSavingMRAM_t), NVConfigData,\
                     (int) &(ptr->StatesInMRAM));\
     if (NVstat == FALSE)\
         ReportError(MRAMread, FALSE, ReturnAddr, (int)#field);\
@@ -104,7 +104,7 @@ void SetBooleanVal(bool bit,uint8_t *data){
 #define READ_UINT16(field,defaultOnFail)\
     { bool NVstat;\
     StateSavingMRAM_t states;\
-    NVstat = readNV(&states, sizeof(StateSavingMRAM_t), NVStatisticsArea,\
+    NVstat = readNV(&states, sizeof(StateSavingMRAM_t), NVConfigData,\
                     (int) &(ptr->StatesInMRAM));\
     if (NVstat == FALSE)\
         ReportError(MRAMread, FALSE, ReturnAddr, (int)#field);\
@@ -113,7 +113,7 @@ void SetBooleanVal(bool bit,uint8_t *data){
 #define READ_UINT16_TYPE(field,defaultOnFail,retType)\
     bool NVstat;\
     StateSavingMRAM_t states;\
-    NVstat = readNV(&states, sizeof(StateSavingMRAM_t), NVStatisticsArea,\
+    NVstat = readNV(&states, sizeof(StateSavingMRAM_t), NVConfigData,\
                     (int) &(ptr->StatesInMRAM));\
     if (NVstat == FALSE)\
         ReportError(MRAMread, FALSE, ReturnAddr, (int)#field);\
@@ -232,12 +232,12 @@ void WriteMRAMBoolState(int index,bool newState){
      */
      bool NVstat;
     StateSavingMRAM_t states;
-    NVstat = readNV(&states, sizeof(StateSavingMRAM_t), NVStatisticsArea,
+    NVstat = readNV(&states, sizeof(StateSavingMRAM_t), NVConfigData,
                     (int) &(ptr->StatesInMRAM));
     if (!NVstat)
         ReportError(MRAMread, FALSE, ReturnAddr, (int) WriteMRAMBoolState);
     SetBooleanVal(newState,states.NonVolatileStates[index]);
-    NVstat = writeNV(&states, sizeof(StateSavingMRAM_t), NVStatisticsArea,
+    NVstat = writeNV(&states, sizeof(StateSavingMRAM_t), NVConfigData,
                      (int) &(ptr->StatesInMRAM));
     if (NVstat == FALSE)
         ReportError(MRAMwrite, FALSE, ReturnAddr, (int) WriteMRAMBoolState);
@@ -250,14 +250,14 @@ void WriteMRAM2BoolState(int index1,bool state1,int index2,bool state2){
      bool NVstat;
     StateSavingMRAM_t states;
     // Read in all the states block
-    NVstat = readNV(&states, sizeof(StateSavingMRAM_t), NVStatisticsArea,
+    NVstat = readNV(&states, sizeof(StateSavingMRAM_t), NVConfigData,
                     (int) &(ptr->StatesInMRAM));
     if (!NVstat) ReportError(MRAMread, FALSE, ReturnAddr, (int) WriteMRAMBoolState);
     // Now set the new values in that block
     SetBooleanVal(state1,states.NonVolatileStates[index1]);
     SetBooleanVal(state2,states.NonVolatileStates[index2]);
     // And write them back
-    NVstat = writeNV(&states, sizeof(StateSavingMRAM_t), NVStatisticsArea,
+    NVstat = writeNV(&states, sizeof(StateSavingMRAM_t), NVConfigData,
                      (int) &(ptr->StatesInMRAM));
     if (NVstat == FALSE)
         ReportError(MRAMwrite, FALSE, ReturnAddr, (int) WriteMRAMBoolState);
@@ -265,7 +265,7 @@ void WriteMRAM2BoolState(int index1,bool state1,int index2,bool state2){
 bool ReadMRAMBoolState(int index){
     bool NVstat;
     StateSavingMRAM_t safemode;
-    NVstat = readNV(&safemode, sizeof(StateSavingMRAM_t), NVStatisticsArea,
+    NVstat = readNV(&safemode, sizeof(StateSavingMRAM_t), NVConfigData,
                     (int) &(ptr->StatesInMRAM));
     if (NVstat == FALSE)
         ReportError(MRAMread, FALSE, ReturnAddr, (int) ReadMRAMBoolState);
@@ -288,16 +288,16 @@ uint32_t ReadMRAMCountdownAfterRelease(void){
 
 void WriteMRAMVersionNumber(void){
     uint32_t version = MRAM_VERSION;
-    writeNV(&version, sizeof(uint32_t), NVStatisticsArea,
+    writeNV(&version, sizeof(uint32_t), NVConfigData,
             (int) &(ptr->MRAMVersion1));
-    writeNV(&version, sizeof(uint32_t), NVStatisticsArea,
+    writeNV(&version, sizeof(uint32_t), NVConfigData,
             (int) &(ptr->MRAMVersion2));
 }
 bool CheckMRAMVersionNumber(void){
     uint32_t version1,version2;
-    readNV(&version1, sizeof(uint32_t), NVStatisticsArea,
+    readNV(&version1, sizeof(uint32_t), NVConfigData,
             (int) &(ptr->MRAMVersion1));
-    readNV(&version2, sizeof(uint32_t), NVStatisticsArea,
+    readNV(&version2, sizeof(uint32_t), NVConfigData,
             (int) &(ptr->MRAMVersion2));
     return (version1 == MRAM_VERSION) && (version2 == MRAM_VERSION);
 }
@@ -407,7 +407,7 @@ bool updateCRC(uint32_t address, uint32_t size) {
     // read the data area word-by-word while calculating the CRC
     while (w > 0) {
         // read a data word from MRAM
-        NVstat = readNV(&datum, 4, NVStatisticsArea, address);
+        NVstat = readNV(&datum, 4, NVConfigData, address);
         if (NVstat == FALSE) {
             ReportError(MRAMread, FALSE, ReturnAddr, (int) updateCRC); // NVread service failure
             returnCode = FALSE;
@@ -419,7 +419,7 @@ bool updateCRC(uint32_t address, uint32_t size) {
     }
 
     // now write the result into MRAM
-    NVstat = writeNV(&result, 4, NVStatisticsArea, address);
+    NVstat = writeNV(&result, 4, NVConfigData, address);
     if (NVstat == FALSE) {
         ReportError(MRAMwrite, FALSE, ReturnAddr, (int) updateCRC); // NVwrite service failure
         returnCode = FALSE;
@@ -440,7 +440,7 @@ void IHUInitSaved(void){
     WriteMRAMDCTDriveLowPower(DCT_DEFAULT_LOW_POWER);
 }
 int SetupMRAM(void){
-    uint32_t size = getSizeNV(NVStatisticsArea); /* Will initialize. */
+    uint32_t size = getSizeNV(NVConfigData); /* Will initialize. */
 
     SetupMRAMStates(); //This should be first.  It might overwrite part of MRAM.
     printf("Set to start in safe mode\n");

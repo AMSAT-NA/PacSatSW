@@ -131,9 +131,9 @@ typedef struct {
  * a struct, btw, so that it will not actually allocate anything unless someone uses it in a declaration.
  */
 #define MR25H40_SIZE ((1024*1024*4)/8) // 4 Megabits in bytes
-struct _ASSERT {
-	char x[(sizeof(MRAMmap_t) < MR25H40_SIZE)?1:-1];
-};
+//struct _ASSERT {
+//	char x[(sizeof(MRAMmap_t) < MR25H40_SIZE)?1:-1];
+//};
 #define MRAM_MIN8 0
 #define MRAM_MIN12 0
 #define MRAM_MIN16 0

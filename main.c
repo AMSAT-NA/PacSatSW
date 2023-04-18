@@ -149,16 +149,6 @@ void startup(void)
 
     _enable_interrupt_();
 
-#ifdef RTIHU_BOARD_V10
-    /*
-     * For the V10 board, we need to turn on the 5043 right away.  That's because V10 uses the 5043's clock
-     * output and we need to set that clock speed to match what we want on the MCU.
-     *
-     * On top of everything else, the pins are different between V10 and later
-     */
-    gioSetBit(gioPORTA, 1, 1);
-#endif
-
     HetUARTSetBaudrate(hetRAM1,COM1_BAUD);
 
     /* Serial port and LEDs */
@@ -302,8 +292,8 @@ void ConsoleTask(void *pvParameters){
     }
     printf("Free heap size after dir loaded: %d\n",xPortGetFreeHeapSize());
 
-     xTaskCreate(RxTask,"RxTask",RX_STACK_SIZE, NULL,RX_PRIORITY,NULL);
-     xTaskCreate(PbTask,"PbTask",PB_STACK_SIZE, NULL,PB_PRIORITY,NULL);
+    xTaskCreate(RxTask,"RxTask",RX_STACK_SIZE, NULL,RX_PRIORITY,NULL);
+    xTaskCreate(PbTask,"PbTask",PB_STACK_SIZE, NULL,PB_PRIORITY,NULL);
 
     xTaskCreate(TxTask,"Radio",RADIO_STACK_SIZE, NULL,TX_PRIORITY,NULL);
 
@@ -313,7 +303,7 @@ void ConsoleTask(void *pvParameters){
     AllTasksStarted = true;
     StartStableCount();
 
-#ifdef 0 // this was just a test of the FS and can be removed later (or moved to a Console test routine) G0KLA
+#if 0 // this was just a test of the FS and can be removed later (or moved to a Console test routine) G0KLA
     // TEST File System
       char *test_string = "This is data";
       int32_t fp;
