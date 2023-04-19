@@ -19,11 +19,12 @@
 #include "stdint.h"
 
 typedef enum {
-    /* Storage for various statistics. */
-    NVStatisticsArea,
+    /* Storage for configureation info. */
+    NVConfigData = 0,
 
     /* Area for the filesystem. */
-    NVFileSystem
+    NVFileSystem,
+    NVEntireMRAM
 } NVType;
 
 bool writeNV(void const * const data, uint32_t dataLength, NVType memoryType, uint32_t address);

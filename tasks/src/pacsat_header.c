@@ -834,7 +834,7 @@ header items as specified below.\n";
     if (rc == FALSE) return FALSE;
     numOfFiles++;
 
-//    bool rc = writeNV(&numOfFiles,sizeof(uint32_t),NVStatisticsArea,(int)&LocalFlash->NumberOfFiles);
+//    bool rc = writeNV(&numOfFiles,sizeof(uint32_t),NVConfigData,(int)&LocalFlash->NumberOfFiles);
 
     debug_print("Load the files and confirm\n");
 
@@ -868,7 +868,7 @@ header items as specified below.\n";
 
     i = numOfFiles-1;
 //    dir_mram_get_node(i, &mram_fh);
-//    rc = readNV(buffer2, mram_fh.body_offset,NVStatisticsArea, mram_fh.address);
+//    rc = readNV(buffer2, mram_fh.body_offset,NVConfigData, mram_fh.address);
     int32_t num = dir_fs_read_file_chunk("//psfhead", buffer2,sizeof(buffer2),0);
     if (num == -1) {
         debug_print("Error reading file: //psfhead\n");

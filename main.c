@@ -149,16 +149,6 @@ void startup(void)
 
     _enable_interrupt_();
 
-#ifdef RTIHU_BOARD_V10
-    /*
-     * For the V10 board, we need to turn on the 5043 right away.  That's because V10 uses the 5043's clock
-     * output and we need to set that clock speed to match what we want on the MCU.
-     *
-     * On top of everything else, the pins are different between V10 and later
-     */
-    gioSetBit(gioPORTA, 1, 1);
-#endif
-
     HetUARTSetBaudrate(hetRAM1,COM1_BAUD);
 
     /* Serial port and LEDs */

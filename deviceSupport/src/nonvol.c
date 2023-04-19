@@ -21,12 +21,14 @@ bool writeNV(void const * const data, uint32_t dataLength, NVType type,
 	     uint32_t nvAddress)
 {
     switch (type) {
-    case NVStatisticsArea:
+    case NVConfigData:
 	return writeMRAM(0, data, dataLength, nvAddress);
 
     case NVFileSystem:
 	return writeMRAM(1, data, dataLength, nvAddress);
 
+    case NVEntireMRAM:
+        return writeMRAM(2, data, dataLength, nvAddress);
     default:
 	return false;
     }
@@ -35,11 +37,14 @@ bool writeNV(void const * const data, uint32_t dataLength, NVType type,
 bool readNV(void *data, uint32_t dataLength, NVType type, uint32_t nvAddress)
 {
     switch (type) {
-    case NVStatisticsArea:
+    case NVConfigData:
 	return readMRAM(0, data, dataLength, nvAddress);
 
     case NVFileSystem:
 	return readMRAM(1, data, dataLength, nvAddress);
+
+    case NVEntireMRAM:
+    return readMRAM(2, data, dataLength, nvAddress);
 
     default:
 	return false;
@@ -49,12 +54,13 @@ bool readNV(void *data, uint32_t dataLength, NVType type, uint32_t nvAddress)
 int getSizeNV(NVType type)
 {
     switch (type) {
-    case NVStatisticsArea:
-	return getSizeMRAM(0);
+    case NVConfigData:
+	return getMRAMPartitionSize(0);
 
     case NVFileSystem:
-	return getSizeMRAM(1);
-
+        return getMRAMPartitionSize(1);
+    case NVEntireMRAM:
+        return getMRAMSize(0); // todo: Get entire bank size, not just one.
     default:
 	return 0;
     }

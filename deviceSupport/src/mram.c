@@ -21,8 +21,8 @@ static uint32_t MRAMSize[PACSAT_MAX_MRAMS];
 static int numberOfMRAMs = 0;
 static int totalMRAMSize = 0;
 
-static int mramPartitionSize[MAX_MRAM_PARTITIONS] = { 0, 0 };
-static int mramPartitionOffset[MAX_MRAM_PARTITIONS] = { 0, 0 };
+static int mramPartitionSize[MAX_MRAM_PARTITIONS] = { 0, 0, 0 };
+static int mramPartitionOffset[MAX_MRAM_PARTITIONS] = { 0, 0, 0 };
 
 static int addressToMRAMNum(uint32_t *addr)
 {
@@ -104,7 +104,7 @@ void writeMRAMStatus(int mramNum, uint8_t status)
     SPISendCommand(MRAM_Devices[mramNum], command.word, 2, 0, 0, 0, 0);
 }
 
-int getSizeMRAM(int partition)
+int getMRAMPartitionSize(int partition)
 {
     if (partition < 0 || partition >= MAX_MRAM_PARTITIONS)
         return 0;
@@ -152,9 +152,14 @@ bool writeMRAM(int partition,
 
     writeCommand.byte[0] = FRAM_OP_WRITE;
     // The MRAM address is big endian, but so is the processor.
+#if ADDRESS_BYTES == 2
+    writeCommand.byte[1] = framAddress.byte[2]; //We would not have this problem with little endian
+    writeCommand.byte[2] = framAddress.byte[3];
+#else
     writeCommand.byte[1] = framAddress.byte[1];
     writeCommand.byte[2] = framAddress.byte[2];
     writeCommand.byte[3] = framAddress.byte[3];
+#endif
     //printf("Write %x to addr %x in MRAM %d, requested addr=%x\n",
     //       *(uint32_t *)data,framAddress.word,(int)mramDev,nvAddress);
 
@@ -187,10 +192,14 @@ bool readMRAM(int partition,
         return false;
     }
     mramDev = MRAM_Devices[mramNum];
-
+#if ADDRESS_BYTES == 2
+    framAddress.byte[1] = ourAddress.byte[2];  // Address is big-endian.
+    framAddress.byte[2] = ourAddress.byte[3];  // Address is big-endian.
+#else
     framAddress.byte[1] = ourAddress.byte[1];  // Address is big-endian.
     framAddress.byte[2] = ourAddress.byte[2];  // Address is big-endian.
     framAddress.byte[3] = ourAddress.byte[3];  // Address is big-endian.
+#endif
     framAddress.byte[0] = FRAM_OP_READ;
 
     retry = SPI_MRAM_RETRIES;
@@ -208,26 +217,41 @@ bool readMRAM(int partition,
     return false;
 }
 
-static void writeMRAMWord(SPIDevice dev, uint32_t addr, uint32_t val)
+static void writeMRAMWord(SPIDevice dev, uint32_t inAddr, uint32_t val)
 {
     /*
      * This just makes the MRAM size routine easier to read
      */
     ByteToWord mramAddr;
+    ByteToWord addr;
     uint32_t value = val;
-
-    mramAddr.word = addr;
+    addr.word = inAddr;
+#if ADDRESS_BYTES == 2
+    mramAddr.byte[1] = addr.byte[2];
+    mramAddr.byte[2] = addr.byte[3];
+#else /* Assume it is 3 */
+    mramAddr.byte[1] = addr.byte[1];
+    mramAddr.byte[2] = addr.byte[2];
+    mramAddr.byte[3] = addr.byte[3];
+#endif
     mramAddr.byte[0] = FRAM_OP_WRITE;
     //printf("Write %x to addr %x\n",value,addr);
     SPISendCommand(dev, mramAddr.word, ADDRESS_BYTES+1, &value, 4, 0, 0);
 }
 
-static uint32_t readMRAMWord(SPIDevice dev, uint32_t addr)
+static uint32_t readMRAMWord(SPIDevice dev, uint32_t inAddr)
 {
-    ByteToWord mramAddr;
+    ByteToWord mramAddr,addr;
     uint32_t value;
-
-    mramAddr.word = addr;
+    addr.word=inAddr;
+#if ADDRESS_BYTES == 2
+    mramAddr.byte[1] = addr.byte[2];
+    mramAddr.byte[2] = addr.byte[3];
+#else /* Assume it is 3 */
+    mramAddr.byte[1] = addr.byte[1];
+    mramAddr.byte[2] = addr.byte[2];
+    mramAddr.byte[3] = addr.byte[3];
+#endif
     mramAddr.byte[0] = FRAM_OP_READ;
     SPISendCommand(dev, mramAddr.word, ADDRESS_BYTES+1, 0, 0, &value, 4);
     //printf("Read %x from addr %x\n",value,addr);
@@ -242,7 +266,7 @@ int getMRAMSize(int mramNum)
      * it just returns the (known) size.  For FRAM, it checks to see that there
      * is a non-0 status return before returning the known FRAM size.
      */
-    int i, sizeMultiple = 64*1024; //Assume smallest is 64K increasing in multiples of 64K.
+    int i, sizeMultiple = 16*1024; //Assume smallest is 16K increasing in multiples of 16K.
     uint32_t saveVal0, saveValTest;
     uint32_t addr0Val = 0x1f2f3f97, testAddrVal = 0x994499ab;
     SPIDevice dev;
@@ -261,7 +285,8 @@ int getMRAMSize(int mramNum)
     addr0Val += xTaskGetTickCount(); //Get a sort of random value
     saveVal0 = readMRAMWord(dev, 0);
     writeMRAMWord(dev, 0, addr0Val);
-    if (readMRAMWord(dev, 0) != addr0Val) {
+    saveValTest = readMRAMWord(dev,0);
+    if (saveValTest != addr0Val) {
         return 0;  //Chip does not work or exist
     }
 
@@ -296,7 +321,7 @@ int initMRAM()
     /* Already initialized. */
     if (numberOfMRAMs)
     return totalMRAMSize;
-
+    size=0;
     for (i=0; i<PACSAT_MAX_MRAMS; i++) {
         size += MRAMSize[i] = getMRAMSize(MRAM_Devices[i]);
         if (MRAMSize[i] != 0)
@@ -306,6 +331,7 @@ int initMRAM()
         totalMRAMSize = size;
         mramPartitionSize[0] = MRAM_PARTITION_0_SIZE;
         mramPartitionSize[1] = size - MRAM_PARTITION_0_SIZE;
+        mramPartitionSize[2] = totalMRAMSize;
         mramPartitionOffset[1] = MRAM_PARTITION_0_SIZE;
     }
     return totalMRAMSize;
@@ -317,7 +343,7 @@ bool testMRAM(int size)
 {
     // Size is bytes words
     int addr,i,startTime;
-    bool ok=true;
+    bool ok=true,testOk=true;
     int valBase = xTaskGetTickCount();
     uint32_t write[32],read[32];
     printf("Testing with read/write size =");
@@ -340,10 +366,15 @@ bool testMRAM(int size)
         write[i] = valBase+(i*4); // Put in the byte address of the word plus valbase.
     }
     for(addr=0;ok;addr+=size){ // Each loop is 1KByte
-        ok=writeNV(&write,size,NVFileSystem,addr);
+        if(addr % (1024*16) == 0){
+            printf("Write starting at %dKB\n",addr/1024);
+        }
+        ok=writeNV(&write,size,NVEntireMRAM,addr);
         if(!ok)break;
-        if(addr % (1024*64) == 0){
-            printf("%dKb written\n",addr/1024);
+        ok&=readNV(&read,size,NVEntireMRAM,0);
+        if(read[0] != valBase){
+            printf("Addr 0 got overwritten\n");
+            testOk=false;
         }
         for(i=0;i<size/4;i++){
             write[i] += size; // Put in the address of the next set of words plus valbase.
@@ -355,18 +386,23 @@ bool testMRAM(int size)
         write[i] = valBase+(i*4); // Put in the byte address of the word plus valbase.
     }
     for(addr=0;ok;addr+=size){ // Each loop is 1KByte
-        ok=readNV(&read,size,NVFileSystem,addr);
+        if(addr % (1024*16) == 0){
+            printf("Read starting at %dKB\n",addr/1024);
+        }
+       ok=readNV(&read,size,NVEntireMRAM,addr);
         if(!ok)break;
         for(i=0;i<(size/4);i++){
             if(read[i] != write[i]){
                 printf("At address %x, read %x, not %x\n",addr+i*4,read[i],write[i]);
+                testOk=false;
             }
             write[i] += size; // Put in the address of the next set of words plus valbase.
         }
-        if(addr % (1024*64) == 0){
-            printf("%dKb read\n",addr/1024);
-        }
-
+    }
+    if(testOk){
+        printf("Test is ok!  ");
+    } else {
+        printf("Test failed!  ");
     }
     printf("Time is %d seconds\n",getSeconds()-startTime);
     return ok;
