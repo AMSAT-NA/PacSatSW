@@ -12,7 +12,7 @@
             <instance XML_version="1.2" href="drivers/tixds510cs_dap.xml" id="drivers" xml="tixds510cs_dap.xml" xmlpath="drivers"/>
                         
             <instance XML_version="1.2" href="drivers/tixds510cortexR.xml" id="drivers" xml="tixds510cortexR.xml" xmlpath="drivers"/>
-                        
+            
             <property Type="choicelist" Value="1" id="Debug Probe Selection">
                                 
                 <choice Name="Select by serial number" value="0">

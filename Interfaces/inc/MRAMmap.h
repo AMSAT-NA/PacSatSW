@@ -88,6 +88,7 @@ typedef struct _authKey {
 
 #define MRAM_VERSION 1
 
+#ifdef USE_MRAM_TEST_FILESYSTEM_HACK
 /* This is a very simple file allocation table for testing the Pacsat Directory
  * It also caches the most common Pacsat file Header meta data so we can quickly find files.
  * Specifically upload_time and file_id
@@ -111,15 +112,18 @@ typedef struct mram_node {
 } MRAM_FILE;
 
 #define SIZE_OF_MRAM_FAT 1024
+#endif
 
 /* Top level MRAM storage map */
 typedef struct {
         uint32_t MRAMVersion1; // This should always have the real version number
         StateSavingMRAM_t StatesInMRAM;
 		AuthKey_t AuthenticateKey;
+#ifdef USE_MRAM_TEST_FILESYSTEM_HACK
         /* Here is the file system. */
 		uint32_t NumberOfFiles;
 		MRAM_FILE MRAMFiles[SIZE_OF_MRAM_FAT];
+#endif
         uint32_t MRAMVersion2; // This is likely to be wrong if something above changed size
 } MRAMmap_t;
 

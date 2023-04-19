@@ -773,7 +773,62 @@ Thus, there are 3 forms of PACSAT file header:\n\
 \n\
 <0xaa><0x55><Mandatory hdr><Extended hdr><Hdr end>\n\
 \n\
-<0xaa><0x55><Mandatory hdr><Extended hdr>[<Optional    Items> . . . ]<Hdr end>\n";
+<0xaa><0x55><Mandatory hdr><Extended hdr>[<Optional    Items> . . . ]<Hdr end>\n\
+            2.0 PACSAT HEADER ITEM SYNTAX\n\
+            \n\
+All PACSAT file header items follow a single format, simplifying both specifi-\n\
+cation and implementation of the PACSAT File Header.  The format is:\n\
+\n\
+<id><length>[<data> . . . ]\n\
+2.1 <id>\n\
+The id is a 2-byte integer in which the bits have the following meaning:\n\
+\n\
+bit 15            0 this is an system-defined item.\n\
+                 1 this is an experimental, user defined item.\n\
+                 \n\
+bits 0-14         form the 15-bit unsigned binary number identifying the\n\
+                 item.\n\
+                 \n\
+The <id>, allows some 32,000 system-defined and 32,000 user defined items.\n\
+<id> like all multi-byte integers is stored least-significant byte first.  \n\
+Refer to the PACSAT Data Specification Standards document for further informa-\n\
+tion.\n\
+\n\
+2.2 <length>\n\
+\n\
+This field is an 8-bit unsigned binary integer giving the number of <data>\n\
+bytes present.  Even if the size of the data item is fixed, the length is \n\
+still present.\n\
+\n\
+2.3 <data>\n\
+\n\
+The <data> bytes may hold any type of information.\n\
+\n\
+Encoding rules for system-defined items are found in this document.  User-\n\
+defined items may adopt any internal encoding agreed by all users of the item.\n\
+\n\
+2.4 Presentation\n\
+\n\
+The PACSAT File Header must always be transmitted without data compression,\n\
+even if compression is applied to the body of the attached file.\n\
+\n\
+2.5 Header Termination\n\
+\n\
+The end of the PACSAT File Header will always be indicated by a header item\n\
+with <id> 0 and <length> 0.  The byte sequence is 0x00 0x00 0x00.\n\
+\n\
+3.0 THE PACSAT MANDATORY HEADER\n\
+\n\
+The first two bytes of a PACSAT file should always contain 0xaa followed by\n\
+0x55 to confirm that the file contains a PACSAT file header.  \n\
+\n\
+The 0xaa, 0x55 sequence must be followed immediately by all items of the\n\
+Mandatory Header.\n\
+\n\
+Mandatory Header items must be present in order of ascending value of <id>.\n\
+\n\
+When preparing files for uploading to PACSAT, groundstations must initialize\n\
+header items as specified below.\n";
 
     rc = make_test_header(&pfh3, numOfFiles, numOfFiles+1, "psfhead", "AC2CZ", "VE2TCP", "Extract of PACSAT Header", "pfh_header.txt", msg2);
     if (rc == FALSE) return FALSE;

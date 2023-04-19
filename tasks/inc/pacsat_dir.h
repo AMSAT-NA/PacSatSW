@@ -9,6 +9,7 @@
 #define UTILITIES_INC_PACSAT_DIR_H_
 
 #include "MRAMmap.h"
+#include "redconf.h"
 #include "PbTask.h"
 
 #define NO_FILE 0xFFFFFFFF
@@ -21,7 +22,7 @@
  * Each dir_node stores MRAM file header together with the list pointers
  */
 typedef struct dir_node {
-    char filename[MAX_FILENAME_WITH_PATH_LEN]; /* The name of the file on disk */
+    char filename[REDCONF_NAME_MAX+1U]; /* The name of the file on disk */
     uint32_t file_id; /* Cached from the PFH to allow searching by id */
     uint16_t body_offset; /* Cached from the PFH to allow load of PFH without having to overread the bytes */
     uint32_t upload_time; /* Cached from the PFH and used to sort the directory */
@@ -35,7 +36,7 @@ int dir_load();
 
 int32_t dir_fs_write_file_chunk(char *file_name_with_path, uint8_t *data, uint32_t length, uint32_t offset);
 int32_t dir_fs_read_file_chunk(char *file_name_with_path, uint8_t *read_buffer, uint32_t length, uint32_t offset);
-
+int32_t dir_fs_get_file_size(char *file_name_with_path);
 DIR_NODE * dir_get_pfh_by_date(DIR_DATE_PAIR pair, DIR_NODE *p );
 DIR_NODE * dir_get_node_by_id(int file_id);
 void dir_debug_print(DIR_NODE *p);

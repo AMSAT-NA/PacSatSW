@@ -313,61 +313,6 @@ void ConsoleTask(void *pvParameters){
     AllTasksStarted = true;
     StartStableCount();
 
-#ifdef 0 // this was just a test of the FS and can be removed later (or moved to a Console test routine) G0KLA
-    // TEST File System
-      char *test_string = "This is data";
-      int32_t fp;
-      printf("FS Test: Writing:\n");
-      fp = red_open("//test_file", RED_O_CREAT | RED_O_WRONLY);
-      if (fp != -1) {
-          printf("Writing string\n");
-          int32_t numOfBytesWritten = red_write(fp, test_string, strlen(test_string));
-          if (numOfBytesWritten == strlen(test_string)) {
-              printf("Success\n");
-          } else {
-              printf("Write returned: %d\n",numOfBytesWritten);
-              if (numOfBytesWritten == -1)
-                  printf("Unable to write to file: %s\n", red_strerror(red_errno));
-          }
-          int32_t rc = red_close(fp);
-          if (rc != 0) {
-              printf("Unable to close file: %s\n", red_strerror(red_errno));
-          }
-
-      } else {
-          printf("Unable to open file for writing: %s\n", red_strerror(red_errno));
-      }
-
-      // transact here
-
-      // read test
-      printf("Reading:\n");
-      //            int q;
-      //            for (q=0; q< sizeof(buffer); q++) {
-      //                printf("%02x ", buffer[q]);
-      //                if (q != 0 && q % 20 == 0 ) printf("\n");
-      //            }
-      char read_buffer[256];
-      fp = red_open("//test_file", RED_O_RDONLY);
-      if (fp != -1) {
-          printf("Reading string\n");
-          int32_t numOfBytesRead = red_read(fp, read_buffer, sizeof(read_buffer));
-          printf("Read returned: %d\n",numOfBytesRead);
-          if (numOfBytesRead == -1) {
-              printf("Unable to write to file: %s\n", red_strerror(red_errno));
-          } else {
-              read_buffer[numOfBytesRead] = (char)0;
-              printf("READ: %s\n",read_buffer);
-          }
-          int32_t rc = red_close(fp);
-          if (rc != 0) {
-              printf("Unable to close file: %s\n", red_strerror(red_errno));
-          }
-      } else {
-          printf("Unable to open file for reading: %s\n", red_strerror(red_errno));     }
-
-#endif
-
     // Now head off to do the real work of the console task
     RealConsoleTask();
 }

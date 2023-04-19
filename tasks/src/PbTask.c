@@ -99,6 +99,7 @@ struct pb_entry {
     char callsign[MAX_CALLSIGN_LEN];
     DIR_NODE *node; /* The node that we should broadcast next if this is a DIR request.  Physically stored in the DIR linked list */
     uint32_t offset; /* The current offset in the file we are broadcasting or the PFH we are transmitting */
+    uint32_t file_size; /* The file length of the file we are broadcasting */
     uint8_t block_size; /* The maximum size of broadcasts. THIS IS CURRENTLY IGNORED but in theory is sent from the ground for file requests */
     uint8_t hole_list[MAX_PB_HOLES_LIST_BYTES]; /* This is a DIR or FILE hole list and it has been converted to BIG ENDIAN */
     uint8_t hole_num; /* The number of holes from the request */
@@ -128,7 +129,8 @@ void pb_send_status();
 void pb_make_list_str(char *buffer, int len);
 void pb_debug_print_list();
 void pb_debug_print_list_item(int i);
-int pb_add_request(char *from_callsign, int type, DIR_NODE * node, int file_id, int offset, void *holes, int num_of_holes);
+bool pb_add_request(char *from_callsign, uint8_t type, DIR_NODE * node, uint32_t file_size,
+                   uint32_t offset, void *holes, uint8_t num_of_holes);
 int pb_remove_request(int pos);
 void pb_process_frame(char *from_callsign, char *to_callsign, uint8_t *data, int len);
 int get_num_of_dir_holes(int request_len);
@@ -141,8 +143,8 @@ void debug_print_hole(DIR_DATE_PAIR *hole);
 void pb_debug_print_file_holes(FILE_DATE_PAIR *holes, int num_of_holes);
 int pb_next_action();
 int pb_make_dir_broadcast_packet(DIR_NODE *node, uint8_t *data_bytes, uint32_t *offset);
-int pb_broadcast_next_file_chunk(MRAM_FILE *mram_file, int offset, int length, int file_size);
-int pb_make_file_broadcast_packet(MRAM_FILE *mram_file, uint8_t *data_bytes, int number_of_bytes_read, int offset, int chunk_includes_last_byte);
+int pb_broadcast_next_file_chunk(DIR_NODE *node, uint32_t offset, int length, uint32_t file_size);
+int pb_make_file_broadcast_packet(DIR_NODE *node, uint8_t *data_bytes, int number_of_bytes_read, int offset, int chunk_includes_last_byte);
 
 /**
  * The PB task monitors the PB Packet Queue and processes received packets.  It keeps track of stations
@@ -343,7 +345,9 @@ void pb_debug_print_list_item(int i) {
  * Add a callsign and its request to the PB
  *
  * Make a copy of all the data because the original packet will be purged soon from the
- * circular buffer
+ * circular buffer.  The values passed in should all be big endian except the hole lists
+ * which are in raw protocol format, or little endian.
+ *
  * Note that when we are adding an item the variable number_on_pb is pointing to the
  * empty slot where we want to insert data because the number is one greater than the
  * array index (which starts at 0)
@@ -351,7 +355,8 @@ void pb_debug_print_list_item(int i) {
  * returns TRUE it it succeeds or FAIL if the PB is shut or full
  *
  */
-int pb_add_request(char *from_callsign, int type, DIR_NODE * node, int file_id, int offset, void *holes, int num_of_holes) {
+bool pb_add_request(char *from_callsign, uint8_t type, DIR_NODE * node, uint32_t file_size,
+                   uint32_t offset, void *holes, uint8_t num_of_holes) {
     debug_print("PB: Request from %s ", from_callsign);
     if (pb_shut) return FALSE;
     if (number_on_pb == MAX_PB_LENGTH) {
@@ -369,6 +374,7 @@ int pb_add_request(char *from_callsign, int type, DIR_NODE * node, int file_id, 
 
     strlcpy(pb_list[number_on_pb].callsign, from_callsign, MAX_CALLSIGN_LEN);
     pb_list[number_on_pb].pb_type = type;
+    pb_list[number_on_pb].file_size = file_size;
     pb_list[number_on_pb].offset = offset;
     //logicalTime_t time;
     //getTime(&time);
@@ -434,6 +440,7 @@ int pb_remove_request(int pos) {
             strlcpy(pb_list[i-1].callsign, pb_list[i].callsign, MAX_CALLSIGN_LEN);
             pb_list[i-1].pb_type = pb_list[i].pb_type;
             pb_list[i-1].offset = pb_list[i].offset;
+            pb_list[i-1].file_size = pb_list[i].file_size;
             pb_list[i-1].request_time = pb_list[i].request_time;
             if (pb_list[i].hole_num > 0) {
                 int j;
@@ -667,7 +674,9 @@ int pb_handle_dir_request(char *from_callsign, uint8_t *data, int len) {
 int pb_handle_file_request(char *from_callsign, uint8_t *data, int len) {
     // File Request
     int rc=TRUE;
-    int num_of_holes = 0;
+    uint8_t num_of_holes = 0;
+    int64_t file_size;
+
     FILE_REQ_HEADER *file_header;
     file_header = (FILE_REQ_HEADER *)(data + sizeof(AX25_HEADER));
     uint32_t file_id = ttohl(file_header->file_id);
@@ -685,6 +694,22 @@ int pb_handle_file_request(char *from_callsign, uint8_t *data, int len) {
             //exit(FALSE);
         }
         return FALSE;
+    } else {
+        // confirm it is really in MRAM and we can read the size
+        char file_name_with_path[REDCONF_NAME_MAX+3U];
+        snprintf(file_name_with_path, REDCONF_NAME_MAX+3U, "//%s",node->filename);
+        file_size = dir_fs_get_file_size(file_name_with_path);
+        if (file_size == -1) {
+            // We could not get the file size
+            // TODO - we should either remove the file from the directory as well, or send a temporary error
+            //        This will permanently mark the file as unavailable at the ground station, but it is still
+            //        in the DIR
+            rc = pb_send_err(from_callsign, PB_ERR_FILE_NOT_AVAILABLE);
+            if (rc != TRUE) {
+                debug_print("\n Error : Could not send ERR Response to TNC \n");
+            }
+            return FALSE;
+        }
     }
 
     switch (flag) {
@@ -693,7 +718,7 @@ int pb_handle_file_request(char *from_callsign, uint8_t *data, int len) {
         /* least sig 2 bits of flags are 00 if this is a request to send a new file */
         // Add to the PB
         debug_print(" - send whole file\n");
-        if (pb_add_request(from_callsign, PB_FILE_REQUEST_TYPE, node, file_id, 0, 0, 0) == TRUE) {
+        if (pb_add_request(from_callsign, PB_FILE_REQUEST_TYPE, node, (uint32_t)file_size, 0, NULL, 0) == TRUE) {
             // ACK the station
             rc = pb_send_ok(from_callsign);
             if (rc != TRUE) {
@@ -747,7 +772,7 @@ int pb_handle_file_request(char *from_callsign, uint8_t *data, int len) {
 //              return FALSE;
 //          }
 //      }
-        if (pb_add_request(from_callsign, PB_FILE_REQUEST_TYPE, node, file_id, 0, holes, num_of_holes) == TRUE) {
+        if (pb_add_request(from_callsign, PB_FILE_REQUEST_TYPE, node, (uint32_t)file_size, 0, holes, num_of_holes) == TRUE) {
             // ACK the station
             rc = pb_send_ok(from_callsign);
             if (rc != TRUE) {
@@ -899,12 +924,11 @@ int pb_next_action() {
 
         debug_print("Preparing FILE Broadcast for %s\n",pb_list[current_station_on_pb].callsign);
 
-#ifdef 0
         if (pb_list[current_station_on_pb].hole_num == 0) {
             /* Request to broadcast the whole file */
             /* SEND THE NEXT CHUNK OF THE FILE BASED ON THE OFFSET */
-            int number_of_bytes_read = pb_broadcast_next_file_chunk(pb_list[current_station_on_pb].node->mram_file,
-                    pb_list[current_station_on_pb].offset, PB_FILE_DEFAULT_BLOCK_SIZE, pb_list[current_station_on_pb].node->mram_file->file_size);
+            int number_of_bytes_read = pb_broadcast_next_file_chunk(pb_list[current_station_on_pb].node,
+                    pb_list[current_station_on_pb].offset, PB_FILE_DEFAULT_BLOCK_SIZE, pb_list[current_station_on_pb].file_size);
             pb_list[current_station_on_pb].offset += number_of_bytes_read;
             if (number_of_bytes_read == 0) {
                 pb_remove_request(current_station_on_pb);
@@ -913,7 +937,7 @@ int pb_next_action() {
             }
 
             /* If we are done then remove this request */
-            if (pb_list[current_station_on_pb].offset >= pb_list[current_station_on_pb].node->mram_file->file_size) {
+            if (pb_list[current_station_on_pb].offset >= pb_list[current_station_on_pb].file_size) {
                 pb_remove_request(current_station_on_pb);
                 /* If we removed a station then we don't want/need to increment the current station pointer */
                 return TRUE;
@@ -923,7 +947,7 @@ int pb_next_action() {
             /* Request to fill holes in the file */
             int current_hole_num = pb_list[current_station_on_pb].current_hole_num;
             debug_print("Preparing Fill %d of %d from FILE %04x for %s --",(current_hole_num+1), pb_list[current_station_on_pb].hole_num,
-                    pb_list[current_station_on_pb].node->mram_file->file_id, pb_list[current_station_on_pb].callsign);
+                    pb_list[current_station_on_pb].node->file_id, pb_list[current_station_on_pb].callsign);
 
             FILE_DATE_PAIR *holes = (FILE_DATE_PAIR *)pb_list[current_station_on_pb].hole_list;
 
@@ -937,8 +961,8 @@ int pb_next_action() {
              * still has the following remaining bytes */
             int remaining_length_of_hole = holes[current_hole_num].offset + holes[current_hole_num].length - pb_list[current_station_on_pb].offset;
 
-            int number_of_bytes_read = pb_broadcast_next_file_chunk(pb_list[current_station_on_pb].node->mram_file,
-                    pb_list[current_station_on_pb].offset, remaining_length_of_hole, pb_list[current_station_on_pb].node->mram_file->file_size);
+            int number_of_bytes_read = pb_broadcast_next_file_chunk(pb_list[current_station_on_pb].node,
+                    pb_list[current_station_on_pb].offset, remaining_length_of_hole, pb_list[current_station_on_pb].file_size);
 
             pb_list[current_station_on_pb].offset += number_of_bytes_read;
             if (number_of_bytes_read == 0) {
@@ -947,7 +971,7 @@ int pb_next_action() {
                 return TRUE;
             }
             if (pb_list[current_station_on_pb].offset >= holes[current_hole_num].offset + holes[current_hole_num].length
-                    || pb_list[current_station_on_pb].offset >= pb_list[current_station_on_pb].node->mram_file->file_size) {
+                    || pb_list[current_station_on_pb].offset >= pb_list[current_station_on_pb].file_size) {
                 /* We have finished this hole, or we are at the end of the file */
                 pb_list[current_station_on_pb].current_hole_num++;
                 if (pb_list[current_station_on_pb].current_hole_num == pb_list[current_station_on_pb].hole_num) {
@@ -961,8 +985,7 @@ int pb_next_action() {
                 }
             }
         }
-#endif
-    }
+    } // else if file req type
 
     current_station_on_pb++;
     if (current_station_on_pb == number_on_pb)
@@ -1069,7 +1092,9 @@ int pb_make_dir_broadcast_packet(DIR_NODE *node, uint8_t *data_bytes, uint32_t *
     }
 
     /* Read the data into the mram_data_bytes buffer after the header bytes */
-    int rc = dir_fs_read_file_chunk(node->filename, data_bytes + sizeof(PB_DIR_HEADER), buffer_size, *offset);
+    char file_name_with_path[REDCONF_NAME_MAX+3U];
+    snprintf(file_name_with_path, REDCONF_NAME_MAX+3U, "//%s",node->filename);
+    int rc = dir_fs_read_file_chunk(file_name_with_path, data_bytes + sizeof(PB_DIR_HEADER), buffer_size, *offset);
 
     if (rc == -1) {
         return 0; // Error with the read
@@ -1111,7 +1136,7 @@ int pb_make_dir_broadcast_packet(DIR_NODE *node, uint8_t *data_bytes, uint32_t *
  * Returns the offset to be stored for the next transmission or zero if there is an error.
  *
  */
-int pb_broadcast_next_file_chunk(MRAM_FILE *mram_file, int offset, int length, int file_size) {
+int pb_broadcast_next_file_chunk(DIR_NODE *node, uint32_t offset, int length, uint32_t file_size) {
     int rc = TRUE;
 
     if (length > PB_FILE_DEFAULT_BLOCK_SIZE)
@@ -1124,10 +1149,13 @@ int pb_broadcast_next_file_chunk(MRAM_FILE *mram_file, int offset, int length, i
     if (number_of_bytes_read > file_size - offset)
         number_of_bytes_read = file_size - offset;
 ///    rc = dir_mram_read_file_chunk(mram_file,  data_buffer + sizeof(PB_FILE_HEADER), number_of_bytes_read, offset) ;
-    if (rc != TRUE) {
+    char file_name_with_path[REDCONF_NAME_MAX+3U];
+    snprintf(file_name_with_path, REDCONF_NAME_MAX+3U, "//%s",node->filename);
+    rc = dir_fs_read_file_chunk(file_name_with_path, data_buffer + sizeof(PB_FILE_HEADER), number_of_bytes_read, offset);
+    if (rc == -1) {
         return 0; // Error with the read, zero bytes read
     }
-    debug_print("Read %d bytes from %04x\n", number_of_bytes_read, mram_file->file_id);
+    debug_print("Read %d bytes from %04x\n", number_of_bytes_read, node->file_id);
 
     int chunk_includes_last_byte = false;
 
@@ -1136,7 +1164,7 @@ int pb_broadcast_next_file_chunk(MRAM_FILE *mram_file, int offset, int length, i
 
     debug_print("FILE BB to send: ");
 
-    int data_len = pb_make_file_broadcast_packet(mram_file, data_buffer, number_of_bytes_read, offset, chunk_includes_last_byte);
+    int data_len = pb_make_file_broadcast_packet(node, data_buffer, number_of_bytes_read, offset, chunk_includes_last_byte);
     if (data_len == 0) {
         /* Hmm, something went badly wrong here.
          * TODO: We better remove this request or we will keep
@@ -1186,7 +1214,7 @@ E              1    Last byte of frame is the last byte of the file.
 
 *                   Reserved, must be 0.
  */
-int pb_make_file_broadcast_packet(MRAM_FILE *mram_file, uint8_t *data_bytes, int number_of_bytes_read, int offset, int chunk_includes_last_byte) {
+int pb_make_file_broadcast_packet(DIR_NODE *node, uint8_t *data_bytes, int number_of_bytes_read, int offset, int chunk_includes_last_byte) {
     int length = 0;
     PB_FILE_HEADER *file_broadcast_header = (PB_FILE_HEADER *)data_bytes;
 
@@ -1196,7 +1224,7 @@ int pb_make_file_broadcast_packet(MRAM_FILE *mram_file, uint8_t *data_bytes, int
     }
     file_broadcast_header->offset = ttoh24(offset); // this conversion is symetrical and is equivalent to htot24()
     file_broadcast_header->flags = flag;
-    file_broadcast_header->file_id = htotl(mram_file->file_id);
+    file_broadcast_header->file_id = htotl(node->file_id);
 
     length = sizeof(PB_FILE_HEADER) + number_of_bytes_read +2;
     int checksum = crc16(data_bytes, length-2);
@@ -1327,12 +1355,13 @@ int pb_test_list() {
     char data[] = {0x25,0x9f,0x3d,0x63,0xff,0xff,0xff,0x7f};
     DIR_DATE_PAIR * holes = (DIR_DATE_PAIR *)&data;
 
-    rc = pb_add_request("AC2CZ", PB_FILE_REQUEST_TYPE, NULL, 3, 0, NULL, 0);
+    rc = pb_add_request("AC2CZ", PB_FILE_REQUEST_TYPE, NULL, 95, 0, NULL, 0);
     if (rc != TRUE) {printf("** Could not add callsign\n"); return FALSE; }
     rc = pb_add_request("VE2XYZ", PB_DIR_REQUEST_TYPE, NULL, 0, 0, NULL, 0);
     if (rc != TRUE) {printf("** Could not add callsign\n"); return FALSE; }
     pb_debug_print_list();
     if (strcmp(pb_list[0].callsign, "AC2CZ") != 0) {printf("** Mismatched callsign 0\n"); return FALSE;}
+    if (pb_list[0].file_size != 95) {printf("** Mismatched file size 0\n"); return FALSE;}
     if (strcmp(pb_list[1].callsign, "VE2XYZ") != 0) {printf("** Mismatched callsign 1\n"); return FALSE;}
 
 
@@ -1344,7 +1373,7 @@ int pb_test_list() {
     if (strcmp(pb_list[0].callsign, "VE2XYZ") != 0) {printf("** Mismatched callsign 0 after head removed\n"); return FALSE;}
 
     debug_print("ADD two more Calls\n");
-    rc = pb_add_request("G0KLA", PB_FILE_REQUEST_TYPE, NULL, 3, 0, NULL, 0);
+    rc = pb_add_request("G0KLA", PB_FILE_REQUEST_TYPE, NULL, 75, 0, NULL, 0);
     if (rc != TRUE) {printf("** Could not add callsign\n"); return FALSE; }
     rc = pb_add_request("WA1QQQ", PB_DIR_REQUEST_TYPE, NULL, 0, 0, NULL, 0);
     if (rc != TRUE) {printf("** Could not add callsign\n"); return FALSE; }
@@ -1370,12 +1399,12 @@ int pb_test_list() {
     // Test PB Full
     debug_print("ADD Calls and test FULL\n");
     if( pb_add_request("AA1AAA-10", PB_DIR_REQUEST_TYPE, NULL, 0, 0, holes, 1) != TRUE) {debug_print("ERROR: Could not add call to PB list\n");return FALSE; }
-    if( pb_add_request("BB1BBB-11", PB_DIR_REQUEST_TYPE, NULL, 3, 0, NULL, 0) != TRUE) {debug_print("ERROR: Could not add call to PB list\n");return FALSE; }
+    if( pb_add_request("BB1BBB-11", PB_DIR_REQUEST_TYPE, NULL, 915, 0, NULL, 0) != TRUE) {debug_print("ERROR: Could not add call to PB list\n");return FALSE; }
     if( pb_add_request("CC1CCC-13", PB_DIR_REQUEST_TYPE, NULL, 0, 0, NULL, 0) != TRUE) {debug_print("ERROR: Could not add call to PB list\n");return FALSE; }
     if( pb_add_request("DD1DDD-10", PB_DIR_REQUEST_TYPE, NULL, 0, 0, NULL, 0) != TRUE) {debug_print("ERROR: Could not add call to PB list\n");return FALSE; }
     if( pb_add_request("EE1EEE-11", PB_DIR_REQUEST_TYPE, NULL, 0, 0, NULL, 0) != TRUE) {debug_print("ERROR: Could not add call to PB list\n");return FALSE; }
-    if( pb_add_request("FF1FFF-12", PB_DIR_REQUEST_TYPE, NULL, 3, 0, NULL, 0) != TRUE) {debug_print("ERROR: Could not add call to PB list\n");return FALSE; }
-    if( pb_add_request("GG1GGG-13", PB_DIR_REQUEST_TYPE, &test_node, 3, 0, NULL, 0) != TRUE) {debug_print("ERROR: Could not add call to PB list\n");return FALSE; }
+    if( pb_add_request("FF1FFF-12", PB_DIR_REQUEST_TYPE, NULL, 0, 0, NULL, 0) != TRUE) {debug_print("ERROR: Could not add call to PB list\n");return FALSE; }
+    if( pb_add_request("GG1GGG-13", PB_DIR_REQUEST_TYPE, &test_node, 175, 0, NULL, 0) != TRUE) {debug_print("ERROR: Could not add call to PB list\n");return FALSE; }
     if( pb_add_request("HH1HHH-10", PB_DIR_REQUEST_TYPE, NULL, 0, 0, NULL, 0) != TRUE) {debug_print("ERROR: Could not add call to PB list\n");return FALSE; }
     if( pb_add_request("II1III-11", PB_DIR_REQUEST_TYPE, NULL, 0, 0, NULL, 0) != TRUE) {debug_print("ERROR: Could not add call to PB list\n");return FALSE; }
     if( pb_add_request("JJ1JJJ-12", PB_DIR_REQUEST_TYPE, NULL, 0, 0, NULL, 0) != TRUE) {debug_print("ERROR: Could not add call to PB list\n");return FALSE; }
@@ -1414,7 +1443,8 @@ int pb_test_list() {
     if (strcmp(pb_list[5].callsign, "GG1GGG-13") != 0) {printf("** Mismatched callsign 5\n"); return FALSE;}
     /* Also confirm that the node copied over correctly */
     if (pb_list[5].node->file_id != 3) {printf("** Mismatched file id for entry 5\n"); return FALSE;}
-    if (pb_list[5].node->body_offset != 56) {printf("** Mismatched body offset for entry 5\n"); return FALSE;}
+    if (pb_list[5].node->body_offset != 36) {printf("** Mismatched body offset for entry 5\n"); return FALSE;}
+    if (pb_list[5].file_size != 175) {printf("** Mismatched file size of %d for entry 5\n",pb_list[5].file_size); return FALSE;}
     if (strcmp(pb_list[8].callsign, "JJ1JJJ-12") != 0) {printf("** Mismatched callsign 8\n"); return FALSE;}
 
     debug_print("Remove current station\n");

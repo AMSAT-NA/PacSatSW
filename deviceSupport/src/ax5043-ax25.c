@@ -1340,9 +1340,11 @@ int32_t axradio_conv_freq_fromhz(int32_t f) {
   return (int32_t) (f * 1.048576);
 }
 
+/*
 int32_t axradio_conv_freq_tohz(int32_t f) {
   return (int32_t) (f / 1.048576);
 }
+*/
 
 void quick_setfreq(SPIDevice device, int32_t f) {
   int32_t f1 = axradio_conv_freq_fromhz(f);

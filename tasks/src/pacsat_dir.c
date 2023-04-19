@@ -86,11 +86,11 @@ int dir_next_file_number() {
  * are not used.  This could guarantee no memory fragmentation and the expense of complexity.
  *
  */
-DIR_NODE * dir_add_pfh(char *file_path, HEADER *new_pfh) {
+DIR_NODE * dir_add_pfh(char *file_name, HEADER *new_pfh) {
     int resave = false;
     DIR_NODE *new_node = (DIR_NODE *)pvPortMalloc(sizeof(DIR_NODE));
     new_node->file_id = new_pfh->fileId;
-    strlcpy(new_node->filename, file_path, MAX_FILENAME_WITH_PATH_LEN);
+    strlcpy(new_node->filename, file_name, REDCONF_NAME_MAX+1U);
     new_node->body_offset = new_pfh->bodyOffset;
     new_node->upload_time = new_pfh->uploadTime;
 
@@ -157,8 +157,9 @@ DIR_NODE * dir_add_pfh(char *file_path, HEADER *new_pfh) {
             dir_delete_node(new_node);
             return FALSE;
         }
-
-        int32_t num = dir_fs_write_file_chunk(file_path, pfh_byte_buffer, body_offset, 0);
+        char file_name_with_path[REDCONF_NAME_MAX+3U];
+        snprintf(file_name_with_path, REDCONF_NAME_MAX+3U, "//%s",file_name);
+        int32_t num = dir_fs_write_file_chunk(file_name_with_path, pfh_byte_buffer, body_offset, 0);
         if (num == -1) {
             // we could not save this
             debug_print("** Could not update the header for fh: %d to dir\n",new_node->file_id);
@@ -267,7 +268,7 @@ bool dir_load_pacsat_file(char *file_name) {
     pfh_extract_header(&pfh_buffer, pfh_byte_buffer, sizeof(pfh_byte_buffer), &size, &crc_passed);
     if (!crc_passed) { debug_print("CRC FAILED\n"); return FALSE;}
 
-    DIR_NODE *p = dir_add_pfh(file_name_with_path, &pfh_buffer);
+    DIR_NODE *p = dir_add_pfh(file_name, &pfh_buffer);
     if (p == NULL) {
         debug_print("** Could not add %s to dir\n", file_name_with_path);
         return FALSE;
@@ -497,6 +498,40 @@ int32_t dir_fs_read_file_chunk(char *file_name_with_path, uint8_t *read_buffer, 
     return numOfBytesRead;
 }
 
+/**
+ * Get the size of a file.
+ *
+ * Returns the size of the file or -1 if there is an error.
+ *
+ */
+int32_t dir_fs_get_file_size(char *file_name_with_path) {
+    int32_t rc;
+    int64_t numOfBytesRead; // we need room for a 32 bit size and a negative number for an error.  TODO - we could limit to u32 bits if we never have files over 31 bits in size
+
+    int32_t fp = red_open(file_name_with_path, RED_O_RDONLY);
+    if (fp == -1) {
+        debug_print("Unable to open %s for reading: %s\n", file_name_with_path, red_strerror(red_errno));
+        return -1;
+    }
+
+    numOfBytesRead = red_lseek(fp, 0, RED_SEEK_END);
+    if (numOfBytesRead == -1) {
+        debug_print("Unable to seek %s to end: %s\n", file_name_with_path, red_strerror(red_errno));
+
+        rc = red_close(fp);
+        if (rc != 0) {
+            printf("Unable to close %s: %s\n", file_name_with_path, red_strerror(red_errno));
+        }
+        return -1;
+    }
+
+    rc = red_close(fp);
+    if (rc != 0) {
+        printf("Unable to close %s: %s\n", file_name_with_path, red_strerror(red_errno));
+    }
+    return numOfBytesRead;
+}
+
 #ifdef USE_MRAM_TEST_FILESYSTEM_HACK
 /**
  * SIMPLE MRAM FILE SYSTEM FOLLOWS
@@ -642,7 +677,7 @@ int test_pacsat_dir() {
     if (dir_head->next->file_id != 2) { printf("** Error creating file 2\n"); return EXIT_FAILURE; }
     if (dir_tail->file_id != 4) { printf("** Error creating file 4\n"); return EXIT_FAILURE; }
 
-#ifdef 0
+#ifdef REFACTOR
     debug_print("DELETE HEAD\n");
     dir_delete_node(dir_head);
     dir_debug_print(dir_head);
