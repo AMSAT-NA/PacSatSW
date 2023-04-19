@@ -11,7 +11,7 @@
 #include <pacsat.h>
 #include "spiDriver.h"
 #include "stdint.h"
-#define FRAM64K
+//#define FRAM64K
 #ifdef FRAM64K
 #define ADDRESS_BYTES 2
 #else

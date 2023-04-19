@@ -670,6 +670,9 @@ int pb_handle_dir_request(char *from_callsign, uint8_t *data, int len) {
  *
  * Returns TRUE if the station was added to the PB, otherwise it
  * returns FALSE
+ * TODO - this does not seem to be true from the logic below.  e.g. if there is an error transmitting rc is set to
+ * FALSE and that will be returned.  Even though the station may have been added to the PB.
+ *
  */
 int pb_handle_file_request(char *from_callsign, uint8_t *data, int len) {
     // File Request
@@ -998,7 +1001,7 @@ int pb_next_action() {
  * pb_make_dir_broadcast_packet()
  *
  * Generate the bytes needed for a dir broadcast based on a pacsat file header
- * Pass in the Pacsat file header, a pointer to the broadcast frame, the offset
+ * Pass in the Directory Node, a pointer to the broadcast frame, the offset
  * if this is the second frame for a long header
  *
 

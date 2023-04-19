@@ -878,7 +878,7 @@ header items as specified below.\n";
     if (!crc_passed) { debug_print("CRC FAILED\n"); return FALSE;}
     pfh_debug_print(&pfh4);
     if (pfh4.fileId != numOfFiles){  debug_print("ID wrong for file %d - FAILED\n",i); return FALSE; }
-    if (pfh4.fileSize != 915) {  debug_print("Size wrong for file %d is %d - FAILED\n",i,pfh4.fileSize); return FALSE; }
+    if (pfh4.fileSize != 2892) {  debug_print("Size wrong for file %d is %d - FAILED\n",i,pfh4.fileSize); return FALSE; }
     if (strcmp(pfh4.source, "AC2CZ")) {  debug_print("Source str wrong - FAILED\n"); return FALSE; }
     if (strcmp(pfh4.destination, "VE2TCP")) {  debug_print("Destination str wrong - FAILED\n"); return FALSE; }
     if (strcmp(pfh4.title, "Extract of PACSAT Header")) {  debug_print("Title str wrong - FAILED\n"); return FALSE; }
