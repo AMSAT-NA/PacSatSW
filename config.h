@@ -14,7 +14,7 @@
 
 #define PACSAT_NUMBER "0" // This is PacSat.
 #define GOLF_ID (PACSAT_NUMBER[0] - '0') /*Must change if number greater than 9*/
-#define ENGINEERING_MODEL
+//#define ENGINEERING_MODEL
 #define UNDEFINE_BEFORE_FLIGHT
 #define DEBUG
 

@@ -317,9 +317,11 @@ void ReportError(ErrorType_t code, bool fatal, ErrorInfoType_t infoType, int inf
         ReportToWatchdog(CurrentTaskWD);
     }
 }
+#ifdef UNDEFINE_BEFORE_FLIGHT
 char * ErrorMessageString(ErrorType_t code){
     return ErrMsg[code];
 }
+#endif
 void ClearShortBootFlag(){
     // This gets called after we have been up long enough that
     // we don't count this as a short boot, (which forces a power
