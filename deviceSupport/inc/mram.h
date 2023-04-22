@@ -11,12 +11,6 @@
 #include <pacsat.h>
 #include "spiDriver.h"
 #include "stdint.h"
-#define FRAM64K
-#ifdef FRAM64K
-#define ADDRESS_BYTES 2
-#else
-#define ADDRESS_BYTES 3
-#endif
 
 /*
  * These OPcode appear correct both for the RAMTRON F-RAM and
@@ -46,13 +40,17 @@
 
 #define MAX_MRAM_PARTITIONS 3
 
+#define MRAM_STATUS_ADDR_MASK 0x73
+#define MRAM_STATUS_ADDR_2 0x23
+#define MRAM_STATUS_ADDR_3 0x32
+
 /*
  * Size of partition 0.  This is the partition used by non-volatile
  * management for various statistics.
  *
  * Partition 1 is whatever is left over.
  */
-#define MRAM_PARTITION_0_SIZE 1024
+#define MRAM_PARTITION_0_SIZE sizeof(MRAMmap_t)
 
 /* Initialize the MRAM system. */
 int initMRAM(void);
@@ -62,6 +60,7 @@ int initMRAM(void);
  * MRAM devices look like a single big device and parititions it.
  */
 int getMRAMPartitionSize(int partition);
+int getMRAMAddressSize(void);
 bool writeMRAM(int partition,
 	       void const * const data, uint32_t length, uint32_t address);
 bool readMRAM(int partition,

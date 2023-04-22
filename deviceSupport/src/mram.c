@@ -14,7 +14,10 @@
 #include "errors.h"
 #include "CANSupport.h"
 #include "MET.h"
+#include "MRAMmap.h"
+#include "nonvolManagement.h"
 
+uint32_t MRAMAddressBytes=3;
 static const SPIDevice MRAM_Devices[PACSAT_MAX_MRAMS] =
     {MRAM0Dev, MRAM1Dev, MRAM2Dev, MRAM3Dev};
 static uint32_t MRAMSize[PACSAT_MAX_MRAMS];
@@ -152,19 +155,19 @@ bool writeMRAM(int partition,
 
     writeCommand.byte[0] = FRAM_OP_WRITE;
     // The MRAM address is big endian, but so is the processor.
-#if ADDRESS_BYTES == 2
-    writeCommand.byte[1] = framAddress.byte[2]; //We would not have this problem with little endian
-    writeCommand.byte[2] = framAddress.byte[3];
-#else
-    writeCommand.byte[1] = framAddress.byte[1];
-    writeCommand.byte[2] = framAddress.byte[2];
-    writeCommand.byte[3] = framAddress.byte[3];
-#endif
+    if (MRAMAddressBytes == 2){
+        writeCommand.byte[1] = framAddress.byte[2]; //We would not have this problem with little endian
+        writeCommand.byte[2] = framAddress.byte[3];
+    } else {
+        writeCommand.byte[1] = framAddress.byte[1];
+        writeCommand.byte[2] = framAddress.byte[2];
+        writeCommand.byte[3] = framAddress.byte[3];
+    }
     //printf("Write %x to addr %x in MRAM %d, requested addr=%x\n",
     //       *(uint32_t *)data,framAddress.word,(int)mramDev,nvAddress);
 
     /* Now write */
-    SPISendCommand(mramDev, writeCommand.word, ADDRESS_BYTES+1,
+    SPISendCommand(mramDev, writeCommand.word, MRAMAddressBytes+1,
                    (uint8_t *) data, length, NULL, 0);
 
     return true;
@@ -192,20 +195,20 @@ bool readMRAM(int partition,
         return false;
     }
     mramDev = MRAM_Devices[mramNum];
-#if ADDRESS_BYTES == 2
-    framAddress.byte[1] = ourAddress.byte[2];  // Address is big-endian.
-    framAddress.byte[2] = ourAddress.byte[3];  // Address is big-endian.
-#else
-    framAddress.byte[1] = ourAddress.byte[1];  // Address is big-endian.
-    framAddress.byte[2] = ourAddress.byte[2];  // Address is big-endian.
-    framAddress.byte[3] = ourAddress.byte[3];  // Address is big-endian.
-#endif
+    if(MRAMAddressBytes == 2){
+        framAddress.byte[1] = ourAddress.byte[2];  // Address is big-endian.
+        framAddress.byte[2] = ourAddress.byte[3];  // Address is big-endian.
+    } else {
+        framAddress.byte[1] = ourAddress.byte[1];  // Address is big-endian.
+        framAddress.byte[2] = ourAddress.byte[2];  // Address is big-endian.
+        framAddress.byte[3] = ourAddress.byte[3];  // Address is big-endian.
+    }
     framAddress.byte[0] = FRAM_OP_READ;
 
     retry = SPI_MRAM_RETRIES;
     while (retry-- > 0){
         /* Retry a few times before we give up */
-        if (SPISendCommand(mramDev, framAddress.word, ADDRESS_BYTES+1, 0, 0,
+        if (SPISendCommand(mramDev, framAddress.word, MRAMAddressBytes+1, 0, 0,
                            (uint8_t *) data, length)){
             //printf("Read %x from addr %x in MRAM %d, requested addr=%x\n",*(uint32_t *)data,ourAddress.word,(int)mramDev,nvAddress);
             return true;
@@ -226,17 +229,17 @@ static void writeMRAMWord(SPIDevice dev, uint32_t inAddr, uint32_t val)
     ByteToWord addr;
     uint32_t value = val;
     addr.word = inAddr;
-#if ADDRESS_BYTES == 2
-    mramAddr.byte[1] = addr.byte[2];
-    mramAddr.byte[2] = addr.byte[3];
-#else /* Assume it is 3 */
-    mramAddr.byte[1] = addr.byte[1];
-    mramAddr.byte[2] = addr.byte[2];
-    mramAddr.byte[3] = addr.byte[3];
-#endif
+    if( MRAMAddressBytes == 2){
+        mramAddr.byte[1] = addr.byte[2];
+        mramAddr.byte[2] = addr.byte[3];
+    }else{
+        mramAddr.byte[1] = addr.byte[1];
+        mramAddr.byte[2] = addr.byte[2];
+        mramAddr.byte[3] = addr.byte[3];
+    }
     mramAddr.byte[0] = FRAM_OP_WRITE;
     //printf("Write %x to addr %x\n",value,addr);
-    SPISendCommand(dev, mramAddr.word, ADDRESS_BYTES+1, &value, 4, 0, 0);
+    SPISendCommand(dev, mramAddr.word, MRAMAddressBytes+1, &value, 4, 0, 0);
 }
 
 static uint32_t readMRAMWord(SPIDevice dev, uint32_t inAddr)
@@ -244,16 +247,16 @@ static uint32_t readMRAMWord(SPIDevice dev, uint32_t inAddr)
     ByteToWord mramAddr,addr;
     uint32_t value;
     addr.word=inAddr;
-#if ADDRESS_BYTES == 2
-    mramAddr.byte[1] = addr.byte[2];
-    mramAddr.byte[2] = addr.byte[3];
-#else /* Assume it is 3 */
-    mramAddr.byte[1] = addr.byte[1];
-    mramAddr.byte[2] = addr.byte[2];
-    mramAddr.byte[3] = addr.byte[3];
-#endif
+    if(MRAMAddressBytes == 2){
+        mramAddr.byte[1] = addr.byte[2];
+        mramAddr.byte[2] = addr.byte[3];
+    } else {
+        mramAddr.byte[1] = addr.byte[1];
+        mramAddr.byte[2] = addr.byte[2];
+        mramAddr.byte[3] = addr.byte[3];
+    }
     mramAddr.byte[0] = FRAM_OP_READ;
-    SPISendCommand(dev, mramAddr.word, ADDRESS_BYTES+1, 0, 0, &value, 4);
+    SPISendCommand(dev, mramAddr.word, MRAMAddressBytes+1, 0, 0, &value, 4);
     //printf("Read %x from addr %x\n",value,addr);
     return value;
 }
@@ -312,7 +315,53 @@ int getMRAMSize(int mramNum)
     return i * sizeMultiple;
 
 }
-
+static int findMRAMAddressSize(){
+    /*
+     * Here we assume that if there are any MRAMs, they are all use the same size address and that
+     * one of them is MRAM0.
+     */
+    ByteToWord mramAddr;
+    uint8_t size=0;
+    uint32_t value[2];
+    mramAddr.word=0; //Set all 4 bytes to 0
+    mramAddr.byte[0] = FRAM_OP_WRITE;  // Set first byte to READ
+    mramAddr.byte[3] = 2;
+    value[0] = 0x12345678;
+    value[1] = 0xfedc;
+    SPISendCommand(MRAM0Dev, mramAddr.word, 4,
+                   value, 4,
+                   0,0);
+    mramAddr.word = 0;
+    value[0]=value[1]=0;
+    mramAddr.byte[0] = FRAM_OP_READ;
+    SPISendCommand(MRAM0Dev, mramAddr.word, 4, NULL,0, &value[0], (uint16_t) 8);
+/////////////////////////////////////////////
+    printf("Value = %x\n",value);
+    mramAddr.word = 0;
+    mramAddr.byte[0] = FRAM_OP_WRITE;
+    if((value[0] & 0xffff)== 0x1234){
+        size = 3;
+        writeMRAMStatus(0,MRAM_STATUS_ADDR_3); // Remember the size in unused bits in the status register
+    }
+    else {
+        size = 2;
+        writeMRAMStatus(0,MRAM_STATUS_ADDR_2); // Remember the size in unused bits in the sr.
+    }
+    return size;
+}
+int getMRAMAddressSize(){
+    uint8_t stat = readMRAMStatus(0);
+    // If it has been initialized, the address size is in the status register
+    // Otherwise, we have to figure out the address size and put it there.
+    stat = stat & MRAM_STATUS_ADDR_MASK;
+    if(stat == MRAM_STATUS_ADDR_2){
+        return 2;
+    } else if (stat == MRAM_STATUS_ADDR_3){
+        return 3;
+    } else {
+        return findMRAMAddressSize();
+    }
+}
 int initMRAM()
 {
     // Initialize status register to 0 so there are no memory banks write protected
@@ -321,6 +370,8 @@ int initMRAM()
     /* Already initialized. */
     if (numberOfMRAMs)
     return totalMRAMSize;
+    writeEnableMRAM(0);
+    MRAMAddressBytes = getMRAMAddressSize();
     size=0;
     for (i=0; i<PACSAT_MAX_MRAMS; i++) {
         size += MRAMSize[i] = getMRAMSize(MRAM_Devices[i]);
@@ -329,10 +380,13 @@ int initMRAM()
     }
     if (size > MRAM_PARTITION_0_SIZE) {
         totalMRAMSize = size;
-        mramPartitionSize[0] = MRAM_PARTITION_0_SIZE;
+        mramPartitionSize[0] = sizeof(MRAMmap_t);
         mramPartitionSize[1] = size - MRAM_PARTITION_0_SIZE;
         mramPartitionSize[2] = totalMRAMSize;
         mramPartitionOffset[1] = MRAM_PARTITION_0_SIZE;
+    }
+    if(!CheckMRAMVersionNumber()){
+        printf("\n\n\n\n*****MRAM layout has changed.  You must issue clear mram******\n\n\n\n");
     }
     return totalMRAMSize;
 }

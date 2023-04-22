@@ -87,10 +87,6 @@ void WriteMRAMCommandFreq(uint32_t);
 void WriteMRAMVersionNumber(void);
 bool CheckMRAMVersionNumber(void);
 
-
-int mram_test1(int size);
-int mram_test2(int size);
-
 #define ReadMRAMSafeMode() ReadMRAMBoolState(StateSafeMode)
 #define WriteMRAMAutoSafe(value) WriteMRAMBoolState(StateAutoSafe,value)
 #define ReadMRAMAutoSafe() ReadMRAMBoolState(StateAutoSafe)
