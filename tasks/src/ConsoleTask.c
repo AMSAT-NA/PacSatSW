@@ -362,6 +362,8 @@ void RealConsoleTask(void)
         }
         case sizeMRAM:{
             int i;
+            printf("MRAM Address Size=%d\n",getMRAMAddressSize());
+            printf("Partition 0 size=%d, partition 1=%d\n",getMRAMPartitionSize(0),getMRAMPartitionSize(1));
             for (i=0;i<PACSAT_MAX_MRAMS;){
                 printf("MRAM%d size is %dKBytes",i,getMRAMSize(i)/1024);
                 i++;

@@ -462,8 +462,8 @@ int SetupMRAM(void){
 
     WriteMRAMVersionNumber();
     printf("MRAM Version Number Initialized\n");
-    printf("MRAM size found to be %d bytes\n",size);
-    printf("Size of MRAM data structure is %d\n",sizeof(MRAMmap_t));
+    printf("MRAM config partition size is %d bytes\n",getSizeNV(NVConfigData));
+    printf("MRAM file partition 1 size is %d\n",getSizeNV(NVFileSystem));
     if(size < sizeof(MRAMmap_t)){
         printf("!!!Not enough MRAM in this IHU!!!");
     }

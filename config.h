@@ -14,7 +14,7 @@
 
 #define PACSAT_NUMBER "0" // This is PacSat.
 #define GOLF_ID (PACSAT_NUMBER[0] - '0') /*Must change if number greater than 9*/
-#define ENGINEERING_MODEL
+//#define ENGINEERING_MODEL
 #define UNDEFINE_BEFORE_FLIGHT
 #define DEBUG
 
@@ -28,7 +28,7 @@
 #define WATCHDOG_ENABLE
 #   define SOFTWARE_TYPE "V"
 #endif
-#define VERSION "0a" /*Exactly 2 characters will show in the diagnostic downlink*/
+#define VERSION "1a" /*Exactly 2 characters will show in the diagnostic downlink*/
 #define PACSAT_FW_VERSION_STRING SOFTWARE_TYPE PACSAT_NUMBER "." VERSION
 
 #define PACSAT_MAX_MRAMS 4
