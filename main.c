@@ -44,6 +44,7 @@
 #include "CommandTask.h"
 #include "TxTask.h"
 #include "RxTask.h"
+#include "Ax25Task.h"
 #include "PbTask.h"
 #include "pacsat_dir.h"
 #include "TelemetryRadio.h"
@@ -72,7 +73,9 @@
 void ConsoleTask(void *pvParameters);
 
 //Global Variables Definitions (these are declared in pacsat.h or another header file where they are required)
-QueueHandle_t xPbPacketQueue; /* RTOS Queue for packets received and sent to the PB */
+QueueHandle_t xRxPacketQueue; /* RTOS Queue for packets received by the RX */
+QueueHandle_t xPbPacketQueue; /* RTOS Queue for packets received and sent to the PB task */
+QueueHandle_t xUplinkPacketQueue; /* RTOS Queue for packets received and sent to the UPLINK task */
 QueueHandle_t xTxPacketQueue; /* RTOS Queue for packets sent to the TX */
 bool CANPrintTelemetry,CANPrintCoord,CANPrintCommands,CANPrintAny,CANPrintCount,CANPrintErrors,CANPrintEttus,
     pb_shut, monitorPackets;
@@ -274,7 +277,7 @@ void ConsoleTask(void *pvParameters){
     /*
      * Time to release the antennas.
      */
-    xTaskCreate(CANTask, "Can", CAN_STACK_SIZE, NULL,CAN_PRIORITY, NULL);
+//    xTaskCreate(CANTask, "Can", CAN_STACK_SIZE, NULL,CAN_PRIORITY, NULL);
 
     /*
      * We create the coordination task first.  It will get us switched into either "InControl" or "AliveNotControlling".
@@ -293,6 +296,7 @@ void ConsoleTask(void *pvParameters){
 //    printf("Free heap size after dir loaded: %d\n",xPortGetFreeHeapSize());
 
     xTaskCreate(RxTask,"RxTask",RX_STACK_SIZE, NULL,RX_PRIORITY,NULL);
+    xTaskCreate(Ax25Task,"Ax25Task",AX25_STACK_SIZE, NULL,AX25_PRIORITY,NULL);
     xTaskCreate(PbTask,"PbTask",PB_STACK_SIZE, NULL,PB_PRIORITY,NULL);
 
     xTaskCreate(TxTask,"Radio",RADIO_STACK_SIZE, NULL,TX_PRIORITY,NULL);

@@ -36,6 +36,9 @@
 #define PBFULL "PBFULL" // destination for PB status when list is full
 #define PBSHUT "PBSHUT" // destination for PB status when it is closed
 #define QST "QST-1" // destination for broadcast dir and file frames
+#define STATUS "STATUS" // destination for status frames
+#define BSTAT "BSTAT" // destination for broadcast status frames
+#define BBSTAT "BBSTAT" // destination for bbs status frames
 
 #define L_BIT 0
 #define E_BIT 5

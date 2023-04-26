@@ -86,7 +86,10 @@
 #define BROADCAST_CALLSIGN "VE2TCP-11"
 #define DIGI_CALLSIGN "VE2TCP-1"
 
+#define NUM_OF_RX_CHANNELS 1
+
 #define AX25_MAX_DATA_LEN 240 /* This is the maximum number of bytes a packet can have */
+#define AX25_MAX_INFO_BYTES_LEN 223 /* This is the maximum number of info bytes a packet can have */
 #define AX25_PKT_BUFFER_LEN 260 /* This is the length of the buffers in the TX RX queues */
 #define MAX_CALLSIGN_LEN 10 /* Length of the String for an AX25 callsign including dash, 2 digit Digi, and null termination */
 #define MAX_PB_HOLES_LIST_BYTES 222 /* The max length of a holes list = ( AX25_MAX_DATA_LEN - 17 ) to nearest 6 */
@@ -125,10 +128,14 @@
 // PACSAT Task stack sizes and priorities
 #define RX_STACK_SIZE configMINIMAL_STACK_SIZE*11
 #define RX_PRIORITY (tskIDLE_PRIORITY + 4)
+#define RX_PACKET_QUEUE_LEN 5
 
 #define TX_STACK_SIZE configMINIMAL_STACK_SIZE*11
 #define TX_PRIORITY (tskIDLE_PRIORITY + 3)
 #define TX_PACKET_QUEUE_LEN 5
+
+#define AX25_STACK_SIZE configMINIMAL_STACK_SIZE*11
+#define AX25_PRIORITY (tskIDLE_PRIORITY + 2)
 
 #define PB_STACK_SIZE configMINIMAL_STACK_SIZE*11
 #define PB_PRIORITY (tskIDLE_PRIORITY + 2)
@@ -136,6 +143,7 @@
 
 #define UPLINK_STACK_SIZE configMINIMAL_STACK_SIZE*11
 #define UPLINK_PRIORITY (tskIDLE_PRIORITY + 2)
+#define UPLINK_PACKET_QUEUE_LEN 5
 
 
 // Telemetry constants

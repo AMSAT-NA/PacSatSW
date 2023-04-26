@@ -66,6 +66,7 @@
 #include "pacsat_header.h" // for test routines
 #include "pacsat_dir.h" // for dir commands and test routines
 #include "redposix.h"
+#include "Ax25Task.h"
 //Extern definition
 extern uint8_t SWCmdRing[SW_CMD_RING_SIZE],SWCmdIndex;
 
@@ -168,6 +169,7 @@ enum {
     ,testPfhFile
     ,makePfhFiles
     ,testDir
+    ,sendUplinkStatus
 #endif
     ,monitorOn
     ,monitorOff
@@ -234,6 +236,7 @@ commandPairs debugCommands[] = {
                                 ,{"test psf","Test the Pacsat Files in MRAM",testPfhFile}
                                 ,{"make psf","Make a set of test Pacsat Files in MRAM",makePfhFiles}
                                 ,{"test dir","Test the Pacsat Directory.  The command 'make psf' must already have been run",testDir}
+                                ,{"send uplink status","Send Uplink status",sendUplinkStatus}
 #endif
                                 ,{"monitor on","Monitor sent and received packets",monitorOn}
                                 ,{"monitor off","Stop monitoring packets",monitorOff}
@@ -1051,6 +1054,10 @@ void RealConsoleTask(void)
         }
         case testDir:{
             bool rc = test_pacsat_dir();
+            break;
+        }
+        case sendUplinkStatus:{
+            ax25_send_status();
             break;
         }
 

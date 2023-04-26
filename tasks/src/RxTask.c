@@ -23,16 +23,29 @@ extern bool monitorPackets;
 
 portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
 
-    vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)RadioWD ); // TODO - just reuse the Radio task name for now
+    vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)RxTaskWD ); // TODO - just reuse the Radio task name for now
     InitInterTask(ToRxTask, 10);
     ResetAllWatchdogs();
 //    printf("Initializing Rx\n");
 
-    /* This is defined in pacsat.h, declared here */
+    /* These are defined in pacsat.h, declared here */
+    xRxPacketQueue = xQueueCreate( RX_PACKET_QUEUE_LEN, AX25_PKT_BUFFER_LEN * sizeof( uint8_t ) );
     xPbPacketQueue = xQueueCreate( PB_PACKET_QUEUE_LEN, AX25_PKT_BUFFER_LEN * sizeof( uint8_t ) );
+    xUplinkPacketQueue = xQueueCreate( UPLINK_PACKET_QUEUE_LEN, AX25_PKT_BUFFER_LEN * sizeof( uint8_t ) );
+    if (xRxPacketQueue == NULL) {
+        /* The queue could not be created.  This is fatal and should only happen in test if we are short of memory at startup */
+        debug_print("FATAL ERROR: Could not create RX Packet Queue\n");
+        //TODO - log this
+    }
     if (xPbPacketQueue == NULL) {
         /* The queue could not be created.  This is fatal and should only happen in test if we are short of memory at startup */
         debug_print("FATAL ERROR: Could not create PB Packet Queue\n");
+        //TODO - log this
+    }
+    if (xUplinkPacketQueue == NULL) {
+        /* The queue could not be created.  This is fatal and should only happen in test if we are short of memory at startup */
+        debug_print("FATAL ERROR: Could not create UPLINK Packet Queue\n");
+        //TODO - log this
     }
 
     /* Initialize the Radio RX */
@@ -47,12 +60,12 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
         status = WaitInterTask(ToRxTask, CENTISECONDS(10), &messageReceived);  // This is triggered when there is RX data on the FIFO
         ReportToWatchdog(CurrentTaskWD);
         rssi = get_rssi(device);
-        if (monitorPackets)
-            if (rssi > 170) {
-                debug_print("RSSI: %d   ",rssi);
-                debug_print("FRMRX: %d   ",ax5043ReadReg(device, AX5043_FRAMING) & 0x80 ); // FRAMING Pkt start bit detected - will print 128
-                debug_print("RADIO: %d\n",ax5043ReadReg(device, AX5043_RADIOSTATE) & 0xF ); // Radio State bits 0-3
-            }
+//        if (monitorPackets)
+//            if (rssi > 170) {
+//                debug_print("RSSI: %d   ",rssi);
+//                debug_print("FRMRX: %d   ",ax5043ReadReg(device, AX5043_FRAMING) & 0x80 ); // FRAMING Pkt start bit detected - will print 128
+//                debug_print("RADIO: %d\n",ax5043ReadReg(device, AX5043_RADIOSTATE) & 0xF ); // Radio State bits 0-3
+//            }
 
         if (status==1) { // We received a message
             switch(messageReceived.MsgType){
@@ -108,10 +121,10 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
                             // Do we change queue to a struct with the length so this is clearer? ------ YES -------
 
                             /* Add to the queue and wait for 10ms to see if space is available */
-                            BaseType_t xStatus = xQueueSendToBack( xPbPacketQueue, &axradio_rxbuffer, CENTISECONDS(1) );
+                            BaseType_t xStatus = xQueueSendToBack( xRxPacketQueue, &axradio_rxbuffer, CENTISECONDS(1) );
                             if( xStatus != pdPASS ) {
                                 /* The send operation could not complete because the queue was full */
-                                debug_print("PB QUEUE FULL: Could not add to Packet Queue\n");
+                                debug_print("RX QUEUE FULL: Could not add to Packet Queue\n");
                                 // TODO - we should log this error and downlink in telemetry
                             }
 

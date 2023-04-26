@@ -17,8 +17,19 @@
 #include "ctype.h"
 
 #include "pacsat.h"
+#include "config.h"
+#include "ax25_util.h"
 
-int decode_call(uint8_t *c, char *call) {
+/**
+ * Decode a callsign from AX25 format.
+ * The callsign is returned as a null terminated string in call
+ * The encoded callsign is passed in buffer c
+ * Final call is set to true if this is the last call, as per the AX25 spec.
+ * The AX25 command/response bit is stored in command if it is set.  This is onlt
+ * set for the destination callsign, if it is the last call in the list.
+ */
+
+int decode_call_and_command(uint8_t *c, char *call, int *final_call, int *command) {
     unsigned char *ep = c + 6;
     int ct = 0;
 
@@ -39,20 +50,33 @@ int decode_call(uint8_t *c, char *call) {
 
     *call = '\0';
 
-    if (*ep & 1) return 0;
+    if (*ep & 1) {
+        *final_call = 1;
+    } else {
+        *final_call = 0;
+    }
 
-    return 1;
+    // Command/Response Bit is bit 7
+    *command = (bool)((*ep >> 7) & 0b1);
+
+    return true;
+}
+
+int decode_call(uint8_t *c, char *call) {
+    int f;
+    int command;
+    return decode_call_and_command(c, call, &f, &command);
 }
 
 /**
  * Convert a callsign to AX25 format.
- * The callsign is a null terminated strin in name
+ * The callsign is a null terminated string in name
  * The encoded callsign is written into buf, which must have space allocated by the
  * calling process.
  * Final call is set to true if this is the last call, as per the AX25 spec.
  * The AX25 command/response bit is stored in the destination (to) callsign
  */
-int encode_call(char *name, uint8_t *buf, int final_call, uint8_t command) {
+int encode_call(char *name, uint8_t *buf, int final_call, int command) {
     int ct   = 0;
     int ssid = 0;
     const char *p = name;
@@ -104,16 +128,165 @@ int encode_call(char *name, uint8_t *buf, int final_call, uint8_t command) {
     return true;
 }
 
-int print_packet(char *label, uint8_t *packet, int len) {
-    int loc;
-    char from_callsign[MAX_CALLSIGN_LEN];
-    char to_callsign[MAX_CALLSIGN_LEN];
+/**
+ * Given a packet and its length, decode it.  The caller must
+ * allocate the structure
+ *
+ * If the packet is too short or there is any other error, then
+ * 0 is retuned.
+ *
+ */
+uint8_t decode_packet(uint8_t *packet, int len, AX25_PACKET *decoded_packet) {
+    if (len < 16) return 0;
 
-    decode_call(&packet[7], from_callsign);
-    decode_call(&packet[0], to_callsign);
-    debug_print("%s: %s>%s: ",label, from_callsign, to_callsign);
-    for (loc=15; loc<len; loc++)
+    int final_call = false;
+    int destBit = false;
+    int sourceBit = false;
+    int i;
+
+    decode_call_and_command(&packet[0], decoded_packet->to_callsign, &final_call, &destBit);
+    decode_call_and_command(&packet[7], decoded_packet->from_callsign, &final_call, &sourceBit);
+    int offset = 14;
+    // Decode the command bit
+    if (destBit != sourceBit) {
+        // then we are in version 2.x
+        if (destBit)
+            decoded_packet->command = 1;
+        else
+            decoded_packet->command = 0;
+    } else {
+        decoded_packet->command = destBit; // because both bits are the same
+    }
+
+    if (!final_call) {
+        if (len < 23) return 0;
+        decode_call_and_command(&packet[14], decoded_packet->via_callsign, &final_call, &sourceBit);
+        if (!final_call) {
+            debug_print("ERR: Invalid packet. Only 1 via supported\n");
+            return FALSE;
+        }
+        offset = 21;
+    }
+    decoded_packet->control = packet[offset];
+    if (decoded_packet->control & 0b1 == 0) { // bit 0 = 0 then it is an I-frame
+        if (len < offset + 2) {
+            debug_print("ERR: Not enough bytes for an I-frame\n");
+            return FALSE;
+        }
+        if ((len - offset - 2) > AX25_MAX_INFO_BYTES_LEN) {
+            debug_print("ERR: Too many bytes for an I-frame.  Data would overflow.\n");
+            return FALSE;
+        }
+        decoded_packet->frame_type = TYPE_I;
+        decoded_packet->NR = (decoded_packet->control >> 5) & 0b111;
+        decoded_packet->NS = (decoded_packet->control >> 1) & 0b111;
+        decoded_packet->PF = (decoded_packet->control >> 4) & 0b1;
+        decoded_packet->pid = packet[offset+1];
+        for (i=0; i<(len-offset-2); i++) {
+            decoded_packet->data[i] = packet[offset+2+i];
+        }
+    } else if (decoded_packet->control & 0b11 == 0b11) { // bit 0 and 1 are both 1 then its a U frame
+        int u_type = decoded_packet->control & U_CONTROL_MASK;
+        decoded_packet->PF = (decoded_packet->control >> 4) & 0b1;
+        switch (u_type) {
+            case BITS_U_SABME : {
+                decoded_packet->frame_type = TYPE_U_SABME;
+                break;
+            }
+            case BITS_U_SABM : {
+                decoded_packet->frame_type = TYPE_U_SABM;
+                break;
+            }
+            case BITS_U_DISCONNECT : {
+                decoded_packet->frame_type = TYPE_U_DISC;
+                break;
+            }
+            case BITS_U_DISCONNECT_MODE : {
+                decoded_packet->frame_type = TYPE_U_DM;
+                break;
+            }
+            case BITS_UA : {
+                decoded_packet->frame_type = TYPE_U_UA;
+                break;
+            }
+            case BITS_U_FRAME_REJECT : {
+                decoded_packet->frame_type = TYPE_U_FRMR;
+                break;
+            }
+            case BITS_UI : {
+                decoded_packet->frame_type = TYPE_U_UI;
+                decoded_packet->pid = packet[offset+1];
+                for (i=0; i<(len-offset-2); i++) {
+                    decoded_packet->data[i] = packet[offset+2+i];
+                }
+                break;
+            }
+            case BITS_U_EXCH_ID : {
+                decoded_packet->frame_type = TYPE_U_XID;
+                break;
+            }
+            case BITS_U_TEST : {
+                decoded_packet->frame_type = TYPE_U_TEST;
+                break;
+            }
+
+            default : {
+                debug_print("ERR: Invalid U frame type\n");
+                return FALSE;
+                break;
+            }
+        }
+
+    } else if (decoded_packet->control & 0b11 == 0b01) { // bit 0 = 1 and bit 1 = 0 then its an S frame
+        int s_type = decoded_packet->control & S_CONTROL_MASK;
+        decoded_packet->NR = (decoded_packet->control >> 5) & 0b111;
+        decoded_packet->PF = (decoded_packet->control >> 4) & 0b1;
+        switch (s_type) {
+            case BITS_S_RECEIVE_READY : {
+                decoded_packet->frame_type = TYPE_S_RR;
+                break;
+            }
+            case BITS_S_RECEIVE_NOT_READY : {
+                decoded_packet->frame_type = TYPE_S_RNR;
+                break;
+            }
+            case BITS_S_REJECT : {
+                decoded_packet->frame_type = TYPE_S_REJ;
+                break;
+            }
+            case BITS_S_SELECTIVE_REJECT : {
+                decoded_packet->frame_type = TYPE_S_SREJ;
+                break;
+            }
+            default : {
+                debug_print("ERR: Invalid S frame type\n");
+                return FALSE;
+                break;
+            }
+
+        }
+    } else {
+        debug_print("ERR: Frame type not supported\n");
+        return FALSE;
+    }
+    return TRUE;
+}
+char *frame_type_strings[] = {"I","RR","RNR","REJ","SREJ", "SABME", "SABM", "DISC", "DM", "UA","FRMR","UI", "XID", "TEST" };
+
+int print_packet(char *label, uint8_t *packet, int len) {
+    AX25_PACKET decoded;
+    int loc;
+//    char to_callsign[MAX_CALLSIGN_LEN];
+//    char from_callsign[MAX_CALLSIGN_LEN];
+
+//    decode_call(&packet[7], from_callsign);
+//    decode_call(&packet[0], to_callsign);
+    decode_packet(packet, len, &decoded);
+    debug_print("%s- %s: %s>%s pid=%0x pf=%d: ",label, frame_type_strings[decoded.frame_type],
+                decoded.from_callsign, decoded.to_callsign, decoded.pid, decoded.PF);
+    for (loc=17; loc<len; loc++) {
         debug_print("%x ",packet[loc]);
+    }
     debug_print("\n");
     return true;
 }
@@ -122,8 +295,8 @@ int print_packet(char *label, uint8_t *packet, int len) {
  * Test routines follow
  */
 
-int test_ax25_util_decode_calls() {
-    debug_print("   TEST: AX25 UTIL DECODE CALLS\n");
+int test_ax25_util_print_packet() {
+    debug_print("   TEST: AX25 PRINT PACKET\n");
 //    char *callsign = "G0KLA";
 //    unsigned char buffer[7];
 //    encode_call(callsign, buffer, 1, 0);

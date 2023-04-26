@@ -70,7 +70,7 @@ When we store data in a value or structure internally we need to convert it to b
 
  */
 
-#include <strings.h> // TODO - do we really need this?  How much space does it use.
+#include <strings.h>
 
 #include "pacsat.h"
 #include "FreeRTOS.h"
@@ -182,9 +182,8 @@ portTASK_FUNCTION_PROTO(PbTask, pvParameters)  {
 
             decode_call(&pb_packet_buffer[8], from_callsign);
             decode_call(&pb_packet_buffer[1], to_callsign);
-            debug_print("PB: %s>%s: Len: %d\n",from_callsign, to_callsign, pb_packet_buffer[0]);
-            pb_process_frame(from_callsign, to_callsign, &pb_packet_buffer[0], pb_packet_buffer[0]);
-            //pb_send_ok(from_callsign);
+//            debug_print("PB: %s>%s: Len: %d\n",from_callsign, to_callsign, pb_packet_buffer[0]);
+            pb_process_frame(from_callsign, to_callsign, pb_packet_buffer, pb_packet_buffer[0]);
         }
         /* Yield some time so the OK or ERR is sent, or so that others may do some processing */
         vTaskDelay(CENTISECONDS(1));
@@ -357,7 +356,7 @@ void pb_debug_print_list_item(int i) {
  */
 bool pb_add_request(char *from_callsign, uint8_t type, DIR_NODE * node, uint32_t file_size,
                    uint32_t offset, void *holes, uint8_t num_of_holes) {
-    debug_print("PB: Request from %s ", from_callsign);
+//    debug_print("PB: Request from %s ", from_callsign);
     if (pb_shut) return FALSE;
     if (number_on_pb == MAX_PB_LENGTH) {
         return FALSE; // PB full
@@ -379,7 +378,7 @@ bool pb_add_request(char *from_callsign, uint8_t type, DIR_NODE * node, uint32_t
     //logicalTime_t time;
     //getTime(&time);
     uint32_t secs = getSeconds();
-    debug_print(" at time: %i ",secs);
+//    debug_print(" at time: %i ",secs);
     pb_list[number_on_pb].request_time = secs;
     pb_list[number_on_pb].hole_num = num_of_holes;
     pb_list[number_on_pb].current_hole_num = 0;
@@ -394,10 +393,10 @@ bool pb_add_request(char *from_callsign, uint8_t type, DIR_NODE * node, uint32_t
                 dir_hole_list[i].start = ttohl(dir_holes[i].start);
                 dir_hole_list[i].end = ttohl(dir_holes[i].end);
             }
-#ifdef DEBUG
-            debug_print("Holes: \n");
-            pb_debug_print_dir_holes((DIR_DATE_PAIR *) pb_list[number_on_pb].hole_list, pb_list[number_on_pb].hole_num);
-#endif
+//#ifdef DEBUG
+//            debug_print("Holes: \n");
+//            pb_debug_print_dir_holes((DIR_DATE_PAIR *) pb_list[number_on_pb].hole_list, pb_list[number_on_pb].hole_num);
+//#endif
         } else {
             FILE_DATE_PAIR *file_holes = (FILE_DATE_PAIR *)holes;
             FILE_DATE_PAIR *file_hole_list = (FILE_DATE_PAIR *)pb_list[number_on_pb].hole_list;
@@ -410,7 +409,7 @@ bool pb_add_request(char *from_callsign, uint8_t type, DIR_NODE * node, uint32_t
     }
 
     number_on_pb++;
-    debug_print(" .. Added\n");
+//    debug_print(" .. Added\n");
     return TRUE;
 }
 
@@ -431,7 +430,7 @@ int pb_remove_request(int pos) {
     if (number_on_pb == 0) return FALSE;
     if (pos >= number_on_pb) return FALSE;
     uint32_t secs = getSeconds();
-    debug_print("PB: Removed %s at time %i\n",pb_list[pos].callsign, secs);
+//    debug_print("PB: Removed %s at time %i\n",pb_list[pos].callsign, secs);
     if (pos != number_on_pb-1) {
 
         /* Remove the item and shuffle all the other items to the left */
@@ -586,7 +585,7 @@ void pb_debug_print_file_holes(FILE_DATE_PAIR *holes, int num_of_holes) {
 void pb_debug_print_dir_req(unsigned char *data, int len) {
     DIR_REQ_HEADER *dir_header;
     dir_header = (DIR_REQ_HEADER *)(data + sizeof(AX25_HEADER));
-    debug_print("DIR REQ: flags: %02x BLK_SIZE: %04x ", dir_header->flags & 0xff, dir_header->block_size &0xffff);
+    debug_print("PB: DIR REQ: flags: %02x BLK_SIZE: %04x ", dir_header->flags & 0xff, dir_header->block_size &0xffff);
     if ((dir_header->flags & 0b11) == 0b00) {
         /* There is a holes list */
         int num_of_holes = get_num_of_dir_holes(len);
@@ -594,6 +593,7 @@ void pb_debug_print_dir_req(unsigned char *data, int len) {
             debug_print("- missing hole list\n");
         else {
             DIR_DATE_PAIR *holes = get_dir_holes_list(data); //(DIR_DATE_PAIR *)(data + BROADCAST_REQUEST_HEADER_SIZE + DIR_REQUEST_HEADER_SIZE );
+            debug_print("\n");
         }
     }
 }
@@ -622,7 +622,7 @@ int pb_handle_dir_request(char *from_callsign, uint8_t *data, int len) {
 #ifdef DEBUG
         pb_debug_print_dir_req(data, len);
 #endif
-        debug_print("DIR FILL REQUEST: flags: %02x BLK_SIZE: %04x\n", dir_header->flags & 0xff, ttohs(dir_header->block_size &0xffff));
+        //debug_print("PB: DIR FILL REQUEST: flags: %02x BLK_SIZE: %04x\n", dir_header->flags & 0xff, ttohs(dir_header->block_size &0xffff));
 
         /* Get the number of holes in this request and make sure it is in a valid range */
         int num_of_holes = get_num_of_dir_holes(len);
@@ -685,7 +685,7 @@ int pb_handle_file_request(char *from_callsign, uint8_t *data, int len) {
     uint32_t file_id = ttohl(file_header->file_id);
     uint8_t flag = (file_header->flags & 0b11);
 
-    debug_print("FILE REQUEST: flags: %02x file: %04x BLK_SIZE: %04x\n", file_header->flags & 0xff, file_id,
+    debug_print("PB: FILE REQUEST: flags: %02x file: %04x BLK_SIZE: %04x\n", file_header->flags & 0xff, file_id,
                 ttohs(file_header->block_size));
 
     /* First, does the file exist */
@@ -833,11 +833,11 @@ int pb_next_action() {
      */
     if (pb_list[current_station_on_pb].pb_type == PB_DIR_REQUEST_TYPE) {
 
-        debug_print("Preparing DIR Broadcast for %s, hole: %d\n",pb_list[current_station_on_pb].callsign, pb_list[current_station_on_pb].current_hole_num);
+//        debug_print("PB: Preparing DIR Broadcast for %s, hole: %d\n",pb_list[current_station_on_pb].callsign, pb_list[current_station_on_pb].current_hole_num);
         if (pb_list[current_station_on_pb].hole_num < 1) {
             /* This is not a valid DIR Request.  There is no hole list.  We should not get here because this
              * should not have been added.  So just remove it. */
-            debug_print("Invalid DIR request with no hole list from %s\n", pb_list[current_station_on_pb].callsign);
+            debug_print("PB: Invalid DIR request with no hole list from %s\n", pb_list[current_station_on_pb].callsign);
             pb_remove_request(current_station_on_pb);
             /* If we removed a station then we don't want/need to increment the current station pointer */
             return TRUE;
@@ -845,7 +845,7 @@ int pb_next_action() {
 
         int current_hole_num = pb_list[current_station_on_pb].current_hole_num;
         DIR_DATE_PAIR *holes = (DIR_DATE_PAIR *)pb_list[current_station_on_pb].hole_list;
-        debug_print_hole(&holes[current_hole_num]);
+//        debug_print_hole(&holes[current_hole_num]);
         DIR_NODE *node = dir_get_pfh_by_date(holes[current_hole_num], pb_list[current_station_on_pb].node);
         if (node == NULL) {
             /* We have finished the broadcasts for this hole, or there were no records for the hole, move to the next hole if there is one. */
@@ -853,12 +853,12 @@ int pb_next_action() {
             pb_list[current_station_on_pb].current_hole_num++; /* Increment now.  If the data is bad and we can't make a frame, we want to move on to the next */
             if (pb_list[current_station_on_pb].current_hole_num == pb_list[current_station_on_pb].hole_num) {
                 /* We have finished this hole list */
-                debug_print("Added last hole for request from %s\n", pb_list[current_station_on_pb].callsign);
+//                debug_print("PB: Added last hole for request from %s\n", pb_list[current_station_on_pb].callsign);
                 pb_remove_request(current_station_on_pb);
                 /* If we removed a station then we don't want/need to increment the current station pointer */
                 return TRUE;
             } else {
-                debug_print("No more files for this hole for request from %s\n", pb_list[current_station_on_pb].callsign);
+//                debug_print("PB: No more files for this hole for request from %s\n", pb_list[current_station_on_pb].callsign);
                 pb_list[current_station_on_pb].node = NULL; // next search will be from start of the DIR as we have no idea what the next hole may be
             }
 
@@ -907,7 +907,7 @@ int pb_next_action() {
                     pb_list[current_station_on_pb].current_hole_num++;
                     if (pb_list[current_station_on_pb].current_hole_num == pb_list[current_station_on_pb].hole_num) {
                         /* We have finished this hole list */
-                        debug_print("Added last hole for request from %s\n", pb_list[current_station_on_pb].callsign);
+                        debug_print("PB: Added last hole for request from %s\n", pb_list[current_station_on_pb].callsign);
                         pb_remove_request(current_station_on_pb);
                         /* If we removed a station then we don't want/need to increment the current station pointer */
                         return TRUE;
@@ -925,7 +925,7 @@ int pb_next_action() {
      */
     } else if (pb_list[current_station_on_pb].pb_type == PB_FILE_REQUEST_TYPE) {
 
-        debug_print("Preparing FILE Broadcast for %s\n",pb_list[current_station_on_pb].callsign);
+ //       debug_print("PB: Preparing FILE Broadcast for %s\n",pb_list[current_station_on_pb].callsign);
 
         if (pb_list[current_station_on_pb].hole_num == 0) {
             /* Request to broadcast the whole file */
@@ -949,8 +949,8 @@ int pb_next_action() {
 
             /* Request to fill holes in the file */
             int current_hole_num = pb_list[current_station_on_pb].current_hole_num;
-            debug_print("Preparing Fill %d of %d from FILE %04x for %s --",(current_hole_num+1), pb_list[current_station_on_pb].hole_num,
-                    pb_list[current_station_on_pb].node->file_id, pb_list[current_station_on_pb].callsign);
+//            debug_print("PB: Preparing Fill %d of %d from FILE %04x for %s --",(current_hole_num+1), pb_list[current_station_on_pb].hole_num,
+//                    pb_list[current_station_on_pb].node->file_id, pb_list[current_station_on_pb].callsign);
 
             FILE_DATE_PAIR *holes = (FILE_DATE_PAIR *)pb_list[current_station_on_pb].hole_list;
 
@@ -958,7 +958,7 @@ int pb_next_action() {
                 /* Then this is probably a new hole, initialize to the start of it */
                 pb_list[current_station_on_pb].offset = holes[current_hole_num].offset;
             }
-            debug_print("  Chunk from %d length %d at offset %d\n",holes[current_hole_num].offset, holes[current_hole_num].length, pb_list[current_station_on_pb].offset);
+//            debug_print(" - Chunk from %d length %d at offset %d\n",holes[current_hole_num].offset, holes[current_hole_num].length, pb_list[current_station_on_pb].offset);
 
             /* We are currently at byte pb_list[current_station_on_pb].offset for this request.  So this hole
              * still has the following remaining bytes */
@@ -1158,14 +1158,14 @@ int pb_broadcast_next_file_chunk(DIR_NODE *node, uint32_t offset, int length, ui
     if (rc == -1) {
         return 0; // Error with the read, zero bytes read
     }
-    debug_print("Read %d bytes from %04x\n", number_of_bytes_read, node->file_id);
+//    debug_print("Read %d bytes from %04x\n", number_of_bytes_read, node->file_id);
 
     int chunk_includes_last_byte = false;
 
     if (offset + number_of_bytes_read >= file_size)
         chunk_includes_last_byte = true;
 
-    debug_print("FILE BB to send: ");
+//    debug_print("FILE BB to send: ");
 
     int data_len = pb_make_file_broadcast_packet(node, data_buffer, number_of_bytes_read, offset, chunk_includes_last_byte);
     if (data_len == 0) {
@@ -1279,6 +1279,9 @@ bool pb_test_callsigns() {
     decode_call(&byteBuf[1], to_callsign);
     decode_call(&byteBuf[8], from_callsign);
     debug_print("PB: %s>%s: lens %d %d\n",from_callsign, to_callsign, strlen(from_callsign), strlen(to_callsign));
+    if (strcmp(to_callsign, "PBLIST") != 0) {printf("** Mismatched callsign PBLIST\n"); return FALSE;}
+    if (strcmp(from_callsign, "PFS3-11") != 0) {printf("** Mismatched callsign PFS3-11\n"); return FALSE;}
+
 
     uint8_t out_to_callsign[7];
     uint8_t out_from_callsign[7];
@@ -1295,7 +1298,7 @@ bool pb_test_callsigns() {
     }
     printf("\n");
 
-    l = encode_call(from_callsign, out_from_callsign, true, 0);
+    l = encode_call(from_callsign, out_from_callsign, true, true);
     if (l != true) return false;
     printf("%s: ",from_callsign);
     for (i=0; i<7;i++) {
@@ -1305,11 +1308,24 @@ bool pb_test_callsigns() {
         }
         printf("%x ",out_from_callsign[i]);
     }
+    printf("\n");
 
     char new_callsign[10];
-    decode_call(&out_from_callsign[0], new_callsign);
+    rc = decode_call(&out_from_callsign[0], new_callsign);
     debug_print("Decodes to:%s: len %d \n",new_callsign, strlen(new_callsign));
     printf("\n");
+
+    int final_call;
+    int command;
+    final_call = 0;
+    command = 0;
+    rc = decode_call_and_command(&out_from_callsign[0], new_callsign, &final_call, &command);
+    debug_print("Decodes to:%s  len: %d  final: %d  command: %d \n",new_callsign, strlen(new_callsign), final_call, command);
+    printf("\n");
+
+    if (!final_call){printf("** Final call is wrong \n"); return FALSE;}
+    if (!command){printf("** Command is wrong \n"); return FALSE;}
+
 
     if (rc == FALSE) {
         debug_print("## FAILED SELF TEST: pb_test_callsigns\n");
