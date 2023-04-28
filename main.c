@@ -201,8 +201,8 @@ void ConsoleTask(void *pvParameters){
 
     // Initialize the SPI driver for our SPI devices
 
-    SPIInit(DCTDev0); // This is the transmitter on UHF
-    SPIInit(DCTDev1); // This is the first receiver on VHF
+    SPIInit(DCTDev0); // This is the receiver on VHF on the Pacsat Booster Board
+    SPIInit(DCTDev1); // This is the transmitter on UHF
     SPIInit(MRAM0Dev);
     SPIInit(MRAM1Dev);
     SPIInit(MRAM2Dev);

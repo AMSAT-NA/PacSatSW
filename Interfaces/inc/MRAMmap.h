@@ -88,43 +88,12 @@ typedef struct _authKey {
 
 #define MRAM_VERSION 2
 
-#ifdef USE_MRAM_TEST_FILESYSTEM_HACK
-/* This is a very simple file allocation table for testing the Pacsat Directory
- * It also caches the most common Pacsat file Header meta data so we can quickly find files.
- * Specifically upload_time and file_id
- * address and file_size are needed to manage the data for the file.  body_offset is the length
- * of the Pacsat file header and is stored so the header can be read more efficiently.  The
- * alternative is to read the header byte by byte and parse it or to read a block larger than the
- * header and extract it.  The header is variable length, which its length stores in one of its fields.
- * TODO:  Would it be better to parse the headers when we load the DIR and then store the upload_time
- * and file_id in the DIR_NODE.  This would seperate the meta data from the File System implementation,
- * but it might be too slow at boot, when the dir is loaded.
- * For now the upload_time and file_id are cached here when a file is created or updated.
- *
- * */
-typedef struct mram_node {
-    uint32_t file_handle; /* Self reference to the place in MRAMFiles that this record is stored */
-    uint32_t upload_time;
-    uint32_t file_id;
-    uint32_t address; /* The address in MRAM where the data starts for this file */
-    uint32_t file_size; /* the number of bytes in the file */
-    uint16_t body_offset; /* This is the length of the Pacsat Header */
-} MRAM_FILE;
-
-#define SIZE_OF_MRAM_FAT 1024
-#endif
-
 /* Top level MRAM storage map */
 typedef struct {
         uint32_t testSize[2]; // This will be used to check the address size of the MRAM (it is stored in the status register)
         uint32_t MRAMVersion1; // This should always have the real version number
         StateSavingMRAM_t StatesInMRAM;
 		AuthKey_t AuthenticateKey;
-#ifdef USE_MRAM_TEST_FILESYSTEM_HACK
-        /* Here is the file system. */
-		uint32_t NumberOfFiles;
-		MRAM_FILE MRAMFiles[SIZE_OF_MRAM_FAT];
-#endif
         uint32_t MRAMVersion2; // This is likely to be wrong if something above changed size
 } MRAMmap_t;
 

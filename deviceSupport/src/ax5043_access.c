@@ -19,7 +19,7 @@
 #include "FreeRTOS.h"
 #include "os_task.h"
 
-//Golf headers
+//Pacsat headers
 #include "spiDriver.h"
 #include "ax5043.h"
 #include "ax5043_access.h"
@@ -27,9 +27,6 @@
 #include "nonvol.h"
 
 
-#if 0
-#include "temp-ax5043-xmit-single-file/ax5043-debug-regs.h" //DEBUG RBG
-#endif
 // TODO - these bools are an array indexed by SPIDevice id
 static bool PowerOn[NUM_AX5043_SPI_DEVICES];
 static bool Rxing[NUM_AX5043_SPI_DEVICES];
@@ -167,7 +164,7 @@ void ax5043StartRx(SPIDevice device){
     }
     if(!Rxing[device]){
 //        start_ax25_rx(device, RATE_1200);
-        start_ax25_rx(device, RATE_9600);
+        start_ax25_rx(device, true, RATE_9600);
         Rxing[device]=true; Txing[device]=false;
     }
 }
@@ -189,7 +186,7 @@ void ax5043StartTx(SPIDevice device){
         PowerOn[device] = true;
     }
 //    start_ax25_tx(device, RATE_1200);
-    start_ax25_tx(device, RATE_9600);
+    start_ax25_tx(device, false, RATE_9600);
     Txing[device] = true; Rxing[device] = false;
 }
 void ax5043StopTx(SPIDevice device){

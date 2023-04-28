@@ -925,8 +925,9 @@ void RealConsoleTask(void)
         }
 
         case getax5043:{
+            // TX on UHF (typically)
             SPIDevice dev = DCTDev0;
-            printf("AX5043 DEVICE: %d\n",dev);
+            printf("AX5043 dev %d TX:\n",dev);
             printf(" FIFOSTAT: %02x\n", ax5043ReadReg(dev, AX5043_FIFOSTAT));
             printf(" PWRMODE:: %02x\n", ax5043ReadReg(dev, AX5043_PWRMODE));
             printf(" XTALCAP: %d\n", ax5043ReadReg(dev, AX5043_XTALCAP));
@@ -935,10 +936,41 @@ void RealConsoleTask(void)
             printf(" PLLVCOI: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLVCOI));
             printf(" PLLRANGINGA: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLRANGINGA));
             printf(" PLLVCODIV: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLVCODIV));
-            printf(" FREQ: %x", ax5043ReadReg(dev, AX5043_FREQA0));
-            printf(" %x", ax5043ReadReg(dev, AX5043_FREQA1));
-            printf(" %x", ax5043ReadReg(dev, AX5043_FREQA2));
-            printf(" %x\n", ax5043ReadReg(dev, AX5043_FREQA3));
+//            printf(" FREQ: %x", ax5043ReadReg(dev, AX5043_FREQA0));
+//            printf(" %x", ax5043ReadReg(dev, AX5043_FREQA1));
+//            printf(" %x", ax5043ReadReg(dev, AX5043_FREQA2));
+//            printf(" %x\n", ax5043ReadReg(dev, AX5043_FREQA3));
+            uint32_t val = ax5043ReadReg(dev, AX5043_FREQA0)
+        + (ax5043ReadReg(dev, AX5043_FREQA1) << 8)
+        + (ax5043ReadReg(dev, AX5043_FREQA2) << 16)
+        + (ax5043ReadReg(dev, AX5043_FREQA3) << 24);
+            uint32_t freq = axradio_conv_freq_tohz(val);
+            printf(" FREQ %d Hz\n", freq);
+            printf(" MODULATION: %x\n", ax5043ReadReg(dev, AX5043_MODULATION));
+            printf(" TXPWRCOEFFB0: %x\n", ax5043ReadReg(dev, AX5043_TXPWRCOEFFB0));
+            printf(" TXPWRCOEFFB1: %x\n", ax5043ReadReg(dev, AX5043_TXPWRCOEFFB1));
+
+            // RX on VHF (typically)
+            dev = DCTDev1;
+            printf("\nAX5043 dev %d RX:\n",dev);
+            printf(" FIFOSTAT: %02x\n", ax5043ReadReg(dev, AX5043_FIFOSTAT));
+            printf(" PWRMODE:: %02x\n", ax5043ReadReg(dev, AX5043_PWRMODE));
+            printf(" XTALCAP: %d\n", ax5043ReadReg(dev, AX5043_XTALCAP));
+            printf(" PLLLOOP: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLLOOP));
+            printf(" PLLCPI: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLCPI));
+            printf(" PLLVCOI: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLVCOI));
+            printf(" PLLRANGINGA: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLRANGINGA));
+            printf(" PLLVCODIV: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLVCODIV));
+//            printf(" FREQ: %x", ax5043ReadReg(dev, AX5043_FREQA0));
+//            printf(" %x", ax5043ReadReg(dev, AX5043_FREQA1));
+//            printf(" %x", ax5043ReadReg(dev, AX5043_FREQA2));
+//            printf(" %x\n", ax5043ReadReg(dev, AX5043_FREQA3));
+            val = ax5043ReadReg(dev, AX5043_FREQA0)
+        + (ax5043ReadReg(dev, AX5043_FREQA1) << 8)
+        + (ax5043ReadReg(dev, AX5043_FREQA2) << 16)
+        + (ax5043ReadReg(dev, AX5043_FREQA3) << 24);
+            freq = axradio_conv_freq_tohz(val);
+            printf(" FREQ %d Hz\n", freq);
             printf(" MODULATION: %x\n", ax5043ReadReg(dev, AX5043_MODULATION));
             printf(" TXPWRCOEFFB0: %x\n", ax5043ReadReg(dev, AX5043_TXPWRCOEFFB0));
             printf(" TXPWRCOEFFB1: %x\n", ax5043ReadReg(dev, AX5043_TXPWRCOEFFB1));
@@ -952,50 +984,21 @@ void RealConsoleTask(void)
             break;
         }
         case testRxFreq: {
-            // This is so we can find what the receive frequency is on first build
-            // {
-            //                int freq = 145835000;
-            //
-            //                ///ax5043PowerOn();
-            //
-            //                printf("Transmitting on receive freq: %d\n", freq);
-            //
-            //                uint8_t retVal = axradio_init_2m(freq);
-            //                printf("axradio_init_2m: %d\n",retVal);
-            //
-            //
-            //                retVal = mode_tx_2m();
-            //                printf("mode_tx_2m: %d\n",retVal);
-            //
-            //                ax5043WriteReg(AX5043_PWRMODE, AX5043_PWRSTATE_FULL_TX);
-            //                printf("Powerstate is FULL_TX\n");
-            //
-            //                printf("AX5043_XTALCAP: %d\n", ax5043ReadReg(AX5043_XTALCAP));
-            //
-            //                fifo_repeat_byte(0xAA, 100, 0);
-            //                fifo_repeat_byte(0xAA, 100, 0);
-            //                fifo_repeat_byte(0xAA, 100, 0);
-            //                fifo_repeat_byte(0xAA, 100, 0);
-            //                fifo_repeat_byte(0xAA, 100, 0);
-            //                fifo_repeat_byte(0xAA, 100, 0);
-            //                fifo_repeat_byte(0xAA, 100, 0);
-            //                fifo_repeat_byte(0xAA, 100, 0);
-            //                fifo_repeat_byte(0xAA, 100, 0);
-            //                fifo_repeat_byte(0xAA, 100, 0);
-            //                fifo_repeat_byte(0xAA, 100, 0);
-            //                fifo_repeat_byte(0xAA, 100, 0);
-            //                fifo_repeat_byte(0xAA, 100, 0);
-            //                fifo_repeat_byte(0xAA, 100, 0);
-            //
-            //                fifo_commit();
-            //            }
+             //This is so we can find what the receive frequency is on first build
+            {
+                SPIDevice device = DCTDev0;
+                uint32_t freq = 145835000;
+
+                test_rx_freq(device, freq);
+            }
             break;
         }
 
         case testPLLrange:{
-            printf("Sorry, this was temporarily removed while two radio devices are being implemented\n");
+            SPIDevice dev = DCTDev0;
+            printf("Testing the PLL range for device: %d\n",dev);
 
-            //            test_pll_range(DCTDev0);
+            test_pll_2m_range(dev, RATE_9600); // test the range of the receiver on 2m
             break;
         }
 

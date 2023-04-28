@@ -48,7 +48,7 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
         ReportToWatchdog(CurrentTaskWD);
         rssi = get_rssi(device);
         if (monitorPackets)
-            if (rssi > 170) {
+            if (rssi > 160) { // this magic value is supposed to be above the background noise, so we only see actual transmissions
                 debug_print("RSSI: %d   ",rssi);
                 debug_print("FRMRX: %d   ",ax5043ReadReg(device, AX5043_FRAMING) & 0x80 ); // FRAMING Pkt start bit detected - will print 128
                 debug_print("RADIO: %d\n",ax5043ReadReg(device, AX5043_RADIOSTATE) & 0xF ); // Radio State bits 0-3
@@ -92,6 +92,8 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
                                 debug_print("ERROR in received FIFO Flags\n");
                             }
                             uint8_t loc = 0;
+
+                            /* Store the length byte in position 0 TODO - make this a struct with length and buffer */
                             axradio_rxbuffer[loc++] = len-1; // remove the flag byte from the length
                             while (len--) {
                                 axradio_rxbuffer[loc] = ax5043ReadReg(device, AX5043_FIFODATA);
@@ -100,12 +102,6 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
                             if (monitorPackets) {
                                 print_packet("RX", &axradio_rxbuffer[1],loc);
                             }
-
-                            /////// TODO === NEED TO PUT LEN (loc) at position 0!!
-                            ///  Also need to understand (from manual) all the bytes that are read here.
-                            ///  Why 3 extra at end??  Am I currently ignoring byte 0 because I thought it was
-                            // the length.  It has 3 in it.  What is it?  Flag byte??
-                            // Do we change queue to a struct with the length so this is clearer? ------ YES -------
 
                             /* Add to the queue and wait for 10ms to see if space is available */
                             BaseType_t xStatus = xQueueSendToBack( xPbPacketQueue, &axradio_rxbuffer, CENTISECONDS(1) );
