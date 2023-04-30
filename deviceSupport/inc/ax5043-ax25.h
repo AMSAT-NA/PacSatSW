@@ -58,6 +58,8 @@
 
 #define RATE_9600 true
 #define RATE_1200 false
+#define BAND_VHF true
+#define BAND_UHF false
 
 #define AXRADIO_ERR_NOERROR                     0x00 //!< Operation successful
 #define AXRADIO_ERR_NOTSUPPORTED                0x01 //!< Operation not supported
@@ -466,13 +468,8 @@ extern uint8_t ax5043_off(SPIDevice device);
 extern uint8_t ax5043_off_xtal(SPIDevice device);
 static uint8_t axradio_get_pllvcoi(SPIDevice device);
 static uint8_t ax5043_receiver_on_continuous(SPIDevice device);
-//static void ax5043_set_registers(SPIDevice device);
-//static void ax5043_set_registers_tx(SPIDevice device, bool rate_9600);
-//static void ax5043_set_registers_rx(SPIDevice device, bool rate_9600);
 static int32_t axradio_conv_freq_fromhz(int32_t f);
-static int32_t axradio_conv_freq_tohz(int32_t f);
-//static uint16_t axradio_framing_append_crc(uint8_t *pkt, uint16_t cnt);
-//static uint8_t ax5043_readfifo(uint8_t axradio_rxbuffer[], uint8_t len);
+int32_t axradio_conv_freq_tohz(int32_t f);
 
 struct axradio_address {
     uint8_t addr[4];
@@ -480,12 +477,12 @@ struct axradio_address {
 
 static uint8_t axradio_setfreq(SPIDevice device, int32_t f);
 static uint8_t ax5043_reset(SPIDevice device);
-uint8_t receive_packet_70cm(SPIDevice device);
+//uint8_t receive_packet_70cm(SPIDevice device);
 //uint8_t axradio_init_70cm(SPIDevice device, int32_t freq);
 //uint8_t mode_rx_70cm(SPIDevice device);
 void quick_setfreq(SPIDevice device, int32_t f);
-void start_ax25_rx(SPIDevice device, bool rate_9600);
-void start_ax25_tx(SPIDevice device, bool rate_9600);
+void start_ax25_rx(SPIDevice device, bool band_vhf, bool rate_9600);
+void start_ax25_tx(SPIDevice device, bool band_vhf, bool rate_9600);
 uint16_t fifo_free(SPIDevice device);
 void fifo_repeat_byte(SPIDevice device, uint8_t b, uint8_t count, uint8_t flags);
 void fifo_commit(SPIDevice device);
@@ -496,3 +493,5 @@ void fifo_repeat_byte(SPIDevice device, uint8_t b, uint8_t count, uint8_t flags)
 void fifo_queue_buffer(SPIDevice device, uint8_t *buf, uint8_t len, uint8_t flags);
 uint16_t fifo_free(SPIDevice device);
 uint8_t get_rssi(SPIDevice device);
+void test_rx_freq(SPIDevice device, uint32_t freq);
+void test_pll_2m_range(SPIDevice device, bool rate_9600);

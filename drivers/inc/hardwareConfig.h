@@ -46,7 +46,7 @@
 #define GPIOCommandBit3Pin 16
 
 #define GPIO_DCTInterruptPort gioPORTB
-#define GPIO_DCTInterruptPin  0
+#define GPIO_DCTInterruptPin  0 // Pin 0 is one of the AX5043s on the Booster Board, Pin 3 is the other
 
 
 

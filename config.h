@@ -14,7 +14,7 @@
 
 #define PACSAT_NUMBER "0" // This is PacSat.
 #define GOLF_ID (PACSAT_NUMBER[0] - '0') /*Must change if number greater than 9*/
-#define ENGINEERING_MODEL
+//#define ENGINEERING_MODEL
 #define UNDEFINE_BEFORE_FLIGHT
 #define DEBUG
 
@@ -28,7 +28,7 @@
 #define WATCHDOG_ENABLE
 #   define SOFTWARE_TYPE "V"
 #endif
-#define VERSION "0a" /*Exactly 2 characters will show in the diagnostic downlink*/
+#define VERSION "1a" /*Exactly 2 characters will show in the diagnostic downlink*/
 #define PACSAT_FW_VERSION_STRING SOFTWARE_TYPE PACSAT_NUMBER "." VERSION
 
 #define PACSAT_MAX_MRAMS 4
@@ -81,7 +81,9 @@
 /*
  * PACSAT Constants
  */
-/* If you wish to transmit beyond the test bench then these need to be updated with a valid callsign */
+/* If you wish to transmit beyond the test bench then these need to be updated with a valid callsign
+ * In theory we could put these in MRAM and have a command to set them, but the Flight Unit should probably
+ * have these stored permanently in flash */
 #define BBS_CALLSIGN "VE2TCP-12"
 #define BROADCAST_CALLSIGN "VE2TCP-11"
 #define DIGI_CALLSIGN "VE2TCP-1"
@@ -192,6 +194,10 @@
  *
  */
 
+/**
+ * AX5043 radio constants
+ */
+#define AX5043_USES_TCXO // If this is not defined then we are using an XTAL
 #define DCT_DEFAULT_TX_FREQ 435760000 // Actual frequency.  Converted later to ax5043 register value
 #define DCT_DEFAULT_RX_FREQ 145835000
 // For now, we want the output to be something like 100mW (20dBm) and 500mW (27dBm)
