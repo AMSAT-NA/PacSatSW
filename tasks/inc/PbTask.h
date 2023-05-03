@@ -100,7 +100,7 @@ struct t_dir_pair {
 typedef struct t_dir_pair DIR_DATE_PAIR;
 
 struct t_broadcast_request_header {
-    uint8_t flag;
+    //uint8_t flag;
     uint8_t to_callsign[7];
     uint8_t from_callsign[7];
     uint8_t control_byte;

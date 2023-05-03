@@ -79,16 +79,18 @@ When we store data in a value or structure internally we need to convert it to b
 #include "inet.h"
 #include "ax25_util.h"
 #include "str_util.h"
+#include "RxTask.h"
 #include "PbTask.h"
 #include "TxTask.h"
 #include "pacsat_dir.h"
 #include "crc16.h"
 #ifdef DEBUG
-#include "time.h"
+#include "time.h" // large file, not needed for flight
 #endif
 
 static uint8_t data_buffer[AX25_MAX_DATA_LEN]; /* Static buffer used to store file bytes loaded from MRAM */
-static uint8_t pb_packet_buffer[AX25_PKT_BUFFER_LEN]; /* Static buffer used to store packet as it is assembled and before copy to TX queue */
+static rx_radio_buffer_t pb_radio_buffer; /* Static buffer used to store packet as it is assembled and before copy to TX queue */
+//static uint8_t pb_packet_buffer[AX25_PKT_BUFFER_LEN];
 static char pb_status_buffer[135]; // 10 callsigns * 13 bytes + 4 + nul
 
 bool running_self_test = FALSE;
@@ -174,16 +176,16 @@ portTASK_FUNCTION_PROTO(PbTask, pvParameters)  {
     while(1) {
 
         ReportToWatchdog(CurrentTaskWD);
-        BaseType_t xStatus = xQueueReceive( xPbPacketQueue, &pb_packet_buffer, 0 );  // Don't block, we have a delay after this
+        BaseType_t xStatus = xQueueReceive( xPbPacketQueue, &pb_radio_buffer, 0 );  // Don't block, we have a delay after this
         if( xStatus == pdPASS ) {
             /* Data was successfully received from the queue */
             char from_callsign[MAX_CALLSIGN_LEN];
             char to_callsign[MAX_CALLSIGN_LEN];
 
-            decode_call(&pb_packet_buffer[8], from_callsign);
-            decode_call(&pb_packet_buffer[1], to_callsign);
+            decode_call(&pb_radio_buffer.bytes[7], from_callsign);
+            decode_call(&pb_radio_buffer.bytes[0], to_callsign);
 //            debug_print("PB: %s>%s: Len: %d\n",from_callsign, to_callsign, pb_packet_buffer[0]);
-            pb_process_frame(from_callsign, to_callsign, pb_packet_buffer, pb_packet_buffer[0]);
+            pb_process_frame(from_callsign, to_callsign, pb_radio_buffer.bytes, pb_radio_buffer.len);
         }
         ReportToWatchdog(CurrentTaskWD);
         /* Yield some time so the OK or ERR is sent, or so that others may do some processing */

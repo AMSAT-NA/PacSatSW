@@ -16,7 +16,8 @@
 
 /* Local variables */
 static uint8_t PAPowerFlagCnt=0,DCTPowerFlagCnt=0;
-static uint8_t axradio_rxbuffer[AX25_PKT_BUFFER_LEN];
+static rx_radio_buffer_t rx_radio_buffer; // static buffer to store the channel and received bytes from the radio
+//static uint8_t axradio_rxbuffer[AX25_PKT_BUFFER_LEN];  ******************** HERE WE ARE - REMOVING THIS
 static SPIDevice device = DCTDev0;
 extern bool monitorPackets;
 
@@ -28,13 +29,19 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
 //    printf("Initializing Rx\n");
 
     /* These are defined in pacsat.h, declared here */
-    xRxPacketQueue = xQueueCreate( RX_PACKET_QUEUE_LEN, AX25_PKT_BUFFER_LEN * sizeof( uint8_t ) );
+    xRxPacketQueue = xQueueCreate( RX_PACKET_QUEUE_LEN, sizeof( rx_radio_buffer ) );
     xRxEventQueue = xQueueCreate( RX_EVENT_QUEUE_LEN, sizeof( AX25_event_t ) );
-    xPbPacketQueue = xQueueCreate( PB_PACKET_QUEUE_LEN, AX25_PKT_BUFFER_LEN * sizeof( uint8_t ) );
-    xUplinkPacketQueue = xQueueCreate( UPLINK_PACKET_QUEUE_LEN, AX25_PKT_BUFFER_LEN * sizeof( uint8_t ) );
+    xPbPacketQueue = xQueueCreate( PB_PACKET_QUEUE_LEN, sizeof( rx_radio_buffer ) );
+    xUplinkPacketQueue = xQueueCreate( UPLINK_PACKET_QUEUE_LEN,  sizeof( rx_radio_buffer ) );
+
     if (xRxPacketQueue == NULL) {
         /* The queue could not be created.  This is fatal and should only happen in test if we are short of memory at startup */
         debug_print("FATAL ERROR: Could not create RX Packet Queue\n");
+        //TODO - log this
+    }
+    if (xRxEventQueue == NULL) {
+        /* The queue could not be created.  This is fatal and should only happen in test if we are short of memory at startup */
+        debug_print("FATAL ERROR: Could not create RX Event Queue\n");
         //TODO - log this
     }
     if (xPbPacketQueue == NULL) {
@@ -107,18 +114,18 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
                             }
                             uint8_t loc = 0;
 
-                            /* Store the length byte in position 0 TODO - make this a struct with length and buffer */
-                            axradio_rxbuffer[loc++] = len-1; // remove the flag byte from the length
+                            /* Store the length byte  */
+                            rx_radio_buffer.len = len-1; // remove the flag byte from the length
                             while (len--) {
-                                axradio_rxbuffer[loc] = ax5043ReadReg(device, AX5043_FIFODATA);
+                                rx_radio_buffer.bytes[loc] = ax5043ReadReg(device, AX5043_FIFODATA);
                                 loc++;
                             }
                             if (monitorPackets) {
-                                print_packet("RX", &axradio_rxbuffer[1],loc);
+                                print_packet("RX", &rx_radio_buffer.bytes,rx_radio_buffer.len);
                             }
 
                             /* Add to the queue and wait for 10ms to see if space is available */
-                            BaseType_t xStatus = xQueueSendToBack( xRxPacketQueue, &axradio_rxbuffer, CENTISECONDS(1) );
+                            BaseType_t xStatus = xQueueSendToBack( xRxPacketQueue, &rx_radio_buffer, CENTISECONDS(1) );
                             if( xStatus != pdPASS ) {
                                 /* The send operation could not complete because the queue was full */
                                 debug_print("RX QUEUE FULL: Could not add to Packet Queue\n");

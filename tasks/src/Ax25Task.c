@@ -13,6 +13,7 @@
 #include "FreeRTOS.h"
 #include "os_task.h"
 
+#include "RxTask.h"
 #include "ax25_util.h"
 #include "str_util.h"
 
@@ -48,7 +49,8 @@ void ax25_state_timer_rec_packet(AX25_data_link_state_machine_t *dl_state_info, 
 static xTimerHandle timerT1[NUM_OF_RX_CHANNELS];
 static xTimerHandle timerT3[NUM_OF_RX_CHANNELS];
 
-static uint8_t ax25_packet_buffer[AX25_PKT_BUFFER_LEN]; /* Static buffer used to store packet as it is processed and before copy to next queue */
+static rx_radio_buffer_t ax25_radio_buffer;
+//static uint8_t ax25_packet_buffer[AX25_PKT_BUFFER_LEN]; /* Static buffer used to store packet as it is processed and before copy to next queue */
 static AX25_data_link_state_machine_t data_link_state_machine[NUM_OF_RX_CHANNELS];
 static const AX25_PACKET EMPTY_PACKET; // Use this to reset packet to zero
 
@@ -66,7 +68,6 @@ portTASK_FUNCTION_PROTO(Ax25Task, pvParameters)  {
 
     timerT3[Channel_A] = xTimerCreate( "T3_0", AX25_TIMER_T3_PERIOD, FALSE, (void *)Channel_A, ax25_t3_expired); // single shot timer
 
-
     // test
     start_timer(timerT1[Channel_A]);
     start_timer(timerT3[Channel_A]);
@@ -74,18 +75,17 @@ portTASK_FUNCTION_PROTO(Ax25Task, pvParameters)  {
     while(1) {
 
         // TODO - we will need to know the channel that this came in on
-        BaseType_t xStatus = xQueueReceive( xRxPacketQueue, &ax25_packet_buffer, CENTISECONDS(1) );  // Wait to see if data available
+        BaseType_t xStatus = xQueueReceive( xRxPacketQueue, &ax25_radio_buffer, CENTISECONDS(1) );  // Wait to see if data available
         if( xStatus == pdPASS ) {
             /* Data was successfully received from the queue */
             char from_callsign[MAX_CALLSIGN_LEN];
             char to_callsign[MAX_CALLSIGN_LEN];
 
-            decode_call(&ax25_packet_buffer[8], from_callsign);
-            decode_call(&ax25_packet_buffer[1], to_callsign);
+            decode_call(&ax25_radio_buffer.bytes[7], from_callsign);
+            decode_call(&ax25_radio_buffer.bytes[0], to_callsign);
 
 //            print_packet(AX25_data_link_state_machine_t *dl_state_info, "AX25", ax25_packet_buffer+1, ax25_packet_buffer[0]);
-            // TODO - channel A is hard coded by passing 0 - this should come from the RX queue
-            ax25_process_frame(from_callsign, to_callsign, Channel_A);
+            ax25_process_frame(from_callsign, to_callsign, ax25_radio_buffer.channel);
 
         }
         ReportToWatchdog(CurrentTaskWD);
@@ -217,7 +217,7 @@ void stop_timer(TimerHandle_t timer) {
  */
 void ax25_process_frame(char *from_callsign, char *to_callsign, rx_channel_t channel) {
     if (strcasecmp(to_callsign, BBS_CALLSIGN) == 0) {
-        ax25_decode_packet(&ax25_packet_buffer[1], ax25_packet_buffer[0], &data_link_state_machine[channel].decoded_packet);
+        ax25_decode_packet(&ax25_radio_buffer.bytes[0], ax25_radio_buffer.len, &data_link_state_machine[channel].decoded_packet);
 
         if (data_link_state_machine[channel].state == DISCONNECTED) {
             strlcpy(data_link_state_machine[channel].callsign, from_callsign, MAX_CALLSIGN_LEN);
@@ -237,7 +237,7 @@ void ax25_process_frame(char *from_callsign, char *to_callsign, rx_channel_t cha
         // this was sent to the Broadcast Callsign
 
         /* Add to the queue and wait for 10ms to see if space is available */
-        BaseType_t xStatus = xQueueSendToBack( xPbPacketQueue, &ax25_packet_buffer, CENTISECONDS(1) );
+        BaseType_t xStatus = xQueueSendToBack( xPbPacketQueue, &ax25_radio_buffer, CENTISECONDS(1) );
         if( xStatus != pdPASS ) {
             /* The send operation could not complete because the queue was full */
             debug_print("AX25: PB QUEUE FULL: Could not add to Packet Queue\n");
