@@ -9,6 +9,7 @@
 #define TASKS_INC_AX25TASK_H_
 
 #include <pacsat.h>
+#include "ax25_util.h"
 
 #define MODULO 8;
 
@@ -38,12 +39,23 @@ typedef enum {
     DL_UNIT_DATA_Request,
     DL_FLOW_OFF_Request,
     DL_FLOW_ON_Request,
+// Timer Events
+    DL_TIMER_T1_Expire,
+    DL_TIMER_T3_Expire
 } AX25_primative_t;
 
 typedef struct {
+    rx_channel_t channel;
+    AX25_primative_t primative;
+    AX25_PACKET *packet; // This is NULL for simple primatives
+} AX25_event_t;
+
+typedef struct {
     AX25_data_link_state_t state;
-    int channel; // Radio A, B, C, D
+    rx_channel_t channel; // Radio A, B, C, D
     char callsign[MAX_CALLSIGN_LEN];
+    AX25_PACKET decoded_packet;
+    AX25_PACKET response_packet;
 } AX25_data_link_state_machine_t;
 
 /*

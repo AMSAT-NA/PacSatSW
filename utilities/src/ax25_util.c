@@ -136,13 +136,17 @@ int encode_call(char *name, uint8_t *buf, int final_call, int command) {
  * 0 is retuned.
  *
  */
-uint8_t decode_packet(uint8_t *packet, int len, AX25_PACKET *decoded_packet) {
+uint8_t ax25_decode_packet(uint8_t *packet, int len, AX25_PACKET *decoded_packet) {
     if (len < 16) return 0;
 
     int final_call = false;
     int destBit = false;
     int sourceBit = false;
     int i;
+    decoded_packet->pid = 0; // initialize to zero and set if the packet has a pid
+    decoded_packet->NR = 0; // initialize to zero and set if the packet has NR
+    decoded_packet->NS = 0; // initialize to zero and set if the packet has NS
+    decoded_packet->PF = 0; // initialize to zero and set if the packet has PF
 
     decode_call_and_command(&packet[0], decoded_packet->to_callsign, &final_call, &destBit);
     decode_call_and_command(&packet[7], decoded_packet->from_callsign, &final_call, &sourceBit);
@@ -233,7 +237,6 @@ uint8_t decode_packet(uint8_t *packet, int len, AX25_PACKET *decoded_packet) {
             default : {
                 debug_print("ERR: Invalid U frame type\n");
                 return FALSE;
-                break;
             }
         }
 
@@ -261,7 +264,6 @@ uint8_t decode_packet(uint8_t *packet, int len, AX25_PACKET *decoded_packet) {
             default : {
                 debug_print("ERR: Invalid S frame type\n");
                 return FALSE;
-                break;
             }
 
         }
@@ -271,21 +273,40 @@ uint8_t decode_packet(uint8_t *packet, int len, AX25_PACKET *decoded_packet) {
     }
     return TRUE;
 }
+
+///**
+// * Given a packet, encode it into the encoded_packet buffer which has max_len
+// * Return the length of the encoded packet
+// *
+// * If there is an error then 0 or FALSE is returned.
+// *
+// */
+//uint8_t ax25_encode_packet(AX25_PACKET *packet, uint8_t *encoded_packet, int max_len) {
+//    if (max_len > 255) {
+//        debug_print("ERR: ax25_encode_packet: Packet max length is 255\n");
+//        return FALSE;
+//
+//
+//    }
+//    return FALSE;
+//}
+
 char *frame_type_strings[] = {"I","RR","RNR","REJ","SREJ", "SABME", "SABM", "DISC", "DM", "UA","FRMR","UI", "XID", "TEST" };
 
 int print_packet(char *label, uint8_t *packet, int len) {
     AX25_PACKET decoded;
-    int loc;
-//    char to_callsign[MAX_CALLSIGN_LEN];
-//    char from_callsign[MAX_CALLSIGN_LEN];
 
-//    decode_call(&packet[7], from_callsign);
-//    decode_call(&packet[0], to_callsign);
-    decode_packet(packet, len, &decoded);
-    debug_print("%s- %s: %s>%s pid=%0x pf=%d: ",label, frame_type_strings[decoded.frame_type],
-                decoded.from_callsign, decoded.to_callsign, decoded.pid, decoded.PF);
-    for (loc=17; loc<len; loc++) {
-        debug_print("%x ",packet[loc]);
+    ax25_decode_packet(packet, len, &decoded);
+    print_decoded_packet(label, &decoded);
+    return true;
+}
+
+int print_decoded_packet(char *label, AX25_PACKET *decoded) {
+    int loc;
+    debug_print("%s- %s: %s>%s pid=%0x pf=%d: ",label, frame_type_strings[decoded->frame_type],
+                decoded->from_callsign, decoded->to_callsign, decoded->pid, decoded->PF);
+    for (loc=0; loc<decoded->data_len; loc++) {
+        debug_print("%x ",decoded->data[loc]);
     }
     debug_print("\n");
     return true;

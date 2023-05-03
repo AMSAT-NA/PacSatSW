@@ -1001,8 +1001,8 @@ void start_ax25_rx(SPIDevice device, bool band_vhf, bool rate_9600) {
     //uint8_t retVal;
     ax5043WriteReg(device, AX5043_PINFUNCIRQ, 0x0); //disable IRQs
     freq = ReadMRAMCommandFreq();
- //    freq = 436800000; // Use for testing
- //    band_vhf = BAND_UHF;
+     freq = 436800000; // Use for testing
+     band_vhf = BAND_UHF;
     // TODO - check freq vs band_vhf and potentially recover or throw error if wrong
     debug_print("In start_rx, Setting freq to %d\n", freq); //DEBUG RBG
     if ((status = axradio_init(device, band_vhf, freq, rate_9600)) != AXRADIO_ERR_NOERROR) {

@@ -30,9 +30,11 @@
 /* GLOBAL VARIABLE DECLARATIONS - these are then defined in main.c
  * Declare the queues that are available to all tasks */
 extern QueueHandle_t xRxPacketQueue; // This queue holds packets that have just been received and need to be processed by the Ax25Task / Data Link State Machine
+extern QueueHandle_t xRxEventQueue; // This queue holds events that need to be processed by the Ax25Task / Data Link State Machine
 extern QueueHandle_t xPbPacketQueue; // This holds packets that need to be processed by the Pacsat Broadcast task
 extern QueueHandle_t xUplinkPacketQueue; // This queue holds packets that need to be processed by the Uplink Task / State Machine
 extern QueueHandle_t xTxPacketQueue; // This queue holds packets that are going to be transmitted
+
 
 /* Let's skip stdio which has a lot of stuff and just define printf */
 extern int printf(const char *fmt, ...);

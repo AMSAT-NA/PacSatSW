@@ -11,8 +11,7 @@
 
 #include "ax5043_access.h"
 #include "ax5043-ax25.h"
-//#include "ax5043-2M-AFSK.h"
-//#include "ax5043-2M-AFSK-externs.h"
+#include "Ax25Task.h"
 #include "ax25_util.h"
 
 /* Local variables */
@@ -30,6 +29,7 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
 
     /* These are defined in pacsat.h, declared here */
     xRxPacketQueue = xQueueCreate( RX_PACKET_QUEUE_LEN, AX25_PKT_BUFFER_LEN * sizeof( uint8_t ) );
+    xRxEventQueue = xQueueCreate( RX_EVENT_QUEUE_LEN, sizeof( AX25_event_t ) );
     xPbPacketQueue = xQueueCreate( PB_PACKET_QUEUE_LEN, AX25_PKT_BUFFER_LEN * sizeof( uint8_t ) );
     xUplinkPacketQueue = xQueueCreate( UPLINK_PACKET_QUEUE_LEN, AX25_PKT_BUFFER_LEN * sizeof( uint8_t ) );
     if (xRxPacketQueue == NULL) {

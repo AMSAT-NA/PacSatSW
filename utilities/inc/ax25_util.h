@@ -10,6 +10,10 @@
 
 #include "config.h"
 
+// Values for the command bit
+#define AX25_COMMAND true
+#define AX25_RESPONSE false
+
 // U Frame Types
 #define U_CONTROL_MASK       0b11101111
 #define BITS_U_SABME         0b01101111
@@ -60,14 +64,17 @@ typedef struct {
     int PF;
     uint8_t pid;
     uint8_t data[AX25_MAX_INFO_BYTES_LEN];
+    uint8_t data_len; // Set this to 0 if there are no data bytes
 } AX25_PACKET;
 
 
 int decode_call_and_command(uint8_t *c, char *call, int *final_call, int *command);
 int decode_call(uint8_t *c, char *call);
 int encode_call(char *name, uint8_t *buf, int final_call, int command);
-uint8_t decode_packet(uint8_t *packet, int len, AX25_PACKET *decoded_packet);
+uint8_t ax25_decode_packet(uint8_t *packet, int len, AX25_PACKET *decoded_packet);
+uint8_t ax25_encode_packet(AX25_PACKET *packet, uint8_t *encoded_packet, int max_len);
 int print_packet(char *label, uint8_t *packet, int len);
+int print_decoded_packet(char *label, AX25_PACKET *decoded);
 
 int test_ax25_util_print_packet();
 

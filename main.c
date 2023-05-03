@@ -73,7 +73,8 @@
 void ConsoleTask(void *pvParameters);
 
 //Global Variables Definitions (these are declared in pacsat.h or another header file where they are required)
-QueueHandle_t xRxPacketQueue; /* RTOS Queue for packets received by the RX */
+QueueHandle_t xRxPacketQueue; /* RTOS Queue for packets received by the RX (AX25 Data Link) */
+QueueHandle_t xRxEventQueue; /* RTOS Queue for events received by the AX25 Data Link */
 QueueHandle_t xPbPacketQueue; /* RTOS Queue for packets received and sent to the PB task */
 QueueHandle_t xUplinkPacketQueue; /* RTOS Queue for packets received and sent to the UPLINK task */
 QueueHandle_t xTxPacketQueue; /* RTOS Queue for packets sent to the TX */

@@ -88,7 +88,16 @@
 #define BROADCAST_CALLSIGN "VE2TCP-11"
 #define DIGI_CALLSIGN "VE2TCP-1"
 
-#define NUM_OF_RX_CHANNELS 1
+#define NUM_OF_TX_CHANNELS 1 // The number of transmitters we have
+#define NUM_OF_RX_CHANNELS 1 // The number of receivers we have - TODO this should tie to the Device numbers for AX5043s
+
+/* Radio Channels */
+typedef enum {
+    Channel_A,
+    Channel_B,
+    Channel_C,
+    Channel_D,
+} rx_channel_t;
 
 #define AX25_MAX_DATA_LEN 240 /* This is the maximum number of bytes a packet can have */
 #define AX25_MAX_INFO_BYTES_LEN 223 /* This is the maximum number of info bytes a packet can have */
@@ -99,6 +108,9 @@
 
 #define PB_MAX_PERIOD_FOR_CLIENTS_IN_SECONDS 600  // TODO - Should be in MRAM and commandable.  10 mins
 #define MAX_PKTS_IN_TX_PKT_QUEUE_FOR_TNC_TO_BE_BUSY 2 // TODO - Should be in MRAM and commandable. 2
+
+#define AX25_TIMER_T1_PERIOD SECONDS(10)
+#define AX25_TIMER_T3_PERIOD SECONDS(6)
 
 /*
  * TASK INFORMATION This is the info like stack sizes and priorities for the tasks
@@ -131,6 +143,7 @@
 #define RX_STACK_SIZE configMINIMAL_STACK_SIZE*11
 #define RX_PRIORITY (tskIDLE_PRIORITY + 4)
 #define RX_PACKET_QUEUE_LEN 5
+#define RX_EVENT_QUEUE_LEN 5
 
 #define TX_STACK_SIZE configMINIMAL_STACK_SIZE*11
 #define TX_PRIORITY (tskIDLE_PRIORITY + 3)

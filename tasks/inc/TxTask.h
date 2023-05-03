@@ -9,17 +9,23 @@
 #define TASKS_INC_TXTASK_H_
 
 #include <pacsat.h>
+#include "ax25_util.h"
 
-#define BLOCK_IF_QUEUE_FULL true
-#define DONT_BLOCK_IF_QUEUE_FULL false
+#define BLOCK true
+#define DONT_BLOCK false
+
+#define EXPEDITED true
+#define NOT_EXPEDITED false
+
 
 /*
  * Routine prototypes
  */
 
 void TxTask(void *pvParameters);
-bool tx_send_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t *bytes, int len, bool block);
-bool tx_make_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t *bytes, int len, uint8_t *raw_bytes);
+bool tx_send_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t *bytes, int len, bool block);
+bool tx_send_packet(rx_channel_t channel, AX25_PACKET *packet, bool expedited, bool block);
+
 bool tx_test_make_packet();
 
 #endif /* TASKS_INC_TXTASK_H_ */

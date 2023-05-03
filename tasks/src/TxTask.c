@@ -16,6 +16,8 @@
 #include "ax25_util.h"
 
 void radio_set_power(uint32_t regVal);
+bool tx_make_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t *bytes, int len, uint8_t *raw_bytes);
+bool tx_make_packet(AX25_PACKET *packet, uint8_t *raw_bytes);
 
 static uint8_t tx_packet_buffer[AX25_PKT_BUFFER_LEN]; /* Buffer used when data copied from tx queue */
 static uint8_t tmp_packet_buffer[AX25_PKT_BUFFER_LEN]; /* Buffer used when constructing new packets. position 0 will hold the number of bytes */
@@ -58,17 +60,18 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)  {
         BaseType_t xStatus = xQueueReceive( xTxPacketQueue, &tx_packet_buffer, CENTISECONDS(10) );  // TODO - adjust block time vs watchdog
         ReportToWatchdog(CurrentTaskWD);
         if( xStatus == pdPASS ) {
+            if (monitorPackets)
+                print_packet("TX: ", &tx_packet_buffer[1], tx_packet_buffer[0]);
+
             /* Data was successfully received from the queue */
             int numbytes = tx_packet_buffer[0] - 1; // first byte holds number of bytes
             //        printf("FIFO_FREE 1: %d\n",fifo_free());
             ax5043WriteReg(device, AX5043_FIFOSTAT, 3); // clear FIFO data & flags
-            fifo_repeat_byte(device, 0x7E, preamble_length, raw_no_crc_flag); // repeat the preamble bytes  ///  TODO - preamble length needs to be 20 for 9600
+            fifo_repeat_byte(device, 0x7E, preamble_length, raw_no_crc_flag); // repeat the preamble bytes  ///  TODO - no preamble for back to back packets
             fifo_commit(device);
             fifo_queue_buffer(device, tx_packet_buffer+1, numbytes, pktstart_flag|pktend_flag);
             //       printf("FIFO_FREE 2: %d\n",fifo_free());
             fifo_commit(device);
-            if (monitorPackets)
-                print_packet("TX", tx_packet_buffer+1,numbytes);
             //       printf("INFO: Waiting for transmission to complete\n");
             while (ax5043ReadReg(device, AX5043_RADIOSTATE) != 0) {
                 vTaskDelay(1);
@@ -91,7 +94,7 @@ void radio_set_power(uint32_t regVal) {
 }
 
 /**
- * tx_make_packet()
+ * tx_make_ui_packet()
  * Create an AX25 packet
  * from and to callsigns are strings will nul termination
  * pid byte is F0, BB or BD
@@ -100,7 +103,7 @@ void radio_set_power(uint32_t regVal) {
  * stored in the first byte, which will not be transmitted.
  *
  */
-bool tx_make_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t *bytes, int len, uint8_t *raw_bytes) {
+bool tx_make_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t *bytes, int len, uint8_t *raw_bytes) {
     uint8_t packet_len;
     uint8_t header_len = 17;
     int i;
@@ -113,7 +116,7 @@ bool tx_make_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t
     if (l != true) return false;
     for (i=0; i<7; i++)
         raw_bytes[i+8] = buf[i];
-    raw_bytes[15] = 0x03; // UI Frame control byte
+    raw_bytes[15] = BITS_UI; // UI Frame control byte
     raw_bytes[16] = pid;
 
     for (i=0; i< len; i++) {
@@ -140,17 +143,182 @@ bool tx_make_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t
 }
 
 /**
- * tx_send_packet()
+ * tx_make_packet()
+ * Make an arbitrary packet based on the packet structure
+ *
+ * Returns true unless there is an error
+ *
+ */
+bool tx_make_packet(AX25_PACKET *packet, uint8_t *raw_bytes) {
+    uint8_t packet_len;
+    uint8_t header_len = 16; // Assumes no PID
+    int i;
+    unsigned char buf[7];
+
+    // set the control byte
+    switch (packet->frame_type) {
+        case TYPE_I : {
+            packet->control = (packet->NR << 5) | (packet->PF << 4) | (packet->NS << 1) | 0b00;
+            header_len = 17; // make room for pid
+            break;
+        }
+        case TYPE_S_RR : {
+            packet->control = (packet->NR << 5) | (packet->PF << 4) | (BITS_S_RECEIVE_READY);
+            break;
+        }
+        case TYPE_S_RNR : {
+            packet->control = (packet->NR << 5) | (packet->PF << 4) | (BITS_S_RECEIVE_NOT_READY);
+            break;
+
+        }
+        case TYPE_S_REJ : {
+            packet->control = (packet->NR << 5) | (packet->PF << 4) | (BITS_S_REJECT);
+            break;
+
+        }
+        case TYPE_S_SREJ : {
+            packet->control = (packet->NR << 5) | (packet->PF << 4) | (BITS_S_SELECTIVE_REJECT);
+            break;
+
+        }
+
+        case TYPE_U_SABM : {
+            packet->command = AX25_COMMAND; // override this as it is always a command
+            packet->control = (packet->PF << 4) | (BITS_U_SABM);
+            break;
+        }
+        case TYPE_U_SABME : {
+            packet->command = AX25_COMMAND; // override this as it is always a command
+            packet->control = (packet->PF << 4) | (BITS_U_SABME);
+            break;
+        }
+        case TYPE_U_DISC : {
+            packet->command = AX25_COMMAND; // override this as it is always a command
+            packet->control = (packet->PF << 4) | (BITS_U_DISCONNECT);
+            break;
+        }
+        case TYPE_U_DM : {
+            packet->command = AX25_RESPONSE; // override this as it is always a response
+            packet->control = (packet->PF << 4) | (BITS_U_DISCONNECT_MODE);
+            break;
+        }
+        case TYPE_U_UA : {
+            packet->command = AX25_RESPONSE; // override this as it is always a response
+            packet->control = (packet->PF << 4) | (BITS_UA);
+            break;
+        }
+        case TYPE_U_FRMR : {
+            packet->command = AX25_RESPONSE; // override this as it is always a response
+            packet->control = (packet->PF << 4) | (BITS_U_FRAME_REJECT);
+            break;
+        }
+        case TYPE_U_UI : {
+            packet->control = (packet->PF << 4) | (BITS_UI);
+            header_len = 17; // room for pid
+            break;
+        }
+        case TYPE_U_XID : {
+            packet->control = (packet->PF << 4) | (BITS_U_EXCH_ID);
+            break;
+        }
+        case TYPE_U_TEST : {
+            packet->control = (packet->PF << 4) | (BITS_U_TEST);
+            break;
+        }
+
+        default : {
+            debug_print("ERR: Invalid frame type\n");
+            return FALSE;
+        }
+    }
+
+    // We are using V2, so both calls encode the command bit:
+    int command = packet->command & 0b1;
+    int command2 = 0;
+    if (command == 0) command2 = 1;
+    int l = encode_call(packet->to_callsign, buf, false, command);
+    if (l != true) return false;
+    for (i=0; i<7; i++)
+        raw_bytes[i+1] = buf[i];
+    l = encode_call(packet->from_callsign, buf, true, command2);
+    if (l != true) return false;
+    for (i=0; i<7; i++)
+        raw_bytes[i+8] = buf[i];
+
+    raw_bytes[15] = packet->control;
+
+    // If we have a pid then set it here
+    if (header_len == 17)
+        raw_bytes[16] = packet->pid;
+
+    // If there are data bytes then add them here
+    if (packet->data_len > 0)
+    for (i=0; i< packet->data_len; i++) {
+        raw_bytes[i+header_len] = packet->data[i];
+    }
+    packet_len = packet->data_len + header_len;
+    raw_bytes[0] = packet_len; /* Number of bytes */
+
+//    if (true) {
+//        for (i=0; i< packet_len; i++) {
+//            if (isprint(raw_bytes[i]))
+//                printf("%c",raw_bytes[i]);
+//            else
+//                printf(" ");
+//        }
+//        for (i=0; i< packet_len; i++) {
+//            printf("%02x ",raw_bytes[i]);
+//            if (i%40 == 0 && i!=0) printf("\n");
+//        }
+//    }
+
+    return true;
+
+
+}
+/**
+ * tx_send_ui_packet()
  * Create and queue an AX25 packet on the TX queue
- * from and to callsigns are strings will nul termination
+ * from and to callsigns are strings with nul termination
  * pid byte is F0, BB or BD
  * bytes is a buffer of length len that is sent in the body of the packet
  * The TX takes are of HDLC framing and CRC
  *
  */
-bool tx_send_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t *bytes, int len, bool block) {
+bool tx_send_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t *bytes, int len, bool block) {
     //uint8_t raw_bytes[AX25_PKT_BUFFER_LEN];
-    bool rc = tx_make_packet(from_callsign, to_callsign, pid, bytes, len, tmp_packet_buffer);
+    bool rc = tx_make_ui_packet(from_callsign, to_callsign, pid, bytes, len, tmp_packet_buffer);
+    TickType_t xTicksToWait = 0;
+    if (block)
+        xTicksToWait = CENTISECONDS(1);
+    BaseType_t xStatus = xQueueSendToBack( xTxPacketQueue, &tmp_packet_buffer, xTicksToWait );
+    if( xStatus != pdPASS ) {
+        /* The send operation could not complete because the queue was full */
+        debug_print("TX QUEUE FULL: Could not add UI frame to Packet Queue\n");
+        // TODO - we should log this error and downlink in telemetry
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * tx_send_packet()
+ * Create and queue an AX25 packet based on the packet structure
+ *
+ * Returns false if there is an issue
+ *
+ * TODO - Expedited is passed in but not yet implemented
+ * TODO - channel is passed in but not yet implemented.  Only 1 TX channel is assumed
+ */
+bool tx_send_packet(rx_channel_t channel, AX25_PACKET *packet, bool expedited, bool block) {
+    if (channel >= NUM_OF_TX_CHANNELS) {
+        debug_print("ERR: tx_send_packet() Invalid radio channel %d\n",channel);
+        return false;
+    }
+    bool rc = tx_make_packet(packet, tmp_packet_buffer);
+//    print_packet("TX_SEND: ", &tmp_packet_buffer[1], tmp_packet_buffer[0]);
+
     TickType_t xTicksToWait = 0;
     if (block)
         xTicksToWait = CENTISECONDS(1);
@@ -159,6 +327,7 @@ bool tx_send_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t
         /* The send operation could not complete because the queue was full */
         debug_print("TX QUEUE FULL: Could not add to Packet Queue\n");
         // TODO - we should log this error and downlink in telemetry
+        return false;
     }
 
     return true;
@@ -177,7 +346,7 @@ bool tx_test_make_packet() {
     uint8_t pid = 0xbb;
     uint8_t bytes[] = {0,1,2,3,4,5,6,7,8,9};
     uint8_t len = 10;
-    rc = tx_make_packet(from_callsign, to_callsign, pid, bytes, len, tmp_packet_buffer);
+    rc = tx_make_ui_packet(from_callsign, to_callsign, pid, bytes, len, tmp_packet_buffer);
 
     BaseType_t xStatus = xQueueSendToBack( xTxPacketQueue, &tmp_packet_buffer, CENTISECONDS(1) );
     if( xStatus != pdPASS ) {
