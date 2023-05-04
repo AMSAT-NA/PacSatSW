@@ -32,6 +32,10 @@ void start_timer(TimerHandle_t timer);
 void restart_timer(TimerHandle_t timer);
 void stop_timer(TimerHandle_t timer);
 void ax25_send_dm(rx_channel_t channel, AX25_PACKET *packet, AX25_PACKET *response_packet);
+void ax25_send_ua(rx_channel_t channel, AX25_PACKET *packet, AX25_PACKET *response_packet);
+void ax25_send_response(rx_channel_t channel, ax25_frame_type_t frame_type, AX25_PACKET *packet, AX25_PACKET *response_packet);
+
+/* State Machine functions */
 void ax25_next_state_from_primative(AX25_data_link_state_machine_t *dl_state_info, AX25_primative_t primative);
 void ax25_next_state_from_packet(AX25_data_link_state_machine_t *dl_state_info, AX25_PACKET *decoded_packet);
 void ax25_state_disc_prim(AX25_data_link_state_machine_t *dl_state_info, AX25_primative_t prim);
@@ -44,6 +48,11 @@ void ax25_state_connected_prim(AX25_data_link_state_machine_t *dl_state_info, AX
 void ax25_state_connected_packet(AX25_data_link_state_machine_t *dl_state_info, AX25_PACKET *packet);
 void ax25_state_timer_rec_prim(AX25_data_link_state_machine_t *dl_state_info, AX25_primative_t prim);
 void ax25_state_timer_rec_packet(AX25_data_link_state_machine_t *dl_state_info, AX25_PACKET *packet);
+
+/* State Machine Helper functions */
+void clear_exception_conditions(AX25_data_link_state_machine_t *state);
+void discard_iframe_queue(AX25_data_link_state_machine_t *state);
+void transmit_enquiry(AX25_data_link_state_machine_t *state, AX25_PACKET *packet);
 
 /* Local variables */
 static xTimerHandle timerT1[NUM_OF_RX_CHANNELS];
@@ -69,8 +78,8 @@ portTASK_FUNCTION_PROTO(Ax25Task, pvParameters)  {
     timerT3[Channel_A] = xTimerCreate( "T3_0", AX25_TIMER_T3_PERIOD, FALSE, (void *)Channel_A, ax25_t3_expired); // single shot timer
 
     // test
-    start_timer(timerT1[Channel_A]);
-    start_timer(timerT3[Channel_A]);
+//    start_timer(timerT1[Channel_A]);
+//    start_timer(timerT3[Channel_A]);
 
     while(1) {
 
@@ -157,7 +166,7 @@ void ax25_send_status() {
 void ax25_t1_expired(TimerHandle_t xTimer) {
     AX25_event_t ax25_event;
     uint32_t chan = (uint32_t)pvTimerGetTimerID( xTimer ); // timer id is treated as an integer and not as a pointer
-    trace_dl("AX25: Channel %d. Timer T1 Expired\n", (rx_channel_t)chan);
+    trace_dl("AX25: Channel %d. Timer T1 Expiry Int\n", (rx_channel_t)chan);
     ax25_event.primative = DL_TIMER_T1_Expire;
     ax25_event.channel = (rx_channel_t)chan;
     ax25_event.packet = NULL;
@@ -171,7 +180,7 @@ void ax25_t1_expired(TimerHandle_t xTimer) {
 void ax25_t3_expired(TimerHandle_t xTimer) {
     AX25_event_t ax25_event;
     uint32_t chan = (uint32_t)pvTimerGetTimerID( xTimer ); // timer id is treated as an integer and not as a pointer
-    trace_dl("AX25: Channel %d. Timeout... Timer T3 Expired\n", (rx_channel_t)chan);
+    trace_dl("AX25: Channel %d. Timeout... Timer T3 Expiry Int\n", (rx_channel_t)chan);
     ax25_event.primative = DL_TIMER_T3_Expire;
     ax25_event.channel = (rx_channel_t)chan;
     ax25_event.packet = NULL;
@@ -219,7 +228,7 @@ void ax25_process_frame(char *from_callsign, char *to_callsign, rx_channel_t cha
     if (strcasecmp(to_callsign, BBS_CALLSIGN) == 0) {
         ax25_decode_packet(&ax25_radio_buffer.bytes[0], ax25_radio_buffer.len, &data_link_state_machine[channel].decoded_packet);
 
-        if (data_link_state_machine[channel].state == DISCONNECTED) {
+        if (data_link_state_machine[channel].dl_state == DISCONNECTED) {
             strlcpy(data_link_state_machine[channel].callsign, from_callsign, MAX_CALLSIGN_LEN);
             data_link_state_machine[channel].channel = channel;
             ax25_next_state_from_packet(&data_link_state_machine[channel], &data_link_state_machine[channel].decoded_packet);
@@ -252,7 +261,7 @@ void ax25_process_frame(char *from_callsign, char *to_callsign, rx_channel_t cha
 
 /**
  * Create a DM response packet.
- * The state of PF is copied from the received packet.
+ * The dl_state of PF is copied from the received packet.
  */
 void ax25_send_dm(rx_channel_t channel, AX25_PACKET *packet, AX25_PACKET *response_packet) {
     // F <- P
@@ -268,16 +277,58 @@ void ax25_send_dm(rx_channel_t channel, AX25_PACKET *packet, AX25_PACKET *respon
     bool rc = tx_send_packet(channel, response_packet, NOT_EXPEDITED, BLOCK);
     if (rc == FALSE) {
         // TODO - handle error
-        debug_print("Could not queue DM response\n");
+        debug_print("ERR: Could not queue DM response\n");
     }
 }
+
+/**
+ * Create a UA response packet.
+ * The dl_state of PF is copied from the received packet.
+ */
+void ax25_send_ua(rx_channel_t channel, AX25_PACKET *packet, AX25_PACKET *response_packet) {
+    // F <- P
+    response_packet->PF = packet->PF & 0b1;
+
+    strlcpy(response_packet->to_callsign, packet->from_callsign, MAX_CALLSIGN_LEN);
+    strlcpy(response_packet->from_callsign, BBS_CALLSIGN, MAX_CALLSIGN_LEN);
+
+    response_packet->frame_type = TYPE_U_UA;
+#ifdef TRACE_AX25_DL
+    print_decoded_packet("DL: ", response_packet);
+#endif
+    bool rc = tx_send_packet(channel, response_packet, NOT_EXPEDITED, BLOCK);
+    if (rc == FALSE) {
+        // TODO - handle error
+        debug_print("ERR: Could not queue UA response\n");
+    }
+}
+
+/**
+ * Create a response packet.
+ * The dl_state of command and PF are set already in the response packet
+ */
+void ax25_send_response(rx_channel_t channel, ax25_frame_type_t frame_type, AX25_PACKET *packet, AX25_PACKET *response_packet) {
+    strlcpy(response_packet->to_callsign, packet->from_callsign, MAX_CALLSIGN_LEN);
+    strlcpy(response_packet->from_callsign, BBS_CALLSIGN, MAX_CALLSIGN_LEN);
+
+    response_packet->frame_type = frame_type;
+#ifdef TRACE_AX25_DL
+    print_decoded_packet("DL: ", response_packet);
+#endif
+    bool rc = tx_send_packet(channel, response_packet, NOT_EXPEDITED, BLOCK);
+    if (rc == FALSE) {
+        // TODO - handle error
+        debug_print("ERR: Could not queue RR response\n");
+    }
+}
+
 
 /**
  * DATA LINK STATE MACHINE
  */
 
 void ax25_next_state_from_packet(AX25_data_link_state_machine_t *dl_state_info, AX25_PACKET *decoded_packet) {
-    switch (dl_state_info->state) {
+    switch (dl_state_info->dl_state) {
         case DISCONNECTED : {
             ax25_state_disc_packet(dl_state_info, decoded_packet);
             break;
@@ -308,7 +359,7 @@ void ax25_next_state_from_packet(AX25_data_link_state_machine_t *dl_state_info, 
 }
 
 void ax25_next_state_from_primative(AX25_data_link_state_machine_t *dl_state_info, AX25_primative_t primative) {
-    switch (dl_state_info->state) {
+    switch (dl_state_info->dl_state) {
         case DISCONNECTED : {
             ax25_state_disc_prim(dl_state_info, primative);
             break;
@@ -341,7 +392,7 @@ void ax25_next_state_from_primative(AX25_data_link_state_machine_t *dl_state_inf
 /**
  * Data Link DISCONNECTED State
  */
-void ax25_state_disc_prim(AX25_data_link_state_machine_t *dl_state_info, AX25_primative_t prim) {
+void ax25_state_disc_prim(AX25_data_link_state_machine_t *state, AX25_primative_t prim) {
     trace_dl("AX25: STATE DISC (prim): ");
     switch (prim) {
         case DL_DISCONNECT_Request : {
@@ -353,7 +404,8 @@ void ax25_state_disc_prim(AX25_data_link_state_machine_t *dl_state_info, AX25_pr
             break;
         }
         case DL_CONNECT_Request : {
-            trace_dl("Connect Request from Layer 3\n");
+            trace_dl("Request to initiate connection from Layer 3\n");
+
             break;
         }
 
@@ -366,7 +418,7 @@ void ax25_state_disc_prim(AX25_data_link_state_machine_t *dl_state_info, AX25_pr
     }
 }
 
-void ax25_state_disc_packet(AX25_data_link_state_machine_t *dl_state_info, AX25_PACKET *packet) {
+void ax25_state_disc_packet(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
     trace_dl("AX25: STATE DISC (frame): ");
     switch (packet->frame_type) {
         case TYPE_U_UA : {
@@ -379,28 +431,42 @@ void ax25_state_disc_packet(AX25_data_link_state_machine_t *dl_state_info, AX25_
         }
         case TYPE_U_DISC : {
             trace_dl("UA\n");
-            dl_state_info->response_packet = EMPTY_PACKET; // zero out the packet
-            ax25_send_dm(dl_state_info->channel, packet, &dl_state_info->response_packet);
+            state->response_packet = EMPTY_PACKET; // zero out the packet
+            ax25_send_dm(state->channel, packet, &state->response_packet);
             break;
         }
         case TYPE_U_SABM : {
             trace_dl("SABM\n");
-            dl_state_info->response_packet = EMPTY_PACKET; // zero out the packet
-            ax25_send_dm(dl_state_info->channel, packet, &dl_state_info->response_packet);
+            state->response_packet = EMPTY_PACKET; // zero out the packet
+            // Set version 2.0 - we already have the default values of MODULO 8 and no SREJ.
+            ax25_send_ua(state->channel, packet, &state->response_packet);
+            clear_exception_conditions(state);
+            state->VS = 0;
+            state->VA = 0;
+            state->VR = 0;
+
+            // TODO - send DL_CONNECT_Indication to Layer 3
+
+            // NOT IMPLEMENTED - SRT and T1V are not calculated and set
+
+            start_timer(timerT3[state->channel]);
+            state->RC = 0;
+            state->dl_state = CONNECTED;
+
             break;
         }
         case TYPE_U_SABME : {
             trace_dl("SABME - NOT SUPPORTED YET\n");
-            // We dont support v2.2 yet, so send DM and remain in disconnected state.
-            dl_state_info->response_packet = EMPTY_PACKET; // zero out the packet
-            ax25_send_dm(dl_state_info->channel, packet, &dl_state_info->response_packet);
+            // We dont support v2.2 yet, so send DM and remain in disconnected dl_state.
+            state->response_packet = EMPTY_PACKET; // zero out the packet
+            ax25_send_dm(state->channel, packet, &state->response_packet);
             break;
         }
         default:
             // All other commands get a DM
             if (packet->command) {
-                dl_state_info->response_packet = EMPTY_PACKET; // zero out the packet
-                ax25_send_dm(dl_state_info->channel, packet, &dl_state_info->response_packet);
+                state->response_packet = EMPTY_PACKET; // zero out the packet
+                ax25_send_dm(state->channel, packet, &state->response_packet);
             } else {
                 trace_dl("Ignoring unexpected pkt type: %0x from %s\n",packet->frame_type, packet->from_callsign);
             }
@@ -410,42 +476,129 @@ void ax25_state_disc_packet(AX25_data_link_state_machine_t *dl_state_info, AX25_
 
 
 /**
- * Data Link Connected State
+ * Data Link Wait Connection State
  */
-void ax25_state_wait_conn_prim(AX25_data_link_state_machine_t *dl_state_info, AX25_primative_t prim) {
-
+void ax25_state_wait_conn_prim(AX25_data_link_state_machine_t *state, AX25_primative_t prim) {
 }
 
-void ax25_state_wait_conn_packet(AX25_data_link_state_machine_t *dl_state_info, AX25_PACKET *packet) {
-
-}
-
-
-
-void ax25_state_wait_release_prim(AX25_data_link_state_machine_t *dl_state_info, AX25_primative_t prim) {
-
-}
-
-void ax25_state_wait_release_packet(AX25_data_link_state_machine_t *dl_state_info, AX25_PACKET *packet) {
+void ax25_state_wait_conn_packet(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
 
 }
 
 
 
-void ax25_state_connected_prim(AX25_data_link_state_machine_t *dl_state_info, AX25_primative_t prim) {
+void ax25_state_wait_release_prim(AX25_data_link_state_machine_t *state, AX25_primative_t prim) {
 
 }
 
-void ax25_state_connected_packet(AX25_data_link_state_machine_t *dl_state_info, AX25_PACKET *packet) {
+void ax25_state_wait_release_packet(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
 
 }
 
 
 
-void ax25_state_timer_rec_prim(AX25_data_link_state_machine_t *dl_state_info, AX25_primative_t prim) {
+void ax25_state_connected_prim(AX25_data_link_state_machine_t *state, AX25_primative_t prim) {
+    trace_dl("AX25: STATE CONNECTED (prim): ");
+    switch (prim) {
+        case DL_DISCONNECT_Request : {
+            trace_dl("Disconnect Request from Layer 3\n");
+            break;
+        }
+        case DL_DATA_Request : {
+            trace_dl("Send DATA Request from Layer 3\n");
+            break;
+        }
+
+        //TODO - I FRAME POPS OFF QUEUE - from LAYER 3??
+
+        case DL_UNIT_DATA_Request : {
+            trace_dl("Send UI Request from Layer 3\n");
+            break;
+        }
+        case DL_FLOW_ON_Request : {
+            trace_dl("Request FLOW ON from Layer 3\n");
+
+            break;
+        }
+        case DL_FLOW_OFF_Request : {
+            trace_dl("Request FLOW OFF from Layer 3\n");
+
+            break;
+        }
+        case DL_CONNECT_Request : {
+            trace_dl("Request to initiate connection from Layer 3\n");
+
+            break;
+        }
+       case DL_TIMER_T1_Expire : {
+            trace_dl("Timer T1 Expired\n");
+            state->RC = 1;
+            transmit_enquiry(state, &state->decoded_packet);
+            state->dl_state = TIMER_RECOVERY;
+            break;
+        }
+       case DL_TIMER_T3_Expire : {
+            trace_dl("Timer T3 Expired\n");
+            state->RC = 1;
+            transmit_enquiry(state, &state->decoded_packet);
+            state->dl_state = TIMER_RECOVERY;
+            break;
+        }
+
+        default : {
+            trace_dl(".. Ignored\n");
+            break;
+        }
+
+    }
+
 
 }
 
-void ax25_state_timer_rec_packet(AX25_data_link_state_machine_t *dl_state_info, AX25_PACKET *packet) {
+void ax25_state_connected_packet(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
 
+}
+
+
+
+void ax25_state_timer_rec_prim(AX25_data_link_state_machine_t *state, AX25_primative_t prim) {
+
+}
+
+void ax25_state_timer_rec_packet(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
+
+}
+
+void clear_exception_conditions(AX25_data_link_state_machine_t *state) {
+    state->peer_receiver_busy = false;
+    state->own_receiver_busy = false;
+    state->reject_exception = false;
+    state->srej_exception = false;
+    state->achnowledge_pending = false;
+    discard_iframe_queue(state);
+}
+
+void discard_iframe_queue(AX25_data_link_state_machine_t *state) {
+    int i;
+    for (i=0; i < I_QUEUE_FRAME_LEN; i++)
+        state->I_frame_queue[i] = EMPTY_PACKET;
+
+}
+
+void transmit_enquiry(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
+    state->response_packet = EMPTY_PACKET;
+    state->response_packet.PF = 1;
+    state->response_packet.command = 1;
+    state->response_packet.NR = state->VR;
+    if (state->own_receiver_busy) {
+        // RNR
+        ax25_send_response(state->channel, TYPE_S_RNR, packet, &state->response_packet);
+
+    } else {
+        //RR
+        ax25_send_response(state->channel, TYPE_S_RR, packet, &state->response_packet);
+
+    }
+    state->achnowledge_pending = false;
+    start_timer(timerT1[state->channel]);
 }

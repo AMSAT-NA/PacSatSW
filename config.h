@@ -109,9 +109,12 @@ typedef enum {
 #define PB_MAX_PERIOD_FOR_CLIENTS_IN_SECONDS 600  // TODO - Should be in MRAM and commandable.  10 mins
 #define MAX_PKTS_IN_TX_PKT_QUEUE_FOR_TNC_TO_BE_BUSY 2 // TODO - Should be in MRAM and commandable. 2
 
-#define AX25_TIMER_T1_PERIOD SECONDS(10)
-#define AX25_TIMER_T3_PERIOD SECONDS(6)
-
+/* T1 is the timeout for outstanding I frame or P bit.  Traditionally set to the Smoothed Rountrip Time (SRT), which is
+ * calculated for the channel.  For a full duplex sat this is perhaps not appropriate.
+ * TODO - what is the optimal value for this? */
+#define AX25_TIMER_T1_PERIOD SECONDS(3)
+#define AX25_TIMER_T3_PERIOD SECONDS(60) /* Idle timeout if nothing heard */
+#define AX25_RETRIES_N2 10 /* Number of retries permitted by the Data Link State Machine */
 /*
  * TASK INFORMATION This is the info like stack sizes and priorities for the tasks
  */

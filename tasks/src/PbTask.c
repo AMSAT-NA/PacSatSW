@@ -166,7 +166,7 @@ portTASK_FUNCTION_PROTO(PbTask, pvParameters)  {
     /* create a RTOS software timer - TODO period should be in MRAM and changeable from the ground using xTimerChangePeriod() */
     pbStatusTimerHandle = xTimerCreate( "PB STATUS", SECONDS(30), TRUE, &pvtPbStatusTimerID, pb_send_status); // auto reload timer
     /* start the timer */
-    timerStatus = xTimerStart(pbStatusTimerHandle, 0); // Block time of zero as this can not block
+//    timerStatus = xTimerStart(pbStatusTimerHandle, 0); // Block time of zero as this can not block
     if (timerStatus != pdPASS) {
         debug_print("ERROR: Failed in init PB Status Timer\n");
 // TODO =>        ReportError(RTOSfailure, FALSE, ReturnAddr, (int) PbTask); /* failed to create the RTOS timer */

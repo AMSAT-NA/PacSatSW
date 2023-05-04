@@ -166,19 +166,19 @@ uint8_t ax25_decode_packet(uint8_t *packet, int len, AX25_PACKET *decoded_packet
         if (len < 23) return 0;
         decode_call_and_command(&packet[14], decoded_packet->via_callsign, &final_call, &sourceBit);
         if (!final_call) {
-            debug_print("ERR: Invalid packet. Only 1 via supported\n");
+            debug_print("ERR: ax25_decode_packet() Invalid packet. Only 1 via supported\n");
             return FALSE;
         }
         offset = 21;
     }
     decoded_packet->control = packet[offset];
-    if (decoded_packet->control & 0b1 == 0) { // bit 0 = 0 then it is an I-frame
+    if ((decoded_packet->control & 0b1) == 0) { // bit 0 = 0 then it is an I-frame
         if (len < offset + 2) {
-            debug_print("ERR: Not enough bytes for an I-frame\n");
+            debug_print("ERR: ax25_decode_packet() Not enough bytes for an I-frame\n");
             return FALSE;
         }
         if ((len - offset - 2) > AX25_MAX_INFO_BYTES_LEN) {
-            debug_print("ERR: Too many bytes for an I-frame.  Data would overflow.\n");
+            debug_print("ERR: ax25_decode_packet() Too many bytes for an I-frame.  Data would overflow.\n");
             return FALSE;
         }
         decoded_packet->frame_type = TYPE_I;
@@ -189,7 +189,7 @@ uint8_t ax25_decode_packet(uint8_t *packet, int len, AX25_PACKET *decoded_packet
         for (i=0; i<(len-offset-2); i++) {
             decoded_packet->data[i] = packet[offset+2+i];
         }
-    } else if (decoded_packet->control & 0b11 == 0b11) { // bit 0 and 1 are both 1 then its a U frame
+    } else if ((decoded_packet->control & 0b11) == 0b11) { // bit 0 and 1 are both 1 then its a U frame
         int u_type = decoded_packet->control & U_CONTROL_MASK;
         decoded_packet->PF = (decoded_packet->control >> 4) & 0b1;
         switch (u_type) {
@@ -235,12 +235,12 @@ uint8_t ax25_decode_packet(uint8_t *packet, int len, AX25_PACKET *decoded_packet
             }
 
             default : {
-                debug_print("ERR: Invalid U frame type\n");
+                debug_print("ERR: ax25_decode_packet() Invalid U frame type %0x with control byte: %0x\n", u_type, decoded_packet->control);
                 return FALSE;
             }
         }
 
-    } else if (decoded_packet->control & 0b11 == 0b01) { // bit 0 = 1 and bit 1 = 0 then its an S frame
+    } else if ((decoded_packet->control & 0b11) == 0b01) { // bit 0 = 1 and bit 1 = 0 then its an S frame
         int s_type = decoded_packet->control & S_CONTROL_MASK;
         decoded_packet->NR = (decoded_packet->control >> 5) & 0b111;
         decoded_packet->PF = (decoded_packet->control >> 4) & 0b1;
@@ -262,13 +262,13 @@ uint8_t ax25_decode_packet(uint8_t *packet, int len, AX25_PACKET *decoded_packet
                 break;
             }
             default : {
-                debug_print("ERR: Invalid S frame type\n");
+                debug_print("ERR: ax25_decode_packet() Invalid S frame type\n");
                 return FALSE;
             }
 
         }
     } else {
-        debug_print("ERR: Frame type not supported\n");
+        debug_print("ERR: ax25_decode_packet() Frame type not supported\n");
         return FALSE;
     }
     return TRUE;
@@ -303,8 +303,13 @@ int print_packet(char *label, uint8_t *packet, int len) {
 
 int print_decoded_packet(char *label, AX25_PACKET *decoded) {
     int loc;
-    debug_print("%s- %s: %s>%s pid=%0x pf=%d: ",label, frame_type_strings[decoded->frame_type],
-                decoded->from_callsign, decoded->to_callsign, decoded->pid, decoded->PF);
+    char *command;
+    if (decoded->command)
+        command = "Cmd";
+    else
+        command = "Res";
+    debug_print("%s- %s: %s>%s %s pid=%0x pf=%d: ",label, frame_type_strings[decoded->frame_type],
+                decoded->from_callsign, decoded->to_callsign, command, decoded->pid, decoded->PF);
     for (loc=0; loc<decoded->data_len; loc++) {
         debug_print("%x ",decoded->data[loc]);
     }
@@ -328,4 +333,24 @@ int test_ax25_util_print_packet() {
     debug_print("\n");
 
     return 0;
+}
+
+int test_ax25_util_decode_packet() {
+    printf("##### TEST AX25 UTIL DECODE\n");
+    int rc = TRUE;
+    AX25_PACKET packet;
+    uint8_t by[] = {0xac,0x8a,0x64,0xa8,0x86,0xa0,0x78,0x8e,0x60,0x96,0x98,0x82,0x40,0xe1,0x11,0xe1};
+    rc = ax25_decode_packet(&by[0], sizeof(by), &packet);
+    print_decoded_packet("TEST:", &packet);
+
+    if (packet.PF != 1) {printf("** Mismatched PF != 1\n"); return FALSE;}
+    if (packet.command != 0) {printf("** Mismatched command != 0\n"); return FALSE;}
+    if (packet.frame_type != TYPE_S_RR) {printf("** Mismatched type != RR\n"); return FALSE;}
+
+    if (rc == TRUE)
+          printf("##### TEST AX25 UTIL DECODE: success\n");
+      else
+          printf("##### TEST AX25 UTIL DECODE: fail\n");
+
+      return rc;
 }

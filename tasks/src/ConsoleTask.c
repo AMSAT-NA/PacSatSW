@@ -167,6 +167,7 @@ enum {
     ,testPbClearList
     ,testPfh
     ,testPfhFile
+    ,testDecode
     ,makePfhFiles
     ,testDir
     ,sendUplinkStatus
@@ -234,6 +235,7 @@ commandPairs debugCommands[] = {
                                 ,{"clear pb list","Clear the PB List add remove all stations",testPbClearList}
                                 ,{"test pfh","Test the Pacsat File Header Routines",testPfh}
                                 ,{"test psf","Test the Pacsat Files in MRAM",testPfhFile}
+                                ,{"test decode","Test decode of AX25 packets",testDecode}
                                 ,{"make psf","Make a set of test Pacsat Files in MRAM",makePfhFiles}
                                 ,{"test dir","Test the Pacsat Directory.  The command 'make psf' must already have been run",testDir}
                                 ,{"send uplink status","Send Uplink status",sendUplinkStatus}
@@ -1010,6 +1012,7 @@ void RealConsoleTask(void)
         case testPacsat:{
 
             if(! pb_test_callsigns()) {  debug_print("### Callsign TEST FAILED\n"); break; }
+            if(!test_ax25_util_decode_packet()) {  debug_print("### Packet Decode TEST FAILED\n"); break; }
             if(! pb_test_list()) {  debug_print("### pb list TEST FAILED\n"); break; }
             if(! pb_clear_list()) {  debug_print("### pb list clear TEST FAILED\n"); break; }
             if(! tx_test_make_packet()) {  debug_print("### tx make packet TEST FAILED\n"); break; }
@@ -1059,6 +1062,10 @@ void RealConsoleTask(void)
         }
         case testDir:{
             bool rc = test_pacsat_dir();
+            break;
+        }
+        case testDecode:{
+            bool rc = test_ax25_util_decode_packet();
             break;
         }
         case sendUplinkStatus:{

@@ -121,8 +121,15 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
                                 loc++;
                             }
                             if (monitorPackets) {
-                                print_packet("RX", &rx_radio_buffer.bytes,rx_radio_buffer.len);
+                                int i;
+                                for (i=0; i< rx_radio_buffer.len; i++)
+                                    debug_print("%0x ", rx_radio_buffer.bytes[i]);
+                                debug_print("\n");
+                                print_packet("RX", &rx_radio_buffer.bytes[0],rx_radio_buffer.len);
                             }
+
+                            // TODO - need to store the channel here - for now it is hard coded to channel A.  This should be passed by the interrupt.
+                            rx_radio_buffer.channel = Channel_A;
 
                             /* Add to the queue and wait for 10ms to see if space is available */
                             BaseType_t xStatus = xQueueSendToBack( xRxPacketQueue, &rx_radio_buffer, CENTISECONDS(1) );

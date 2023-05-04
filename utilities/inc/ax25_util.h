@@ -77,5 +77,6 @@ int print_packet(char *label, uint8_t *packet, int len);
 int print_decoded_packet(char *label, AX25_PACKET *decoded);
 
 int test_ax25_util_print_packet();
+int test_ax25_util_decode_packet();
 
 #endif /* UTILITIES_INC_AX25_UTIL_H_ */
