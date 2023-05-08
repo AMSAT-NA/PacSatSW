@@ -32,7 +32,7 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
     xRxPacketQueue = xQueueCreate( RX_PACKET_QUEUE_LEN, sizeof( rx_radio_buffer ) );
     xRxEventQueue = xQueueCreate( RX_EVENT_QUEUE_LEN, sizeof( AX25_event_t ) );
     xPbPacketQueue = xQueueCreate( PB_PACKET_QUEUE_LEN, sizeof( rx_radio_buffer ) );
-    xUplinkPacketQueue = xQueueCreate( UPLINK_PACKET_QUEUE_LEN,  sizeof( rx_radio_buffer ) );
+    xUplinkEventQueue = xQueueCreate( UPLINK_PACKET_QUEUE_LEN,  sizeof( AX25_event_t ) );
 
     if (xRxPacketQueue == NULL) {
         /* The queue could not be created.  This is fatal and should only happen in test if we are short of memory at startup */
@@ -49,7 +49,7 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
         debug_print("FATAL ERROR: Could not create PB Packet Queue\n");
         //TODO - log this
     }
-    if (xUplinkPacketQueue == NULL) {
+    if (xUplinkEventQueue == NULL) {
         /* The queue could not be created.  This is fatal and should only happen in test if we are short of memory at startup */
         debug_print("FATAL ERROR: Could not create UPLINK Packet Queue\n");
         //TODO - log this

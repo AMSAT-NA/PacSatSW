@@ -46,6 +46,7 @@
 #include "RxTask.h"
 #include "Ax25Task.h"
 #include "PbTask.h"
+#include "UplinkTask.h"
 #include "pacsat_dir.h"
 #include "TelemetryRadio.h"
 #include "RTISetup.h"
@@ -76,7 +77,7 @@ void ConsoleTask(void *pvParameters);
 QueueHandle_t xRxPacketQueue; /* RTOS Queue for packets received by the RX (AX25 Data Link) */
 QueueHandle_t xRxEventQueue; /* RTOS Queue for events received by the AX25 Data Link */
 QueueHandle_t xPbPacketQueue; /* RTOS Queue for packets received and sent to the PB task */
-QueueHandle_t xUplinkPacketQueue; /* RTOS Queue for packets received and sent to the UPLINK task */
+QueueHandle_t xUplinkEventQueue; /* RTOS Queue for events received and sent to the UPLINK task */
 QueueHandle_t xTxPacketQueue; /* RTOS Queue for packets sent to the TX */
 bool CANPrintTelemetry,CANPrintCoord,CANPrintCommands,CANPrintAny,CANPrintCount,CANPrintErrors,CANPrintEttus,
     pb_shut, monitorPackets;
@@ -296,9 +297,10 @@ void ConsoleTask(void *pvParameters){
 //    }
 //    printf("Free heap size after dir loaded: %d\n",xPortGetFreeHeapSize());
 
-    xTaskCreate(RxTask,"RxTask",RX_STACK_SIZE, NULL,RX_PRIORITY,NULL);
-    xTaskCreate(Ax25Task,"Ax25Task",AX25_STACK_SIZE, NULL,AX25_PRIORITY,NULL);
-    xTaskCreate(PbTask,"PbTask",PB_STACK_SIZE, NULL,PB_PRIORITY,NULL);
+    xTaskCreate(RxTask,"RxTask",RX_STACK_SIZE, NULL, RX_PRIORITY,NULL);
+    xTaskCreate(Ax25Task,"Ax25Task",AX25_STACK_SIZE, NULL, AX25_PRIORITY,NULL);
+    xTaskCreate(PbTask,"PbTask",PB_STACK_SIZE, NULL, PB_PRIORITY,NULL);
+    xTaskCreate(UplinkTask,"UplinkTask",UPLINK_STACK_SIZE, NULL, UPLINK_PRIORITY,NULL);
 
     xTaskCreate(TxTask,"Radio",RADIO_STACK_SIZE, NULL,TX_PRIORITY,NULL);
 

@@ -72,7 +72,7 @@ int decode_call_and_command(uint8_t *c, char *call, int *final_call, int *comman
 int decode_call(uint8_t *c, char *call);
 int encode_call(char *name, uint8_t *buf, int final_call, int command);
 uint8_t ax25_decode_packet(uint8_t *packet, int len, AX25_PACKET *decoded_packet);
-uint8_t ax25_encode_packet(AX25_PACKET *packet, uint8_t *encoded_packet, int max_len);
+void ax25_copy_packet(AX25_PACKET *packet, AX25_PACKET *to_packet);
 int print_packet(char *label, uint8_t *packet, int len);
 int print_decoded_packet(char *label, AX25_PACKET *decoded);
 

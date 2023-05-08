@@ -274,6 +274,29 @@ uint8_t ax25_decode_packet(uint8_t *packet, int len, AX25_PACKET *decoded_packet
     return TRUE;
 }
 
+void ax25_copy_packet(AX25_PACKET *packet, AX25_PACKET *to_packet) {
+    int i;
+    to_packet->frame_type = packet->frame_type;
+    for (i=0; i< MAX_CALLSIGN_LEN; i++)
+        to_packet->to_callsign[i] = packet->to_callsign[i];
+    for (i=0; i< MAX_CALLSIGN_LEN; i++)
+        to_packet->from_callsign[i] = packet->from_callsign[i];
+    for (i=0; i< MAX_CALLSIGN_LEN; i++)
+        to_packet->via_callsign[i] = packet->to_callsign[i];
+    to_packet->command = packet->command;
+    to_packet->control = packet->control;
+    to_packet->NR = packet->NR;
+    to_packet->NS = packet->NS;
+    to_packet->PF = packet->PF;
+    to_packet->pid = packet->pid;
+    to_packet->data_len = packet->data_len;
+    if (packet->data_len != 0) {
+    for (i=0; i< AX25_MAX_INFO_BYTES_LEN; i++)
+        packet->data[i] = packet->data[i];
+    }
+
+}
+
 ///**
 // * Given a packet, encode it into the encoded_packet buffer which has max_len
 // * Return the length of the encoded packet

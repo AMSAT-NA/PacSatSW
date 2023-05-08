@@ -48,7 +48,7 @@ typedef enum {
 typedef struct {
     rx_channel_t channel;
     AX25_primative_t primative;
-    AX25_PACKET *packet; // This is NULL for simple primatives
+    AX25_PACKET packet; // This needs to be a copy to avoid the data being changed before it is processed
 } AX25_event_t;
 
 typedef enum {

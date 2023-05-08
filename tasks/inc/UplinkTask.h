@@ -8,6 +8,8 @@
 #ifndef TASKS_INC_UPLINKTASK_H_
 #define TASKS_INC_UPLINKTASK_H_
 
+#include "config.h"
+
 #define FTL0_PFH_BIT 2
 #define FTL0_VERSION_BIT1 0
 #define FTL0_VERSION_BIT2 1
@@ -59,7 +61,7 @@ typedef enum
 /* The server sends these packets */
 typedef struct {
     uint32_t login_time;
-    unsigned char login_flags;
+    uint8_t login_flags;
 } FTL0_LOGIN_DATA;
 
 typedef struct {
@@ -73,5 +75,17 @@ typedef struct {
     uint32_t file_length;
 } FTL0_UPLOAD_CMD;
 
+typedef struct {
+    uplink_state_t dl_state;
+    rx_channel_t channel;             /* Radio A, B, C, D */
+    char callsign[MAX_CALLSIGN_LEN];
+    AX25_PACKET decoded_packet;
+    AX25_PACKET response_packet;
+} ftl0_state_machine_t;
 
 #endif /* TASKS_INC_UPLINKTASK_H_ */
+
+/*
+ * Routine prototypes
+ */
+void UplinkTask(void *pvParameters);

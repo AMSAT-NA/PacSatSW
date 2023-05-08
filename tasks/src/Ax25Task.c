@@ -36,17 +36,17 @@ void ax25_send_ua(rx_channel_t channel, AX25_PACKET *packet, AX25_PACKET *respon
 void ax25_send_response(rx_channel_t channel, ax25_frame_type_t frame_type, AX25_PACKET *packet, AX25_PACKET *response_packet);
 
 /* State Machine functions */
-void ax25_next_state_from_primative(AX25_data_link_state_machine_t *dl_state_info, AX25_primative_t primative);
+void ax25_next_state_from_primative(AX25_data_link_state_machine_t *dl_state_info, AX25_event_t *event);
 void ax25_next_state_from_packet(AX25_data_link_state_machine_t *dl_state_info, AX25_PACKET *decoded_packet);
-void ax25_state_disc_prim(AX25_data_link_state_machine_t *dl_state_info, AX25_primative_t prim);
+void ax25_state_disc_prim(AX25_data_link_state_machine_t *dl_state_info, AX25_event_t *event);
 void ax25_state_disc_packet(AX25_data_link_state_machine_t *dl_state_info, AX25_PACKET *packet);
-void ax25_state_wait_conn_prim(AX25_data_link_state_machine_t *dl_state_info, AX25_primative_t prim);
+void ax25_state_wait_conn_prim(AX25_data_link_state_machine_t *dl_state_info, AX25_event_t *event);
 void ax25_state_wait_conn_packet(AX25_data_link_state_machine_t *dl_state_info, AX25_PACKET *packet);
-void ax25_state_wait_release_prim(AX25_data_link_state_machine_t *dl_state_info, AX25_primative_t prim);
+void ax25_state_wait_release_prim(AX25_data_link_state_machine_t *dl_state_info, AX25_event_t *event);
 void ax25_state_wait_release_packet(AX25_data_link_state_machine_t *dl_state_info, AX25_PACKET *packet);
-void ax25_state_connected_prim(AX25_data_link_state_machine_t *dl_state_info, AX25_primative_t prim);
+void ax25_state_connected_prim(AX25_data_link_state_machine_t *dl_state_info, AX25_event_t *event);
 void ax25_state_connected_packet(AX25_data_link_state_machine_t *dl_state_info, AX25_PACKET *packet);
-void ax25_state_timer_rec_prim(AX25_data_link_state_machine_t *dl_state_info, AX25_primative_t prim);
+void ax25_state_timer_rec_prim(AX25_data_link_state_machine_t *dl_state_info, AX25_event_t *event);
 void ax25_state_timer_rec_packet(AX25_data_link_state_machine_t *dl_state_info, AX25_PACKET *packet);
 
 /* State Machine Helper functions */
@@ -58,10 +58,12 @@ void transmit_enquiry(AX25_data_link_state_machine_t *state, AX25_PACKET *packet
 static xTimerHandle timerT1[NUM_OF_RX_CHANNELS];
 static xTimerHandle timerT3[NUM_OF_RX_CHANNELS];
 
-static rx_radio_buffer_t ax25_radio_buffer;
-//static uint8_t ax25_packet_buffer[AX25_PKT_BUFFER_LEN]; /* Static buffer used to store packet as it is processed and before copy to next queue */
+static rx_radio_buffer_t ax25_radio_buffer; /* Static storage for packets from the radio */
 static AX25_data_link_state_machine_t data_link_state_machine[NUM_OF_RX_CHANNELS];
 static const AX25_PACKET EMPTY_PACKET; // Use this to reset packet to zero
+static AX25_event_t ax25_received_event; /* Static storage for received event */
+static AX25_event_t send_event_buffer; /* Static storage for event we are sending */
+static AX25_event_t timer_event; /* Static storage for timer events */
 
 portTASK_FUNCTION_PROTO(Ax25Task, pvParameters)  {
 
@@ -78,12 +80,11 @@ portTASK_FUNCTION_PROTO(Ax25Task, pvParameters)  {
     timerT3[Channel_A] = xTimerCreate( "T3_0", AX25_TIMER_T3_PERIOD, FALSE, (void *)Channel_A, ax25_t3_expired); // single shot timer
 
     // test
-//    start_timer(timerT1[Channel_A]);
+    start_timer(timerT1[Channel_A]);
 //    start_timer(timerT3[Channel_A]);
 
     while(1) {
 
-        // TODO - we will need to know the channel that this came in on
         BaseType_t xStatus = xQueueReceive( xRxPacketQueue, &ax25_radio_buffer, CENTISECONDS(1) );  // Wait to see if data available
         if( xStatus == pdPASS ) {
             /* Data was successfully received from the queue */
@@ -101,14 +102,13 @@ portTASK_FUNCTION_PROTO(Ax25Task, pvParameters)  {
         /* Yield some time so any packets are sent, or so that others may do some processing */
         vTaskDelay(CENTISECONDS(1));
         ReportToWatchdog(CurrentTaskWD);
-        AX25_event_t ax25_event;
-        xStatus = xQueueReceive( xRxEventQueue, &ax25_event, CENTISECONDS(1) );  // Wait to see if data available
+        xStatus = xQueueReceive( xRxEventQueue, &ax25_received_event, CENTISECONDS(1) );  // Wait to see if data available
         if( xStatus == pdPASS ) {
-            if (ax25_event.channel >= NUM_OF_RX_CHANNELS) {
+            if (ax25_received_event.channel >= NUM_OF_RX_CHANNELS) {
                 // something is seriously wrong.  Programming error.  Unlikely to occur in flight
-                debug_print("ERR: AX25 channel %d is invalid\n",ax25_event.channel);
+                debug_print("ERR: AX25 channel %d is invalid\n",ax25_received_event.channel);
             } else {
-                ax25_next_state_from_primative(&data_link_state_machine[ax25_event.channel], ax25_event.primative);
+                ax25_next_state_from_primative(&data_link_state_machine[ax25_received_event.channel], &ax25_received_event);
             }
         }
 
@@ -164,13 +164,11 @@ void ax25_send_status() {
  *
  */
 void ax25_t1_expired(TimerHandle_t xTimer) {
-    AX25_event_t ax25_event;
     uint32_t chan = (uint32_t)pvTimerGetTimerID( xTimer ); // timer id is treated as an integer and not as a pointer
     trace_dl("AX25: Channel %d. Timer T1 Expiry Int\n", (rx_channel_t)chan);
-    ax25_event.primative = DL_TIMER_T1_Expire;
-    ax25_event.channel = (rx_channel_t)chan;
-    ax25_event.packet = NULL;
-    BaseType_t xStatus = xQueueSendToBack( xRxEventQueue, &ax25_event, 0 ); // Do not block as this is called from timer
+    timer_event.primative = DL_TIMER_T1_Expire;
+    timer_event.channel = (rx_channel_t)chan;
+    BaseType_t xStatus = xQueueSendToBack( xRxEventQueue, &timer_event, 0 ); // Do not block as this is called from timer
     if( xStatus != pdPASS ) {
         debug_print("EVENT QUEUE FULL: Could not add T1 expire to Event Queue\n");
         // TODO - we should log this error and downlink in telemetry
@@ -178,13 +176,11 @@ void ax25_t1_expired(TimerHandle_t xTimer) {
 }
 
 void ax25_t3_expired(TimerHandle_t xTimer) {
-    AX25_event_t ax25_event;
     uint32_t chan = (uint32_t)pvTimerGetTimerID( xTimer ); // timer id is treated as an integer and not as a pointer
     trace_dl("AX25: Channel %d. Timeout... Timer T3 Expiry Int\n", (rx_channel_t)chan);
-    ax25_event.primative = DL_TIMER_T3_Expire;
-    ax25_event.channel = (rx_channel_t)chan;
-    ax25_event.packet = NULL;
-    BaseType_t xStatus = xQueueSendToBack( xRxEventQueue, &ax25_event, 0 ); // Do not block as this is called from timer
+    timer_event.primative = DL_TIMER_T3_Expire;
+    timer_event.channel = (rx_channel_t)chan;
+    BaseType_t xStatus = xQueueSendToBack( xRxEventQueue, &timer_event, 0 ); // Do not block as this is called from timer
     if( xStatus != pdPASS ) {
         debug_print("EVENT QUEUE FULL: Could not add T3 expire to Event Queue\n");
         // TODO - we should log this error and downlink in telemetry
@@ -358,26 +354,26 @@ void ax25_next_state_from_packet(AX25_data_link_state_machine_t *dl_state_info, 
     }
 }
 
-void ax25_next_state_from_primative(AX25_data_link_state_machine_t *dl_state_info, AX25_primative_t primative) {
+void ax25_next_state_from_primative(AX25_data_link_state_machine_t *dl_state_info, AX25_event_t *event) {
     switch (dl_state_info->dl_state) {
         case DISCONNECTED : {
-            ax25_state_disc_prim(dl_state_info, primative);
+            ax25_state_disc_prim(dl_state_info, event);
             break;
         }
         case AWAITING_CONNECTION : {
-            ax25_state_wait_conn_prim(dl_state_info, primative);
+            ax25_state_wait_conn_prim(dl_state_info, event);
             break;
         }
         case AWAITING_RELEASE : {
-            ax25_state_wait_release_prim(dl_state_info, primative);
+            ax25_state_wait_release_prim(dl_state_info, event);
             break;
         }
         case CONNECTED : {
-            ax25_state_connected_prim(dl_state_info, primative);
+            ax25_state_connected_prim(dl_state_info, event);
             break;
         }
         case TIMER_RECOVERY : {
-            ax25_state_timer_rec_prim(dl_state_info, primative);
+            ax25_state_timer_rec_prim(dl_state_info, event);
             break;
         }
         case AWAITING_V2_2_CONNECTION : {
@@ -392,9 +388,9 @@ void ax25_next_state_from_primative(AX25_data_link_state_machine_t *dl_state_inf
 /**
  * Data Link DISCONNECTED State
  */
-void ax25_state_disc_prim(AX25_data_link_state_machine_t *state, AX25_primative_t prim) {
+void ax25_state_disc_prim(AX25_data_link_state_machine_t *state, AX25_event_t *event) {
     trace_dl("AX25: STATE DISC (prim): ");
-    switch (prim) {
+    switch (event->primative) {
         case DL_DISCONNECT_Request : {
             trace_dl("Disconnect Request from Layer 3\n");
             break;
@@ -445,8 +441,19 @@ void ax25_state_disc_packet(AX25_data_link_state_machine_t *state, AX25_PACKET *
             state->VA = 0;
             state->VR = 0;
 
-            // TODO - send DL_CONNECT_Indication to Layer 3
-
+            // Send DL_CONNECT_Indication to Layer 3
+            send_event_buffer.channel = state->channel;
+            send_event_buffer.primative = DL_CONNECT_Indicate;
+            ax25_copy_packet(packet, &send_event_buffer.packet);
+            BaseType_t xStatus = xQueueSendToBack( xUplinkEventQueue, &send_event_buffer, CENTISECONDS(1) );
+            if( xStatus != pdPASS ) {
+                /* The send operation could not complete because the queue was full */
+                debug_print("UPLINK QUEUE FULL: Could not add to Event Queue\n");
+                // TODO - we should log this error and downlink in telemetry
+                return;
+            } else {
+                trace_dl("Added event to uplink: %d\n",send_event_buffer.primative);
+            }
             // NOT IMPLEMENTED - SRT and T1V are not calculated and set
 
             start_timer(timerT3[state->channel]);
@@ -478,7 +485,7 @@ void ax25_state_disc_packet(AX25_data_link_state_machine_t *state, AX25_PACKET *
 /**
  * Data Link Wait Connection State
  */
-void ax25_state_wait_conn_prim(AX25_data_link_state_machine_t *state, AX25_primative_t prim) {
+void ax25_state_wait_conn_prim(AX25_data_link_state_machine_t *state, AX25_event_t *event) {
 }
 
 void ax25_state_wait_conn_packet(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
@@ -487,7 +494,7 @@ void ax25_state_wait_conn_packet(AX25_data_link_state_machine_t *state, AX25_PAC
 
 
 
-void ax25_state_wait_release_prim(AX25_data_link_state_machine_t *state, AX25_primative_t prim) {
+void ax25_state_wait_release_prim(AX25_data_link_state_machine_t *state, AX25_event_t *event) {
 
 }
 
@@ -497,15 +504,23 @@ void ax25_state_wait_release_packet(AX25_data_link_state_machine_t *state, AX25_
 
 
 
-void ax25_state_connected_prim(AX25_data_link_state_machine_t *state, AX25_primative_t prim) {
+void ax25_state_connected_prim(AX25_data_link_state_machine_t *state, AX25_event_t *event) {
     trace_dl("AX25: STATE CONNECTED (prim): ");
-    switch (prim) {
+    switch (event->primative) {
         case DL_DISCONNECT_Request : {
             trace_dl("Disconnect Request from Layer 3\n");
             break;
         }
         case DL_DATA_Request : {
             trace_dl("Send DATA Request from Layer 3\n");
+            print_decoded_packet("Putting I-frame on Queue: ",&(event->packet));
+            // TODO - for now just send this
+            bool rc = tx_send_packet(event->channel, &(event->packet), NOT_EXPEDITED, BLOCK);
+            if (rc == FALSE) {
+                // TODO - handle error
+                debug_print("ERR: Could not queue I frame\n");
+            }
+
             break;
         }
 
@@ -561,7 +576,7 @@ void ax25_state_connected_packet(AX25_data_link_state_machine_t *state, AX25_PAC
 
 
 
-void ax25_state_timer_rec_prim(AX25_data_link_state_machine_t *state, AX25_primative_t prim) {
+void ax25_state_timer_rec_prim(AX25_data_link_state_machine_t *state, AX25_event_t *event) {
 
 }
 

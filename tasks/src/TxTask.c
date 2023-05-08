@@ -147,7 +147,7 @@ bool tx_make_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint
  * Make an arbitrary packet based on the packet structure
  *
  * Returns true unless there is an error
- *
+ * TODO - this should be in ax25_util and be called encode_packet()
  */
 bool tx_make_packet(AX25_PACKET *packet, uint8_t *raw_bytes) {
     uint8_t packet_len;
@@ -160,6 +160,8 @@ bool tx_make_packet(AX25_PACKET *packet, uint8_t *raw_bytes) {
         case TYPE_I : {
             packet->control = (packet->NR << 5) | (packet->PF << 4) | (packet->NS << 1) | 0b00;
             header_len = 17; // make room for pid
+            packet->pid = 0xF0;
+            packet->command = AX25_COMMAND;
             break;
         }
         case TYPE_S_RR : {
@@ -214,7 +216,7 @@ bool tx_make_packet(AX25_PACKET *packet, uint8_t *raw_bytes) {
         }
         case TYPE_U_UI : {
             packet->control = (packet->PF << 4) | (BITS_UI);
-            header_len = 17; // room for pid
+            header_len = 17; // room for pid, which has to be set in the packet already
             break;
         }
         case TYPE_U_XID : {
