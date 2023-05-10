@@ -137,6 +137,7 @@ void startup(void)
      */
     rtiInit();
     rtiStartCounter(rtiCOUNTER_BLOCK0);
+#if HET
     /*
      * The two High-end Timers are used for the console (COM1) and for a secondary I2c (I2C2)
      */
@@ -145,6 +146,7 @@ void startup(void)
     //HetI2CInit();
     HetI2CStop();
 #endif
+#endif
 
     /*
      * Many of the devices that are working now only via the HalCoGen routines still use interrupt...
@@ -152,9 +154,9 @@ void startup(void)
      */
 
     _enable_interrupt_();
-
+#ifdef HET
     HetUARTSetBaudrate(hetRAM1,COM1_BAUD);
-
+#endif
     /* Serial port and LEDs */
     hetREG1->DIR=0x00000017; //We want them to start out as output, I suppose.
     hetREG1->DOUT=0x00000017;

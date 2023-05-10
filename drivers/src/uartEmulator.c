@@ -1,3 +1,4 @@
+#if HET
 #include <HET_EMU_SCI.h>
 #include <pacsat.h>
 #include "het.h"
@@ -129,3 +130,4 @@ void HetUARTInit(void){
     GPIOSetPinDirection(hetPORT1, COM1_HET_Rx_Pin, false); // And the Rx pin direction to in
     hetREG1->GCR = 0x01030001;  // Enable the UART emulator
 }
+#endif

@@ -109,11 +109,12 @@ static xSemaphoreHandle usartTxInUseSemaphore[numCOM] = { 0, 0, 0 };
 static void *serialDevice[numCOM] = {(void *)COM1_Port,(void *)COM2_Port,(void *)COM3_Port};
 static bool RxInUse[numCOM]={false,false,false};
 
-// The following are only for HET emulations and are based on the HET UART port number
+#if HET// The following are only for HET emulations and are based on the HET UART port number
 
 static bool TxInterruptExpected[]={false,false};
 static hetRAMBASE_t *hetRamBase[] = {hetRAM1,hetRAM2};
 static hetBASE_t *hetRegBase[] = {hetREG1,hetREG2};
+#endif
 /*
  * Initialize a structure for each com port.  COM1_ and COM2_xxx defined in hardwareDefinitions.h
  */
@@ -149,18 +150,21 @@ bool SerialInitPort(COM_NUM comPort, unsigned int baud, unsigned int qLengthRx,
     /*
      * Set up baud rate and tell it to use interrupts
      */
+#if HET
     if(((unsigned int)serialDevice[comPort]<10)) /* It is a HET index, not an address */
     {
         unsigned int hetIndex = (unsigned int)serialDevice[comPort];
         HetUARTSetBaudrate(hetRamBase[hetIndex],baud);
         HetUARTEnableNotification(hetRegBase[hetIndex]);
     }
-    else { // Assume an SCI device
+    else
+#endif
+        { // Assume an SCI device
         sciSetBaudrate(serialDevice[comPort], baud);
         sciEnableNotification(serialDevice[comPort],SCI_TX_INT|SCI_RX_INT);
         return (xSemaphoreTake(usartTxDoneSemaphore[comPort],SHORT_WAIT_TIME)==pdTRUE);
     }
-    return true;
+//    return true;
 }
 /*-----------------------------------------------------------*/
 
@@ -200,7 +204,7 @@ bool SerialGetChar(COM_NUM com, char *rxedChar, portTickType timeout)
     RxInUse[com] = false;
     return retVal;
 }
-
+#if HET
 static inline bool InternalSerialPutChar(COM_NUM comNum, const char *pOutChar,
                                          portTickType xBlockTime,bool OSRunning)
 {
@@ -234,7 +238,7 @@ static inline bool InternalSerialPutChar(COM_NUM comNum, const char *pOutChar,
         return TRUE;
     }
 }
-
+#endif
 
 void SerialPutStringInternal(COM_NUM com, const char* string, int length)
 {
@@ -254,7 +258,7 @@ void SerialPutStringInternal(COM_NUM com, const char* string, int length)
      * 3) Error in progress:  "ErrorInProgress" global variable is true.
      */
     bool OSRunning = !(xCharsToTx[com] == 0);
-    const char *ourString = string;
+    //const char *ourString = string;
     sciBASE_t *ourDevice = serialDevice[com];
     if (length == 0)
         length = strlen(string);
@@ -274,6 +278,7 @@ void SerialPutStringInternal(COM_NUM com, const char* string, int length)
     }
     /* Send each character in the string, one at a time. */
     else {
+#if HET /* We are not really using the bit-bang interface */
         /*
          * Here is for the bit-bang interface
          */
@@ -283,6 +288,7 @@ void SerialPutStringInternal(COM_NUM com, const char* string, int length)
             InternalSerialPutChar(com,ourString,SHORT_WAIT_TIME,OSRunning);
             ourString++; // Go to next char
         };
+#endif
     }
 }
 
@@ -331,12 +337,15 @@ bool SerialPutChar(COM_NUM comNum, char c, portTickType xBlockTime)
             return false;
         }
     }
+#if HET /* Not using bit-bang in any form */
     if((unsigned int)ourDevice < 10){
         /*
          * Use special routine for bitbang
          */
         InternalSerialPutChar(comNum,&internalChar,SHORT_WAIT_TIME,OSRunning);
-    } else {
+    } else
+#endif
+    {
         /*
          * Use the HALCoGen routine for a real UART.  It works both with and w/o the OS
          */
@@ -368,6 +377,7 @@ __interrupt void RTI1Interrupt(void)
     rtiREG1->INTFLAG = 0x00000002U;
 }
 
+#if HET
 //void hetNotification(hetBASE_t *het, uint32 offset)
 void serialHETInterrupt(uint32 offset){
 
@@ -412,7 +422,7 @@ void serialHETInterrupt(uint32 offset){
         xQueueSendFromISR(xRxedChars[comNum],&newChar,&woken);
     }
 }
-
+#endif
 
 /*
  * Here is a callback from the HALCoGen sci support code for Rx

@@ -8,6 +8,7 @@
  *  I don't think I will.
  *
  */
+#if HET
 #include "het.h"
 #include "serialDriver.h"
 #include "uartEmulator.h"
@@ -16,5 +17,5 @@ void hetNotification(hetBASE_t *het, uint32 offset){
     if (het == hetREG1)serialHETInterrupt(offset);
     else i2cHETInterrupt(offset);
 }
-
+#endif
 

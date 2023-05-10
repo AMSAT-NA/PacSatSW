@@ -1,3 +1,4 @@
+#if HET
 /*
  * HET_EMU.h
  *
@@ -33,3 +34,4 @@ char HetI2C2GetChar(void);
 
 
 #endif /* HET_EMU_H_ */
+#endif
