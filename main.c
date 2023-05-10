@@ -10,10 +10,8 @@
 #define MAIN_FUNCTION
 /* Common headers */
 
-#include <i2cEmulator.h>
 #include <pacsat.h>
 #include <stdarg.h>
-#include <uartEmulator.h>
 #include "sys_common.h"
 #include "system.h"
 #include "sys_core.h"
@@ -109,7 +107,6 @@ void startup(void)
     InitErrors();
     gioInit();
     muxInit();
-    hetInit();
     sciInit();
     sciDisableNotification(sciREG,SCI_TX_INT | SCI_RX_INT); // No interrupts before we start the OS
     sciSetBaudrate(sciREG, COM2_BAUD);
@@ -137,16 +134,6 @@ void startup(void)
      */
     rtiInit();
     rtiStartCounter(rtiCOUNTER_BLOCK0);
-#if HET
-    /*
-     * The two High-end Timers are used for the console (COM1) and for a secondary I2c (I2C2)
-     */
-    HetUARTInit();
-#ifndef RTIHU_ALL_I2C1
-    //HetI2CInit();
-    HetI2CStop();
-#endif
-#endif
 
     /*
      * Many of the devices that are working now only via the HalCoGen routines still use interrupt...
