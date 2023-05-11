@@ -121,7 +121,7 @@ static PB_ENTRY pb_list[MAX_PB_LENGTH];
 
 static uint8_t number_on_pb = 0; /* This keeps track of how many stations are in the pb_list array */
 static uint8_t current_station_on_pb = 0; /* This keeps track of which station we will send data to next */
-extern bool pb_shut;
+extern bool pb_shut; // TODO - this should be in MRAM and be commandable
 
 
 /* Local Function prototypes */

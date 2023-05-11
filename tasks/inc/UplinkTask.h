@@ -76,11 +76,13 @@ typedef struct {
 } FTL0_UPLOAD_CMD;
 
 typedef struct {
-    uplink_state_t dl_state;
+    uplink_state_t ul_state;
     rx_channel_t channel;             /* Radio A, B, C, D */
     char callsign[MAX_CALLSIGN_LEN];
-    AX25_PACKET decoded_packet;
-    AX25_PACKET response_packet;
+    int file_id; /* File id of the file being uploaded */
+    uint32_t request_time; /* The time the request was received for timeout purposes */
+    //AX25_PACKET decoded_packet;
+    //AX25_PACKET response_packet;
 } ftl0_state_machine_t;
 
 #endif /* TASKS_INC_UPLINKTASK_H_ */

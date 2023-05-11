@@ -45,10 +45,41 @@ typedef enum {
     DL_TIMER_T3_Expire
 } AX25_primative_t;
 
+/*
+ * Error Codes
+ */
+typedef enum {
+    ERROR_A,
+    ERROR_B,
+    ERROR_C,
+    ERROR_D,
+    ERROR_E,
+    ERROR_F,
+    ERROR_G,
+    ERROR_H,
+    ERROR_I,
+    ERROR_J,
+    ERROR_K,
+    ERROR_L,
+    ERROR_M,
+    ERROR_N,
+    ERROR_O,
+    ERROR_P,
+    ERROR_Q,
+    ERROR_R,
+    ERROR_S,
+    ERROR_T,
+    ERROR_U,
+    ERROR_V,
+    NO_ERROR
+} ax25_error_t;
+
+
 typedef struct {
     rx_channel_t channel;
     AX25_primative_t primative;
     AX25_PACKET packet; // This needs to be a copy to avoid the data being changed before it is processed
+    ax25_error_t error_num;
 } AX25_event_t;
 
 typedef enum {
@@ -75,29 +106,6 @@ typedef struct {
     bool srej_exception;     /* A selective reject has been sent to the remote station */
     bool achnowledge_pending; /* I frames received but not yet acknowledged to the remote station */
 } AX25_data_link_state_machine_t;
-
-/*
- * Error Codes
- */
-#define ERROR_A "F=1 received but P=1 not outstanding.";
-#define ERROR_B "Unexpected DM with F=1 in states 3, 4 or 5.";
-#define ERROR_C "Unexpected UA in states 3, 4 or 5.";
-#define ERROR_D "UA received without F=1 when SABM or DISC was sent P=1.";
-#define ERROR_E "DM received in states 3, 4 or 5.";
-#define ERROR_F "Data link reset; i.e., SABM received in state 3, 4 or 5.";
-#define ERROR_I "N2 timeouts: unacknowledged data.";
-#define ERROR_J "N(r) sequence ERROR_.";
-#define ERROR_L "Control field invalid or not implemented.";
-#define ERROR_M "Information field was received in a U or S-type frame.";
-#define ERROR_N "Length of frame incorrect for frame type.";
-#define ERROR_O "I frame exceeded maximum allowed length.";
-#define ERROR_P "N(s) out of the window.";
-#define ERROR_Q "UI response received, or UI command with P=1 received.";
-#define ERROR_R "UI frame exceeded maximum allowed length.";
-#define ERROR_S "I response received.";
-#define ERROR_T "N2 timeouts: no response to enquiry.";
-#define ERROR_U "N2 timeouts: extended peer busy condition.";
-#define ERROR_V "No DL machines available to establish connection.";
 
 /*
  * Routine prototypes

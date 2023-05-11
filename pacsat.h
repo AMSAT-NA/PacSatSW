@@ -27,7 +27,7 @@
 #define EXIT_SUCCESS 0
 #define EXIT_FAILURE 1
 
-/* GLOBAL VARIABLE DECLARATIONS - these are then defined in main.c
+/* GLOBAL VARIABLE DECLARATIONS - these are then defined in main.c or where they are first used
  * Declare the queues that are available to all tasks */
 extern QueueHandle_t xRxPacketQueue; // This queue holds packets that have just been received and need to be processed by the Ax25Task / Data Link State Machine
 extern QueueHandle_t xRxEventQueue; // This queue holds events that need to be processed by the Ax25Task / Data Link State Machine
@@ -35,6 +35,7 @@ extern QueueHandle_t xPbPacketQueue; // This holds packets that need to be proce
 extern QueueHandle_t xUplinkEventQueue; // This queue holds events/packets that need to be processed by the Uplink Task / State Machine
 extern QueueHandle_t xTxPacketQueue; // This queue holds packets that are going to be transmitted
 
+extern bool uplink_closed; // TODO - this should be in MRAM and commandable.  Should persist through reset
 
 /* Let's skip stdio which has a lot of stuff and just define printf */
 extern int printf(const char *fmt, ...);
