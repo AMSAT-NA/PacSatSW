@@ -16,7 +16,6 @@
 #include "hardwareConfig.h"
 #include "het.h"
 #include "i2cDriver.h"
-#include "i2cEmulator.h"
 #include "gpioDriver.h"
 
 /* FreeRTOS includes. */
@@ -70,7 +69,7 @@ static volatile bool waitingForSemaphore[] = {false,false};
 
 /* Forward (i.e. internal only) routine declarations */
 
-static inline bool DoIO(void),DoEmulatedIO(void);
+static inline bool DoIO(void);
 
 /*
  * Here are the externally callable routines (in i2cdriver.h)
@@ -211,11 +210,11 @@ bool I2cSendCommand (I2cBusNum busNum, uint32_t address, void *sndBuffer,uint16_
     thisBusData->TxBuffer = sndBuffer;
     thisBusData->RxBytes=rcvLength;
     thisBusData->TxBytes=sndLength;
-    if(busAddress[busNum != 0]){
+    //if(busAddress[busNum != 0]){
         retVal = DoIO();
-    } else {
-        retVal = DoEmulatedIO();
-    }
+    //} else {
+    //    retVal = DoEmulatedIO();
+    //}
     if(busUsingOS[busNum]){
         xSemaphoreGive(thisBusData->I2cInUseSemaphore);
         taskWithSemaphore = 0;
@@ -414,150 +413,3 @@ void i2cNotification(i2cBASE_t *i2cDev,uint32_t interruptType)
     }
 }
 
-/////////////////////////////////////This is for the N2HET-emulated I2c master////////////////////
-static inline bool DoEmulatedIO(void){
-    int busNum = EMU_I2C_BUS;
-    char firstOp,firstByteCount=0;
-    bool doAddrInterrupt = true,sendStopBit=true;
-    I2cBusData *thisBusData = I2cBuses[busNum];
-    /*
-     * Here is where we actually call the emulator routines.  It is simpler
-     * than the hardware I2c "DoIO" routine above, I suppose because the emulator
-     * is less flexible and has fewer calls.
-     *
-     * Start off initializing the bus data
-     */
-    successFlag[busNum] = true;
-    thisBusData->TxIndex = 0;
-    thisBusData->RxIndex = 0;
-    /*
-     * Here we do an initial send.  We always send an address first, but the way the emulator
-     * works, we need to know what we are doing next also.
-     */
-    if (thisBusData->TxBytes != 0){
-        /*
-         * Here we know we are sending at least one byte after the address, so the op that
-         * we tell the address routine is write and the number of bytes is, well, the number
-         * of bytes to write.
-         */
-        firstOp = I2C_EMU_WRITE;
-        firstByteCount = (char)thisBusData->TxBytes;
-        doAddrInterrupt = true; // We need an interrupt after the address
-        if(thisBusData->RxBytes != 0){
-            /*
-             * We also need to figure out what will happen AFTER all those writes are complete.  In this cae
-             * we will want to receive, so flag that after the address and its writes, no stop bit and that we
-             * will re-send the address for the read.
-             */
-            thisBusData->resendAddress = true; // We are sending AND receiving.  Need to resend the address for the Rx.
-            sendStopBit = false; // No stop bit between send and receive
-        } else {
-            // Here we sent address (and maybe data) but we are not receiving anything
-            thisBusData->resendAddress = false;
-        }
-    } else if (thisBusData->RxBytes != 0){
-        /*
-         * And here is where we have nothing to send other than the address, only read.  So no interrupt required
-         * after the address.  We will get an Rx interrupt and that tells us to get the incoming data.
-         */
-        firstOp = I2C_EMU_READ;
-        firstByteCount = thisBusData->RxBytes;
-        doAddrInterrupt = false; // If we are only receiving, no interrupt required on the address transmit
-    }
-    // Start it up.  The reset of the transfer happens in the interrupt routine.
-    HetI2CPutAddr((char)thisBusData->SlaveAddress,firstOp,firstByteCount,
-                  (char)doAddrInterrupt?1:0,(char)sendStopBit?1:0);
-
-
-    if(busUsingOS[busNum]){
-        // If the OS is running wait using a semaphore (released below by the interrupt routine)
-        if(xSemaphoreTake(thisBusData->I2cDoneSemaphore,SHORT_WAIT_TIME)!=pdTRUE){
-            ReportError(I2cError[busNum],false,ReturnAddr,(int)__builtin_return_address(0));
-            successFlag[busNum] = false;
-        }
-        //xSemaphoreGive(thisBusData->I2cInUseSemaphore);
-    } else {
-        //If no OS, loop waiting for the flag (set below by the interrupt routine)
-        while(waitFlag[busNum]){};
-        waitFlag[busNum] = true;
-    }
-    /*
-     * This section is intended to reset the I2c master hardware if the bus hangs.  I don't think that is
-     * required for the emulator because if the emulator times out (which is why it would say there was an
-     * error in the first place) I think it inits itself.  But if needed, we COULD call the het and emulator
-     * init routines again to re-copy the microcode (including state data).
-     */
-
-    if(!successFlag[busNum]){
-        HetI2CInit();
-        gioSetBit(I2c2_HET_Port,I2c2_HET_SCL_Pin,1);
-        gioSetBit(I2c2_HET_Port,I2c2_HET_SDA_Pin,1);
-    }
-    return successFlag[busNum];
-}
-/*
- * Following is the interrupt routine for N2HET2 on the RT-IHU.  It is called from the HETInterrupt module
- * which contains the HalCoGen notify routine for both N2HET2 and N2HET1 and figures out which one to call.
- */
-void i2cHETInterrupt(uint32_t offset){
-    int busNum = I2C2; // We know this is the emulated bus, which is bus 2
-    I2cBusData *thisBusData = I2cBuses[busNum];
-    bool giveSemaphore = false;
-    switch (offset)
-    {
-    case 11: {/*Transmit interrupt */
-        int txBytes = thisBusData->TxBytes,txIndex = thisBusData->TxIndex++;
-        if(txIndex < txBytes){
-            HetI2CPutData(thisBusData->TxBuffer[txIndex],1);//Send the next byte of data
-        } else if(txIndex == txBytes && thisBusData->RxBytes > 0){ //Index == Bytes means we have not sent the address
-            //Done transmit, but there is some to receive, so send addr again.  No interrupt required for the address
-            // transmit since the microcode will go on and read back immediately.  But we do want a stop bit.
-
-            HetI2CPutAddr((char)thisBusData->SlaveAddress,I2C_EMU_READ,thisBusData->RxBytes,0,1);
-        } else {
-            giveSemaphore = true;
-        }
-        break;
-    }
-    case 15:{ /* Rx interrupt */
-        char data;
-        int rxBytes = thisBusData->RxBytes,rxIndex = thisBusData->RxIndex++;
-        if(!HetI2CGetChar(&data)){
-            // This should never fail because we got an interrupt saying it was ready
-            // So something is hosed, probably relating to switching from one processor
-            // to the other.
-            majorFailure[EMU_I2C_BUS] = true;
-            break;
-        }
-        thisBusData->RxBuffer[rxIndex++] = data;
-        if(rxIndex >= rxBytes){
-            giveSemaphore = true;
-        }
-        break;
-    }
-    case 29:{
-        // This one is NAK
-        successFlag[I2C2] = false;
-        giveSemaphore = true;
-        break;
-    }
-    case 8:
-    case 2:
-    default:
-        successFlag[I2C2] = false; //Failure of some sort
-        giveSemaphore = true;
-        // Restart the Het Emulator as much as possible
-    }
-    if(giveSemaphore){
-        // Here we have completed all ops or else failed.  Release the semaphore show mainline can continue
-
-        if(busUsingOS[I2C2]){
-            I2cBusData *thisBusData = I2cBuses[I2C2];
-            BaseType_t higherPrioTaskWoken;
-            (void)(xSemaphoreGiveFromISR(thisBusData->I2cDoneSemaphore,&higherPrioTaskWoken));
-        } else {
-            waitFlag[I2C2] = false;
-        }
-
-    }
-}

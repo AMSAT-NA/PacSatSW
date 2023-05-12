@@ -12,8 +12,6 @@
 
 /*HalCoGen headers*/
 #include <pacsat.h>
-#include <uartEmulator.h>
-#include "gio.h"
 #include "gio.h"
 #include "spi.h"
 #include "het.h"
