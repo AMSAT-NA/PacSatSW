@@ -11,11 +11,9 @@
 #include <pacsat.h>
 #include "stdarg.h"
 #include "stdlib.h"
-#include "i2cEmulator.h"
 #include "nonvolManagement.h"
 #include "sys_common.h"
 #include "serialDriver.h"
-#include "uartEmulator.h"
 #include "UplinkCommands.h"
 #include "CommandTask.h"
 #include "TelemetryRadio.h"
@@ -925,9 +923,9 @@ void RealConsoleTask(void)
         case getTemp:{
             uint8_t temp8;
             if(Get8BitTemp31725(&temp8)){
-                printf("Board temp is ");
+                printf("Pacsat board temp is ");
                 print8BitTemp(temp8);
-                printf(" (%d)\n",temp8);
+                printf("\n");
             } else {
                 printf("I2c temp request failed\n");
             }
