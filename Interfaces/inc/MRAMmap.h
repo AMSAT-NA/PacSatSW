@@ -33,16 +33,17 @@ enum _StateTypes {
     ,StateAutoSafe=1
     ,StateAutoSafeAllow=2
     ,StateCommandReceived=3
-    ,StateTransponderEnabled=4
+    ,StatePbEnabled=4         // True if the PACSAT Broadcast is enabled
     ,StateCommandTimeCheck=5
     ,StateMinMaxCRCError=6
-    ,StateIHUInCommand=7
+    ,StateUplinkEnabled=7     // True if the FTL0 Uplink is enabled
     ,StateTransmitInhibit=8
     ,StateInOrbit=9
     ,StateNormalRfPowerLevel=10
     ,StateSafeRfPowerLevel=11
     ,StateExp1Disabled
-    ,StateSpare1, StateSpare2, StateSpare3
+    ,StateAx25Rate9600       // True if we are using 9600bps packet
+    ,StateSpare1, StateSpare2
     ,MaxStates
 };
 
@@ -86,7 +87,7 @@ typedef struct _authKey {
     uint32_t magic; //Make sure it was initialized
 } AuthKey_t;
 
-#define MRAM_VERSION 2
+#define MRAM_VERSION 3
 
 /* Top level MRAM storage map */
 typedef struct {

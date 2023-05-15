@@ -25,6 +25,7 @@
 #include "ax5043_access.h"
 #include "ax5043-ax25.h"
 #include "nonvol.h"
+#include "nonvolManagement.h"
 
 
 // TODO - these bools are an array indexed by SPIDevice id
@@ -164,7 +165,8 @@ void ax5043StartRx(SPIDevice device){
     }
     if(!Rxing[device]){
 //        start_ax25_rx(device, RATE_1200);
-        start_ax25_rx(device, true, RATE_9600);
+        bool rate = ReadMRAMBoolState(StateAx25Rate9600);
+        start_ax25_rx(device, rate);
         Rxing[device]=true; Txing[device]=false;
     }
 }
@@ -185,8 +187,9 @@ void ax5043StartTx(SPIDevice device){
         ax5043PowerOn(device);
         PowerOn[device] = true;
     }
-//    start_ax25_tx(device, RATE_1200);
-    start_ax25_tx(device, false, RATE_9600);
+
+    bool rate = ReadMRAMBoolState(StateAx25Rate9600);
+    start_ax25_tx(device, rate);
     Txing[device] = true; Rxing[device] = false;
 }
 void ax5043StopTx(SPIDevice device){

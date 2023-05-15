@@ -34,8 +34,8 @@ extern QueueHandle_t xRxEventQueue; // This queue holds events that need to be p
 extern QueueHandle_t xPbPacketQueue; // This holds packets that need to be processed by the Pacsat Broadcast task
 extern QueueHandle_t xUplinkEventQueue; // This queue holds events/packets that need to be processed by the Uplink Task / State Machine
 extern QueueHandle_t xTxPacketQueue; // This queue holds packets that are going to be transmitted
+extern QueueHandle_t xIFrameQueue[NUM_OF_RX_CHANNELS]; // Queue of frames to be transmitted
 
-extern bool uplink_closed; // TODO - this should be in MRAM and commandable.  Should persist through reset
 
 /* Let's skip stdio which has a lot of stuff and just define printf */
 extern int printf(const char *fmt, ...);

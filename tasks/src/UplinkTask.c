@@ -14,6 +14,7 @@
 #include "os_task.h"
 #include "MET.h"
 #include "inet.h"
+#include "nonvolManagement.h"
 
 #include "RxTask.h"
 #include "ax25_util.h"
@@ -47,6 +48,35 @@ static AX25_event_t ax25_event; /* Static storage for event */
 static AX25_event_t send_event_buffer;
 static rx_channel_t current_channel_on_uplink; // This is the channel we will next send data to
 
+#ifdef DEBUG
+/* This decodes the AX25 error numbers.  Only used for debug. */
+char *ax25_errors_strs[] = {
+"F=1 received but P=1 not outstanding." // A,
+"Unexpected DM with F=1 in states 3, 4 or 5.", // B
+"Unexpected UA in states 3, 4 or 5.", // C
+"UA received without F=1 when SABM or DISC was sent P=1.", // D
+"DM received in states 3, 4 or 5.", // E
+"Data link reset, i.e., SABM received in state 3, 4 or 5.", // F
+"DISC retries exceeded.", // G
+"ERROR H not defined",
+"N2 timeouts: unacknowledged data.", // I
+"N(r) sequence ERROR_.", // J
+"ERROR K not defined",
+"Control field invalid or not implemented.", // L
+"Information field was received in a U or S-type frame.", // M
+"Length of frame incorrect for frame type.", // N
+"I frame exceeded maximum allowed length.", // O
+"N(s) out of the window.", // P
+"UI response received, or UI command with P=1 received.", // Q
+"UI frame exceeded maximum allowed length.", // R
+"I response received.", // S
+"N2 timeouts: no response to enquiry.", // T
+"N2 timeouts: extended peer busy condition.", // U
+"No DL machines available to establish connection." // V
+};
+#endif
+
+
 portTASK_FUNCTION_PROTO(UplinkTask, pvParameters)  {
 
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)UplinkTaskWD );
@@ -61,6 +91,11 @@ portTASK_FUNCTION_PROTO(UplinkTask, pvParameters)  {
                 debug_print("ERR: AX25 channel %d is invalid\n",ax25_event.channel);
             } else {
 //                trace_ftl0("Received event: %d\n",ax25_event.primative);
+#ifdef DEBUG
+                if (ax25_event.primative == DL_ERROR_Indicate) {
+                    debug_print("FTL0: ERR from AX25: %s\n",ax25_errors_strs[ERROR_G]);
+                }
+#endif
                 ftl0_next_state_from_primative(&ftl0_state_machine[ax25_event.channel], &ax25_event);
             }
         }
@@ -121,7 +156,7 @@ void ftl0_state_uninit(ftl0_state_machine_t *state, AX25_event_t *event) {
     switch (event->primative) {
 
     case DL_DISCONNECT_Confirm : {
-            trace_ftl0("Disconnect from Layer 2\n");
+            trace_ftl0("Disconnected from Layer 2\n");
             break;
         }
         case DL_CONNECT_Indicate : {
@@ -145,6 +180,11 @@ void ftl0_state_cmd_ok(ftl0_state_machine_t *state, AX25_event_t *event) {
     trace_ftl0("FTL0: STATE CMD OK: ");
     switch (event->primative) {
 
+        case DL_DISCONNECT_Confirm : {
+            trace_ftl0("Disconnected from Layer 2\n");
+            ftl0_remove_request(event->channel);
+            break;
+        }
         case DL_DATA_Indicate : {
             trace_ftl0("Data from Layer 2\n");
             break;
@@ -152,7 +192,6 @@ void ftl0_state_cmd_ok(ftl0_state_machine_t *state, AX25_event_t *event) {
         default : {
             trace_ftl0(".. Unexpected packet or event, disconnect\n");
             ftl0_disconnect(state->callsign, event->channel);
-            ftl0_remove_request(event->channel);
             break;
         }
     }
@@ -160,10 +199,44 @@ void ftl0_state_cmd_ok(ftl0_state_machine_t *state, AX25_event_t *event) {
 
 void ftl0_state_data_rx(ftl0_state_machine_t *state, AX25_event_t *event) {
     trace_ftl0("FTL0: STATE DATA RX: ");
+    switch (event->primative) {
+
+        case DL_DISCONNECT_Confirm : {
+            trace_ftl0("Disconnected from Layer 2\n");
+            ftl0_remove_request(event->channel);
+            break;
+        }
+        case DL_DATA_Indicate : {
+            trace_ftl0("Data from Layer 2\n");
+            break;
+        }
+        default : {
+            trace_ftl0(".. Unexpected packet or event, disconnect\n");
+            ftl0_disconnect(state->callsign, event->channel);
+            break;
+        }
+    }
 }
 
 void ftl0_state_abort(ftl0_state_machine_t *state, AX25_event_t *event) {
     trace_ftl0("FTL0: STATE ABORT: ");
+    switch (event->primative) {
+
+        case DL_DISCONNECT_Confirm : {
+            trace_ftl0("Disconnected from Layer 2\n");
+            ftl0_remove_request(event->channel);
+            break;
+        }
+        case DL_DATA_Indicate : {
+            trace_ftl0("Data from Layer 2\n");
+            break;
+        }
+        default : {
+            trace_ftl0(".. Unexpected packet or event, disconnect\n");
+            ftl0_disconnect(state->callsign, event->channel);
+            break;
+        }
+    }
 }
 
 /**
@@ -176,17 +249,30 @@ bool ftl0_send_event(AX25_event_t *received_event, AX25_event_t *send_event) {
     strlcpy(send_event->packet.to_callsign, received_event->packet.from_callsign, MAX_CALLSIGN_LEN);
     strlcpy(send_event->packet.from_callsign, BBS_CALLSIGN, MAX_CALLSIGN_LEN);
 
-    BaseType_t xStatus = xQueueSendToBack( xRxEventQueue, send_event, CENTISECONDS(1) );
-    if( xStatus != pdPASS ) {
-        /* The send operation could not complete because the queue was full */
-        debug_print("RX Event QUEUE FULL: Could not add to Event Queue\n");
-        // TODO - we should log this error and downlink in telemetry
-        return FALSE;
+    if (send_event->primative == DL_DATA_Request) {
+        BaseType_t xStatus = xQueueSendToBack( xIFrameQueue[received_event->channel], send_event, CENTISECONDS(1) );
+        if( xStatus != pdPASS ) {
+            /* The send operation could not complete because the queue was full */
+            debug_print("I FRAME QUEUE FULL: Could not add to Event Queue for channel %d\n",received_event->channel);
+            // TODO - we should log this error and downlink in telemetry
+            return FALSE;
+        } else {
+            trace_ftl0("FTL0: Added iframe data event to Data Link SM: %d\n",send_event->primative);
+        }
     } else {
-        trace_ftl0("Added event to Data Link SM: %d\n",send_event->primative);
+        BaseType_t xStatus = xQueueSendToBack( xRxEventQueue, send_event, CENTISECONDS(1) );
+        if( xStatus != pdPASS ) {
+            /* The send operation could not complete because the queue was full */
+            debug_print("RX Event QUEUE FULL: Could not add to Event Queue\n");
+            // TODO - we should log this error and downlink in telemetry
+            return FALSE;
+        } else {
+            trace_ftl0("FTL0: Added event to Data Link SM: %d\n",send_event->primative);
+        }
     }
     return TRUE;
 }
+
 
 /**
  * ftl0_add_request()
@@ -202,7 +288,7 @@ bool ftl0_send_event(AX25_event_t *received_event, AX25_event_t *send_event) {
  *
  */
 bool ftl0_add_request(char *from_callsign, rx_channel_t channel, uint32_t file_id) {
-    if (uplink_closed) {
+    if (!ReadMRAMBoolState(StateUplinkEnabled)) {
         trace_ftl0("FTL0: Uplink closed\n");
         return FALSE;
     }
@@ -341,6 +427,7 @@ bool ftl0_connection_received(char *from_callsign, char *to_callsign, rx_channel
  * ftl0_disconnect()
  *
  * Disconnect from the station specified in to_callsign
+ *
  */
 bool ftl0_disconnect(char *to_callsign, rx_channel_t channel) {
     trace_ftl0("FTL0: Disconnecting: %s\n", to_callsign);

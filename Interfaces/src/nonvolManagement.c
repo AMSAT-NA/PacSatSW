@@ -351,7 +351,7 @@ void SetupMRAMStates() {
     WriteMRAMBoolState(StateAutoSafe,false);
     WriteMRAMBoolState(StateAutoSafeAllow,true);
     WriteMRAMBoolState(StateCommandReceived,false);
-    WriteMRAMBoolState(StateTransponderEnabled,false);
+    WriteMRAMBoolState(StatePbEnabled,false);
     WriteMRAMBoolState(StateCommandTimeCheck,false);
     WriteMRAMBoolState(StateTransmitInhibit,false); // This is if the FCC orders a shutdown
     WriteMRAMBoolState(StateNormalRfPowerLevel,false); //False is low power
@@ -365,11 +365,8 @@ void SetupMRAMStates() {
     WriteMRAMBoolState(StateExp1Disabled,false);
 #endif
 
-#ifdef THIS_IHU_IS_DEFAULT
-    WriteMRAMBoolState(StateIHUInCommand,true); // Initially, this IHU is in control
-#else
-    WriteMRAMBoolState(StateIHUInCommand,true); // Initially, this IHU is in control
-#endif
+    WriteMRAMBoolState(StateUplinkEnabled,false);
+    WriteMRAMBoolState(StateAx25Rate9600,true);
     WriteMRAMWODFreq(DEFAULT_WOD_FREQUENCY);
     WriteMRAMWODSaved(DEFAULT_NUM_WOD_SAVED);
     WriteMRAMWODSciDownlinkIndex(0);

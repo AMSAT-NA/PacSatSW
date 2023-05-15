@@ -331,8 +331,12 @@ int print_decoded_packet(char *label, AX25_PACKET *decoded) {
         command = "Cmd";
     else
         command = "Res";
-    debug_print("%s- %s: %s>%s %s pid=%0x pf=%d: ",label, frame_type_strings[decoded->frame_type],
+    debug_print("%s- %s: %s>%s %s pid=%0x pf=%d ",label, frame_type_strings[decoded->frame_type],
                 decoded->from_callsign, decoded->to_callsign, command, decoded->pid, decoded->PF);
+    if (decoded->frame_type == TYPE_I) {
+        debug_print("nr: %d ns: %d ",decoded->NR, decoded->NS);
+    }
+    debug_print("| ");
     for (loc=0; loc<decoded->data_len; loc++) {
         debug_print("%x ",decoded->data[loc]);
     }

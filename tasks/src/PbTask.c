@@ -77,6 +77,8 @@ When we store data in a value or structure internally we need to convert it to b
 #include "os_task.h"
 #include "MET.h"
 #include "inet.h"
+#include "nonvolManagement.h"
+
 #include "ax25_util.h"
 #include "str_util.h"
 #include "RxTask.h"
@@ -87,6 +89,14 @@ When we store data in a value or structure internally we need to convert it to b
 #ifdef DEBUG
 #include "time.h" // large file, not needed for flight
 #endif
+
+#define TRACE_PB
+#ifdef TRACE_PB
+#define trace_pb printf
+#else
+#define trace_pb //
+#endif
+
 
 static uint8_t data_buffer[AX25_MAX_DATA_LEN]; /* Static buffer used to store file bytes loaded from MRAM */
 static rx_radio_buffer_t pb_radio_buffer; /* Static buffer used to store packet as it is assembled and before copy to TX queue */
@@ -121,7 +131,6 @@ static PB_ENTRY pb_list[MAX_PB_LENGTH];
 
 static uint8_t number_on_pb = 0; /* This keeps track of how many stations are in the pb_list array */
 static uint8_t current_station_on_pb = 0; /* This keeps track of which station we will send data to next */
-extern bool pb_shut; // TODO - this should be in MRAM and be commandable
 
 
 /* Local Function prototypes */
@@ -184,7 +193,6 @@ portTASK_FUNCTION_PROTO(PbTask, pvParameters)  {
 
             decode_call(&pb_radio_buffer.bytes[7], from_callsign);
             decode_call(&pb_radio_buffer.bytes[0], to_callsign);
-//            debug_print("PB: %s>%s: Len: %d\n",from_callsign, to_callsign, pb_packet_buffer[0]);
             pb_process_frame(from_callsign, to_callsign, pb_radio_buffer.bytes, pb_radio_buffer.len);
         }
         ReportToWatchdog(CurrentTaskWD);
@@ -249,6 +257,12 @@ int pb_send_err(char *from_callsign, int err) {
 /**
  * pb_send_status()
  *
+ * TODO ***** This does not work from a timer because it checks the status of the PB in MRAM.
+ * We could cache the pb_open/close variable in memory as a bool and that would work.  Better is if the timer call
+ * back just sends a message to the task.  The task monitors for the messages and then executes this.
+ * Then we can process many other events/messages. e.g. periodically check if callsigns on the
+ * PB too long.
+ *
  * This is called from an RTOS timer to send the status periodically
  * Puts a packet with the current status of the PB into the TxQueue
  *
@@ -262,12 +276,11 @@ int pb_send_err(char *from_callsign, int err) {
  */
 void pb_send_status() {
     ReportToWatchdog(CurrentTaskWD);
-    //debug_print("PB Status being sent...\n");
 
-    if (pb_shut) {
+   if (!ReadMRAMBoolState(StatePbEnabled)) {
         char shut[] = "PB Closed.";
         int rc = tx_send_ui_packet(BROADCAST_CALLSIGN, PBSHUT, PID_NO_PROTOCOL, (uint8_t *)shut, strlen(shut), DONT_BLOCK);
-        //debug_print("SENDING: %s |%s|\n",PBSHUT, shut);
+        trace_pb("SENDING: %s |%s|\n",PBSHUT, shut);
         ReportToWatchdog(CurrentTaskWD);
         return;
     } else  {
@@ -277,9 +290,8 @@ void pb_send_status() {
             CALL = PBFULL;
         }
         pb_make_list_str(pb_status_buffer, sizeof(pb_status_buffer));
-//        uint8_t buffer[] = "PB Empty.";
         uint8_t len = strlen((char *)pb_status_buffer);
-//        debug_print("SENDING: %s |%s|\n",CALL, pb_status_buffer);
+        trace_pb("SENDING: %s |%s|\n",CALL, pb_status_buffer);
 
        int rc = tx_send_ui_packet(BROADCAST_CALLSIGN, CALL, PID_NO_PROTOCOL, (uint8_t *)pb_status_buffer, len, DONT_BLOCK);
         ReportToWatchdog(CurrentTaskWD);
@@ -360,7 +372,7 @@ void pb_debug_print_list_item(int i) {
 bool pb_add_request(char *from_callsign, uint8_t type, DIR_NODE * node, uint32_t file_size,
                    uint32_t offset, void *holes, uint8_t num_of_holes) {
 //    debug_print("PB: Request from %s ", from_callsign);
-    if (pb_shut) return FALSE;
+    if (!ReadMRAMBoolState(StatePbEnabled)) return FALSE;
     if (number_on_pb == MAX_PB_LENGTH) {
         return FALSE; // PB full
     }
@@ -369,7 +381,7 @@ bool pb_add_request(char *from_callsign, uint8_t type, DIR_NODE * node, uint32_t
     int i;
     for (i=0; i < number_on_pb; i++) {
         if ((strcmp(pb_list[i].callsign, from_callsign) == 0)) {
-            debug_print(" .. already on PB. Ignored\n");
+            trace_pb(" .. already on PB. Ignored\n");
             return FALSE; // Station is already on the PB
         }
     }
@@ -500,7 +512,7 @@ int pb_clear_list() {
 void pb_process_frame(char *from_callsign, char *to_callsign, uint8_t *data, int len) {
     if (strcasecmp(to_callsign, BBS_CALLSIGN) == 0) {
         // this was sent to the BBS Callsign and we can ignore it
-        debug_print("BBS Request - PB should not receive this - Ignored\n");
+        trace_pb("BBS Request - PB should not receive this - Ignored\n");
     } else if (strcasecmp(to_callsign, BROADCAST_CALLSIGN) == 0) {
         // this was sent to the Broadcast Callsign
 
@@ -514,7 +526,7 @@ void pb_process_frame(char *from_callsign, char *to_callsign, uint8_t *data, int
             pb_handle_file_request(from_callsign, data, len);
         }
     } else {
-        debug_print("PB: Unknown destination: %s - Packet Ignored\n",to_callsign);
+        trace_pb("PB: Unknown destination: %s - Packet Ignored\n",to_callsign);
     }
 }
 
@@ -622,7 +634,7 @@ int pb_handle_dir_request(char *from_callsign, uint8_t *data, int len) {
 
     /* least sig 2 bits of flags are 00 if this is a fill request */
     if ((dir_header->flags & 0b11) == 0b00) {
-#ifdef DEBUG
+#ifdef TRACE_PB
         pb_debug_print_dir_req(data, len);
 #endif
         //debug_print("PB: DIR FILL REQUEST: flags: %02x BLK_SIZE: %04x\n", dir_header->flags & 0xff, ttohs(dir_header->block_size &0xffff));
@@ -688,7 +700,7 @@ int pb_handle_file_request(char *from_callsign, uint8_t *data, int len) {
     uint32_t file_id = ttohl(file_header->file_id);
     uint8_t flag = (file_header->flags & 0b11);
 
-    debug_print("PB: FILE REQUEST: flags: %02x file: %04x BLK_SIZE: %04x\n", file_header->flags & 0xff, file_id,
+    trace_pb("PB: FILE REQUEST: flags: %02x file: %04x BLK_SIZE: %04x\n", file_header->flags & 0xff, file_id,
                 ttohs(file_header->block_size));
 
     /* First, does the file exist */
@@ -723,7 +735,7 @@ int pb_handle_file_request(char *from_callsign, uint8_t *data, int len) {
     case PB_START_SENDING_FILE : {
         /* least sig 2 bits of flags are 00 if this is a request to send a new file */
         // Add to the PB
-        debug_print(" - send whole file\n");
+        trace_pb(" - send whole file\n");
         if (pb_add_request(from_callsign, PB_FILE_REQUEST_TYPE, node, (uint32_t)file_size, 0, NULL, 0) == TRUE) {
             // ACK the station
             rc = pb_send_ok(from_callsign);
@@ -745,7 +757,7 @@ int pb_handle_file_request(char *from_callsign, uint8_t *data, int len) {
     }
     case PB_STOP_SENDING_FILE : {
         /* A station can only stop a file broadcast if they started it */
-        debug_print(" - stop sending file\n");
+        trace_pb(" - stop sending file\n");
         debug_print("\n NOT IMPLEMENTED YET : Unable to handle a file download cancel request \n");
         return FALSE;
     }
@@ -762,7 +774,7 @@ int pb_handle_file_request(char *from_callsign, uint8_t *data, int len) {
             return FALSE;
         }
         FILE_DATE_PAIR * holes = get_file_holes_list(data);
-#ifdef DEBUG
+#ifdef TRACE_PB
         pb_debug_print_file_holes(holes, num_of_holes);
 #endif
         /* We could check the integrity of the holes list.  The offset should be inside the file length
@@ -840,7 +852,7 @@ int pb_next_action() {
         if (pb_list[current_station_on_pb].hole_num < 1) {
             /* This is not a valid DIR Request.  There is no hole list.  We should not get here because this
              * should not have been added.  So just remove it. */
-            debug_print("PB: Invalid DIR request with no hole list from %s\n", pb_list[current_station_on_pb].callsign);
+            trace_pb("PB: Invalid DIR request with no hole list from %s\n", pb_list[current_station_on_pb].callsign);
             pb_remove_request(current_station_on_pb);
             /* If we removed a station then we don't want/need to increment the current station pointer */
             return TRUE;
@@ -880,7 +892,7 @@ int pb_next_action() {
             uint32_t offset = pb_list[current_station_on_pb].offset;
             int data_len = pb_make_dir_broadcast_packet(node, data_buffer, &offset);
             if (data_len == 0) {
-                debug_print("** Could not create the test DIR Broadcast frame\n");
+                debug_print("ERROR: ** Could not create the test DIR Broadcast frame\n");
                 /* To avoid a loop where we keep hitting this error, we remove the station from the PB */
                 // TODO - this is a serious issue and we should log/report it in telemetry
                 pb_remove_request(current_station_on_pb);
@@ -892,7 +904,7 @@ int pb_next_action() {
             ReportToWatchdog(CurrentTaskWD);
 
             if (rc != TRUE) {
-                debug_print("Could not send broadcast packet to TNC \n");
+                debug_print("ERROR: Could not send broadcast packet to TNC \n");
                 /* To avoid a loop where we keep hitting this error, we remove the station from the PB */
                 // TODO - this is a serious issue and we should log/report it in telemetry
                 pb_remove_request(current_station_on_pb);
@@ -910,7 +922,7 @@ int pb_next_action() {
                     pb_list[current_station_on_pb].current_hole_num++;
                     if (pb_list[current_station_on_pb].current_hole_num == pb_list[current_station_on_pb].hole_num) {
                         /* We have finished this hole list */
-                        debug_print("PB: Added last hole for request from %s\n", pb_list[current_station_on_pb].callsign);
+                        trace_pb("PB: Added last hole for request from %s\n", pb_list[current_station_on_pb].callsign);
                         pb_remove_request(current_station_on_pb);
                         /* If we removed a station then we don't want/need to increment the current station pointer */
                         return TRUE;
@@ -1177,7 +1189,7 @@ int pb_broadcast_next_file_chunk(DIR_NODE *node, uint32_t offset, int length, ui
          * hitting this error.  It's unclear what went wrong do we mark the file as not available?
          * Or just remove this request without an error?  But then the client will automatically
          * request this file again.. */
-        debug_print("** Could not create the test DIR Broadcast frame\n");
+        debug_print("ERROR: ** Could not create the test DIR Broadcast frame\n");
         return TRUE;
     }
 
@@ -1186,7 +1198,7 @@ int pb_broadcast_next_file_chunk(DIR_NODE *node, uint32_t offset, int length, ui
     rc = tx_send_ui_packet(BROADCAST_CALLSIGN, QST, PID_FILE, data_buffer, data_len, BLOCK);
     ReportToWatchdog(CurrentTaskWD);
     if (rc != TRUE) {
-        debug_print("Could not send FILE broadcast packet to TNC \n");
+        debug_print("ERROR: Could not send FILE broadcast packet to TNC \n");
         return TRUE;
     }
 

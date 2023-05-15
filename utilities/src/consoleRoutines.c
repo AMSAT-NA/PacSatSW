@@ -163,10 +163,14 @@ void DisplayTelemetry(uint32_t typeRequested){
 
         printf("MRAM State Values:\n\r"
                 " CommandedSafeMode=%d,Autosafe=%d\n\r"
-                " CommandRcvd=%d,AllowAutoSafe=%d\n\r",
+                " CommandRcvd=%d,AllowAutoSafe=%d\n\r"
+                " AX25 9600=%d\n\r"
+                " PB Enabled=%d,FTL0 Enabled=%d\n\r",
 
                 ReadMRAMBoolState(StateCommandedSafeMode),ReadMRAMBoolState(StateAutoSafe),
-                ReadMRAMBoolState(StateCommandReceived),ReadMRAMBoolState(StateAutoSafeAllow)
+                ReadMRAMBoolState(StateCommandReceived),ReadMRAMBoolState(StateAutoSafeAllow),
+                ReadMRAMBoolState(StateAx25Rate9600),
+                ReadMRAMBoolState(StatePbEnabled),ReadMRAMBoolState(StateUplinkEnabled)
         );
         printf(" Uncommanded Seconds in Orbit=%d\n\r",
                 (unsigned int)ReadMRAMSecondsOnOrbit());

@@ -67,6 +67,7 @@
 #include "ax5043_access.h"
 #include "serialDriver.h"
 #include "spiDriver.h"
+#include "nonvolManagement.h"
 
 //#include "config-70cm-PSK.h"
 
@@ -993,17 +994,17 @@ uint8_t axradio_get_pllvcoi(SPIDevice device)
 }
 
 
-void start_ax25_rx(SPIDevice device, bool band_vhf, bool rate_9600) {
+void start_ax25_rx(SPIDevice device, bool rate_9600) {
     uint32_t freq;
     int status = 0;
+    bool band_vhf = FALSE;
 
     debug_print("Starting RX with SPIDevice %d, vhf=%d 9600bps=%d\n", device, band_vhf, rate_9600);
     //uint8_t retVal;
     ax5043WriteReg(device, AX5043_PINFUNCIRQ, 0x0); //disable IRQs
     freq = ReadMRAMCommandFreq();
-     freq = 436800000; // Use for testing
-     band_vhf = BAND_UHF;
-    // TODO - check freq vs band_vhf and potentially recover or throw error if wrong
+    if (freq < 150000000)
+        band_vhf = TRUE;
     debug_print("In start_rx, Setting freq to %d\n", freq); //DEBUG RBG
     if ((status = axradio_init(device, band_vhf, freq, rate_9600)) != AXRADIO_ERR_NOERROR) {
         printf("ERROR: In start_rx, axradio_init returned: %d\n", status);
@@ -1021,11 +1022,12 @@ void start_ax25_rx(SPIDevice device, bool band_vhf, bool rate_9600) {
 
 }
 
-void start_ax25_tx(SPIDevice device, bool band_vhf, bool rate_9600) {
+void start_ax25_tx(SPIDevice device, bool rate_9600) {
     uint16_t irqreq;
     uint16_t irqs = 0;
     uint32_t freq;
     int status = 0;
+    bool band_vhf = FALSE;
 
   //printf("In Test_Tx\n");
     debug_print("Starting TX with SPIDevice %d, vhf=%d 9600bps=%d\n", device, band_vhf, rate_9600);
@@ -1034,7 +1036,8 @@ void start_ax25_tx(SPIDevice device, bool band_vhf, bool rate_9600) {
   //printf("Disabling IRQs\n");
   ax5043WriteReg(device, AX5043_PINFUNCIRQ, 0x0); //disable IRQs
   freq = ReadMRAMTelemFreq();
-  // TODO - check freq vs band_vhf and potentially recover or throw error if wrong
+  if (freq < 150000000)
+      band_vhf = TRUE;
   debug_print("In start_tx, Setting freq to %d\n", freq); //DEBUG RBG
   if ((status = axradio_init(device, band_vhf, freq, rate_9600)) != AXRADIO_ERR_NOERROR) {
       printf("ERROR: In start_tx, axradio_init_70cm returned: %d", status);

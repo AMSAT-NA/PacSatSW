@@ -80,7 +80,6 @@ extern bool TransponderEnabled,onOrbit,SimDoppler;
 extern resetMemory_t SaveAcrossReset;
 extern char *ErrMsg[];
 extern bool monitorPackets;
-extern bool pb_shut;
 
 bool TestPlayDead=false;
 
@@ -171,11 +170,14 @@ enum {
     ,makePfhFiles
     ,testDir
     ,sendUplinkStatus
+    ,testRetransmission
 #endif
     ,monitorOn
     ,monitorOff
     ,pbShut
     ,pbOpen
+    ,uplinkShut
+    ,uplinkOpen
     ,mramHxd
     ,dirLoad
     ,dirClear
@@ -239,11 +241,14 @@ commandPairs debugCommands[] = {
                                 ,{"make psf","Make a set of test Pacsat Files in MRAM",makePfhFiles}
                                 ,{"test dir","Test the Pacsat Directory.  The command 'make psf' must already have been run",testDir}
                                 ,{"send uplink status","Send Uplink status",sendUplinkStatus}
+                                ,{"test retransmission","Test the AX25 I frame retransmission",testRetransmission}
 #endif
                                 ,{"monitor on","Monitor sent and received packets",monitorOn}
                                 ,{"monitor off","Stop monitoring packets",monitorOff}
                                 ,{"pb shut","Shut the PB",pbShut}
                                 ,{"pb open","Open the PB for use",pbOpen}
+                                ,{"uplink shut","Shut the FTL0 Uplink",uplinkShut}
+                                ,{"uplink open","Open the FTL0 Uplink for use",uplinkOpen}
                                 ,{"hxd","Display Hex for file number",mramHxd}
                                 ,{"load dir","Load the directory from MRAM",dirLoad}
                                 ,{"clear dir","Clear the directory but leave the files in MRAM",dirClear}
@@ -1072,6 +1077,10 @@ void RealConsoleTask(void)
             ax25_send_status();
             break;
         }
+        case testRetransmission:{
+            bool rc = test_ax25_retransmission();
+            break;
+        }
 
 #endif /* DEBUG */
 
@@ -1086,13 +1095,23 @@ void RealConsoleTask(void)
             break;
         }
         case pbShut:{
-            pb_shut=true;
-            printf("pb_shut = true\n");
+            WriteMRAMBoolState(StatePbEnabled,false);
+            printf("PB SHUT\n");
             break;
         }
         case pbOpen:{
-            pb_shut=false;
-            printf("pb_shut = false\n");
+            WriteMRAMBoolState(StatePbEnabled,true);
+            printf("PB OPEN\n");
+            break;
+        }
+        case uplinkShut:{
+            WriteMRAMBoolState(StateUplinkEnabled,false);
+            printf("UPLINK SHUT\n");
+            break;
+        }
+        case uplinkOpen:{
+            WriteMRAMBoolState(StateUplinkEnabled,true);
+            printf("UPLINK OPEN\n");
             break;
         }
 
