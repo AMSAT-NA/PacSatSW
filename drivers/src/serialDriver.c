@@ -75,7 +75,6 @@
 #include "HET_EMU_SCI.h"
 
 /* Golf Include */
-#include <uartEmulator.h>
 #include "hardwareConfig.h"
 #include "serialDriver.h"
 #include "errors.h"
@@ -109,11 +108,6 @@ static xSemaphoreHandle usartTxInUseSemaphore[numCOM] = { 0, 0, 0 };
 static void *serialDevice[numCOM] = {(void *)COM1_Port,(void *)COM2_Port,(void *)COM3_Port};
 static bool RxInUse[numCOM]={false,false,false};
 
-// The following are only for HET emulations and are based on the HET UART port number
-
-static bool TxInterruptExpected[]={false,false};
-static hetRAMBASE_t *hetRamBase[] = {hetRAM1,hetRAM2};
-static hetBASE_t *hetRegBase[] = {hetREG1,hetREG2};
 /*
  * Initialize a structure for each com port.  COM1_ and COM2_xxx defined in hardwareDefinitions.h
  */
@@ -149,18 +143,12 @@ bool SerialInitPort(COM_NUM comPort, unsigned int baud, unsigned int qLengthRx,
     /*
      * Set up baud rate and tell it to use interrupts
      */
-    if(((unsigned int)serialDevice[comPort]<10)) /* It is a HET index, not an address */
-    {
-        unsigned int hetIndex = (unsigned int)serialDevice[comPort];
-        HetUARTSetBaudrate(hetRamBase[hetIndex],baud);
-        HetUARTEnableNotification(hetRegBase[hetIndex]);
-    }
-    else { // Assume an SCI device
+    { // Assume an SCI device
         sciSetBaudrate(serialDevice[comPort], baud);
         sciEnableNotification(serialDevice[comPort],SCI_TX_INT|SCI_RX_INT);
         return (xSemaphoreTake(usartTxDoneSemaphore[comPort],SHORT_WAIT_TIME)==pdTRUE);
     }
-    return true;
+//    return true;
 }
 /*-----------------------------------------------------------*/
 
@@ -201,41 +189,6 @@ bool SerialGetChar(COM_NUM com, char *rxedChar, portTickType timeout)
     return retVal;
 }
 
-static inline bool InternalSerialPutChar(COM_NUM comNum, const char *pOutChar,
-                                         portTickType xBlockTime,bool OSRunning)
-{
-    /*
-     * This is for the HET interface only
-     */
-    unsigned int hetIndex = (unsigned int)serialDevice[comNum];
-    if(OSRunning){
-        /*
-         * Any characters that come in while the interface is still running get queued.  When
-         * the interface interrupts to say it is done, a character is pulled from the queue.  But
-         * the interface is not running then we have to "prime the pump" with the first character
-         */
-        if(TxInterruptExpected[hetIndex]) {
-            // If the HET is still outputting a character, queue it
-            TxInterruptExpected[hetIndex] = true;
-            xQueueSend(xCharsToTx[comNum], pOutChar,xBlockTime);
-        } else {
-            // If no interrupt is expected, then we have to start this way
-            // And if no interrupt is expected, we don't expect to wait
-            // in this routine.
-            HetUARTPutChar(hetRamBase[hetIndex],*pOutChar);
-            vPortYield();
-        }
-
-        return TRUE;
-    } else {
-        // This routine waits till it is not busy.  That's what
-        // we want if there is no OS.
-        HetUARTPutChar(hetRamBase[hetIndex],*pOutChar);
-        return TRUE;
-    }
-}
-
-
 void SerialPutStringInternal(COM_NUM com, const char* string, int length)
 {
 
@@ -254,7 +207,7 @@ void SerialPutStringInternal(COM_NUM com, const char* string, int length)
      * 3) Error in progress:  "ErrorInProgress" global variable is true.
      */
     bool OSRunning = !(xCharsToTx[com] == 0);
-    const char *ourString = string;
+    //const char *ourString = string;
     sciBASE_t *ourDevice = serialDevice[com];
     if (length == 0)
         length = strlen(string);
@@ -274,15 +227,7 @@ void SerialPutStringInternal(COM_NUM com, const char* string, int length)
     }
     /* Send each character in the string, one at a time. */
     else {
-        /*
-         * Here is for the bit-bang interface
-         */
-        while (*ourString && length--)
 
-        {
-            InternalSerialPutChar(com,ourString,SHORT_WAIT_TIME,OSRunning);
-            ourString++; // Go to next char
-        };
     }
 }
 
@@ -331,12 +276,8 @@ bool SerialPutChar(COM_NUM comNum, char c, portTickType xBlockTime)
             return false;
         }
     }
-    if((unsigned int)ourDevice < 10){
-        /*
-         * Use special routine for bitbang
-         */
-        InternalSerialPutChar(comNum,&internalChar,SHORT_WAIT_TIME,OSRunning);
-    } else {
+
+    {
         /*
          * Use the HALCoGen routine for a real UART.  It works both with and w/o the OS
          */
@@ -366,51 +307,6 @@ bool SerialPutChar(COM_NUM comNum, char c, portTickType xBlockTime)
 __interrupt void RTI1Interrupt(void)
 {
     rtiREG1->INTFLAG = 0x00000002U;
-}
-
-//void hetNotification(hetBASE_t *het, uint32 offset)
-void serialHETInterrupt(uint32 offset){
-
-
-
-
-    /* todo: Fix this comment!
-     * A bitbang serial interface based on a 9600 interrupt per second clock tick.
-     * It works either before the OS is started (in which case it communicates with the
-     * non-interrupt code over a shared variable) or after (in which case it communicates with
-     * an OS queue
-     */
-
-    int comNum = COM1; // Till we end up with more UART emulations
-    unsigned char character;
-
-    /*
-     * The OS is running and we have been initialized.  See if there is another character
-     * in the queue for us.  If so, stick it in the sw_serial_char variable, tell the next bit
-     * to look at it, and continue on.
-     * Otherwise, just return from interrupt.
-     */
-    unsigned int hetIndex = (unsigned int)serialDevice[comNum];
-
-    if(offset == pHET_SendOverINT_0+1){ /* This interrupt is from the Tx section */
-
-        if(uxQueueMessagesWaitingFromISR(xCharsToTx[comNum]) != 0){
-            BaseType_t higherPriorityWoken=0;
-            xQueueReceiveFromISR(xCharsToTx[comNum], &character,&higherPriorityWoken);
-            HetUARTPutChar(hetRamBase[hetIndex], character);
-            TxInterruptExpected[hetIndex] = true;
-        } else {
-            TxInterruptExpected[hetIndex] = false;
-        }
-    } else if (offset== pHET_DoneRec_0+1) {
-        /*
-         * This is the receive section
-         */
-        char newChar;
-        BaseType_t woken;
-        newChar = HetUART1GetChar(true);
-        xQueueSendFromISR(xRxedChars[comNum],&newChar,&woken);
-    }
 }
 
 
