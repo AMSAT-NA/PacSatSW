@@ -63,7 +63,7 @@ typedef struct {
     uint8_t NS;
     int PF;
     uint8_t pid;
-    uint8_t data[AX25_MAX_INFO_BYTES_LEN];
+    uint8_t data[AX25_MAX_INFO_BYTES_LEN]; // If this is increased then data_len should be increased
     uint8_t data_len; // Set this to 0 if there are no data bytes
 } AX25_PACKET;
 

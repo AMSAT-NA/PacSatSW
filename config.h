@@ -113,7 +113,7 @@ typedef enum {
  * calculated for the channel.  For a full duplex sat this is perhaps not appropriate.
  * TODO - what is the optimal value for this? */
 #define AX25_TIMER_T1_PERIOD SECONDS(3)
-#define AX25_TIMER_T3_PERIOD SECONDS(60) /* Idle timeout if nothing heard */
+#define AX25_TIMER_T3_PERIOD SECONDS(30) /* Idle timeout if nothing heard */
 #define AX25_RETRIES_N2 10 /* Number of retries permitted by the Data Link State Machine */
 /*
  * TASK INFORMATION This is the info like stack sizes and priorities for the tasks

@@ -322,9 +322,13 @@ bool tx_send_packet(rx_channel_t channel, AX25_PACKET *packet, bool expedited, b
 //    print_packet("TX_SEND: ", &tmp_packet_buffer[1], tmp_packet_buffer[0]);
 
     TickType_t xTicksToWait = 0;
+    BaseType_t xStatus = pdFAIL;
     if (block)
         xTicksToWait = CENTISECONDS(1);
-    BaseType_t xStatus = xQueueSendToBack( xTxPacketQueue, &tmp_packet_buffer, xTicksToWait );
+    if (expedited)
+        xStatus = xQueueSendToFront( xTxPacketQueue, &tmp_packet_buffer, xTicksToWait );
+    else
+        xStatus = xQueueSendToBack( xTxPacketQueue, &tmp_packet_buffer, xTicksToWait );
     if( xStatus != pdPASS ) {
         /* The send operation could not complete because the queue was full */
         debug_print("TX QUEUE FULL: Could not add to Packet Queue\n");

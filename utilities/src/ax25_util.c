@@ -179,6 +179,7 @@ uint8_t ax25_decode_packet(uint8_t *packet, int len, AX25_PACKET *decoded_packet
         }
         if ((len - offset - 2) > AX25_MAX_INFO_BYTES_LEN) {
             debug_print("ERR: ax25_decode_packet() Too many bytes for an I-frame.  Data would overflow.\n");
+            // TODO - per the AX25 spec, this sort of error should cause re-establishment of the data link if in connected mode.
             return FALSE;
         }
         decoded_packet->frame_type = TYPE_I;

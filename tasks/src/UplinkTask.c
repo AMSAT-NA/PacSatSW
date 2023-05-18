@@ -41,6 +41,8 @@ bool ftl0_remove_request(rx_channel_t channel);
 bool ftl0_connection_received(char *from_callsign, char *to_callsign, rx_channel_t channel);
 bool ftl0_disconnect(char *to_callsign, rx_channel_t channel);
 int ftl0_make_packet(uint8_t *data_bytes, uint8_t *info, int length, int frame_type);
+int ftl0_parse_packet_type(unsigned char * data);
+int ftl0_parse_packet_length(unsigned char * data);
 
 /* Local variables */
 static ftl0_state_machine_t ftl0_state_machine[NUM_OF_RX_CHANNELS];
@@ -51,7 +53,7 @@ static rx_channel_t current_channel_on_uplink; // This is the channel we will ne
 #ifdef DEBUG
 /* This decodes the AX25 error numbers.  Only used for debug. */
 char *ax25_errors_strs[] = {
-"F=1 received but P=1 not outstanding." // A,
+"F=1 received but P=1 not outstanding.", // A,
 "Unexpected DM with F=1 in states 3, 4 or 5.", // B
 "Unexpected UA in states 3, 4 or 5.", // C
 "UA received without F=1 when SABM or DISC was sent P=1.", // D
@@ -91,12 +93,13 @@ portTASK_FUNCTION_PROTO(UplinkTask, pvParameters)  {
                 debug_print("ERR: AX25 channel %d is invalid\n",ax25_event.channel);
             } else {
 //                trace_ftl0("Received event: %d\n",ax25_event.primative);
-#ifdef DEBUG
+
                 if (ax25_event.primative == DL_ERROR_Indicate) {
-                    debug_print("FTL0: ERR from AX25: %s\n",ax25_errors_strs[ERROR_G]);
+                    // These are just for debugging.  Another event is sent if an action is needed.
+                    debug_print("FTL0[%d]: ERR from AX25: %s\n",ax25_event.channel, ax25_errors_strs[ERROR_G]);
+                } else {
+                    ftl0_next_state_from_primative(&ftl0_state_machine[ax25_event.channel], &ax25_event);
                 }
-#endif
-                ftl0_next_state_from_primative(&ftl0_state_machine[ax25_event.channel], &ax25_event);
             }
         }
 
@@ -155,7 +158,13 @@ void ftl0_state_uninit(ftl0_state_machine_t *state, AX25_event_t *event) {
     trace_ftl0("FTL0: STATE UNINIT: ");
     switch (event->primative) {
 
-    case DL_DISCONNECT_Confirm : {
+        case DL_DISCONNECT_Indicate : {
+            trace_ftl0("Disconnect is in progress from Layer 2\n");
+            // We consider this fatal and do not wait for the confirm message
+            ftl0_remove_request(event->channel);
+            break;
+        }
+        case DL_DISCONNECT_Confirm : {
             trace_ftl0("Disconnected from Layer 2\n");
             break;
         }
@@ -164,8 +173,13 @@ void ftl0_state_uninit(ftl0_state_machine_t *state, AX25_event_t *event) {
             ftl0_connection_received(event->packet.from_callsign, event->packet.to_callsign, event->channel);
             break;
         }
+        case DL_CONNECT_Confirm : {
+            trace_ftl0("Connection from Layer 2 Confirmed\n");
+            ftl0_connection_received(event->packet.from_callsign, event->packet.to_callsign, event->channel);
+            break;
+        }
         default : {
-            trace_ftl0(".. Ignored\n");
+            trace_ftl0("FTL0[%d]: .. Ignored\n",state->channel);
             break;
         }
     }
@@ -180,13 +194,68 @@ void ftl0_state_cmd_ok(ftl0_state_machine_t *state, AX25_event_t *event) {
     trace_ftl0("FTL0: STATE CMD OK: ");
     switch (event->primative) {
 
+        case DL_DISCONNECT_Indicate : // considered fatal, we don't wait for confirm
         case DL_DISCONNECT_Confirm : {
             trace_ftl0("Disconnected from Layer 2\n");
             ftl0_remove_request(event->channel);
             break;
         }
+        case DL_CONNECT_Indicate :
+        case DL_CONNECT_Confirm : {
+            trace_ftl0("Connection from Layer 2\n");
+            // Perhaos the other end missed the connection and was still trying.  Send the CMD OK message again.
+            ftl0_remove_request(event->channel); // remove them first
+            ftl0_connection_received(event->packet.from_callsign, event->packet.to_callsign, event->channel);
+            break;
+        }
         case DL_DATA_Indicate : {
             trace_ftl0("Data from Layer 2\n");
+
+//            int ftl0_type = ftl0_parse_packet_type(data);
+//            if (ftl0_type > MAX_PACKET_ID) {
+//                int rc = ftl0_send_err(from_callsign, channel, ER_ILL_FORMED_CMD);
+//                if (rc != EXIT_SUCCESS) {
+//                    /* We likely could not send the error.  Something serious has gone wrong.
+//                     * Not much we can do as we are going to offload the request anyway */
+//                }
+//                ftl0_disconnect(uplink_list[selected_station].callsign, uplink_list[selected_station].channel);
+//                ftl0_remove_request(selected_station);
+//            }
+//            debug_print("%s: UL_CMD_OK - %s\n",uplink_list[selected_station].callsign, ftl0_packet_type_names[ftl0_type]);
+//
+//            /* Process the EVENT through the UPLINK STATE MACHINE */
+//            switch (ftl0_type) {
+//                case UPLOAD_CMD : {
+//                    /* if OK to upload send UL_GO_RESP.  We determine if it is OK by checking if we have space
+//                     * and that it is a valid continue of file_id != 0
+//                     * This will send UL_GO_DATA packet if checks pass
+//                     * TODO - the code would be clearer if this parses the request then returns here and then we
+//                     * send the packet from here.  Then all packet sends are from this level of the state machine*/
+//                    int err = ftl0_process_upload_cmd(selected_station, from_callsign, channel, data, len);
+//                    if (err != ER_NONE) {
+//                        // send the error
+//                        rc = ftl0_send_err(from_callsign, channel, err);
+//                        if (rc != EXIT_SUCCESS) {
+//                            /* We likely could not send the error.  Something serious has gone wrong.
+//                             * But the best we can do is remove the station and return the error code. */
+//                            ftl0_disconnect(uplink_list[selected_station].callsign, uplink_list[selected_station].channel);
+//                            ftl0_remove_request(selected_station);
+//                        }
+//                        // If we sent error successfully then we stay in state UL_CMD_OK and the station can try another file
+//                        return rc;
+//                    }
+//                    // We move to state UL_DATA_RX
+//                    uplink_list[selected_station].state = UL_DATA_RX;
+//                    break;
+//                }
+//                default: {
+//                    ftl0_disconnect(uplink_list[selected_station].callsign, uplink_list[selected_station].channel);
+//                    ftl0_remove_request(selected_station);
+//                    return EXIT_SUCCESS; // don't increment or change the current station
+//                    break;
+//                }
+//            }
+
             break;
         }
         default : {
@@ -201,6 +270,12 @@ void ftl0_state_data_rx(ftl0_state_machine_t *state, AX25_event_t *event) {
     trace_ftl0("FTL0: STATE DATA RX: ");
     switch (event->primative) {
 
+        case DL_DISCONNECT_Indicate : {
+            trace_ftl0("Disconnect is in progress from Layer 2\n");
+            // We consider this fatal and do not wait for the confirm message
+            ftl0_remove_request(event->channel);
+            break;
+        }
         case DL_DISCONNECT_Confirm : {
             trace_ftl0("Disconnected from Layer 2\n");
             ftl0_remove_request(event->channel);
@@ -222,6 +297,12 @@ void ftl0_state_abort(ftl0_state_machine_t *state, AX25_event_t *event) {
     trace_ftl0("FTL0: STATE ABORT: ");
     switch (event->primative) {
 
+        case DL_DISCONNECT_Indicate : {
+            trace_ftl0("Disconnect is in progress from Layer 2\n");
+            // We consider this fatal and do not wait for the confirm message
+            ftl0_remove_request(event->channel);
+            break;
+        }
         case DL_DISCONNECT_Confirm : {
             trace_ftl0("Disconnected from Layer 2\n");
             ftl0_remove_request(event->channel);
@@ -296,9 +377,11 @@ bool ftl0_add_request(char *from_callsign, rx_channel_t channel, uint32_t file_i
     int i;
     /* Each station can only be on the Uplink once, so reject if the callsign is already in the list */
     for (i=0; i < NUM_OF_RX_CHANNELS; i++) {
-        if (strcasecmp(ftl0_state_machine[channel].callsign, from_callsign) == 0) {
-            trace_ftl0("FTL0: %s is already on the uplink\n",from_callsign);
-            return FALSE; // Station is already on the Uplink
+        if (ftl0_state_machine[channel].ul_state != UL_UNINIT) {
+            if (strcasecmp(ftl0_state_machine[channel].callsign, from_callsign) == 0) {
+                trace_ftl0("FTL0: %s is already on the uplink\n",from_callsign);
+                return FALSE; // Station is already on the Uplink
+            }
         }
     }
 
@@ -477,4 +560,14 @@ int ftl0_make_packet(uint8_t *data_bytes, uint8_t *info, int length, int frame_t
             data_bytes[i+2] = info[i];
     }
     return TRUE;
+}
+
+int ftl0_parse_packet_type(unsigned char * data) {
+    int type = data[1] & 0b00011111;
+    return type;
+}
+
+int ftl0_parse_packet_length(unsigned char * data) {
+    int length = (data[1] >> 5) * 256 + data[0];
+    return length;
 }
