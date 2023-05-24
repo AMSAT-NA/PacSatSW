@@ -17,6 +17,7 @@
 /* Local variables */
 static uint8_t PAPowerFlagCnt=0,DCTPowerFlagCnt=0;
 static rx_radio_buffer_t rx_radio_buffer; // static buffer to store the channel and received bytes from the radio
+static rx_radio_buffer_t EMPTY_RADIO_BUFFER;
 //static uint8_t axradio_rxbuffer[AX25_PKT_BUFFER_LEN];  ******************** HERE WE ARE - REMOVING THIS
 static SPIDevice device = DCTDev0;
 extern bool monitorPackets;
@@ -71,8 +72,8 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
             if (rssi > 160) { // this magic value is supposed to be above the background noise, so we only see actual transmissions
                 int16_t dbm = rssi - 255;
                 debug_print("RSSI: %d dBm  ",dbm);
-                debug_print("FRMRX: %d   ",ax5043ReadReg(device, AX5043_FRAMING) & 0x80 ); // FRAMING Pkt start bit detected - will print 128
-                debug_print("RADIO: %d\n",ax5043ReadReg(device, AX5043_RADIOSTATE) & 0xF ); // Radio State bits 0-3
+//                debug_print("FRMRX: %d   ",ax5043ReadReg(device, AX5043_FRAMING) & 0x80 ); // FRAMING Pkt start bit detected - will print 128
+//                debug_print("RADIO: %d ",ax5043ReadReg(device, AX5043_RADIOSTATE) & 0xF ); // Radio State bits 0-3
             }
 
         if (status==1) { // We received a message
@@ -122,6 +123,7 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
                             }
                             if (monitorPackets) {
                                 int i;
+                                debug_print("RX Bytes: %d:",rx_radio_buffer.len);
                                 for (i=0; i< rx_radio_buffer.len; i++)
                                     debug_print("%0x ", rx_radio_buffer.bytes[i]);
                                 debug_print("\n");
@@ -138,6 +140,9 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
                                 debug_print("RX QUEUE FULL: Could not add to Packet Queue\n");
                                 // TODO - we should log this error and downlink in telemetry
                             }
+#ifdef DEBUG
+                            rx_radio_buffer = EMPTY_RADIO_BUFFER;
+#endif
 
                         } else {
                             //debug_print("FIFO MESSAGE: %d LEN:%d\n",fifo_cmd,len);

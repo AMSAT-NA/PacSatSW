@@ -44,7 +44,15 @@ typedef enum {
     DL_FLOW_ON_Request,
 // Timer Events
     DL_TIMER_T1_Expire,
-    DL_TIMER_T3_Expire
+    DL_TIMER_T3_Expire,
+// Link Multiplexer Events (Radios/Channel coordination) received from DL
+    LM_SEIZE_Request,
+    LM_RELEASE_Request,
+    LM_DATA_Request,
+    LM_EXPEDITED_DATA_Request,
+// LM Events sent to DL
+    LM_SEIZE_Confirm,
+    LM_DATA_Indicate
 } AX25_primative_t;
 
 /*

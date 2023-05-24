@@ -30,7 +30,7 @@ typedef struct dir_node {
     struct dir_node *prev;
 } DIR_NODE;
 
-int dir_next_file_number();
+uint32_t dir_next_file_number();
 void dir_free();
 int dir_load();
 

@@ -337,6 +337,15 @@ void WriteMRAMDCTDriveHighPower(uint32_t regVal){
 uint32_t ReadMRAMDCTDriveHighPower(void){
     READ_UINT32(DCTDriveHighPower,DCT_DEFAULT_HIGH_POWER);
 }
+
+void WriteMRAMNextFileNumber(uint32_t id){
+    WRITE_UINT32(NextFileNumber,id);
+}
+
+uint32_t ReadMRAMNextFileNumber(void){
+    READ_UINT32(NextFileNumber,0); // default to zero if corrupt
+}
+
 /*
  * Those are all the read/write routines for the MRAM.  Below are the initialization routines
  */
@@ -366,7 +375,7 @@ void SetupMRAMStates() {
 #endif
 
     WriteMRAMBoolState(StateUplinkEnabled,false);
-    WriteMRAMBoolState(StateAx25Rate9600,true);
+    WriteMRAMBoolState(StateAx25Rate9600,false); // start this at 1200 bps, then it can be commanded higher
     WriteMRAMWODFreq(DEFAULT_WOD_FREQUENCY);
     WriteMRAMWODSaved(DEFAULT_NUM_WOD_SAVED);
     WriteMRAMWODSciDownlinkIndex(0);
@@ -378,6 +387,8 @@ void SetupMRAMStates() {
     initSecondsInOrbit(); //Must use this to prevent an update from resetting the in orbit time
     WriteMRAMEnterAutosafe(DEFAULT_AUTOSAFE_INTO);
     WriteMRAMExitAutosafe(DEFAULT_AUTOSAFE_OUTOF);
+
+    WriteMRAMNextFileNumber(0);
 
     /* These are like 'set internal schedule' but sets relative to startup, not to current time */
     WriteMRAMTimeout(NoCommandTimeout,NO_COMMAND_TIMEOUT);

@@ -87,6 +87,9 @@ void WriteMRAMCommandFreq(uint32_t);
 void WriteMRAMVersionNumber(void);
 bool CheckMRAMVersionNumber(void);
 
+void WriteMRAMNextFileNumber(uint32_t seconds);
+uint32_t ReadMRAMNextFileNumber(void);
+
 #define ReadMRAMSafeMode() ReadMRAMBoolState(StateSafeMode)
 #define WriteMRAMAutoSafe(value) WriteMRAMBoolState(StateAutoSafe,value)
 #define ReadMRAMAutoSafe() ReadMRAMBoolState(StateAutoSafe)

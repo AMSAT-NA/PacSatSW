@@ -187,7 +187,8 @@ uint8_t ax25_decode_packet(uint8_t *packet, int len, AX25_PACKET *decoded_packet
         decoded_packet->NS = (decoded_packet->control >> 1) & 0b111;
         decoded_packet->PF = (decoded_packet->control >> 4) & 0b1;
         decoded_packet->pid = packet[offset+1];
-        for (i=0; i<(len-offset-2); i++) {
+        decoded_packet->data_len = len-offset-2;
+        for (i=0; i<(decoded_packet->data_len); i++) {
             decoded_packet->data[i] = packet[offset+2+i];
         }
     } else if ((decoded_packet->control & 0b11) == 0b11) { // bit 0 and 1 are both 1 then its a U frame
@@ -221,7 +222,8 @@ uint8_t ax25_decode_packet(uint8_t *packet, int len, AX25_PACKET *decoded_packet
             case BITS_UI : {
                 decoded_packet->frame_type = TYPE_U_UI;
                 decoded_packet->pid = packet[offset+1];
-                for (i=0; i<(len-offset-2); i++) {
+                decoded_packet->data_len = len-offset-2;
+                for (i=0; i<(decoded_packet->data_len); i++) {
                     decoded_packet->data[i] = packet[offset+2+i];
                 }
                 break;
@@ -292,8 +294,8 @@ void ax25_copy_packet(AX25_PACKET *packet, AX25_PACKET *to_packet) {
     to_packet->pid = packet->pid;
     to_packet->data_len = packet->data_len;
     if (packet->data_len != 0) {
-    for (i=0; i< AX25_MAX_INFO_BYTES_LEN; i++)
-        packet->data[i] = packet->data[i];
+    for (i=0; i < packet->data_len; i++)
+        to_packet->data[i] = packet->data[i];
     }
 
 }
@@ -332,12 +334,15 @@ int print_decoded_packet(char *label, AX25_PACKET *decoded) {
         command = "Cmd";
     else
         command = "Res";
-    debug_print("%s- %s: %s>%s %s pid=%0x pf=%d ",label, frame_type_strings[decoded->frame_type],
+    debug_print("%s- %s: %s>%s %s pid:%0x pf:%d ",label, frame_type_strings[decoded->frame_type],
                 decoded->from_callsign, decoded->to_callsign, command, decoded->pid, decoded->PF);
     if (decoded->frame_type == TYPE_I) {
-        debug_print("nr: %d ns: %d ",decoded->NR, decoded->NS);
+        debug_print("nr:%d ns:%d ",decoded->NR, decoded->NS);
+    } else if (decoded->frame_type == TYPE_S_RR || decoded->frame_type == TYPE_S_RNR
+            || decoded->frame_type == TYPE_S_REJ || decoded->frame_type == TYPE_S_SREJ) {
+        debug_print("nr:%d ",decoded->NR);
     }
-    debug_print("| ");
+    debug_print("|len:%d| ",decoded->data_len);
     for (loc=0; loc<decoded->data_len; loc++) {
         debug_print("%x ",decoded->data[loc]);
     }

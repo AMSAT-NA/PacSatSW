@@ -14,11 +14,13 @@
 #include <assert.h>
 #include "MRAMmap.h"
 #include "nonvol.h"
+#include "nonvolManagement.h"
+#include "redposix.h"
+
 #include "PbTask.h"
 #include "pacsat_header.h"
 #include "pacsat_dir.h"
 #include "inet.h"
-#include "redposix.h"
 #include "str_util.h"
 
 #ifdef DEBUG
@@ -28,7 +30,6 @@
 /* Dir variables */
 static DIR_NODE *dir_head = NULL;  // the head of the directory linked list
 static DIR_NODE *dir_tail = NULL;  // the tail of the directory linked list
-static uint32_t highest_file_id = 0; // This is incremented when we add files for upload.  Initialized when dir loaded.  TODO - keep only in MRAM
 
 /* Forward declarations */
 DIR_NODE * dir_add_pfh(char *file_path, HEADER *new_pfh);
@@ -47,14 +48,11 @@ static uint8_t pfh_byte_buffer[512]; /* Maximum size for a PFH TODO - what shoul
  * never used.  We are supposed to "reserve" the file number when a DATA command is
  * received, but we need to allocate it before that.
  *
- *
- * TODO ******** Clearly this needs to be saved in MRAM as the next file number.  We carry on from this number
- * even if all files are first deleted.  Otherwise we confuse the ground stations.
- *
  */
-int dir_next_file_number() {
-    highest_file_id++;
-    return highest_file_id;
+uint32_t dir_next_file_number() {
+    uint32_t file_id = ReadMRAMNextFileNumber();
+    WriteMRAMNextFileNumber(file_id + 1);
+    return file_id;
 }
 
 /**
@@ -87,7 +85,7 @@ int dir_next_file_number() {
  *
  */
 DIR_NODE * dir_add_pfh(char *file_name, HEADER *new_pfh) {
-    int resave = false;
+    int resave_as_new_file = false;
     DIR_NODE *new_node = (DIR_NODE *)pvPortMalloc(sizeof(DIR_NODE));
     new_node->file_id = new_pfh->fileId;
     strlcpy(new_node->filename, file_name, REDCONF_NAME_MAX+1U);
@@ -101,7 +99,7 @@ DIR_NODE * dir_add_pfh(char *file_name, HEADER *new_pfh) {
         dir_tail = new_node;
         if (new_node->upload_time == 0) {
             new_node->upload_time = now;
-            resave = true;
+            resave_as_new_file = true;
         }
         new_node->next = NULL;
         new_node->prev = NULL;
@@ -114,7 +112,7 @@ DIR_NODE * dir_add_pfh(char *file_name, HEADER *new_pfh) {
             new_node->upload_time = now;
         }
         insert_after(dir_tail, new_node);
-        resave = true;
+        resave_as_new_file = true;
     } else {
         /* Insert this at the right point, searching from the back*/
         DIR_NODE *p = dir_tail;
@@ -138,18 +136,20 @@ DIR_NODE * dir_add_pfh(char *file_name, HEADER *new_pfh) {
         }
     }
     // Now re-save the file with the new time if it changed, this recalculates the checksums
-    if (resave) {
+    if (resave_as_new_file) {
         /* The length of the header and the file length do not change because we only change the upload time
+         * and the file id.
          * So we can just re-write the header on top of the old with the new
          * upload time.  This will recalc the bytes and the checksums
          * WARNING: This does not work if a header has fields that are not recognized by the sat.
          * Uploaded files must have their PFHs parsed and resaved before this process is run
          */
-
+        uint32_t next_file_id = ReadMRAMNextFileNumber();
 
         /* modify the uptime in the header */
         new_pfh->uploadTime = new_node->upload_time;
-
+        new_pfh->fileId = next_file_id;
+        new_node->file_id = next_file_id;
         /* Regenerate the bytes and generate the checksums.  FileSize is body_offset + body_size */
         uint16_t body_offset = pfh_generate_header_bytes(new_pfh, new_pfh->fileSize - new_pfh->bodyOffset, pfh_byte_buffer);
         if (body_offset != new_node->body_offset) {
@@ -167,7 +167,7 @@ DIR_NODE * dir_add_pfh(char *file_name, HEADER *new_pfh) {
             return NULL;
         } else {
             debug_print("Saved: %d\n",new_node->file_id);
-            //pfh_debug_print(new_pfh);
+            WriteMRAMNextFileNumber(new_node->file_id + 1);
         }
     }
     return new_node;
@@ -273,8 +273,6 @@ bool dir_load_pacsat_file(char *file_name) {
         debug_print("** Could not add %s to dir\n", file_name_with_path);
         return FALSE;
     }
-    if (pfh_buffer.fileId > highest_file_id)
-        highest_file_id = pfh_buffer.fileId;
     return TRUE;
 }
 
@@ -282,7 +280,8 @@ bool dir_load_pacsat_file(char *file_name) {
  * dir_load()
  *
  * Load the directory from the MRAM and store it in uptime sorted order in
- * the linked list
+ * the linked list.  This should only be run at boot.  Then it is maintained in
+ * memory as a cache.
  *
  */
 int dir_load() {

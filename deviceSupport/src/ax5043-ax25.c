@@ -69,8 +69,6 @@
 #include "spiDriver.h"
 #include "nonvolManagement.h"
 
-//#include "config-70cm-PSK.h"
-
 /* Forward declarations */
 static uint8_t ax5043_ax25_init_registers_common(SPIDevice device);
 static uint8_t ax5043_ax25_init_registers_tx(SPIDevice device, bool band_vhf, bool rate_9600);

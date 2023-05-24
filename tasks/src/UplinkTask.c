@@ -15,9 +15,11 @@
 #include "MET.h"
 #include "inet.h"
 #include "nonvolManagement.h"
+#include "redposix.h"
 
 #include "RxTask.h"
 #include "ax25_util.h"
+#include "pacsat_dir.h"
 #include "str_util.h"
 
 
@@ -40,9 +42,17 @@ bool ftl0_add_request(char *from_callsign, rx_channel_t channel, uint32_t file_i
 bool ftl0_remove_request(rx_channel_t channel);
 bool ftl0_connection_received(char *from_callsign, char *to_callsign, rx_channel_t channel);
 bool ftl0_disconnect(char *to_callsign, rx_channel_t channel);
+int ftl0_send_err(char *from_callsign, int channel, int err);
+int ftl0_send_ack(char *from_callsign, int channel);
+int ftl0_send_nak(char *from_callsign, int channel, int err);
+int ftl0_process_upload_cmd(ftl0_state_machine_t *state, uint8_t *data, int len);
+int ftl0_process_data_cmd(ftl0_state_machine_t *state, uint8_t *data, int len);
+int ftl0_process_data_end_cmd(ftl0_state_machine_t *state, uint8_t *data, int len);
+
 int ftl0_make_packet(uint8_t *data_bytes, uint8_t *info, int length, int frame_type);
-int ftl0_parse_packet_type(unsigned char * data);
-int ftl0_parse_packet_length(unsigned char * data);
+int ftl0_parse_packet_type(uint8_t * data);
+int ftl0_parse_packet_length(uint8_t * data);
+void ftl0_make_tmp_filename(int file_id, char *dir_name, char *filename, int max_len);
 
 /* Local variables */
 static ftl0_state_machine_t ftl0_state_machine[NUM_OF_RX_CHANNELS];
@@ -77,6 +87,7 @@ char *ax25_errors_strs[] = {
 "No DL machines available to establish connection." // V
 };
 #endif
+char * ftl0_packet_type_names[] = {"DATA","DATA_END","LOGIN_RESP","UPLOAD_CMD","UL_GO_RESP","UL_ERROR_RESP","UL_ACK_RESP","UL_NAL_RESP"};
 
 
 portTASK_FUNCTION_PROTO(UplinkTask, pvParameters)  {
@@ -96,7 +107,7 @@ portTASK_FUNCTION_PROTO(UplinkTask, pvParameters)  {
 
                 if (ax25_event.primative == DL_ERROR_Indicate) {
                     // These are just for debugging.  Another event is sent if an action is needed.
-                    debug_print("FTL0[%d]: ERR from AX25: %s\n",ax25_event.channel, ax25_errors_strs[ERROR_G]);
+                    debug_print("FTL0[%d]: ERR from AX25: %s\n",ax25_event.channel, ax25_errors_strs[ax25_event.error_num]);
                 } else {
                     ftl0_next_state_from_primative(&ftl0_state_machine[ax25_event.channel], &ax25_event);
                 }
@@ -155,7 +166,7 @@ void ftl0_next_state_from_primative(ftl0_state_machine_t *state, AX25_event_t *e
  */
 void ftl0_state_uninit(ftl0_state_machine_t *state, AX25_event_t *event) {
 
-    trace_ftl0("FTL0: STATE UNINIT: ");
+    trace_ftl0("FTL0[%d]: STATE UNINIT: ",state->channel);
     switch (event->primative) {
 
         case DL_DISCONNECT_Indicate : {
@@ -187,11 +198,11 @@ void ftl0_state_uninit(ftl0_state_machine_t *state, AX25_event_t *event) {
 }
 
 void ftl0_state_cmd_wait(ftl0_state_machine_t *state, AX25_event_t *event) {
-    trace_ftl0("FTL0: STATE CMD WAIT: ");
+    trace_ftl0("FTL0[%d]: STATE CMD WAIT: ",state->channel);
 }
 
 void ftl0_state_cmd_ok(ftl0_state_machine_t *state, AX25_event_t *event) {
-    trace_ftl0("FTL0: STATE CMD OK: ");
+    trace_ftl0("FTL0[%d]: STATE CMD OK: ",state->channel);
     switch (event->primative) {
 
         case DL_DISCONNECT_Indicate : // considered fatal, we don't wait for confirm
@@ -210,64 +221,106 @@ void ftl0_state_cmd_ok(ftl0_state_machine_t *state, AX25_event_t *event) {
         }
         case DL_DATA_Indicate : {
             trace_ftl0("Data from Layer 2\n");
+            int rc;
+            int ftl0_type = ftl0_parse_packet_type(event->packet.data);
+            if (ftl0_type >= MAX_PACKET_ID) {
+                rc = ftl0_send_err(event->packet.from_callsign, event->channel, ER_ILL_FORMED_CMD);
+                if (rc != TRUE) {
+                    /* We likely could not send the error.  Something serious has gone wrong.
+                     * Not much we can do as we are going to offload the request anyway */
+                }
+                ftl0_disconnect(state->callsign, state->channel);
+                ftl0_remove_request(state->channel);
+            }
+            trace_ftl0("FTL0[%d]: %s: UL_CMD_OK - %s\n",state->channel, state->callsign, ftl0_packet_type_names[ftl0_type]);
 
-//            int ftl0_type = ftl0_parse_packet_type(data);
-//            if (ftl0_type > MAX_PACKET_ID) {
-//                int rc = ftl0_send_err(from_callsign, channel, ER_ILL_FORMED_CMD);
-//                if (rc != EXIT_SUCCESS) {
-//                    /* We likely could not send the error.  Something serious has gone wrong.
-//                     * Not much we can do as we are going to offload the request anyway */
-//                }
-//                ftl0_disconnect(uplink_list[selected_station].callsign, uplink_list[selected_station].channel);
-//                ftl0_remove_request(selected_station);
-//            }
-//            debug_print("%s: UL_CMD_OK - %s\n",uplink_list[selected_station].callsign, ftl0_packet_type_names[ftl0_type]);
-//
-//            /* Process the EVENT through the UPLINK STATE MACHINE */
-//            switch (ftl0_type) {
-//                case UPLOAD_CMD : {
-//                    /* if OK to upload send UL_GO_RESP.  We determine if it is OK by checking if we have space
-//                     * and that it is a valid continue of file_id != 0
-//                     * This will send UL_GO_DATA packet if checks pass
-//                     * TODO - the code would be clearer if this parses the request then returns here and then we
-//                     * send the packet from here.  Then all packet sends are from this level of the state machine*/
-//                    int err = ftl0_process_upload_cmd(selected_station, from_callsign, channel, data, len);
-//                    if (err != ER_NONE) {
-//                        // send the error
-//                        rc = ftl0_send_err(from_callsign, channel, err);
-//                        if (rc != EXIT_SUCCESS) {
-//                            /* We likely could not send the error.  Something serious has gone wrong.
-//                             * But the best we can do is remove the station and return the error code. */
-//                            ftl0_disconnect(uplink_list[selected_station].callsign, uplink_list[selected_station].channel);
-//                            ftl0_remove_request(selected_station);
-//                        }
-//                        // If we sent error successfully then we stay in state UL_CMD_OK and the station can try another file
-//                        return rc;
-//                    }
-//                    // We move to state UL_DATA_RX
-//                    uplink_list[selected_station].state = UL_DATA_RX;
-//                    break;
-//                }
-//                default: {
-//                    ftl0_disconnect(uplink_list[selected_station].callsign, uplink_list[selected_station].channel);
-//                    ftl0_remove_request(selected_station);
-//                    return EXIT_SUCCESS; // don't increment or change the current station
-//                    break;
-//                }
-//            }
+            /* Process the EVENT through the UPLINK STATE MACHINE */
+            switch (ftl0_type) {
+                case UPLOAD_CMD : {
+                    /* if OK to upload send UL_GO_RESP.  We determine if it is OK by checking if we have space
+                     * and that it is a valid continue of file_id != 0
+                     * This will send UL_GO_DATA packet if checks pass
+                     * TODO - the code might be clearer if this parses the request then returns here and then we
+                     * send the packet from here.  Then all packet sends are from this level of the state machine.
+                     * But this case within case is already long ... */
+                    int err = ftl0_process_upload_cmd(state, event->packet.data, event->packet.data_len);
+                    if (err != ER_NONE) {
+                        // send the error
+                        rc = ftl0_send_err(event->packet.from_callsign, event->channel, err);
+                        if (rc != TRUE) {
+                            /* We likely could not send the error.  Something serious has gone wrong.
+                             * But the best we can do is remove the station and return the error code. */
+                            ftl0_disconnect(state->callsign, state->channel);
+                            ftl0_remove_request(state->channel);
+                            break;
+                        }
+                        // If we sent error successfully then we stay in state UL_CMD_OK and the station can try another file
+                        break;
+                    }
+                    // We move to state UL_DATA_RX
+                    state->ul_state = UL_DATA_RX;
+                    break;
+                }
+                default: {
+                    trace_ftl0("FTL0: Unknown FTL0 command %d\n",ftl0_type);
+                    ftl0_disconnect(state->callsign, state->channel);
+                    ftl0_remove_request(state->channel);
+                    break;
+                }
+            }
 
-            break;
+            break; // End of DL_DATA_Indicate
         }
         default : {
             trace_ftl0(".. Unexpected packet or event, disconnect\n");
             ftl0_disconnect(state->callsign, event->channel);
+            ftl0_remove_request(state->channel);
             break;
         }
     }
 }
 
+/**
+ * State UL_DATA_RC
+ *
+   EVENT: Receive DATA packet {
+        Try to store data.
+        if out of storage {
+             Transmit UL_NAK_RESP packet.
+             Close file.
+             Save file_offset and file_number.
+             ul_state <- UL_ABORT
+        }
+        else {
+             Update file_offset.
+             ul_state <- UL_DATA_RX
+        }
+   }
+
+   EVENT: Receive DATA_END packet {
+        Close file.
+        if file passes checks {
+             Transmit UL_ACK_RESP packet
+             ul_state <- UL_CMD_OK
+        }
+        else {
+             file_offset <- 0
+             Save file_offset and file_number
+             Transmit UL_NAK_RESP packet
+             ul_state <- UL_CMD_OK
+        }
+   }
+
+   EVENT: DEFAULT{
+        if (file_offset > 0)
+             Save file_offset and file number.
+        if EVENT is not "data link terminated"
+              Terminate data link.
+        ul_state <- UL_UNINIT
+   }
+ */
 void ftl0_state_data_rx(ftl0_state_machine_t *state, AX25_event_t *event) {
-    trace_ftl0("FTL0: STATE DATA RX: ");
+    trace_ftl0("FTL0[%d]: STATE UL_DATA_RX: ",state->channel);
     switch (event->primative) {
 
         case DL_DISCONNECT_Indicate : {
@@ -282,12 +335,69 @@ void ftl0_state_data_rx(ftl0_state_machine_t *state, AX25_event_t *event) {
             break;
         }
         case DL_DATA_Indicate : {
-            trace_ftl0("Data from Layer 2\n");
-            break;
+            //trace_ftl0("Data from Layer 2\n");
+            int rc;
+            int ftl0_type = ftl0_parse_packet_type(event->packet.data);
+            if (ftl0_type >= MAX_PACKET_ID) {
+                rc = ftl0_send_err(event->packet.from_callsign, event->channel, ER_ILL_FORMED_CMD);
+                if (rc != TRUE) {
+                    /* We likely could not send the error.  Something serious has gone wrong.
+                     * Not much we can do as we are going to offload the request anyway */
+                }
+                ftl0_disconnect(state->callsign, state->channel);
+                ftl0_remove_request(state->channel);
+            }
+            trace_ftl0("FTL0[%d]: Layer 2 Data from %s: in FTL0 Packet: %s\n",state->channel, state->callsign, ftl0_packet_type_names[ftl0_type]);
+
+            /* Process the EVENT through the UPLINK STATE MACHINE */
+            switch (ftl0_type) {
+                case DATA : {
+                    trace_ftl0("FTL0[%d]: %s: UL_DATA_RX - DATA RECEIVED\n",state->channel, state->callsign);
+                    int err = ftl0_process_data_cmd(state, event->packet.data, event->packet.data_len);
+                    if (err != ER_NONE) {
+                        // send the error
+                        rc = ftl0_send_err(event->packet.from_callsign, event->channel, err);
+                        if (rc != TRUE) {
+                            /* We likely could not send the error.  Something serious has gone wrong.
+                             * But the best we can do is remove the station and return the error code. */
+                            ftl0_disconnect(state->callsign, state->channel);
+                            ftl0_remove_request(state->channel);
+                            break;
+                        }
+                        // If we sent error successfully then we stay in state UL_DATA_RX and the station can send more data
+
+                    }
+                    break;
+                }
+                case DATA_END : {
+                    trace_ftl0("FTL0[%d]: %s: UL_DATA_RX - DATA END RECEIVED\n",state->channel, state->callsign);
+                    int err = ftl0_process_data_end_cmd(state, event->packet.data, event->packet.data_len);
+                    if (err != ER_NONE) {
+                        rc = ftl0_send_nak(event->packet.from_callsign, event->channel, err);
+                    } else {
+                        debug_print(" *** SENDING ACK *** \n");
+                        rc = ftl0_send_ack(event->packet.from_callsign, event->channel);
+                    }
+                    state->ul_state = UL_CMD_OK;
+                    if (rc != TRUE) {
+                        ftl0_disconnect(state->callsign, state->channel);
+                        ftl0_remove_request(state->channel);
+                    }
+                    break;
+                }
+                default : {
+                    ftl0_disconnect(state->callsign, state->channel);
+                    ftl0_remove_request(state->channel);
+                    break;
+                }
+            }
+
+            break; // end of DL_DATA_Indicate
         }
         default : {
             trace_ftl0(".. Unexpected packet or event, disconnect\n");
             ftl0_disconnect(state->callsign, event->channel);
+            ftl0_remove_request(state->channel);
             break;
         }
     }
@@ -315,6 +425,7 @@ void ftl0_state_abort(ftl0_state_machine_t *state, AX25_event_t *event) {
         default : {
             trace_ftl0(".. Unexpected packet or event, disconnect\n");
             ftl0_disconnect(state->callsign, event->channel);
+            ftl0_remove_request(state->channel);
             break;
         }
     }
@@ -327,20 +438,22 @@ void ftl0_state_abort(ftl0_state_machine_t *state, AX25_event_t *event) {
  */
 bool ftl0_send_event(AX25_event_t *received_event, AX25_event_t *send_event) {
     send_event->channel = received_event->channel;
+    send_event->primative = DL_DATA_Request;
+    send_event->packet.frame_type = TYPE_I;
     strlcpy(send_event->packet.to_callsign, received_event->packet.from_callsign, MAX_CALLSIGN_LEN);
     strlcpy(send_event->packet.from_callsign, BBS_CALLSIGN, MAX_CALLSIGN_LEN);
 
     if (send_event->primative == DL_DATA_Request) {
+        // Add data events directly to the iFrame Queue
         BaseType_t xStatus = xQueueSendToBack( xIFrameQueue[received_event->channel], send_event, CENTISECONDS(1) );
         if( xStatus != pdPASS ) {
             /* The send operation could not complete because the queue was full */
             debug_print("I FRAME QUEUE FULL: Could not add to Event Queue for channel %d\n",received_event->channel);
             // TODO - we should log this error and downlink in telemetry
             return FALSE;
-        } else {
-            trace_ftl0("FTL0: Added iframe data event to Data Link SM: %d\n",send_event->primative);
         }
     } else {
+        // All other events are added to the event Queue
         BaseType_t xStatus = xQueueSendToBack( xRxEventQueue, send_event, CENTISECONDS(1) );
         if( xStatus != pdPASS ) {
             /* The send operation could not complete because the queue was full */
@@ -348,7 +461,7 @@ bool ftl0_send_event(AX25_event_t *received_event, AX25_event_t *send_event) {
             // TODO - we should log this error and downlink in telemetry
             return FALSE;
         } else {
-            trace_ftl0("FTL0: Added event to Data Link SM: %d\n",send_event->primative);
+            trace_ftl0("FTL0[%d]: Sending Event %d\n",send_event->channel, send_event->primative);
         }
     }
     return TRUE;
@@ -385,7 +498,7 @@ bool ftl0_add_request(char *from_callsign, rx_channel_t channel, uint32_t file_i
         }
     }
 
-    trace_ftl0("FTL0 Connecting %s\n",ftl0_state_machine[channel].callsign);
+//    trace_ftl0("FTL0 Connecting %s\n",ftl0_state_machine[channel].callsign);
     strlcpy(ftl0_state_machine[channel].callsign, from_callsign, MAX_CALLSIGN_LEN);
     ftl0_state_machine[channel].ul_state = UL_CMD_OK;
     ftl0_state_machine[channel].channel = channel;
@@ -405,10 +518,11 @@ bool ftl0_add_request(char *from_callsign, rx_channel_t channel, uint32_t file_i
  *
  */
 bool ftl0_remove_request(rx_channel_t channel) {
+#ifdef DEBUG
     uint32_t now = getSeconds();
     int duration = (int)(now - ftl0_state_machine[channel].request_time);
     trace_ftl0("FTL0 Disconnecting %s - connected for %d seconds\n",ftl0_state_machine[channel].callsign, duration);
-
+#endif
     /* Remove the item */
     ftl0_state_machine[channel].ul_state = UL_UNINIT;
     ftl0_state_machine[channel].file_id = 0;
@@ -460,7 +574,7 @@ variables to UL_CMD_WAIT
  *
  */
 bool ftl0_connection_received(char *from_callsign, char *to_callsign, rx_channel_t channel) {
-    trace_ftl0("FTL0: Connection for File Upload from: %s\n",from_callsign);
+    //trace_ftl0("FTL0: Connection for File Upload from: %s\n",from_callsign);
 
     /* Add the request, which initializes their uplink state machine. At this point we don't know the
      * file number, offset or dir node */
@@ -491,8 +605,6 @@ bool ftl0_connection_received(char *from_callsign, char *to_callsign, rx_channel
         return FALSE;
     }
 
-    send_event_buffer.primative = DL_DATA_Request;
-    send_event_buffer.packet.frame_type = TYPE_I;
     send_event_buffer.packet.data_len = sizeof(login_data)+2;
 
     rc = ftl0_send_event(&ax25_event, &send_event_buffer);
@@ -502,9 +614,12 @@ bool ftl0_connection_received(char *from_callsign, char *to_callsign, rx_channel
         // Disconnect??  Retry??
         debug_print("Could not send FTL0 LOGIN packet to Data Link State Machine \n");
         return FALSE;
+    } else {
+        trace_ftl0("FTL0:[%d]: Sending FTL0 LOGIN PKT\n",channel);
     }
     return TRUE;
 }
+
 
 /**
  * ftl0_disconnect()
@@ -526,6 +641,318 @@ bool ftl0_disconnect(char *to_callsign, rx_channel_t channel) {
     }
     return TRUE;
 }
+
+int ftl0_send_err(char *from_callsign, int channel, int err) {
+    int frame_type = UL_ERROR_RESP;
+    uint8_t err_info[1];
+    err_info[0] = err;
+
+    int rc = ftl0_make_packet(send_event_buffer.packet.data, err_info, sizeof(err_info), frame_type);
+    if (rc != TRUE) {
+        debug_print("Could not make FTL0 ERR packet\n");
+        return FALSE;
+    }
+    send_event_buffer.packet.data_len = sizeof(err_info)+2;
+
+    rc = ftl0_send_event(&ax25_event, &send_event_buffer);
+    if (rc != TRUE) {
+        debug_print("Could not send FTL0 ERR packet to TNC \n");
+        return FALSE;
+    } else {
+        trace_ftl0("FTL0:[%d]: Sending FTL0 ERR %d\n",channel, err);
+    }
+    return TRUE;
+}
+
+
+int ftl0_send_ack(char *from_callsign, int channel) {
+    int frame_type = UL_ACK_RESP;
+
+    int rc = ftl0_make_packet(send_event_buffer.packet.data, (uint8_t *)NULL, 0, frame_type);
+    if (rc != TRUE) {
+        debug_print("Could not make FTL0 ACK packet\n");
+        return FALSE;
+    }
+    send_event_buffer.packet.data_len = 2;
+
+    rc = ftl0_send_event(&ax25_event, &send_event_buffer);
+    if (rc != TRUE) {
+        debug_print("Could not send FTL0 ACK packet to TNC \n");
+        return FALSE;
+    }else {
+        trace_ftl0("FTL0:[%d]: Sending FTL0 ACK %d\n",channel);
+    }
+    return TRUE;
+}
+
+int ftl0_send_nak(char *from_callsign, int channel, int err) {
+    int frame_type = UL_NAK_RESP;
+    uint8_t err_info[1];
+    err_info[0] = err;
+
+    int rc = ftl0_make_packet(send_event_buffer.packet.data, err_info, sizeof(err_info), frame_type);
+    if (rc != TRUE) {
+        debug_print("Could not make FTL0 NAK packet\n");
+        return FALSE;
+    }
+    send_event_buffer.packet.data_len = sizeof(err_info)+2;
+
+    rc = ftl0_send_event(&ax25_event, &send_event_buffer);
+    if (rc != TRUE) {
+        debug_print("Could not send FTL0 NAK packet to TNC \n");
+        return FALSE;
+    }else {
+        trace_ftl0("FTL0:[%d]: Sending FTL0 NAK %d\n",channel, err);
+    }
+    return TRUE;
+}
+
+
+/**
+ * ftl0_process_upload_cmd()
+ *
+ * selected_station is the index of the station in the upload list
+ * The upload command packets data is parsed
+ *
+Packet: UPLOAD_CMD
+Information: 8 bytes
+struct {
+     unsigned long continue_file_no;
+     unsigned long file_length;
+}
+
+<continue_file_no> - a 32-bit unsigned integer identifying the file to contin-
+ue.   Used to continue a previously-aborted upload.  Must be 0 when commencing
+a new upload.
+
+<file_length> -  32-bit unsigned integer indicating the number of bytes in the
+file.
+
+ */
+int ftl0_process_upload_cmd(ftl0_state_machine_t *state, uint8_t *data, int len) {
+
+    int ftl0_length = ftl0_parse_packet_length(data);
+    if (ftl0_length != 8)
+        return ER_ILL_FORMED_CMD;
+
+    FTL0_UPLOAD_CMD *upload_cmd = (FTL0_UPLOAD_CMD *)(data + 2); /* Point to the data just past the header */
+
+    /* Parse the file number and length from the little endian packet */
+    uint32_t file_no = ttohl(upload_cmd->continue_file_no);
+    uint32_t length = ttohl(upload_cmd->file_length);
+
+    if (length == 0)
+        return ER_ILL_FORMED_CMD;
+
+    /* This is the data we are going to send */
+    FTL0_UL_GO_DATA ul_go_data;
+
+    /* Check if data is valid */
+    if (file_no == 0) {
+        /* Do we have space */
+//        struct statvfs buffer;
+//        int ret = statvfs(get_dir_folder(), &buffer);
+//        if (!ret) {
+//            //const unsigned int GB = (1024 * 1024) * 1024;
+//            //const double total = (double)(buffer.f_blocks * buffer.f_frsize);
+//            const double available = (double)(buffer.f_bfree * buffer.f_frsize);
+//            //debug_print("Disk Space: %f --> %.0f\n", total, total/GB);
+//            //debug_print(" Available: %f --> %.0f\n", available, available/GB);
+//
+//            if (available - length < UPLOAD_SPACE_THRESHOLD)
+//                return ER_NO_ROOM;
+//        } else {
+//            /* Can't check if we have space, assume an error */
+//            return ER_NO_ROOM;
+//        }
+
+        /* We have space so allocate a file number, store in uplink list and send to the station */
+//        ul_go_data.server_file_no = dir_next_file_number();
+        uint32_t next_file_num = dir_next_file_number();
+        ul_go_data.server_file_no = htotl(next_file_num);
+        debug_print("Allocated file id: %04x\n",next_file_num);
+        ul_go_data.byte_offset = 0;
+        state->offset = 0;
+
+        /* Initialize the empty file */
+//        char tmp_filename[MAX_FILENAME_WITH_PATH_LEN];
+//        // TODO - dir_name is hard coded to the root dir
+//        ftl0_make_tmp_filename(ul_go_data.server_file_no, "/", tmp_filename, MAX_FILENAME_WITH_PATH_LEN);
+//        FILE * f = fopen(tmp_filename, "w");
+//        if (f == NULL) {
+//            error_print("Can't initilize new file %s\n",tmp_filename);
+//            return ER_NO_ROOM;
+//        }
+//        fclose(f);
+    } else { // File number was supplied in the Upload command
+        /* Is this a valid continue? Check to see if there is a tmp file and read its length */
+        // TODO - we also need to check the situation where we have the complete file but the ground station never received the ACK.
+        //        So an atttempt to upload a finished file that belongs to this station, that has the right length, should get an ACK to finish upload off
+        char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
+        // TODO - dir_name is hard coded to the root dir
+        ftl0_make_tmp_filename(file_no, "/", file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
+        debug_print("Checking continue file: %s\n",file_name_with_path);
+
+        // TODO - we check that the file exists, but for now we do not check that it belongs to this station.  That allows two
+        // stations to cooperatively upload the same file, but it also allows a station to corrupt someone elses file
+        int32_t fp = red_open(file_name_with_path, RED_O_RDONLY);
+        if (fp == -1) {
+            debug_print("No such file number \n");
+            return ER_NO_SUCH_FILE_NUMBER;
+        }
+        int rc;
+        int offset = red_lseek(fp, 0, RED_SEEK_END);
+        if (offset == -1) {
+            debug_print("Unable to seek %s  to end: %s\n", file_name_with_path, red_strerror(red_errno));
+
+            rc = red_close(fp);
+            if (rc != 0) {
+                printf("Unable to close %s: %s\n", file_name_with_path, red_strerror(red_errno));
+            }
+            return ER_NO_SUCH_FILE_NUMBER;
+        }
+        rc = red_close(fp);
+        if (rc != 0) {
+            printf("Unable to close %s: %s\n", file_name_with_path, red_strerror(red_errno));
+        }
+
+        // TODO - we need to remember the "promised" file length after the station is removed from the Uplink list
+        /* if <continue_file_no> is not 0 and the <file_length> does not
+            agree with the <file_length> previously associated with the file identified by
+            <continue_file_no>.  Continue is not possible.*/
+        // code this error check
+
+        ul_go_data.server_file_no = htotl(file_no);
+        ul_go_data.byte_offset = htotl(offset); // this is the end of the file so far
+        state->offset = offset;
+    }
+    state->file_id = file_no;
+
+    int rc = ftl0_make_packet(send_event_buffer.packet.data, (uint8_t *)&ul_go_data, sizeof(ul_go_data), UL_GO_RESP);
+        if (rc != TRUE) {
+            debug_print("Could not make FTL0 UL GO packet \n");
+            return ER_ILL_FORMED_CMD; // TODO This will cause err 1 to be sent and the station to be offloaded.  Is that right..
+        }
+
+        send_event_buffer.packet.data_len = sizeof(ul_go_data)+2;
+
+        rc = ftl0_send_event(&ax25_event, &send_event_buffer);
+        if (rc != TRUE) {
+            debug_print("Could not send FTL0 UL GO packet to TNC \n");
+            return ER_ILL_FORMED_CMD; // TODO This will cause err 1 to be sent and the station to be offloaded.  Is that right..
+        } else {
+            trace_ftl0("FTL0:[%d]: Sending FTL0 UL_GO PKT\n",state->channel);
+        }
+    return ER_NONE;
+}
+
+/**
+ * ftl0_process_data_cmd()
+ *
+ * Parse and process a data command from the ground station.
+ *
+ * TODO
+ * Reception of a data command also means that the filenumber should be saved. This is what "reserves" the
+ * new file number.
+ *
+ */
+int ftl0_process_data_cmd(ftl0_state_machine_t *state, uint8_t *data, int len) {
+//    int ftl0_type = ftl0_parse_packet_type(data);
+//    if (ftl0_type != DATA) {
+//        return ER_ILL_FORMED_CMD; /* We should never get this */
+//    }
+//    int ftl0_length = ftl0_parse_packet_length(data);
+//    if (ftl0_length == 0 || ftl0_length > len-2) {
+//        return ER_BAD_HEADER; /* This will cause a NAK to be sent as the data is corrupt in some way */
+//    }
+//
+//    unsigned char * data_bytes = (unsigned char *)data + 2; /* Point to the data just past the header */
+//
+//    char tmp_filename[MAX_FILE_PATH_LEN];
+//    ftl0_make_tmp_filename(uplink_list[selected_station].file_id, get_dir_folder(), tmp_filename, MAX_FILE_PATH_LEN);
+//    debug_print("Saving data to file: %s\n",tmp_filename);
+//    FILE * f = fopen(tmp_filename, "ab"); /* Open the file for append of data to the end */
+//    if (f == NULL) {
+//        return ER_NO_SUCH_FILE_NUMBER;
+//    }
+//    for (int i=0; i< ftl0_length; i++) {
+//        int c = fputc((unsigned int)data_bytes[i],f);
+//        if (c == EOF) {
+//            fclose(f);
+//            return ER_NO_SUCH_FILE_NUMBER; // we could not write to the file, assume it is not valid, was it purged?
+//        }
+//    }
+//    fclose(f);
+
+    return ER_NONE;
+}
+
+int ftl0_process_data_end_cmd(ftl0_state_machine_t *state, uint8_t *data, int len) {
+//    int ftl0_type = ftl0_parse_packet_type(data);
+//    if (ftl0_type != DATA_END) {
+//        return ER_ILL_FORMED_CMD; /* We should never get this */
+//    }
+//    int ftl0_length = ftl0_parse_packet_length(data);
+//    if (ftl0_length != 0) {
+//        return ER_BAD_HEADER; /* This will cause a NAK to be sent as the data is corrupt in some way */
+//    }
+//
+//    char tmp_filename[MAX_FILE_PATH_LEN];
+//    ftl0_make_tmp_filename(uplink_list[selected_station].file_id, get_dir_folder(), tmp_filename, MAX_FILE_PATH_LEN);
+//
+//    /* We can't call dir_load_pacsat_file() here because we want to check the tmp file but then
+//     * add the file after we rename it. So we validate it first. */
+//
+//    /* First check the header.  We must free the pfh memory if it is not added to the dir */
+//    HEADER *pfh = pfh_load_from_file(tmp_filename);
+//    if (pfh == NULL) {
+//        /* Header is invalid */
+//        error_print("** Header check failed for %s\n",tmp_filename);
+//        if (remove(tmp_filename) != 0) {
+//            error_print("Could not remove the temp file: %s\n", tmp_filename);
+//        }
+//        return ER_BAD_HEADER;
+//    }
+//
+//    int rc = dir_validate_file(pfh, tmp_filename);
+//    if (rc != ER_NONE) {
+//        free(pfh);
+//        if (remove(tmp_filename) != 0) {
+//            error_print("Could not remove the temp file: %s\n", tmp_filename);
+//        }
+//        return rc;
+//    }
+//
+//    /* Otherwise this looks good.  Rename the file and add it to the directory. */
+//    //TODO - note that we are renaming the file before we know that the ground station has received an ACK
+//    char new_filename[MAX_FILE_PATH_LEN];
+//    pfh_make_filename(uplink_list[selected_station].file_id, get_dir_folder(), new_filename, MAX_FILE_PATH_LEN);
+//    if (rename(tmp_filename, new_filename) == EXIT_SUCCESS) {
+////      char file_id_str[5];
+////      snprintf(file_id_str, 4, "%d",uplink_list[selected_station].file_id);
+////      strlcpy(pfh->fileName, file_id_str, sizeof(pfh->fileName));
+////      strlcpy(pfh->fileExt, PSF_FILE_EXT, sizeof(pfh->fileExt));
+//
+//        DIR_NODE *p = dir_add_pfh(pfh, new_filename);
+//        if (p == NULL) {
+//            error_print("** Could not add %s to dir\n",new_filename);
+//            free(pfh);
+//            if (remove(tmp_filename) != 0) {
+//                error_print("Could not remove the temp file: %s\n", new_filename);
+//            }
+//            return ER_NO_ROOM; /* This is a bit of a guess at the error, but it is unclear why else this would fail. */
+//        }
+//    } else {
+//        /* This looks like an io error and we can't rename the file.  Send error to the ground */
+//        free(pfh);
+//        if (remove(tmp_filename) != 0) {
+//            error_print("Could not remove the temp file: %s\n", tmp_filename);
+//        }
+//        return ER_NO_ROOM;
+//    }
+    return ER_NONE;
+}
+
 
 /**
  * ftl0_make_packet()
@@ -562,12 +989,22 @@ int ftl0_make_packet(uint8_t *data_bytes, uint8_t *info, int length, int frame_t
     return TRUE;
 }
 
-int ftl0_parse_packet_type(unsigned char * data) {
+int ftl0_parse_packet_type(uint8_t * data) {
     int type = data[1] & 0b00011111;
     return type;
 }
 
-int ftl0_parse_packet_length(unsigned char * data) {
+int ftl0_parse_packet_length(uint8_t * data) {
     int length = (data[1] >> 5) * 256 + data[0];
     return length;
+}
+
+void ftl0_make_tmp_filename(int file_id, char *dir_name, char *filename, int max_len) {
+    char file_id_str[5];
+    snprintf(file_id_str, 5, "%04x",file_id);
+    strlcpy(filename, dir_name, max_len);
+    strlcat(filename, "/", max_len);
+    strlcat(filename, file_id_str, max_len);
+    strlcat(filename, ".", max_len);
+    strlcat(filename, "upload", max_len);
 }

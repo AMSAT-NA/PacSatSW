@@ -43,6 +43,7 @@ void restart_timer(TimerHandle_t timer);
 void stop_timer(TimerHandle_t timer);
 void ax25_send_response(rx_channel_t channel, ax25_frame_type_t frame_type, char *to_callsign, AX25_PACKET *response_packet, bool expedited);
 bool ax25_send_event(AX25_data_link_state_machine_t *state, AX25_primative_t prim, AX25_PACKET *packet, ax25_error_t error_num);
+bool ax25_send_lm_event(AX25_data_link_state_machine_t *state, AX25_primative_t prim);
 
 /* State Machine functions */
 void ax25_next_state_from_primative(AX25_data_link_state_machine_t *dl_state_info, AX25_event_t *event);
@@ -66,7 +67,7 @@ void send_rr_frame(AX25_data_link_state_machine_t *state, AX25_PACKET *packet);
 /* State Machine Helper functions */
 void nr_error_recovery(AX25_data_link_state_machine_t *state, AX25_PACKET *packet);
 void clear_exception_conditions(AX25_data_link_state_machine_t *state);
-void transmit_enquiry(AX25_data_link_state_machine_t *state, AX25_PACKET *packet);
+void transmit_enquiry(AX25_data_link_state_machine_t *state);
 void enquiry_response(AX25_data_link_state_machine_t *state, AX25_PACKET *packet, int F);
 void invoke_retransmission(AX25_data_link_state_machine_t *state, int NR);
 void check_iframes_acknowledged(AX25_data_link_state_machine_t *state, AX25_PACKET *packet);
@@ -91,10 +92,13 @@ static const AX25_PACKET EMPTY_PACKET; // Use this to reset packet to zero
 static AX25_event_t ax25_received_event; /* Static storage for received event */
 static AX25_event_t send_event_buffer; /* Static storage for event we are sending */
 static AX25_event_t timer_event; /* Static storage for timer events */
+static AX25_event_t lm_event; /* Static storage for Link Multiplexer event */
 bool in_test = false;
+static bool seize_requested[NUM_OF_RX_CHANNELS];
 
 // TODO These should be globals so that the Uplink can access them as well for debug messages
 static char *rx_channel_names[] = {"A","B","C","D"};
+static char *state_names[] = {"DISC","AWAIT CONN","AWAIT REL","CONN", "TIMER REC", "AWAIT_22_CONN"};
 
 portTASK_FUNCTION_PROTO(Ax25Task, pvParameters)  {
 
@@ -103,12 +107,12 @@ portTASK_FUNCTION_PROTO(Ax25Task, pvParameters)  {
     printf("Initializing Ax25 Data Link Task\n");
 
     /* create a RTOS software timers for T1 and T3.  One per channel.*/
-    timerT1[Channel_A] = xTimerCreate( "T1_0", AX25_TIMER_T1_PERIOD, FALSE, (void *)Channel_A, ax25_t1_expired); // single shot timer
+    timerT1[Channel_A] = xTimerCreate( "T1", AX25_TIMER_T1_PERIOD, FALSE, (void *)Channel_A, ax25_t1_expired); // single shot timer
 //    timerT1[1] = xTimerCreate( "T1_1", AX25_TIMER_T1_PERIOD, FALSE, (void *)Channel_B, ax25_t1_expired); // single shot timer
 //    timerT1[2] = xTimerCreate( "T1_2", AX25_TIMER_T1_PERIOD, FALSE, (void *)Channel_C, ax25_t1_expired); // single shot timer
 //    timerT1[3] = xTimerCreate( "T1_3", AX25_TIMER_T1_PERIOD, FALSE, (void *)Channel_D, ax25_t1_expired); // single shot timer
 
-    timerT3[Channel_A] = xTimerCreate( "T3_0", AX25_TIMER_T3_PERIOD, FALSE, (void *)Channel_A, ax25_t3_expired); // single shot timer
+    timerT3[Channel_A] = xTimerCreate( "T3", AX25_TIMER_T3_PERIOD, FALSE, (void *)Channel_A, ax25_t3_expired); // single shot timer
 
     int chan;
     for (chan=0; chan < NUM_OF_RX_CHANNELS; chan++) {
@@ -143,6 +147,7 @@ portTASK_FUNCTION_PROTO(Ax25Task, pvParameters)  {
             decode_call(&ax25_radio_buffer.bytes[0], to_callsign);
 
 //            print_packet(AX25_data_link_state_machine_t *dl_state_info, "AX25", ax25_packet_buffer+1, ax25_packet_buffer[0]);
+            /* LM_DATA_Indicate - Frames of any type passed from the Link Multiplexer to the Data Link State Machine */
             ax25_process_frame(from_callsign, to_callsign, ax25_radio_buffer.channel);
 
         }
@@ -156,7 +161,12 @@ portTASK_FUNCTION_PROTO(Ax25Task, pvParameters)  {
                 // something is seriously wrong.  Programming error.  Unlikely to occur in flight
                 debug_print("ERR: AX25 channel %d is invalid\n",ax25_received_event.channel);
             } else {
-                ax25_next_state_from_primative(&data_link_state_machine[ax25_received_event.channel], &ax25_received_event);
+                if (ax25_received_event.primative == LM_SEIZE_Request) {
+                    trace_dl("LM[%d]: SEIZE Requested\n",ax25_received_event.channel);
+                    seize_requested[ax25_received_event.channel] = TRUE;
+                } else {
+                    ax25_next_state_from_primative(&data_link_state_machine[ax25_received_event.channel], &ax25_received_event);
+                }
             }
         }
         /* Yield some time so any packets are sent, or so that others may do some processing */
@@ -164,7 +174,9 @@ portTASK_FUNCTION_PROTO(Ax25Task, pvParameters)  {
         ReportToWatchdog(CurrentTaskWD);
 
         if (!in_test) {
-            // If any channels have I frames to send, then request that now
+            /* See if any channels have I frames to send.  Send them now, which will also process any pending
+             * acknowledgement.  If SEIZE Request is set then send the DL State Machine a SEIZE Confirm message after any
+             * frames are sent.  This will cause an RR to be sent if an ACK is still pending. */
             int c;
             for (c = 0; c < NUM_OF_RX_CHANNELS; c++) {
                 xStatus = xQueueReceive( xIFrameQueue[c], &ax25_received_event, CENTISECONDS(1) );  // Wait to see if data available
@@ -174,6 +186,12 @@ portTASK_FUNCTION_PROTO(Ax25Task, pvParameters)  {
 //#endif
                     ax25_received_event.primative = DL_POP_IFRAME_Request;
                     ax25_next_state_from_primative(&data_link_state_machine[c], &ax25_received_event);
+                }
+                taskYIELD();
+                if (seize_requested[c]) {
+                    lm_event.primative = LM_SEIZE_Confirm;
+                    ax25_next_state_from_primative(&data_link_state_machine[c], &lm_event);
+                    seize_requested[c] = false;
                 }
             }
         }
@@ -237,7 +255,7 @@ void ax25_send_status() {
  */
 void ax25_t1_expired(TimerHandle_t xTimer) {
     uint32_t chan = (uint32_t)pvTimerGetTimerID( xTimer ); // timer id is treated as an integer and not as a pointer
-    trace_dl("AX25: Channel %d. Timer T1 Expiry Int\n", (rx_channel_t)chan);
+    trace_dl("AX25[%d]: Timer T1 Expiry Int at %d\n", (rx_channel_t)chan, getSeconds());
     timer_event.primative = DL_TIMER_T1_Expire;
     timer_event.channel = (rx_channel_t)chan;
     BaseType_t xStatus = xQueueSendToBack( xRxEventQueue, &timer_event, 0 ); // Do not block as this is called from timer
@@ -245,11 +263,14 @@ void ax25_t1_expired(TimerHandle_t xTimer) {
         debug_print("EVENT QUEUE FULL: Could not add T1 expire to Event Queue\n");
         // TODO - we should log this error and downlink in telemetry
     }
+    taskYIELD();
 }
 
 void ax25_t3_expired(TimerHandle_t xTimer) {
+#ifdef DEBUG
     uint32_t chan = (uint32_t)pvTimerGetTimerID( xTimer ); // timer id is treated as an integer and not as a pointer
-    trace_dl("AX25: Channel %d. Timeout... Timer T3 Expiry Int\n", (rx_channel_t)chan);
+    trace_dl("AX25[%d]: Timeout... Timer T3 Expiry Int at %d\n", (rx_channel_t)chan, getSeconds());
+#endif
     timer_event.primative = DL_TIMER_T3_Expire;
     timer_event.channel = (rx_channel_t)chan;
     BaseType_t xStatus = xQueueSendToBack( xRxEventQueue, &timer_event, 0 ); // Do not block as this is called from timer
@@ -257,17 +278,23 @@ void ax25_t3_expired(TimerHandle_t xTimer) {
         debug_print("EVENT QUEUE FULL: Could not add T3 expire to Event Queue\n");
         // TODO - we should log this error and downlink in telemetry
     }
+    taskYIELD();
 }
 
 void start_timer(TimerHandle_t timer) {
-
-    BaseType_t act = xTimerIsTimerActive(timerT1[Channel_A]);
+#ifdef DEBUG
+    uint32_t chan = (uint32_t)pvTimerGetTimerID( timer ); // timer id is treated as an integer and not as a pointer
+#endif
+    BaseType_t act = xTimerIsTimerActive(timer);
     if (act == pdPASS) {
         restart_timer(timer);
     } else {
+#ifdef DEBUG
+        trace_dl("AX25[%d]: Start Timer %s at %d\n", (rx_channel_t)chan, pcTimerGetTimerName(timer), getSeconds());
+#endif
         portBASE_TYPE timerT1Status = xTimerStart(timer, 0); // Block time of zero as this can not block
         if (timerT1Status != pdPASS) {
-            debug_print("ERROR: Failed in init T1 Timer\n");
+            debug_print("ERROR: Failed in init Timer\n");
             // TODO =>        ReportError(RTOSfailure, FALSE, ReturnAddr, (int) PbTask); /* failed to create the RTOS timer */
             // TODO - it's possible this might fail.  Somehow we should recover from that.
         }
@@ -275,7 +302,10 @@ void start_timer(TimerHandle_t timer) {
 }
 
 void restart_timer(TimerHandle_t timer) {
-
+#ifdef DEBUG
+    uint32_t chan = (uint32_t)pvTimerGetTimerID( timer ); // timer id is treated as an integer and not as a pointer
+    trace_dl("AX25[%d]: Restarted Timer %s at %d\n", (rx_channel_t)chan, pcTimerGetTimerName(timer), getSeconds());
+#endif
     portBASE_TYPE timerT1Status = xTimerReset(timer, 0); // Block time of zero as this can not block
     if (timerT1Status != pdPASS) {
         debug_print("ERROR: Failed to restart T1 Timer\n");
@@ -283,7 +313,10 @@ void restart_timer(TimerHandle_t timer) {
 }
 
 void stop_timer(TimerHandle_t timer) {
-
+#ifdef DEBUG
+    uint32_t chan = (uint32_t)pvTimerGetTimerID( timer ); // timer id is treated as an integer and not as a pointer
+    trace_dl("AX25[%d]: Stop Timer %s at %d\n", (rx_channel_t)chan, pcTimerGetTimerName(timer), getSeconds());
+#endif
     portBASE_TYPE timerT1Status = xTimerStop(timer, 0); // Block time of zero as this can not block
     if (timerT1Status != pdPASS) {
         debug_print("ERROR: Failed to stop T1 Timer\n");
@@ -293,11 +326,11 @@ void stop_timer(TimerHandle_t timer) {
 /**
  * ax25_process_frame()
  *
- * Process a frame received from a ground station.
- * If the state machine is inactive then we process the data.
+ * Process an LM_DATA_indicate message, which is an AX25 frame received from the radios.
+ * If the state machine for the given channel is inactive then we process the data.
  * If the frame received is not for the callsign connected on this channel then we ignore it.
- * This is called from the main processing loop whenever a frame is received.  We decode the bytes and store the
- * received packet in the state machine structure.
+ * This is called from the main processing loop whenever a frame is received.  We decode the bytes, which
+ * stores a copy of the received packet in the state machine structure.
  *
  */
 void ax25_process_frame(char *from_callsign, char *to_callsign, rx_channel_t channel) {
@@ -345,13 +378,15 @@ void ax25_send_response(rx_channel_t channel, ax25_frame_type_t frame_type, char
 
     response_packet->frame_type = frame_type;
 #ifdef TRACE_AX25_DL
-    print_decoded_packet("AX25: ", response_packet);
+    trace_dl("AX25[%d]: ",channel);
+    print_decoded_packet("Send ", response_packet);
 #endif
     bool rc = tx_send_packet(channel, response_packet, expedited, BLOCK);
     if (rc == FALSE) {
         // TODO - handle error
         debug_print("ERR: Could not queue RR response\n");
     }
+    taskYIELD();
 }
 
 /**
@@ -373,34 +408,56 @@ bool ax25_send_event(AX25_data_link_state_machine_t *state, AX25_primative_t pri
         // TODO - we should log this error and downlink in telemetry
         return FALSE;
     }
+    taskYIELD();
     return TRUE;
 }
 
+/**
+ * Send event to Link Multiplexer, which uses the same 3event queue as the Data Link state machines.
+ * packet can be NULL if the event does not pass a packet
+ * Sets error to NO_ERROR
+ *
+ */
+bool ax25_send_lm_event(AX25_data_link_state_machine_t *state, AX25_primative_t prim) {
+    lm_event.channel = state->channel;
+    lm_event.primative = prim;
+    lm_event.error_num = NO_ERROR;
+    BaseType_t xStatus = xQueueSendToBack( xRxEventQueue, &lm_event, CENTISECONDS(1) );
+    if( xStatus != pdPASS ) {
+        /* The send operation could not complete because the queue was full */
+        debug_print("RX EVENT QUEUE FULL: Could not add to Event Queue\n");
+        // TODO - we should log this error and downlink in telemetry
+        return FALSE;
+    }
+    taskYIELD();
+    return TRUE;
+}
 
 /**
  * DATA LINK STATE MACHINE
  */
 
-void ax25_next_state_from_packet(AX25_data_link_state_machine_t *dl_state_info, AX25_PACKET *decoded_packet) {
-    switch (dl_state_info->dl_state) {
+void ax25_next_state_from_packet(AX25_data_link_state_machine_t *state, AX25_PACKET *decoded_packet) {
+    trace_dl("AX25[%d] State %s VA=%d VS=%d VR=%d RC=%d ack_pend=%d\n", state->channel, state_names[state->dl_state], state->VA, state->VS, state->VR, state->RC, state->achnowledge_pending);
+    switch (state->dl_state) {
         case DISCONNECTED : {
-            ax25_state_disc_packet(dl_state_info, decoded_packet);
+            ax25_state_disc_packet(state, decoded_packet);
             break;
         }
         case AWAITING_CONNECTION : {
-            ax25_state_wait_conn_packet(dl_state_info, decoded_packet);
+            ax25_state_wait_conn_packet(state, decoded_packet);
             break;
         }
         case AWAITING_RELEASE : {
-            ax25_state_wait_release_packet(dl_state_info, decoded_packet);
+            ax25_state_wait_release_packet(state, decoded_packet);
             break;
         }
         case CONNECTED : {
-            ax25_state_connected_packet(dl_state_info, decoded_packet);
+            ax25_state_connected_packet(state, decoded_packet);
             break;
         }
         case TIMER_RECOVERY : {
-            ax25_state_timer_rec_packet(dl_state_info, decoded_packet);
+            ax25_state_timer_rec_packet(state, decoded_packet);
             break;
         }
         case AWAITING_V2_2_CONNECTION : {
@@ -412,26 +469,27 @@ void ax25_next_state_from_packet(AX25_data_link_state_machine_t *dl_state_info, 
     }
 }
 
-void ax25_next_state_from_primative(AX25_data_link_state_machine_t *dl_state_info, AX25_event_t *event) {
-    switch (dl_state_info->dl_state) {
+void ax25_next_state_from_primative(AX25_data_link_state_machine_t *state, AX25_event_t *event) {
+    trace_dl("AX25[%d] State %s VA=%d VS=%d VR=%d RC=%d ack_pend=%d\n", state->channel, state_names[state->dl_state], state->VA, state->VS, state->VR, state->RC, state->achnowledge_pending);
+    switch (state->dl_state) {
         case DISCONNECTED : {
-            ax25_state_disc_prim(dl_state_info, event);
+            ax25_state_disc_prim(state, event);
             break;
         }
         case AWAITING_CONNECTION : {
-            ax25_state_wait_conn_prim(dl_state_info, event);
+            ax25_state_wait_conn_prim(state, event);
             break;
         }
         case AWAITING_RELEASE : {
-            ax25_state_wait_release_prim(dl_state_info, event);
+            ax25_state_wait_release_prim(state, event);
             break;
         }
         case CONNECTED : {
-            ax25_state_connected_prim(dl_state_info, event);
+            ax25_state_connected_prim(state, event);
             break;
         }
         case TIMER_RECOVERY : {
-            ax25_state_timer_rec_prim(dl_state_info, event);
+            ax25_state_timer_rec_prim(state, event);
             break;
         }
         case AWAITING_V2_2_CONNECTION : {
@@ -447,7 +505,7 @@ void ax25_next_state_from_primative(AX25_data_link_state_machine_t *dl_state_inf
  * Data Link DISCONNECTED State
  */
 void ax25_state_disc_prim(AX25_data_link_state_machine_t *state, AX25_event_t *event) {
-    trace_dl("AX25: STATE DISC (prim): ");
+    //trace_dl("AX25: STATE DISC (prim): ");
     switch (event->primative) {
         case DL_DISCONNECT_Request : {
             trace_dl("Disconnect Request from Layer 3.  Ignore, already disconnected\n");
@@ -474,7 +532,7 @@ void ax25_state_disc_prim(AX25_data_link_state_machine_t *state, AX25_event_t *e
 }
 
 void ax25_state_disc_packet(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
-    trace_dl("AX25: STATE DISC (frame): ");
+    //trace_dl("AX25: STATE DISC (frame): ");
     switch (packet->frame_type) {
         case TYPE_U_UA : {
             trace_dl("UA\n");
@@ -506,6 +564,7 @@ void ax25_state_disc_packet(AX25_data_link_state_machine_t *state, AX25_PACKET *
             ax25_send_event(state, DL_CONNECT_Indicate, packet, NO_ERROR);
             // TODO - what action to take if the return code is FALSE and we can not send the event.
             // NOT IMPLEMENTED - SRT and T1V are not calculated and set
+            stop_timer(timerT1[state->channel]); // TODO - is this needed - make sure T1 is stopped as we start a new connection
             start_timer(timerT3[state->channel]);
             state->RC = 0;
             state->dl_state = CONNECTED;
@@ -537,7 +596,7 @@ void ax25_state_disc_packet(AX25_data_link_state_machine_t *state, AX25_PACKET *
  * Data Link WAIT CONNECTION State
  */
 void ax25_state_wait_conn_prim(AX25_data_link_state_machine_t *state, AX25_event_t *event) {
-    trace_dl("AX25: STATE WAIT CONNECTION (prim): ");
+    //trace_dl("AX25: STATE WAIT CONNECTION (prim): ");
     switch (event->primative) {
         case DL_DISCONNECT_Request : {
             /* The spec says requeue the request and remain in the same state.
@@ -620,7 +679,7 @@ void ax25_state_wait_conn_prim(AX25_data_link_state_machine_t *state, AX25_event
 }
 
 void ax25_state_wait_conn_packet(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
-    trace_dl("AX25: STATE WAIT CONNECTION (frame): ");
+   // trace_dl("AX25: STATE WAIT CONNECTION (frame): ");
     switch (packet->frame_type) {
         case TYPE_U_UI : {
             trace_dl("UI\n");
@@ -710,7 +769,7 @@ void ax25_state_wait_conn_packet(AX25_data_link_state_machine_t *state, AX25_PAC
  * Data Link WAIT RELEASE State
  */
 void ax25_state_wait_release_prim(AX25_data_link_state_machine_t *state, AX25_event_t *event) {
-    trace_dl("AX25: STATE WAIT RELEASE (prim): ");
+    //trace_dl("AX25: STATE WAIT RELEASE (prim): ");
     switch (event->primative) {
         case DL_DISCONNECT_Request : {
             state->response_packet = EMPTY_PACKET; // zero out the packet
@@ -745,7 +804,7 @@ void ax25_state_wait_release_prim(AX25_data_link_state_machine_t *state, AX25_ev
 }
 
 void ax25_state_wait_release_packet(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
-    trace_dl("AX25: STATE WAIT RELEASE (frame): ");
+    //trace_dl("AX25: STATE WAIT RELEASE (frame): ");
     switch (packet->frame_type) {
         case TYPE_U_UA : {
             trace_dl("UA\n");
@@ -839,7 +898,7 @@ void ax25_state_wait_release_packet(AX25_data_link_state_machine_t *state, AX25_
  * Data Link CONNECTED State
  */
 void ax25_state_connected_prim(AX25_data_link_state_machine_t *state, AX25_event_t *event) {
-    trace_dl("AX25: STATE CONNECTED (prim): ");
+    //trace_dl("AX25: STATE CONNECTED (prim): ");
     switch (event->primative) {
         case DL_DISCONNECT_Request : {
             trace_dl("Disconnect Request from Layer 3\n");
@@ -895,15 +954,24 @@ void ax25_state_connected_prim(AX25_data_link_state_machine_t *state, AX25_event
        case DL_TIMER_T1_Expire : {
             trace_dl("Timer T1 Expired\n");
             state->RC = 1;
-            transmit_enquiry(state, &state->decoded_packet);
+            transmit_enquiry(state);
             state->dl_state = TIMER_RECOVERY;
             break;
         }
        case DL_TIMER_T3_Expire : {
             trace_dl("Timer T3 Expired\n");
             state->RC = 1;
-            transmit_enquiry(state, &state->decoded_packet);
+            transmit_enquiry(state);
             state->dl_state = TIMER_RECOVERY;
+            break;
+        }
+       case LM_SEIZE_Confirm : {
+            trace_dl("SEIZE Confirm\n");
+            if (state->achnowledge_pending) {
+                state->achnowledge_pending = false;
+                enquiry_response(state, NULL, 0);
+            }
+            // LM RELEASE Request
             break;
         }
 
@@ -912,12 +980,11 @@ void ax25_state_connected_prim(AX25_data_link_state_machine_t *state, AX25_event
             // TODO - what is the action here
             break;
         }
-
     }
 }
 
 void ax25_state_connected_packet(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
-    trace_dl("AX25: STATE CONNECTED (frame): ");
+    //trace_dl("AX25: STATE CONNECTED (frame): ");
     switch (packet->frame_type) {
         case TYPE_U_SABM : {
             trace_dl("SABM\n");
@@ -1004,9 +1071,6 @@ void ax25_state_connected_packet(AX25_data_link_state_machine_t *state, AX25_PAC
             connected_rframe_response(state, packet);
             break;
         }
-
-        // LM SIEZE CONFIRM - Implement if needed.  If we are able to transmit then send Eqnuiry Response if AckPending...
-
         case TYPE_S_SREJ : {
             trace_dl("SREJ -- NOT IMPLEMENTED\n");
             break;
@@ -1048,7 +1112,7 @@ void ax25_state_connected_packet(AX25_data_link_state_machine_t *state, AX25_PAC
  * STATE TIMER RECOVERY
  */
 void ax25_state_timer_rec_prim(AX25_data_link_state_machine_t *state, AX25_event_t *event) {
-    trace_dl("AX25: STATE TIMER REC (prim): ");
+    //trace_dl("AX25: STATE TIMER REC (prim): ");
     switch (event->primative) {
         case DL_DISCONNECT_Request : {
             trace_dl("Disconnect Request from Layer 3\n");
@@ -1117,10 +1181,19 @@ void ax25_state_timer_rec_prim(AX25_data_link_state_machine_t *state, AX25_event
                 ax25_send_response(state->channel, TYPE_U_DM, state->callsign, &state->response_packet, NOT_EXPEDITED);
                 state->dl_state = DISCONNECTED;
             } else {
-                transmit_enquiry(state, &state->decoded_packet);
+                transmit_enquiry(state);
                 state->dl_state = TIMER_RECOVERY;
                 state->RC = state->RC + 1;
             }
+            break;
+        }
+       case LM_SEIZE_Confirm : {
+            trace_dl("SEIZE Confirm\n");
+            if (state->achnowledge_pending) {
+                state->achnowledge_pending = false;
+                enquiry_response(state, NULL, 0);
+            }
+            // LM RELEASE Request
             break;
         }
 
@@ -1132,7 +1205,7 @@ void ax25_state_timer_rec_prim(AX25_data_link_state_machine_t *state, AX25_event
 }
 
 void ax25_state_timer_rec_packet(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
-    trace_dl("AX25: STATE TIMER REC (frame): ");
+    //trace_dl("AX25: STATE TIMER REC (frame): ");
     switch (packet->frame_type) {
         case TYPE_U_UA : {
             trace_dl("UA\n");
@@ -1344,12 +1417,13 @@ void timer_rec_rframe_response(AX25_data_link_state_machine_t *state, AX25_PACKE
 
 
 void iframe_pops_off_queue(AX25_data_link_state_machine_t *state, AX25_event_t *event) {
-    trace_dl("POP IFRAME Request\n");
+//    trace_dl("POP IFRAME Request\n");
     /* While this is the DL_DATA_Request event, it was already added to
      * the event queue and has now been removed.  So we process the I Frame and send it */
 //            print_decoded_packet("I-frame pops off Queue: ",&(event->packet));
     if (state->peer_receiver_busy) {
         // push iframe back on queue
+        trace_dl("POP Iframe, but.. Peer Busy, Iframe put back on queue\n");
         BaseType_t xStatus = xQueueSendToFront( xIFrameQueue[state->channel], event, CENTISECONDS(1) );
         if( xStatus != pdPASS ) {
             /* The send operation could not complete because the queue was full */
@@ -1359,6 +1433,7 @@ void iframe_pops_off_queue(AX25_data_link_state_machine_t *state, AX25_event_t *
         }
     } else if (state->VS == (state->VA + K)%MODULO) {
         // push iframe back on queue
+        trace_dl("POP Iframe but .. VS == VA + K, Iframe put back on queue\n");
         BaseType_t xStatus = xQueueSendToFront( xIFrameQueue[state->channel], event, CENTISECONDS(1) );
         if( xStatus != pdPASS ) {
             /* The send operation could not complete because the queue was full */
@@ -1370,6 +1445,10 @@ void iframe_pops_off_queue(AX25_data_link_state_machine_t *state, AX25_event_t *
         event->packet.NS = state->VS;
         event->packet.NR = state->VR;
         event->packet.PF = 0;
+#ifdef TRACE_AX25_DL
+    trace_dl("AX25[%d]: ",state->channel);
+    print_decoded_packet("I-frame Send ", &event->packet);
+#endif
         bool rc = tx_send_packet(event->channel, &event->packet, NOT_EXPEDITED, BLOCK);
         if (rc == FALSE) {
             // TODO - handle error - retry? Put back on queue? Disconnect?
@@ -1387,7 +1466,7 @@ void iframe_pops_off_queue(AX25_data_link_state_machine_t *state, AX25_event_t *
 }
 
 /**
- * Process a received I Frame in CONNECTED and TIME RECOVERY states
+ * Process a received I Frame in CONNECTED and TIMER RECOVERY states
  *
  * This assumes SREJ is not enabled.
  *
@@ -1401,7 +1480,7 @@ void process_iframe(AX25_data_link_state_machine_t *state, AX25_PACKET *packet, 
         return;
     } else {
         // Data length is valid
-        if (packet->data_len > AX25_MAX_INFO_BYTES_LEN) {
+        if (packet->data_len >= AX25_MAX_INFO_BYTES_LEN) {
             ax25_send_event(state, DL_ERROR_Indicate, packet, ERROR_O);
             establish_data_link(state);
             clear_layer_3_initiated(state);
@@ -1435,10 +1514,10 @@ void process_iframe(AX25_data_link_state_machine_t *state, AX25_PACKET *packet, 
                             if (!state->achnowledge_pending) {
                                 /* LM Seize Request
                                  * This requests transmission at the next possible opportunity.  The ack_pending will go
-                                 * in the next available packet.  Given we are full duplex and we do not delay, then this
-                                 * will go with the next frame regardless.
+                                 * in the next available packet, either an IFrame or a dedicated RR Frame.
                                  */
                                 state->achnowledge_pending = true;
+                                ax25_send_lm_event(state, LM_SEIZE_Request);
                                 state->dl_state = final_state;
                                 return;
                             }
@@ -1497,11 +1576,12 @@ void clear_exception_conditions(AX25_data_link_state_machine_t *state) {
     state->srej_exception = false;
     state->achnowledge_pending = false;
     discard_iframe_queue(state);
+//    state->RC = 0; // TODO - Added.  Not in the spec
 }
 
-void transmit_enquiry(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
+void transmit_enquiry(AX25_data_link_state_machine_t *state) {
     state->response_packet = EMPTY_PACKET;
-    state->response_packet.PF = 1; /* This is the only time we sent R frames with P = 1 */
+    state->response_packet.PF = 1; /* This is the only time we send command R frames with P = 1 */
     state->response_packet.command = AX25_COMMAND;
     state->response_packet.NR = state->VR;
     if (state->own_receiver_busy) {
@@ -1516,21 +1596,25 @@ void transmit_enquiry(AX25_data_link_state_machine_t *state, AX25_PACKET *packet
 void enquiry_response(AX25_data_link_state_machine_t *state, AX25_PACKET *packet, int F) {
     state->response_packet = EMPTY_PACKET; // zero out the packet
     state->response_packet.NR = state->VR;
-    if (packet->PF & (packet->frame_type == TYPE_S_RR ||
+    state->response_packet.command = AX25_RESPONSE;
+    state->response_packet.PF = F;
+
+    if (packet != NULL && packet->PF == 1 && (packet->frame_type == TYPE_S_RR ||
             packet->frame_type == TYPE_S_RNR ||
             packet->frame_type == TYPE_I)) {
         if (state->own_receiver_busy) {
-            state->response_packet.command = AX25_RESPONSE;
             ax25_send_response(state->channel, TYPE_S_RNR, state->callsign, &state->response_packet, NOT_EXPEDITED);
             state->achnowledge_pending = false;
             return;
-        } else {
-            // SREJ is not enabled, otherwise additional logic needed here for out of sequence frames and SREJ
         }
+    } else {
+        // SREJ is not enabled, otherwise additional logic needed here for out of sequence frames and SREJ
+        // Instead, just send RR
     }
 
     ax25_send_response(state->channel, TYPE_S_RR, state->callsign, &state->response_packet, NOT_EXPEDITED);
     state->achnowledge_pending = false;
+    return;
 
 }
 
@@ -1650,9 +1734,9 @@ void discard_iframe_queue(AX25_data_link_state_machine_t *state) {
 }
 
 void check_need_for_response(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
-    if (packet->command & packet->PF) {
+    if (packet->command == AX25_COMMAND && packet->PF == 1) {
         enquiry_response(state, packet, 1);
-    } else if (!packet->command & packet->PF) {
+    } else if (packet->command == AX25_RESPONSE && packet->PF == 1) {
         // TODO - can we take any action here, or ignore in Layer 3?  Just debug info?
         ax25_send_event(state, DL_ERROR_Indicate, packet, ERROR_A);
     }

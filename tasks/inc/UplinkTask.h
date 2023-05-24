@@ -81,6 +81,7 @@ typedef struct {
     char callsign[MAX_CALLSIGN_LEN];
     int file_id; /* File id of the file being uploaded */
     uint32_t request_time; /* The time the request was received for timeout purposes */
+    uint32_t offset;
     //AX25_PACKET decoded_packet;
     //AX25_PACKET response_packet;
 } ftl0_state_machine_t;

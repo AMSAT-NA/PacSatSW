@@ -180,9 +180,13 @@ enum {
     ,dirLoad
     ,dirClear
     ,listDir
+    ,getNextFileNumber
+    ,resetNextFileNumber
     ,heapFree
     ,setUnxTime
     ,getUnxTime
+    ,setRate9600
+    ,setRate1200
 };
 
 
@@ -251,9 +255,13 @@ commandPairs debugCommands[] = {
                                 ,{"load dir","Load the directory from MRAM",dirLoad}
                                 ,{"clear dir","Clear the directory but leave the files in MRAM",dirClear}
                                 ,{"list dir","List the Pacsat Directory.",listDir}
+                                ,{"get next filenumber","Show the next file number that the Dir will assign to an uploaded file",getNextFileNumber}
+                                ,{"reset next filenumber","Reset the next Dir file number to zero.",resetNextFileNumber}
                                 ,{"heap free","Show free bytes in the heap.",heapFree}
                                 ,{"get unix time","Get the number of seconds since the Unix epoch",getUnxTime}
                                 ,{"set unix time","Set the number of seconds since Unix epoch",setUnxTime}
+                                ,{"set rate 1200","Set the radio to 1200 bps AFSK packets",setRate1200}
+                                ,{"set rate 9600","Set the radio to 9600 bps GMSK packets",setRate9600}
 
 };
 commandPairs commonCommands[] = {
@@ -1163,6 +1171,16 @@ void RealConsoleTask(void)
             dir_debug_print(NULL); // pass NULL to print from the head of the list
             break;
         }
+        case getNextFileNumber:{
+            uint32_t next_file_id = ReadMRAMNextFileNumber();
+            printf("Next File Number from the Dir will be: %04x\n",next_file_id);
+            break;
+        }
+        case resetNextFileNumber:{
+            WriteMRAMNextFileNumber(0);
+            printf("Next file number reset to zero\n");
+            break;
+        }
 
         case heapFree:{
             printf("Free heap size: %d\n",xPortGetFreeHeapSize());
@@ -1179,6 +1197,18 @@ void RealConsoleTask(void)
             uint32_t t = (uint32_t)strtol(afterCommand,&nextNum,0);
             printf("Setting unix time to: %d\n",t);
             setUnixTime(t);
+            break;
+        }
+
+        case setRate1200:{
+            printf("Setting Radio to 1200bps.  A reset is needed to restart the radio.\n");
+            WriteMRAMBoolState(StateAx25Rate9600, RATE_1200);
+            break;
+        }
+
+        case setRate9600:{
+            printf("Setting radio to 9600bps.  A reset is needed to restart the radio.\n");
+            WriteMRAMBoolState(StateAx25Rate9600, RATE_9600);
             break;
         }
 

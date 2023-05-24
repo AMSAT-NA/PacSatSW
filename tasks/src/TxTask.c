@@ -183,7 +183,6 @@ bool tx_make_packet(AX25_PACKET *packet, uint8_t *raw_bytes) {
             break;
 
         }
-
         case TYPE_U_SABM : {
             packet->command = AX25_COMMAND; // override this as it is always a command
             packet->control = (packet->PF << 4) | (BITS_U_SABM);
