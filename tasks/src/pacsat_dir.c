@@ -45,14 +45,32 @@ static uint8_t pfh_byte_buffer[512]; /* Maximum size for a PFH TODO - what shoul
  *
  * This returns the next file number available for the upload process.
  * TODO - this will not cope well with failed uploads.  Those ids will be lost and
- * never used.  We are supposed to "reserve" the file number when a DATA command is
- * received, but we need to allocate it before that.
+ * never used.  We are supposed to only "reserve" the file number when a DATA command is
+ * actyally received, but we need to allocate it before that.  So it is not clear how we
+ * reuse file numbers that are allocated but no bytes are ever received.
  *
  */
 uint32_t dir_next_file_number() {
     uint32_t file_id = ReadMRAMNextFileNumber();
     WriteMRAMNextFileNumber(file_id + 1);
     return file_id;
+}
+
+void dir_get_tmp_file_path_from_file_id(uint32_t file_id, char *file_path, int max_len) {
+    dir_get_file_path_from_file_id(file_id, file_path, max_len);
+    strlcat(file_path, ".", max_len);
+    strlcat(file_path, "tmp", max_len);
+}
+
+void dir_get_file_path_from_file_id(uint32_t file_id, char *file_path, int max_len) {
+    char file_id_str[5];
+    snprintf(file_id_str, 5, "%04x",file_id);
+    strlcpy(file_path, "//", max_len);
+#ifdef DIR_SUBDIR_NAme
+    strlcat(file_path, DIR_SUBDIR_NAME, max_len);
+    strlcat(file_path, "/", max_len);
+#endif
+    strlcat(file_path, file_id_str, max_len);
 }
 
 /**
@@ -410,8 +428,11 @@ void dir_debug_print(DIR_NODE *p) {
  */
 
 /**
- * Write a file to the file system.  The file is first created or it is overwritten.
+ * Write a chunk of data to a file in the file system.
  * The full path to the file must be specified.
+ *
+ * If the file does not exist, then it is created.
+ * If offset is specified then data is written at that offset in the file
  *
  * Returns the number of bytes written or -1 if there is an error.
  *

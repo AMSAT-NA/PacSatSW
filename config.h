@@ -219,7 +219,7 @@ typedef enum {
 // For now, we want the output to be something like 100mW (20dBm) and 500mW (27dBm)
 // I believe this makes the DCT output be about -7dBM and +3dBM
 #define DCT_DEFAULT_LOW_POWER 261   // This seems about right for 20dBm
-#define DCT_DEFAULT_HIGH_POWER 632 // todo:  This should be defined so we get about 27dBm out of the PA.
+#define DCT_DEFAULT_HIGH_POWER 632 // TODO:  This should be defined so we get about 27dBm out of the PA.
 /*
  * MET Constants.  The MET timer goes off every second.  Other time constants
  * mask a counter incremented every 1 second.

@@ -58,7 +58,6 @@ void ftl0_make_tmp_filename(int file_id, char *dir_name, char *filename, int max
 static ftl0_state_machine_t ftl0_state_machine[NUM_OF_RX_CHANNELS];
 static AX25_event_t ax25_event; /* Static storage for event */
 static AX25_event_t send_event_buffer;
-static rx_channel_t current_channel_on_uplink; // This is the channel we will next send data to
 
 #ifdef DEBUG
 /* This decodes the AX25 error numbers.  Only used for debug. */
@@ -126,11 +125,11 @@ portTASK_FUNCTION_PROTO(UplinkTask, pvParameters)  {
    DL_DATA_Indicate - when DATA received
    DL_DATA_Request - when we send data
 
-The FTL0 SM only processes DATA commands and has its own set of states.
+The FTL0 State Machine only processes DATA commands and has its own set of states.
 
 If any unexpected packet or ERROR is received from Layer 2 then we send the Data Link Terminated event and
 enter UL_UNINIT.  We need to make sure that event is not putting us in a loop, where we receive the same
-error or packet again.
+error or packet again and again.
 
 */
 
@@ -775,22 +774,24 @@ int ftl0_process_upload_cmd(ftl0_state_machine_t *state, uint8_t *data, int len)
         state->offset = 0;
 
         /* Initialize the empty file */
-//        char tmp_filename[MAX_FILENAME_WITH_PATH_LEN];
-//        // TODO - dir_name is hard coded to the root dir
-//        ftl0_make_tmp_filename(ul_go_data.server_file_no, "/", tmp_filename, MAX_FILENAME_WITH_PATH_LEN);
-//        FILE * f = fopen(tmp_filename, "w");
-//        if (f == NULL) {
-//            error_print("Can't initilize new file %s\n",tmp_filename);
-//            return ER_NO_ROOM;
-//        }
-//        fclose(f);
+        char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
+        dir_get_tmp_file_path_from_file_id(next_file_num, file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
+        int32_t fp = red_open(file_name_with_path, RED_O_CREAT | RED_O_WRONLY);
+        if (fp == -1) {
+            debug_print("Unable to open %s for writing: %s\n", file_name_with_path, red_strerror(red_errno));
+            return ER_NO_ROOM;  // TODO - is this the best error to send?  File system is unavailable
+        }
+        int32_t cc = red_close(fp);
+        if (cc == -1) {
+            printf("Unable to close %s: %s\n", file_name_with_path, red_strerror(red_errno));
+        }
+
     } else { // File number was supplied in the Upload command
         /* Is this a valid continue? Check to see if there is a tmp file and read its length */
         // TODO - we also need to check the situation where we have the complete file but the ground station never received the ACK.
         //        So an atttempt to upload a finished file that belongs to this station, that has the right length, should get an ACK to finish upload off
         char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
-        // TODO - dir_name is hard coded to the root dir
-        ftl0_make_tmp_filename(file_no, "/", file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
+        dir_get_tmp_file_path_from_file_id(file_no, file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
         debug_print("Checking continue file: %s\n",file_name_with_path);
 
         // TODO - we check that the file exists, but for now we do not check that it belongs to this station.  That allows two
@@ -997,14 +998,4 @@ int ftl0_parse_packet_type(uint8_t * data) {
 int ftl0_parse_packet_length(uint8_t * data) {
     int length = (data[1] >> 5) * 256 + data[0];
     return length;
-}
-
-void ftl0_make_tmp_filename(int file_id, char *dir_name, char *filename, int max_len) {
-    char file_id_str[5];
-    snprintf(file_id_str, 5, "%04x",file_id);
-    strlcpy(filename, dir_name, max_len);
-    strlcat(filename, "/", max_len);
-    strlcat(filename, file_id_str, max_len);
-    strlcat(filename, ".", max_len);
-    strlcat(filename, "upload", max_len);
 }
