@@ -508,28 +508,28 @@ void RealConsoleTask(void)
             int number = parseNumber(afterCommand);
             DCTTxFreq += number;
             printf("TxFreq=%d\n",DCTTxFreq);
-            quick_setfreq(DCTDev0, DCTTxFreq);
+            quick_setfreq(DCTDev1, DCTTxFreq);
             break;
         }
         case LowerTxFreq:{
             int number = parseNumber(afterCommand);
             DCTTxFreq -= number;
             printf("TxFreq=%d\n",DCTTxFreq);
-            quick_setfreq(DCTDev0, DCTTxFreq);
+            quick_setfreq(DCTDev1, DCTTxFreq);
             break;
         }
         case RaiseRxFreq:{
             int number = parseNumber(afterCommand);
             DCTRxFreq += number;
             printf("RxFreq=%d\n",DCTRxFreq);
-            quick_setfreq(DCTDev1, DCTRxFreq);
+            quick_setfreq(DCTDev0, DCTRxFreq);
             break;
         }
         case LowerRxFreq:{
             int number = parseNumber(afterCommand);
             DCTRxFreq -= number;
             printf("RxFreq=%d\n",DCTRxFreq);
-            quick_setfreq(DCTDev1, DCTRxFreq);
+            quick_setfreq(DCTDev0, DCTRxFreq);
             break;
         }
         case SaveFreq:{
