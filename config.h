@@ -115,6 +115,8 @@ typedef enum {
 #define AX25_TIMER_T1_PERIOD SECONDS(3)
 #define AX25_TIMER_T3_PERIOD SECONDS(30) /* Idle timeout if nothing heard */
 #define AX25_RETRIES_N2 10 /* Number of retries permitted by the Data Link State Machine */
+
+#define UPLOAD_SPACE_THRESHOLD 2*256 /* At least this many bytes should be free after a file is uploaded.  Each disk block is 256 Bytes */
 /*
  * TASK INFORMATION This is the info like stack sizes and priorities for the tasks
  */
@@ -219,7 +221,7 @@ typedef enum {
 // For now, we want the output to be something like 100mW (20dBm) and 500mW (27dBm)
 // I believe this makes the DCT output be about -7dBM and +3dBM
 #define DCT_DEFAULT_LOW_POWER 261   // This seems about right for 20dBm
-#define DCT_DEFAULT_HIGH_POWER 632 // todo:  This should be defined so we get about 27dBm out of the PA.
+#define DCT_DEFAULT_HIGH_POWER 632 // TODO:  This should be defined so we get about 27dBm out of the PA.
 /*
  * MET Constants.  The MET timer goes off every second.  Other time constants
  * mask a counter incremented every 1 second.

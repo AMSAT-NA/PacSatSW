@@ -38,7 +38,7 @@ void ftl0_state_data_rx(ftl0_state_machine_t *state, AX25_event_t *event);
 void ftl0_state_abort(ftl0_state_machine_t *state, AX25_event_t *event);
 
 bool ftl0_send_event(AX25_event_t *received_event, AX25_event_t *send_event);
-bool ftl0_add_request(char *from_callsign, rx_channel_t channel, uint32_t file_id);
+bool ftl0_add_request(char *from_callsign, rx_channel_t channel);
 bool ftl0_remove_request(rx_channel_t channel);
 bool ftl0_connection_received(char *from_callsign, char *to_callsign, rx_channel_t channel);
 bool ftl0_disconnect(char *to_callsign, rx_channel_t channel);
@@ -58,7 +58,6 @@ void ftl0_make_tmp_filename(int file_id, char *dir_name, char *filename, int max
 static ftl0_state_machine_t ftl0_state_machine[NUM_OF_RX_CHANNELS];
 static AX25_event_t ax25_event; /* Static storage for event */
 static AX25_event_t send_event_buffer;
-static rx_channel_t current_channel_on_uplink; // This is the channel we will next send data to
 
 #ifdef DEBUG
 /* This decodes the AX25 error numbers.  Only used for debug. */
@@ -126,11 +125,11 @@ portTASK_FUNCTION_PROTO(UplinkTask, pvParameters)  {
    DL_DATA_Indicate - when DATA received
    DL_DATA_Request - when we send data
 
-The FTL0 SM only processes DATA commands and has its own set of states.
+The FTL0 State Machine only processes DATA commands and has its own set of states.
 
 If any unexpected packet or ERROR is received from Layer 2 then we send the Data Link Terminated event and
 enter UL_UNINIT.  We need to make sure that event is not putting us in a loop, where we receive the same
-error or packet again.
+error or packet again and again.
 
 */
 
@@ -481,7 +480,7 @@ bool ftl0_send_event(AX25_event_t *received_event, AX25_event_t *send_event) {
  * returns EXIT_SUCCESS it it succeeds or EXIT_FAILURE if the PB is shut or full
  *
  */
-bool ftl0_add_request(char *from_callsign, rx_channel_t channel, uint32_t file_id) {
+bool ftl0_add_request(char *from_callsign, rx_channel_t channel) {
     if (!ReadMRAMBoolState(StateUplinkEnabled)) {
         trace_ftl0("FTL0: Uplink closed\n");
         return FALSE;
@@ -502,8 +501,9 @@ bool ftl0_add_request(char *from_callsign, rx_channel_t channel, uint32_t file_i
     strlcpy(ftl0_state_machine[channel].callsign, from_callsign, MAX_CALLSIGN_LEN);
     ftl0_state_machine[channel].ul_state = UL_CMD_OK;
     ftl0_state_machine[channel].channel = channel;
-    ftl0_state_machine[channel].file_id = file_id;
+    ftl0_state_machine[channel].file_id = 0; // Set once the UPLD packet received
     ftl0_state_machine[channel].request_time = getSeconds(); // for timeout
+    ftl0_state_machine[channel].file_id = 0; // Set when UPLD packet received
 
     return TRUE;
 }
@@ -527,6 +527,7 @@ bool ftl0_remove_request(rx_channel_t channel) {
     ftl0_state_machine[channel].ul_state = UL_UNINIT;
     ftl0_state_machine[channel].file_id = 0;
     ftl0_state_machine[channel].request_time = 0;
+    ftl0_state_machine[channel].length = 0;
 
     return TRUE;
 }
@@ -578,7 +579,7 @@ bool ftl0_connection_received(char *from_callsign, char *to_callsign, rx_channel
 
     /* Add the request, which initializes their uplink state machine. At this point we don't know the
      * file number, offset or dir node */
-    bool rc = ftl0_add_request(from_callsign, channel, 3);
+    bool rc = ftl0_add_request(from_callsign, channel);
     if (rc == FALSE){
         /* We could not add this request, either full or already on the uplink.  Disconnect. */
         ftl0_disconnect(from_callsign, channel);
@@ -738,59 +739,67 @@ int ftl0_process_upload_cmd(ftl0_state_machine_t *state, uint8_t *data, int len)
     FTL0_UPLOAD_CMD *upload_cmd = (FTL0_UPLOAD_CMD *)(data + 2); /* Point to the data just past the header */
 
     /* Parse the file number and length from the little endian packet */
-    uint32_t file_no = ttohl(upload_cmd->continue_file_no);
-    uint32_t length = ttohl(upload_cmd->file_length);
+    state->file_id = ttohl(upload_cmd->continue_file_no);
+    state->length = ttohl(upload_cmd->file_length);
 
-    if (length == 0)
+    if (state->length == 0)
         return ER_ILL_FORMED_CMD;
 
     /* This is the data we are going to send */
     FTL0_UL_GO_DATA ul_go_data;
 
     /* Check if data is valid */
-    if (file_no == 0) {
+    if (state->file_id == 0) {
         /* Do we have space */
-//        struct statvfs buffer;
-//        int ret = statvfs(get_dir_folder(), &buffer);
-//        if (!ret) {
-//            //const unsigned int GB = (1024 * 1024) * 1024;
-//            //const double total = (double)(buffer.f_blocks * buffer.f_frsize);
-//            const double available = (double)(buffer.f_bfree * buffer.f_frsize);
-//            //debug_print("Disk Space: %f --> %.0f\n", total, total/GB);
-//            //debug_print(" Available: %f --> %.0f\n", available, available/GB);
-//
-//            if (available - length < UPLOAD_SPACE_THRESHOLD)
-//                return ER_NO_ROOM;
-//        } else {
-//            /* Can't check if we have space, assume an error */
-//            return ER_NO_ROOM;
-//        }
+        REDSTATFS redstatfs;
+        int32_t red = red_statvfs("/", &redstatfs);
+        if (red != 0) {
+            trace_ftl0("Unable to check disk space with statvfs: %s\n", red_strerror(red_errno));
+            /* Can't check if we have space, assume an error */
+            return ER_NO_ROOM;
+        } else {
+            uint32_t available = redstatfs.f_frsize * redstatfs.f_bfree;
+            uint32_t allocated = 0;
+            /* TODO - need to check all the partially uploaded files to see what remaining space they have claimed. Or
+             when we first start to upload, seek to the end and size a full empty file.  But that could be very wasteful. It
+             would need an expiry date and cleanup routine.
+             A better method could be to check only the other files uploading right now and then check continues to
+             make sure there is still space available.  Reject and delete continues if there is no space.  But that could be cruel
+             for long images that were 90% uploaded, then space runs out.
+             */
+            trace_ftl0("Free blocks: %d of %d.  Free Bytes: %d\n",redstatfs.f_bfree, redstatfs.f_blocks, available);
+            if (available - state->length < UPLOAD_SPACE_THRESHOLD)
+                return ER_NO_ROOM;
+        }
 
         /* We have space so allocate a file number, store in uplink list and send to the station */
 //        ul_go_data.server_file_no = dir_next_file_number();
-        uint32_t next_file_num = dir_next_file_number();
-        ul_go_data.server_file_no = htotl(next_file_num);
-        debug_print("Allocated file id: %04x\n",next_file_num);
+        state->file_id = dir_next_file_number();
+        ul_go_data.server_file_no = htotl(state->file_id);
+        debug_print("Allocated file id: %04x\n",state->file_id);
+        // New file so start uploading from offset 0
         ul_go_data.byte_offset = 0;
         state->offset = 0;
 
         /* Initialize the empty file */
-//        char tmp_filename[MAX_FILENAME_WITH_PATH_LEN];
-//        // TODO - dir_name is hard coded to the root dir
-//        ftl0_make_tmp_filename(ul_go_data.server_file_no, "/", tmp_filename, MAX_FILENAME_WITH_PATH_LEN);
-//        FILE * f = fopen(tmp_filename, "w");
-//        if (f == NULL) {
-//            error_print("Can't initilize new file %s\n",tmp_filename);
-//            return ER_NO_ROOM;
-//        }
-//        fclose(f);
+        char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
+        dir_get_tmp_file_path_from_file_id(state->file_id, file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
+        int32_t fp = red_open(file_name_with_path, RED_O_CREAT | RED_O_WRONLY);
+        if (fp == -1) {
+            debug_print("Unable to open %s for writing: %s\n", file_name_with_path, red_strerror(red_errno));
+            return ER_NO_ROOM;  // TODO - is this the best error to send?  File system is unavailable
+        }
+        int32_t cc = red_close(fp);
+        if (cc == -1) {
+            printf("Unable to close %s: %s\n", file_name_with_path, red_strerror(red_errno));
+        }
+
     } else { // File number was supplied in the Upload command
         /* Is this a valid continue? Check to see if there is a tmp file and read its length */
         // TODO - we also need to check the situation where we have the complete file but the ground station never received the ACK.
         //        So an atttempt to upload a finished file that belongs to this station, that has the right length, should get an ACK to finish upload off
         char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
-        // TODO - dir_name is hard coded to the root dir
-        ftl0_make_tmp_filename(file_no, "/", file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
+        dir_get_tmp_file_path_from_file_id(state->file_id, file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
         debug_print("Checking continue file: %s\n",file_name_with_path);
 
         // TODO - we check that the file exists, but for now we do not check that it belongs to this station.  That allows two
@@ -822,11 +831,12 @@ int ftl0_process_upload_cmd(ftl0_state_machine_t *state, uint8_t *data, int len)
             <continue_file_no>.  Continue is not possible.*/
         // code this error check
 
-        ul_go_data.server_file_no = htotl(file_no);
+        // TODO - do we recheck that space is still available here?  See the note above on space available
+
+        ul_go_data.server_file_no = htotl(state->file_id);
         ul_go_data.byte_offset = htotl(offset); // this is the end of the file so far
         state->offset = offset;
     }
-    state->file_id = file_no;
 
     int rc = ftl0_make_packet(send_event_buffer.packet.data, (uint8_t *)&ul_go_data, sizeof(ul_go_data), UL_GO_RESP);
         if (rc != TRUE) {
@@ -997,14 +1007,4 @@ int ftl0_parse_packet_type(uint8_t * data) {
 int ftl0_parse_packet_length(uint8_t * data) {
     int length = (data[1] >> 5) * 256 + data[0];
     return length;
-}
-
-void ftl0_make_tmp_filename(int file_id, char *dir_name, char *filename, int max_len) {
-    char file_id_str[5];
-    snprintf(file_id_str, 5, "%04x",file_id);
-    strlcpy(filename, dir_name, max_len);
-    strlcat(filename, "/", max_len);
-    strlcat(filename, file_id_str, max_len);
-    strlcat(filename, ".", max_len);
-    strlcat(filename, "upload", max_len);
 }

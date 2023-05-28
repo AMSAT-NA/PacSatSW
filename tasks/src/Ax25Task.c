@@ -1,16 +1,36 @@
 /*
- * AxTask.c
+ * Ax25Task.c
  *
  *  Created on: 19 Apr, 2023
  *      Author: Chris E. Thompson, G0KLA / VE2TCP
  *
  * This is an RTOS port of the AX25 Data Link state machine intended for use
- * in an AMSAT satellite.  It follows Version 2.0 of the specification.
+ * in an AMSAT satellite.  It implementes Version 2.0 of the specification and follows
+ * the updated specification posted in these locations:
+ *
+ * AX.25 Link Access Protocol for Amateur Packet Radio Version 2.2 Revision: July 1998
+ *
+ *          https://www.tapr.org/pdf/AX25.2.2.pdf
+ *
+ * AX.25 Latest effort to revise the specification by WB2OSZ (DireWolf) and others
+ *
+ *          http://www.nj7p.org/
+ *
+ *
+ * This was ported from the Pacsat Ground Station Implementation of the Data Link State
+ * Machine here:
+ *
+ *           https://github.com/ac2cz/Falcon/blob/master/src/ax25/DataLinkStateMachine.java
+ *
  *
  * XID is not implemented as the bandwidth to the spacecraft is precious and the
- * characteristics should already be available to the groundstation.
+ * characteristics should already be available to the ground station.
  * SREJ is not implemented
  * FRMR is handled but never sent, as recommended in the specification.
+ * SABME requests receive an FRMR response rather than a DM, as discussed in the comments at the start of the
+ * DireWolf Data Link state machine implementation:
+ *
+ * https://github.com/wb2osz/direwolf/blob/master/src/ax25_link.c
  *
  */
 
@@ -106,16 +126,14 @@ portTASK_FUNCTION_PROTO(Ax25Task, pvParameters)  {
     ResetAllWatchdogs();
     printf("Initializing Ax25 Data Link Task\n");
 
-    /* create a RTOS software timers for T1 and T3.  One per channel.*/
-    timerT1[Channel_A] = xTimerCreate( "T1", AX25_TIMER_T1_PERIOD, FALSE, (void *)Channel_A, ax25_t1_expired); // single shot timer
-//    timerT1[1] = xTimerCreate( "T1_1", AX25_TIMER_T1_PERIOD, FALSE, (void *)Channel_B, ax25_t1_expired); // single shot timer
-//    timerT1[2] = xTimerCreate( "T1_2", AX25_TIMER_T1_PERIOD, FALSE, (void *)Channel_C, ax25_t1_expired); // single shot timer
-//    timerT1[3] = xTimerCreate( "T1_3", AX25_TIMER_T1_PERIOD, FALSE, (void *)Channel_D, ax25_t1_expired); // single shot timer
-
-    timerT3[Channel_A] = xTimerCreate( "T3", AX25_TIMER_T3_PERIOD, FALSE, (void *)Channel_A, ax25_t3_expired); // single shot timer
 
     int chan;
     for (chan=0; chan < NUM_OF_RX_CHANNELS; chan++) {
+        /* create RTOS software timers for T1 and T3.  Both for each channel.*/
+        timerT1[chan] = xTimerCreate( "T1", AX25_TIMER_T1_PERIOD, FALSE, (void *)chan, ax25_t1_expired); // single shot timer
+        timerT3[chan] = xTimerCreate( "T3", AX25_TIMER_T3_PERIOD, FALSE, (void *)chan, ax25_t3_expired); // single shot timer
+
+        /* Create a queue for I frames that we are sending */
         xIFrameQueue[chan] = xQueueCreate( IFRAME_QUEUE_LEN,  sizeof( AX25_event_t ) );
         if (xIFrameQueue[chan] == NULL) {
             /* The queue could not be created.  This is fatal and should only happen in test if we are short of memory at startup */
@@ -438,7 +456,7 @@ bool ax25_send_lm_event(AX25_data_link_state_machine_t *state, AX25_primative_t 
  */
 
 void ax25_next_state_from_packet(AX25_data_link_state_machine_t *state, AX25_PACKET *decoded_packet) {
-    trace_dl("AX25[%d] State %s VA=%d VS=%d VR=%d RC=%d ack_pend=%d\n", state->channel, state_names[state->dl_state], state->VA, state->VS, state->VR, state->RC, state->achnowledge_pending);
+    trace_dl("AX25[%d] **STATE (Packet)** %s VA=%d VS=%d VR=%d RC=%d ack_pend=%d\n", state->channel, state_names[state->dl_state], state->VA, state->VS, state->VR, state->RC, state->achnowledge_pending);
     switch (state->dl_state) {
         case DISCONNECTED : {
             ax25_state_disc_packet(state, decoded_packet);
@@ -470,7 +488,7 @@ void ax25_next_state_from_packet(AX25_data_link_state_machine_t *state, AX25_PAC
 }
 
 void ax25_next_state_from_primative(AX25_data_link_state_machine_t *state, AX25_event_t *event) {
-    trace_dl("AX25[%d] State %s VA=%d VS=%d VR=%d RC=%d ack_pend=%d\n", state->channel, state_names[state->dl_state], state->VA, state->VS, state->VR, state->RC, state->achnowledge_pending);
+    trace_dl("AX25[%d] **STATE (Prim)** %s VA=%d VS=%d VR=%d RC=%d ack_pend=%d\n", state->channel, state_names[state->dl_state], state->VA, state->VS, state->VR, state->RC, state->achnowledge_pending);
     switch (state->dl_state) {
         case DISCONNECTED : {
             ax25_state_disc_prim(state, event);
@@ -503,6 +521,13 @@ void ax25_next_state_from_primative(AX25_data_link_state_machine_t *state, AX25_
 
 /**
  * Data Link DISCONNECTED State
+ *
+ * The next two functions process AX25 Primatives.  All primatives are processed in
+ * the first function except LM_DATA_Indicate primatives, which contain packets. They
+ * are all processed in the second function, which takes the received packet as a parameter.
+ *
+ * The split between Primatives and Packets is repeated for each state.
+ *
  */
 void ax25_state_disc_prim(AX25_data_link_state_machine_t *state, AX25_event_t *event) {
     //trace_dl("AX25: STATE DISC (prim): ");
@@ -572,10 +597,10 @@ void ax25_state_disc_packet(AX25_data_link_state_machine_t *state, AX25_PACKET *
         }
         case TYPE_U_SABME : {
             trace_dl("SABME - NOT SUPPORTED YET\n");
-            // We dont support v2.2 yet, so send DM and remain in disconnected dl_state.
+            // We dont support v2.2 yet, so send FRMR and remain in disconnected dl_state.
             state->response_packet = EMPTY_PACKET; // zero out the packet
             state->response_packet.PF = packet->PF & 0b1;
-            ax25_send_response(state->channel, TYPE_U_DM, state->callsign, &state->response_packet, NOT_EXPEDITED);
+            ax25_send_response(state->channel, TYPE_U_FRMR, state->callsign, &state->response_packet, NOT_EXPEDITED);
             break;
         }
         default:
@@ -704,7 +729,7 @@ void ax25_state_wait_conn_packet(AX25_data_link_state_machine_t *state, AX25_PAC
             trace_dl("SABME\n");
             state->response_packet = EMPTY_PACKET; // zero out the packet
             state->response_packet.PF = packet->PF;
-            ax25_send_response(state->channel, TYPE_U_DM, state->callsign, &state->response_packet, EXPEDITED);
+            ax25_send_response(state->channel, TYPE_U_FRMR, state->callsign, &state->response_packet, EXPEDITED);
             // TODO - stay in wait connection and hope they send SABM or move to DISCONNECTED?
             break;
         }
@@ -830,10 +855,10 @@ void ax25_state_wait_release_packet(AX25_data_link_state_machine_t *state, AX25_
         }
         case TYPE_U_SABME : {
             trace_dl("SABME - NOT SUPPORTED YET\n");
-            // We dont support v2.2 yet, so send DM and remain in dl_state.
+            // We dont support v2.2 yet, so send FRMR and remain in dl_state.
             state->response_packet = EMPTY_PACKET; // zero out the packet
             state->response_packet.PF = packet->PF;
-            ax25_send_response(state->channel, TYPE_U_DM, state->callsign, &state->response_packet, EXPEDITED);
+            ax25_send_response(state->channel, TYPE_U_FRMR, state->callsign, &state->response_packet, EXPEDITED);
             break;
         }
         case TYPE_U_DISC : {
@@ -1010,8 +1035,11 @@ void ax25_state_connected_packet(AX25_data_link_state_machine_t *state, AX25_PAC
             break;
         }
         case TYPE_U_SABME : {
-            trace_dl("SABME\n");
-            trace_dl("NOT IMPLEMENTED\n");
+            trace_dl("SABME - NOT SUPPORTED YET\n");
+            // We dont support v2.2 yet, so send FRMR and remain in disconnected dl_state.
+            state->response_packet = EMPTY_PACKET; // zero out the packet
+            state->response_packet.PF = packet->PF & 0b1;
+            ax25_send_response(state->channel, TYPE_U_FRMR, state->callsign, &state->response_packet, NOT_EXPEDITED);
             break;
         }
         case TYPE_U_FRMR : {
@@ -1252,8 +1280,11 @@ void ax25_state_timer_rec_packet(AX25_data_link_state_machine_t *state, AX25_PAC
             break;
         }
         case TYPE_U_SABME : {
-            trace_dl("SABME\n");
-            trace_dl("NOT IMPLEMENTED\n");
+            trace_dl("SABME - NOT SUPPORTED YET\n");
+            // We dont support v2.2 yet, so send FRMR and remain in disconnected dl_state.
+            state->response_packet = EMPTY_PACKET; // zero out the packet
+            state->response_packet.PF = packet->PF & 0b1;
+            ax25_send_response(state->channel, TYPE_U_FRMR, state->callsign, &state->response_packet, NOT_EXPEDITED);
             break;
         }
         case TYPE_U_FRMR : {
@@ -1364,6 +1395,9 @@ void ax25_state_timer_rec_packet(AX25_data_link_state_machine_t *state, AX25_PAC
     }
 }
 
+/**
+ * Process RR or RNR frames that are received in the connected state
+ */
 void connected_rframe_response(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
     check_need_for_response(state, packet);
     if (VA_lte_NR_lte_VS(state, packet->NR)) {
@@ -1374,6 +1408,9 @@ void connected_rframe_response(AX25_data_link_state_machine_t *state, AX25_PACKE
     }
 }
 
+/**
+ * Process RR or RNR frames that are received in the timer recovery state
+ */
 void timer_rec_rframe_response(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
     check_need_for_response(state, packet);
     if (packet->command == AX25_RESPONSE && packet->PF == 1) {
@@ -1415,7 +1452,10 @@ void timer_rec_rframe_response(AX25_data_link_state_machine_t *state, AX25_PACKE
     }
 }
 
-
+/**
+ * Called from the connected state when the event is received indicating that an I-Frame
+ * is available to be transmitted and has been removed from the I-Frame queue
+ */
 void iframe_pops_off_queue(AX25_data_link_state_machine_t *state, AX25_event_t *event) {
 //    trace_dl("POP IFRAME Request\n");
     /* While this is the DL_DATA_Request event, it was already added to
@@ -1554,6 +1594,9 @@ void process_iframe(AX25_data_link_state_machine_t *state, AX25_PACKET *packet, 
     }
 }
 
+/**
+ * Send an RR frame
+ */
 void send_rr_frame(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
     state->response_packet = EMPTY_PACKET;
     state->response_packet.PF = 1;
@@ -1563,12 +1606,19 @@ void send_rr_frame(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
     state->achnowledge_pending = false;
 }
 
+/**
+ * If we receive a bad NR number then we reset the data link
+ * This sends an error to Layer 3, but it also sends a disconnected event when layer 3 is cleared.
+ */
 void nr_error_recovery(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
     ax25_send_event(state, DL_ERROR_Indicate, NULL, ERROR_J);
     establish_data_link(state);
     clear_layer_3_initiated(state);
 }
 
+/**
+ * Clear the exception conditions in the state machine
+ */
 void clear_exception_conditions(AX25_data_link_state_machine_t *state) {
     state->peer_receiver_busy = false;
     state->own_receiver_busy = false;
@@ -1576,9 +1626,11 @@ void clear_exception_conditions(AX25_data_link_state_machine_t *state) {
     state->srej_exception = false;
     state->achnowledge_pending = false;
     discard_iframe_queue(state);
-//    state->RC = 0; // TODO - Added.  Not in the spec
 }
 
+/**
+ * This is called when a timer expires and we want to check that the other station is still there
+ */
 void transmit_enquiry(AX25_data_link_state_machine_t *state) {
     state->response_packet = EMPTY_PACKET;
     state->response_packet.PF = 1; /* This is the only time we send command R frames with P = 1 */
@@ -1593,6 +1645,14 @@ void transmit_enquiry(AX25_data_link_state_machine_t *state) {
     start_timer(timerT1[state->channel]);
 }
 
+/**
+ * This sends an RR or RNR frame in a couple of situations,  If the other end sent a packet with the
+ * POLL/FINAL bit set to 1 then they want to know if we are still alive.  We respond with an RR frame
+ * with the F bit set to 1, unless our receiver is busy, then we send an RNR frame.
+ *
+ * This is also called when we simply want to send an ACK for packets received so far.  It sends an
+ * RR frame with NR set to VR and the F bit set to 0.
+ */
 void enquiry_response(AX25_data_link_state_machine_t *state, AX25_PACKET *packet, int F) {
     state->response_packet = EMPTY_PACKET; // zero out the packet
     state->response_packet.NR = state->VR;
@@ -1722,7 +1782,9 @@ void establish_data_link(AX25_data_link_state_machine_t *state) {
 
 }
 
-// TODO - surely this must also reset VS, VA????
+/**
+ * Discard the queue of future Iframes to send.  This typically happens if we reset the data link
+ */
 void discard_iframe_queue(AX25_data_link_state_machine_t *state) {
     BaseType_t xStatus = xQueueReset(xIFrameQueue[state->channel]);
     if( xStatus != pdPASS ) {
