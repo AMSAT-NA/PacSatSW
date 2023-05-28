@@ -59,8 +59,8 @@ void ftl0_make_tmp_filename(int file_id, char *dir_name, char *filename, int max
 static ftl0_state_machine_t ftl0_state_machine[NUM_OF_RX_CHANNELS];
 static AX25_event_t ax25_event; /* Static storage for event received from Data Link State Machine */
 static AX25_event_t send_event_buffer; /* Static storage for event we will send to Data Link State Machine */
-static HEADER pfh_buffer; // Static allocation of a header to use when we need to load/save the header details
-static uint8_t pfh_byte_buffer[MAX_BYTES_IN_PACSAT_FILE_HEADER]; /* Buffer for the bytes in a PFH when we decode a received file */
+static HEADER ftl0_pfh_buffer; // Static allocation of a header to use when we need to load/save the header details
+static uint8_t ftl0_pfh_byte_buffer[MAX_BYTES_IN_PACSAT_FILE_HEADER]; /* Buffer for the bytes in a PFH when we decode a received file */
 
 #ifdef DEBUG
 /* This decodes the AX25 error numbers.  Only used for debug. */
@@ -919,14 +919,14 @@ int ftl0_process_data_end_cmd(ftl0_state_machine_t *state, uint8_t *data, int le
      * add the file after we rename it. So we validate it first. */
 
     // Read enough of the file to parse the PFH
-    int32_t rc = dir_fs_read_file_chunk(file_name_with_path, pfh_byte_buffer, sizeof(pfh_byte_buffer), 0);
+    int32_t rc = dir_fs_read_file_chunk(file_name_with_path, ftl0_pfh_byte_buffer, sizeof(ftl0_pfh_byte_buffer), 0);
     if (rc == -1) {
         debug_print("Error reading file: %s\n",file_name_with_path);
         return FALSE;
     }
     uint16_t size;
     bool crc_passed = FALSE;
-    pfh_extract_header(&pfh_buffer, pfh_byte_buffer, sizeof(pfh_byte_buffer), &size, &crc_passed);
+    pfh_extract_header(&ftl0_pfh_buffer, ftl0_pfh_byte_buffer, sizeof(ftl0_pfh_byte_buffer), &size, &crc_passed);
     if (!crc_passed) {
         /* Header is invalid */
         trace_ftl0("FTL0[%d] ** Header check failed for file: %s\n",state->channel, file_name_with_path);
