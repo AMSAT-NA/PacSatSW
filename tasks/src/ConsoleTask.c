@@ -117,6 +117,7 @@ enum {
     ,UnMountFS
     ,FormatFS
     ,LsFS
+    ,RmFS
     ,GetRfPower
     ,SelectRFPowerLevels
     ,SetDCTDrivePower
@@ -275,6 +276,7 @@ commandPairs commonCommands[] = {
                                  ,{"unmount fs","unmount the filesystem",UnMountFS}
                                  ,{"format fs","Format the filesystem",FormatFS}
                                  ,{"ls","List files and directories in the filesystem",LsFS}
+                                 ,{"rm","Remove a file from the filesystem",RmFS}
                                  ,{"get rf power","Print the RF power settings",GetRfPower}
                                  ,{"get commands","Get a list the last 4 s/w commands",GetCommands}
                                  ,{"get gpios","Display the values of all GPIOS",GetGpios}
@@ -623,12 +625,15 @@ void RealConsoleTask(void)
                 printf("Unable to open dir: %s\n", red_strerror(red_errno));
                 break;
             }
-
+            uint32_t total_bytes = 0;
+            uint32_t total_blocks = 0;
             REDDIRENT *pDirEnt;
             red_errno = 0; /* Set error to zero so we can distinguish between a real error and the end of the DIR */
             pDirEnt = red_readdir(pDir);
             while (pDirEnt != NULL) {
                 printf("%10s %5d %8d\n", pDirEnt->d_name, pDirEnt->d_stat.st_blocks, (int)pDirEnt->d_stat.st_size );
+                total_bytes += pDirEnt->d_stat.st_size;
+                total_blocks += pDirEnt->d_stat.st_blocks;
                 pDirEnt = red_readdir(pDir);
             }
             if (red_errno != 0) {
@@ -637,11 +642,38 @@ void RealConsoleTask(void)
             }
             int32_t rc = red_closedir(pDir);
             if (rc != 0) {
-                printf("Unable to close file: %s\n", red_strerror(red_errno));
+                printf("Unable to close dir: %s\n", red_strerror(red_errno));
+            }
+            printf("Total File Blocks: %d Bytes: %d\n",total_blocks, total_bytes);
+
+            // Now check and print the available disk space
+            REDSTATFS redstatfs;
+            rc = red_statvfs("/", &redstatfs);
+            if (rc != 0) {
+                printf("Unable to check disk space with statvfs: %s\n", red_strerror(red_errno));
+            } else {
+                printf("Free blocks: %d of %d.  Free Bytes: %d\n",redstatfs.f_bfree, redstatfs.f_blocks, redstatfs.f_frsize * redstatfs.f_bfree);
             }
             break;
         }
+        case RmFS:
+        {
+            int numSpace=0;
+            char *srchStrng;
+            while(afterCommand[numSpace] == ' ') numSpace++;
+            srchStrng = &afterCommand[numSpace];
+            if(strlen(srchStrng)== 0){
+                printf("Usage: rm <file name with path>\n");
+                break;
+            }
+            int32_t fp = red_unlink(srchStrng);
+            if (fp == -1) {
+                printf("Unable to remove file %s : %s\n", srchStrng, red_strerror(red_errno));
+            }
 
+            break;
+
+        }
 
         case GetRfPower:
             //printf("Safe Rf Power Level is %s\n",GetSafeRfPowerLevel()?"HIGH":"LOW");
@@ -899,6 +931,7 @@ void RealConsoleTask(void)
             getTimestamp(&time);
             printf("Timestamp time:  Epoch=%i,seconds=%i\n",time.IHUresetCnt,time.METcount);
             printf("Poweron Time since preflight: %d seconds\n",getSecondsInOrbit());
+            printf("Unix time in secs: %d\n",getUnixTime());
 
             printf("Short boot count: %d, short boot flag %d\n\r",
                    SaveAcrossReset.fields.earlyResetCount,

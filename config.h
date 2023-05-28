@@ -115,6 +115,8 @@ typedef enum {
 #define AX25_TIMER_T1_PERIOD SECONDS(3)
 #define AX25_TIMER_T3_PERIOD SECONDS(30) /* Idle timeout if nothing heard */
 #define AX25_RETRIES_N2 10 /* Number of retries permitted by the Data Link State Machine */
+
+#define UPLOAD_SPACE_THRESHOLD 2*256 /* At least this many bytes should be free after a file is uploaded.  Each disk block is 256 Bytes */
 /*
  * TASK INFORMATION This is the info like stack sizes and priorities for the tasks
  */
