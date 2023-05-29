@@ -13,5 +13,5 @@
 
 const VOLCONF gaRedVolConf[REDCONF_VOLUME_COUNT] =
 {
-    { 256U, SECTOR_COUNT_AUTO, 0U, false, 100U, 0U, "/" }
+    { SECTOR_SIZE_AUTO, SECTOR_COUNT_AUTO, 0U, false, 50U, 0U, "/" }
 };
