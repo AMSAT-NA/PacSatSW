@@ -224,21 +224,21 @@ void ConsoleTask(void *pvParameters){
 	printf("Unable to initialize filesystem: %s\n",
 	       red_strerror(red_errno));
     } else {
-	if (red_mount("/") == -1) {
-	    if (red_errno == RED_EIO) {
-		printf("Filesystem mount failed due to corruption, remounting");
-		if (red_format("/") == -1) {
-		    printf("Unable to format filesystem: %s\n",
-			   red_strerror(red_errno));
-		} else {
-		    goto mount_error;
-		}
-	    } else {
-	    mount_error:
-		printf("Unable to mount filesystem: %s\n",
-		       red_strerror(red_errno));
-	    }
-	}
+        if (red_mount("/") == -1) {
+            if (red_errno == RED_EIO) {
+                printf("Filesystem mount failed due to corruption, reformatting\n");
+                    if (red_format("/") == -1) {
+                        printf("Unable to format filesystem: %s\n",
+                               red_strerror(red_errno));
+                    } if (red_mount("/") == -1) {
+                        printf("Mount after format failed, filesystem broken: %s\n",
+                               red_strerror(red_errno));
+                    }
+            } else {
+                printf("Unable to mount filesystem: %s\n",
+                       red_strerror(red_errno));
+            }
+        }
     }
 
     /*
