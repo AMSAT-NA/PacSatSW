@@ -164,6 +164,10 @@ int pfh_extract_header( HEADER  *hdr, uint8_t *buffer, uint16_t nBytes, uint16_t
         if (id != HEADER_CHECKSUM) {
             int j;
             for (j=0; j<length; j++) {
+                if (i+j >= nBytes) {
+                    debug_print("ERROR extracting PFH.  Buffer overflow prevented for length %d of id %d\n",length,id);
+                    return FALSE;
+                }
                 crc_result += buffer[i+j] & 0xff;
                 //debug_print("%02x ",buffer[i+j]);
             }
@@ -171,8 +175,7 @@ int pfh_extract_header( HEADER  *hdr, uint8_t *buffer, uint16_t nBytes, uint16_t
 
 //        debug_print("ExtractHeader: id:%X length:%d \n", id, length);
 
-        switch (id)
-        {
+        switch (id) {
         case 0x00:
             bMore = 0;
             break;
@@ -529,12 +532,6 @@ uint8_t * pfh_store_str_field(uint8_t *buffer, uint16_t id, uint8_t len, char* s
 /**
  * TEST ROUTINES FOLLOW
  */
-uint8_t buffer[256];
-uint8_t buffer2[256];
-HEADER pfh;
-HEADER pfh2;
-HEADER pfh3;
-HEADER pfh4;
 
 int test_pfh() {
     printf("##### TEST PACSAT HEADER:\n");
@@ -580,6 +577,7 @@ int test_pfh() {
 
     uint16_t size = 0;
     bool crc_passed = false;
+    HEADER pfh;
     pfh_extract_header(&pfh, big_header, sizeof(big_header), &size, &crc_passed);
     pfh_debug_print(&pfh);
     if (pfh.fileId != 0x0347) {  debug_print("File id wrong - FAILED\n"); return FALSE; }
@@ -597,6 +595,7 @@ int test_pfh() {
     uint32_t body_size = 81374;
     uint16_t body_off = pfh_generate_header_bytes(&pfh, body_size, buffer2);
 
+    HEADER pfh2;
     pfh_extract_header(&pfh2, big_header, sizeof(big_header), &size, &crc_passed);
     pfh_debug_print(&pfh2);
     if (pfh2.fileId != 0x0347) {  debug_print("File id wrong - FAILED\n"); return FALSE; }
@@ -642,6 +641,7 @@ int test_pfh_file() {
 
     bool crc_passed = false;
 
+    HEADER pfh;
     pfh_extract_header(&pfh, header, sizeof(header), &size, &crc_passed);
     debug_print("PFH Extracted from buffer:\n");
     pfh_debug_print(&pfh);
@@ -653,9 +653,8 @@ int test_pfh_file() {
         debug_print("FAILED to write header\n");
         return FALSE;
     }
-    debug_print("Wrote header to MRAM\n");
-
-
+    uint8_t buffer2[256];
+    HEADER pfh2;
     int num_bytes_read = dir_fs_read_file_chunk("//0347",buffer2,sizeof(buffer2),0);
     if (num_bytes_read == -1) {
         debug_print("ERROR reading header back from file system\n");
@@ -746,6 +745,7 @@ int test_pfh_make_files() {
     printf("Next file number reset to zero\n");
 
     // Make a pacsat file to save
+    HEADER pfh3;
     bool rc = TRUE;
 
     uint32_t numOfFiles = 30;
@@ -844,6 +844,7 @@ header items as specified below.\n";
 
     debug_print("Load the files and confirm\n");
 
+    HEADER pfh4;
     pfh_new_header(&pfh4);
 
     uint16_t size;
