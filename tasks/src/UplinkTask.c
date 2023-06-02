@@ -95,6 +95,22 @@ portTASK_FUNCTION_PROTO(UplinkTask, pvParameters)  {
     ResetAllWatchdogs();
     printf("Initializing Uplink FTL0 Task\n");
 
+    /* Setup a timer to send the status periodically */
+    xTimerHandle uplinkStatusTimerHandle;
+    volatile portBASE_TYPE timerStatus;
+    int pvtUplinkStatusTimerID = 0; // timer id
+
+    /* create a RTOS software timer - TODO period should be in MRAM and changeable from the ground using xTimerChangePeriod() */
+    uplinkStatusTimerHandle = xTimerCreate( "UPLINK STATUS", SECONDS(40), TRUE, &pvtUplinkStatusTimerID, ax25_send_status); // auto reload timer
+    /* start the timer */
+//    timerStatus = xTimerStart(uplinkStatusTimerHandle, 0); // Block time of zero as this can not block
+//    if (timerStatus != pdPASS) {
+//        debug_print("ERROR: Failed in init PB Status Timer\n");
+//// TODO =>        ReportError(RTOSfailure, FALSE, ReturnAddr, (int) PbTask); /* failed to create the RTOS timer */
+//        // TODO - it's possible this might fail.  Somehow we should recover from that.
+//    }
+
+
     while(1) {
         BaseType_t xStatus = xQueueReceive( xUplinkEventQueue, &ax25_event, CENTISECONDS(1) );  // Wait to see if data available
         if( xStatus == pdPASS ) {
@@ -795,65 +811,68 @@ int ftl0_process_upload_cmd(ftl0_state_machine_t *state, uint8_t *data, int len)
         }
 
     } else { // File number was supplied in the Upload command
-        /* Is this a valid continue? Check to see if there is a tmp file and read its length */
-        // TODO - we also need to check the situation where we have the complete file but the ground station never received the ACK.
-        //        So an atttempt to upload a finished file that belongs to this station, that has the right length, should get an ACK to finish upload off
-        char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
-        dir_get_tmp_file_path_from_file_id(state->file_id, file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
-        debug_print("Checking continue file: %s\n",file_name_with_path);
+        /* Is this a valid continue? Check to see if there is a tmp file
+          */
+         // TODO - we also need to check the situation where we have the complete file but the ground station never received the ACK.
+         //        So an atttempt to upload a finished file that belongs to this station, that has the right length, should get an ACK to finish upload off
+         char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
+         dir_get_tmp_file_path_from_file_id(state->file_id, file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
+         trace_ftl0("FTL0[%d]: Checking continue file: %s\n",state->channel, file_name_with_path);
 
-        // TODO - we check that the file exists, but for now we do not check that it belongs to this station.  That allows two
-        // stations to cooperatively upload the same file, but it also allows a station to corrupt someone elses file
-        int32_t fp = red_open(file_name_with_path, RED_O_RDONLY);
-        if (fp == -1) {
-            debug_print("No such file number \n");
-            return ER_NO_SUCH_FILE_NUMBER;
-        }
-        int rc;
-        int offset = red_lseek(fp, 0, RED_SEEK_END);
-        if (offset == -1) {
-            debug_print("Unable to seek %s  to end: %s\n", file_name_with_path, red_strerror(red_errno));
+         // TODO - we check that the file exists, but for now we do not check that it belongs to this station.  That allows two
+         // stations to cooperatively upload the same file, but it also allows a station to corrupt someone elses file
+         int32_t fp = red_open(file_name_with_path, RED_O_RDONLY);
+         if (fp == -1) {
+             debug_print("No such file number \n");
+             return ER_NO_SUCH_FILE_NUMBER;
+         }
+         int rc;
+         int32_t off = red_lseek(fp, 0, RED_SEEK_END);
+         if (off == -1) {
+             debug_print("Unable to seek %s  to end: %s\n", file_name_with_path, red_strerror(red_errno));
 
-            rc = red_close(fp);
-            if (rc != 0) {
-                printf("Unable to close %s: %s\n", file_name_with_path, red_strerror(red_errno));
-            }
-            return ER_NO_SUCH_FILE_NUMBER;
-        }
-        rc = red_close(fp);
-        if (rc != 0) {
-            printf("Unable to close %s: %s\n", file_name_with_path, red_strerror(red_errno));
-        }
+             rc = red_close(fp);
+             if (rc != 0) {
+                 debug_print("Unable to close %s: %s\n", file_name_with_path, red_strerror(red_errno));
+             }
+             return ER_NO_SUCH_FILE_NUMBER;
+         } else {
+             state->offset = off;
+             trace_ftl0("FTL0[%d]: Continuing file %04x at offset %d\n",state->channel, state->file_id, state->offset);
+         }
+         rc = red_close(fp);
+         if (rc != 0) {
+             printf("Unable to close %s: %s\n", file_name_with_path, red_strerror(red_errno));
+         }
 
-        // TODO - we need to remember the "promised" file length after the station is removed from the Uplink list
-        /* if <continue_file_no> is not 0 and the <file_length> does not
-            agree with the <file_length> previously associated with the file identified by
-            <continue_file_no>.  Continue is not possible.*/
-        // code this error check
+         // TODO - we need to check file length with the length previously supplied
+         /* if <continue_file_no> is not 0 and the <file_length> does not
+             agree with the <file_length> previously associated with the file identified by
+             <continue_file_no>.  Continue is not possible.*/
+         // code this error check
 
-        // TODO - do we recheck that space is still available here?  See the note above on space available
+         // TODO - do we recheck that space is still available here?  See the note above on space available
 
-        ul_go_data.server_file_no = htotl(state->file_id);
-        ul_go_data.byte_offset = htotl(offset); // this is the end of the file so far
-        state->offset = offset;
-    }
+         ul_go_data.server_file_no = htotl(state->file_id);
+         ul_go_data.byte_offset = htotl(state->offset); // this is the end of the file so far
+     }
 
-    int rc = ftl0_make_packet(send_event_buffer.packet.data, (uint8_t *)&ul_go_data, sizeof(ul_go_data), UL_GO_RESP);
-        if (rc != TRUE) {
-            debug_print("Could not make FTL0 UL GO packet \n");
-            return ER_ILL_FORMED_CMD; // TODO This will cause err 1 to be sent and the station to be offloaded.  Is that right..
-        }
+     int rc = ftl0_make_packet(send_event_buffer.packet.data, (uint8_t *)&ul_go_data, sizeof(ul_go_data), UL_GO_RESP);
+         if (rc != TRUE) {
+             debug_print("Could not make FTL0 UL GO packet \n");
+             return ER_ILL_FORMED_CMD; // TODO This will cause err 1 to be sent and the station to be offloaded.  Is that right..
+         }
 
-        send_event_buffer.packet.data_len = sizeof(ul_go_data)+2;
+         send_event_buffer.packet.data_len = sizeof(ul_go_data)+2;
 
-        rc = ftl0_send_event(&ax25_event, &send_event_buffer);
-        if (rc != TRUE) {
-            debug_print("Could not send FTL0 UL GO packet to TNC \n");
-            return ER_ILL_FORMED_CMD; // TODO This will cause err 1 to be sent and the station to be offloaded.  Is that right..
-        } else {
-            trace_ftl0("FTL0:[%d]: Sending FTL0 UL_GO PKT\n",state->channel);
-        }
-    return ER_NONE;
+         rc = ftl0_send_event(&ax25_event, &send_event_buffer);
+         if (rc != TRUE) {
+             debug_print("Could not send FTL0 UL GO packet to TNC \n");
+             return ER_ILL_FORMED_CMD; // TODO This will cause err 1 to be sent and the station to be offloaded.  Is that right..
+         } else {
+             trace_ftl0("FTL0:[%d]: Sending FTL0 UL_GO PKT\n",state->channel);
+         }
+     return ER_NONE;
 }
 
 /**
@@ -867,62 +886,73 @@ int ftl0_process_upload_cmd(ftl0_state_machine_t *state, uint8_t *data, int len)
  *
  */
 int ftl0_process_data_cmd(ftl0_state_machine_t *state, uint8_t *data, int len) {
-//    int ftl0_type = ftl0_parse_packet_type(data);
-//    if (ftl0_type != DATA) {
-//        return ER_ILL_FORMED_CMD; /* We should never get this */
-//    }
-//    int ftl0_length = ftl0_parse_packet_length(data);
-//    if (ftl0_length == 0 || ftl0_length > len-2) {
-//        return ER_BAD_HEADER; /* This will cause a NAK to be sent as the data is corrupt in some way */
-//    }
-//
-//    unsigned char * data_bytes = (unsigned char *)data + 2; /* Point to the data just past the header */
-//
-//    char tmp_filename[MAX_FILE_PATH_LEN];
-//    ftl0_make_tmp_filename(uplink_list[selected_station].file_id, get_dir_folder(), tmp_filename, MAX_FILE_PATH_LEN);
-//    debug_print("Saving data to file: %s\n",tmp_filename);
-//    FILE * f = fopen(tmp_filename, "ab"); /* Open the file for append of data to the end */
-//    if (f == NULL) {
-//        return ER_NO_SUCH_FILE_NUMBER;
-//    }
-//    for (int i=0; i< ftl0_length; i++) {
-//        int c = fputc((unsigned int)data_bytes[i],f);
-//        if (c == EOF) {
-//            fclose(f);
-//            return ER_NO_SUCH_FILE_NUMBER; // we could not write to the file, assume it is not valid, was it purged?
-//        }
-//    }
-//    fclose(f);
+    int ftl0_type = ftl0_parse_packet_type(data);
+    if (ftl0_type != DATA) {
+        /* We should never get this */
+        debug_print("ERROR: FTL0 Program logic issue.  Non data packet received in DATA function");
+        return ER_ILL_FORMED_CMD;
+    }
+    int ftl0_length = ftl0_parse_packet_length(data);
+    if (ftl0_length == 0 || ftl0_length > len-2) {
+        return ER_BAD_HEADER; /* This will cause a NAK to be sent as the data is corrupt in some way */
+    }
+
+    unsigned char * data_bytes = (unsigned char *)data + 2; /* Point to the data just past the header */
+
+    char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
+    dir_get_tmp_file_path_from_file_id(state->file_id, file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
+
+    int32_t rc = dir_fs_write_file_chunk(file_name_with_path, data_bytes, ftl0_length, state->offset);
+    if (rc == -1) {
+        debug_print("FTL0[%d]:File I/O error writing chunk\n",state->channel);
+        return ER_NO_SUCH_FILE_NUMBER;
+    }
+
+    state->offset += ftl0_length;
 
     return ER_NONE;
 }
 
+
 int ftl0_process_data_end_cmd(ftl0_state_machine_t *state, uint8_t *data, int len) {
-//    int ftl0_type = ftl0_parse_packet_type(data);
-//    if (ftl0_type != DATA_END) {
-//        return ER_ILL_FORMED_CMD; /* We should never get this */
-//    }
-//    int ftl0_length = ftl0_parse_packet_length(data);
-//    if (ftl0_length != 0) {
-//        return ER_BAD_HEADER; /* This will cause a NAK to be sent as the data is corrupt in some way */
-//    }
-//
-//    char tmp_filename[MAX_FILE_PATH_LEN];
-//    ftl0_make_tmp_filename(uplink_list[selected_station].file_id, get_dir_folder(), tmp_filename, MAX_FILE_PATH_LEN);
-//
-//    /* We can't call dir_load_pacsat_file() here because we want to check the tmp file but then
-//     * add the file after we rename it. So we validate it first. */
-//
-//    /* First check the header.  We must free the pfh memory if it is not added to the dir */
-//    HEADER *pfh = pfh_load_from_file(tmp_filename);
-//    if (pfh == NULL) {
-//        /* Header is invalid */
-//        error_print("** Header check failed for %s\n",tmp_filename);
-//        if (remove(tmp_filename) != 0) {
-//            error_print("Could not remove the temp file: %s\n", tmp_filename);
-//        }
-//        return ER_BAD_HEADER;
-//    }
+    static HEADER ftl0_pfh_buffer; // Static allocation of a header to use when we need to load/save the header details
+    static uint8_t ftl0_pfh_byte_buffer[MAX_BYTES_IN_PACSAT_FILE_HEADER]; /* Buffer for the bytes in a PFH when we decode a received file */
+    int ftl0_type = ftl0_parse_packet_type(data);
+    if (ftl0_type != DATA_END) {
+        /* We should never get this */
+        debug_print("ERROR: FTL0 Program logic issue.  Non data end packet received in DATA_END function");
+        return ER_ILL_FORMED_CMD;
+    }
+    int ftl0_length = ftl0_parse_packet_length(data);
+    if (ftl0_length != 0) {
+        return ER_BAD_HEADER; /* This will cause a NAK to be sent as the data is corrupt in some way */
+    }
+
+    char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
+    dir_get_tmp_file_path_from_file_id(state->file_id, file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
+
+    /* We can't call dir_load_pacsat_file() here because we want to check the tmp file but then
+     * add the file after we rename it. So we validate it first. */
+
+    // Read enough of the file to parse the PFH
+    int32_t rc = dir_fs_read_file_chunk(file_name_with_path, ftl0_pfh_byte_buffer, sizeof(ftl0_pfh_byte_buffer), 0);
+    if (rc == -1) {
+        debug_print("Error reading file: %s\n",file_name_with_path);
+        return FALSE;
+    }
+    uint16_t size;
+    bool crc_passed = FALSE;
+    pfh_extract_header(&ftl0_pfh_buffer, ftl0_pfh_byte_buffer, sizeof(ftl0_pfh_byte_buffer), &size, &crc_passed);
+    if (!crc_passed) {
+        /* Header is invalid */
+        trace_ftl0("FTL0[%d] ** Header check failed for file: %s\n",state->channel, file_name_with_path);
+        int32_t fp = red_unlink(file_name_with_path);
+        if (fp == -1) {
+            printf("Unable to remove file: %s : %s\n", file_name_with_path, red_strerror(red_errno));
+        }
+        return ER_BAD_HEADER;
+    }
+
 //
 //    int rc = dir_validate_file(pfh, tmp_filename);
 //    if (rc != ER_NONE) {
@@ -960,6 +990,7 @@ int ftl0_process_data_end_cmd(ftl0_state_machine_t *state, uint8_t *data, int le
 //        }
 //        return ER_NO_ROOM;
 //    }
+
     return ER_NONE;
 }
 

@@ -164,6 +164,10 @@ int pfh_extract_header( HEADER  *hdr, uint8_t *buffer, uint16_t nBytes, uint16_t
         if (id != HEADER_CHECKSUM) {
             int j;
             for (j=0; j<length; j++) {
+                if (i+j >= nBytes) {
+                    debug_print("ERROR extracting PFH.  Buffer overflow prevented for length %d of id %d\n",length,id);
+                    return FALSE;
+                }
                 crc_result += buffer[i+j] & 0xff;
                 //debug_print("%02x ",buffer[i+j]);
             }
@@ -171,8 +175,7 @@ int pfh_extract_header( HEADER  *hdr, uint8_t *buffer, uint16_t nBytes, uint16_t
 
 //        debug_print("ExtractHeader: id:%X length:%d \n", id, length);
 
-        switch (id)
-        {
+        switch (id) {
         case 0x00:
             bMore = 0;
             break;
@@ -530,7 +533,6 @@ uint8_t * pfh_store_str_field(uint8_t *buffer, uint16_t id, uint8_t len, char* s
  * TEST ROUTINES FOLLOW
  */
 
-
 int test_pfh() {
     printf("##### TEST PACSAT HEADER:\n");
     int rc = TRUE;
@@ -746,7 +748,7 @@ int test_pfh_make_files() {
     HEADER pfh3;
     bool rc = TRUE;
 
-    uint32_t numOfFiles = 30;
+    uint32_t numOfFiles = 10;
     debug_print("Make %d PPSF and save to MRAM\n",numOfFiles);
     char *msg1 = "Hi there,\nThis is a test message\n73 Chris\n";
     int i;

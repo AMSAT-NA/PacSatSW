@@ -35,7 +35,7 @@ extern int32_t WODHkStoreIndex,WODSciStoreIndex;
 extern rt1Errors_t localErrorCollection;
 
 static uint8_t SWCmdCount,HWCmdCount;
-static SPIDevice device = DCTDev0;
+static AX5043Device device = AX5043Dev0;
 
 /*
  * Forward Routines

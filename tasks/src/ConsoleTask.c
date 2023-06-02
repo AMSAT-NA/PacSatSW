@@ -30,8 +30,6 @@
 #include "esm.h"
 #include "adc.h"
 #include "mram.h"
-#include "ax5043-2M-AFSK-externs.h"
-#include "config-2M-AFSK.h"
 
 //FreeRTOS headers
 #include "FreeRTOS.h"
@@ -510,28 +508,28 @@ void RealConsoleTask(void)
             int number = parseNumber(afterCommand);
             DCTTxFreq += number;
             printf("TxFreq=%d\n",DCTTxFreq);
-            quick_setfreq(DCTDev1, DCTTxFreq);
+            quick_setfreq(AX5043Dev1, DCTTxFreq);
             break;
         }
         case LowerTxFreq:{
             int number = parseNumber(afterCommand);
             DCTTxFreq -= number;
             printf("TxFreq=%d\n",DCTTxFreq);
-            quick_setfreq(DCTDev1, DCTTxFreq);
+            quick_setfreq(AX5043Dev1, DCTTxFreq);
             break;
         }
         case RaiseRxFreq:{
             int number = parseNumber(afterCommand);
             DCTRxFreq += number;
             printf("RxFreq=%d\n",DCTRxFreq);
-            quick_setfreq(DCTDev0, DCTRxFreq);
+            quick_setfreq(AX5043Dev0, DCTRxFreq);
             break;
         }
         case LowerRxFreq:{
             int number = parseNumber(afterCommand);
             DCTRxFreq -= number;
             printf("RxFreq=%d\n",DCTRxFreq);
-            quick_setfreq(DCTDev0, DCTRxFreq);
+            quick_setfreq(AX5043Dev0, DCTRxFreq);
             break;
         }
         case SaveFreq:{
@@ -916,7 +914,7 @@ void RealConsoleTask(void)
         }
         }
         case startRx:{
-            ax5043StartRx(DCTDev1);
+            ax5043StartRx(AX5043Dev0);
             break;
         }
 
@@ -975,7 +973,7 @@ void RealConsoleTask(void)
 
         case getax5043:{
             // TX on UHF (typically)
-            SPIDevice dev = DCTDev0;
+            AX5043Device dev = AX5043Dev1;
             printf("AX5043 dev %d TX:\n",dev);
             printf(" FIFOSTAT: %02x\n", ax5043ReadReg(dev, AX5043_FIFOSTAT));
             printf(" PWRMODE:: %02x\n", ax5043ReadReg(dev, AX5043_PWRMODE));
@@ -1000,7 +998,7 @@ void RealConsoleTask(void)
             printf(" TXPWRCOEFFB1: %x\n", ax5043ReadReg(dev, AX5043_TXPWRCOEFFB1));
 
             // RX on VHF (typically)
-            dev = DCTDev1;
+            dev = AX5043Dev0;
             printf("\nAX5043 dev %d RX:\n",dev);
             printf(" FIFOSTAT: %02x\n", ax5043ReadReg(dev, AX5043_FIFOSTAT));
             printf(" PWRMODE:: %02x\n", ax5043ReadReg(dev, AX5043_PWRMODE));
@@ -1028,14 +1026,14 @@ void RealConsoleTask(void)
         }
 
         case getRSSI:{
-            int rssi = get_rssi(DCTDev1);
+            int rssi = get_rssi(AX5043Dev0);
             printf("RSSI is %d\n",((int16_t)rssi) - 255);
             break;
         }
         case testRxFreq: {
              //This is so we can find what the receive frequency is on first build
             {
-                SPIDevice device = DCTDev0;
+                AX5043Device device = AX5043Dev0;
                 uint32_t freq = 145835000;
 
                 test_rx_freq(device, freq);
@@ -1044,7 +1042,7 @@ void RealConsoleTask(void)
         }
 
         case testPLLrange:{
-            SPIDevice dev = DCTDev0;
+            AX5043Device dev = AX5043Dev1;
             printf("Testing the PLL range for device: %d\n",dev);
 
             test_pll_2m_range(dev, RATE_9600); // test the range of the receiver on 2m

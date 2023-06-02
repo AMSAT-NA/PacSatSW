@@ -11,9 +11,9 @@
 /* Useful typedefs */
 #include <pacsat.h>
 #include "stdint.h"
+/* If AX5043 devices added to this enum then updates need to be made to ax5043_access.h */
 typedef enum {MRAM0Dev = 0, MRAM1Dev = 1, MRAM2Dev=2, MRAM3Dev=3, DCTDev0 = 4,DCTDev1, InvalidSPI} SPIDevice;
 #define NUMBER_OF_BUSES 3
-#define NUM_AX5043_SPI_DEVICES 2 // Increase this if Devices added to enum (and relevant pin config complete)
 typedef union {
     uint8_t byte[4];
     uint32_t word;

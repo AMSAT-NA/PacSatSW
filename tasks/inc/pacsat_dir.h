@@ -11,6 +11,7 @@
 #include "MRAMmap.h"
 #include "redconf.h"
 #include "PbTask.h"
+#include "pacsat_header.h"
 
 #define NO_FILE 0xFFFFFFFF
 
@@ -35,7 +36,8 @@ void dir_get_tmp_file_path_from_file_id(uint32_t file_id, char *file_path, int m
 void dir_get_file_path_from_file_id(uint32_t file_id, char *file_path, int max_length);
 void dir_free();
 int dir_load();
-
+int dir_load_header(char *file_name_with_path, uint8_t *byte_buffer, int buffer_len, HEADER *pfh);
+int dir_validate_file(HEADER *pfh, char *filename);
 int32_t dir_fs_write_file_chunk(char *file_name_with_path, uint8_t *data, uint32_t length, uint32_t offset);
 int32_t dir_fs_read_file_chunk(char *file_name_with_path, uint8_t *read_buffer, uint32_t length, uint32_t offset);
 int32_t dir_fs_get_file_size(char *file_name_with_path);

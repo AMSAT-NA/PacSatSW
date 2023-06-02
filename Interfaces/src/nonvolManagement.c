@@ -388,7 +388,7 @@ void SetupMRAMStates() {
     WriteMRAMEnterAutosafe(DEFAULT_AUTOSAFE_INTO);
     WriteMRAMExitAutosafe(DEFAULT_AUTOSAFE_OUTOF);
 
-    WriteMRAMNextFileNumber(0);
+    WriteMRAMNextFileNumber(1);  // Start the file system at file 1.  File Id 0 is reserved and sent when a station does not have a file to upload.
 
     /* These are like 'set internal schedule' but sets relative to startup, not to current time */
     WriteMRAMTimeout(NoCommandTimeout,NO_COMMAND_TIMEOUT);

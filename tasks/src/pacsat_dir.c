@@ -20,6 +20,7 @@
 #include "PbTask.h"
 #include "pacsat_header.h"
 #include "pacsat_dir.h"
+#include "UplinkTask.h"
 #include "inet.h"
 #include "str_util.h"
 
@@ -36,9 +37,9 @@ DIR_NODE * dir_add_pfh(char *file_path, HEADER *new_pfh);
 void dir_delete_node(DIR_NODE *node);
 void insert_after(DIR_NODE *p, DIR_NODE *new_node);
 
-/* This is used by the Simple MRAM FS */
+/* Local Variables */
 static HEADER pfh_buffer; // Static allocation of a header to use when we need to load/save the header details
-static uint8_t pfh_byte_buffer[512]; /* Maximum size for a PFH TODO - what should size be.  STORE AS DEFINE */
+static uint8_t pfh_byte_buffer[MAX_BYTES_IN_PACSAT_FILE_HEADER]; /* Maximum size for a PFH */
 
 /**
  * dir_next_file_number()
@@ -275,17 +276,11 @@ bool dir_load_pacsat_file(char *file_name) {
     char file_name_with_path[25];
     snprintf(file_name_with_path, 25, "//%s",file_name);
 
-    // Read enough of the file to parse the PFH
-    int32_t rc = dir_fs_read_file_chunk(file_name_with_path, pfh_byte_buffer, sizeof(pfh_byte_buffer), 0);
-    if (rc == -1) {
-        debug_print("Error reading file: %s\n",file_name_with_path);
+    int len = dir_load_header(file_name_with_path, pfh_byte_buffer, sizeof(pfh_byte_buffer), &pfh_buffer);
+    if (len == -1) {
+        debug_print("** Could not extract header from %s\n", file_name_with_path);
         return FALSE;
     }
-    uint16_t size;
-    bool crc_passed = FALSE;
-    pfh_extract_header(&pfh_buffer, pfh_byte_buffer, sizeof(pfh_byte_buffer), &size, &crc_passed);
-    if (!crc_passed) { debug_print("CRC FAILED\n"); return FALSE;}
-
     DIR_NODE *p = dir_add_pfh(file_name, &pfh_buffer);
     if (p == NULL) {
         debug_print("** Could not add %s to dir\n", file_name_with_path);
@@ -320,7 +315,7 @@ int dir_load() {
         debug_print("Loading: %s\n",pDirEnt->d_name);
         rc = dir_load_pacsat_file(pDirEnt->d_name);
         if (rc != TRUE) {
-            debug_print("May need to remove potentially corrupt or duplicate PACSAT file: %d\n", pDirEnt->d_name);
+            debug_print("May need to remove potentially corrupt or duplicate PACSAT file\n");
             /* Don't automatically remove here, otherwise loading the dir twice actually deletes all the
              * files! */
         }
@@ -339,6 +334,61 @@ int dir_load() {
     return TRUE;
 }
 
+int dir_load_header(char *file_name_with_path, uint8_t *byte_buffer, int buffer_len, HEADER *pfh) {
+    // Read enough of the file to parse the PFH
+    int32_t rc = dir_fs_read_file_chunk(file_name_with_path, byte_buffer, buffer_len, 0);
+    if (rc == -1) {
+        debug_print("Error reading file: %s\n",file_name_with_path);
+        return -1;
+    }
+    uint16_t size;
+    bool crc_passed = FALSE;
+    pfh_extract_header(pfh, byte_buffer, buffer_len, &size, &crc_passed);
+    if (!crc_passed) {
+        debug_print("CRC FAILED\n");
+        return -1;
+    }
+    return size;
+}
+
+/**
+ * dir_validate_file()
+ * Validate a newly uploaded file to make sure that it has integrity with its Header.
+ * This assumes that the header has already been loaded and validated.
+ *
+ * Returns ERR_NONE if everything is good.  Otherwise it returns an FTL0 error number.
+ *
+ */
+int dir_validate_file(HEADER *pfh, char *filename) {
+    debug_print("DIR: Checking data in file: %s\n",filename);
+
+    /* Now check the body */
+    short int body_checksum = 0;
+    unsigned int body_size = 0;
+
+//    FILE *infile = fopen(filename, "rb");
+//    if (infile == NULL) {
+//        return ER_NO_SUCH_FILE_NUMBER;
+//    }
+//    fseek(infile, pfh->bodyOffset, SEEK_SET);
+//    int ch=fgetc(infile);
+//    while (ch!=EOF) {
+//        body_checksum += ch & 0xff;
+//        body_size++;
+//        ch=fgetc(infile);
+//    }
+//    fclose(infile);
+//    if (pfh->bodyCRC != body_checksum) {
+//        error_print("** Body check failed for %s\n",filename);
+//        return ER_BODY_CHECK;
+//    }
+//    if (pfh->fileSize != pfh->bodyOffset + body_size) {
+//        error_print("** Body check failed for %s\n",filename);
+//        return ER_FILE_COMPLETE;
+//    }
+
+    return ER_NONE;
+}
 
 
 /**

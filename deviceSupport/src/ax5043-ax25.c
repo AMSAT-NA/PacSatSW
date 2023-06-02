@@ -66,15 +66,14 @@
 #include "os_task.h"
 #include "ax5043_access.h"
 #include "serialDriver.h"
-#include "spiDriver.h"
 #include "nonvolManagement.h"
 
 /* Forward declarations */
-static uint8_t ax5043_ax25_init_registers_common(SPIDevice device);
-static uint8_t ax5043_ax25_init_registers_tx(SPIDevice device, bool band_vhf, bool rate_9600);
-static uint8_t ax5043_ax25_init_registers_rx(SPIDevice device, bool band_vhf, bool rate_9600);
+static uint8_t ax5043_ax25_init_registers_common(AX5043Device device);
+static uint8_t ax5043_ax25_init_registers_tx(AX5043Device device, bool band_vhf, bool rate_9600);
+static uint8_t ax5043_ax25_init_registers_rx(AX5043Device device, bool band_vhf, bool rate_9600);
 
-/// TODO - these variables need to be indeced by SPIDevice id
+/// TODO - these variables need to be indeced by AX5043Device id
 
 /* Variables */
 static volatile uint8_t axradio_mode = AXRADIO_MODE_UNINIT;
@@ -108,7 +107,7 @@ static const int8_t  axradio_phy_rssireference = 57;// 0xF9 + 64;
  * FIRST ALL OF THE SETTINGS THAT ARE COMMON TO BOTH BANDS AND FOR RX AND TX
  * Set all of the base registers
  */
-static void ax5043_ax25_set_registers(SPIDevice device, bool band_vhf, bool rate_9600) {
+static void ax5043_ax25_set_registers(AX5043Device device, bool band_vhf, bool rate_9600) {
 
     if (rate_9600) {
         /* NOTE that 0x07 GMSK does not work on receive.  Use GFSK 0x07 with BT = 0.5.  This works better than 0.3 for RX.
@@ -560,7 +559,7 @@ static void ax5043_ax25_set_registers(SPIDevice device, bool band_vhf, bool rate
 
 }
 
-static void ax5043_ax25_init_registers(SPIDevice device, bool band_vhf, bool rate_9600) {
+static void ax5043_ax25_init_registers(AX5043Device device, bool band_vhf, bool rate_9600) {
     ax5043_ax25_set_registers(device, band_vhf, rate_9600);
 
 #ifdef LEGACY_GOLF
@@ -581,7 +580,7 @@ static void ax5043_ax25_init_registers(SPIDevice device, bool band_vhf, bool rat
  * already done that.  It also seems to read/write the VCO bias current
  *
  */
-static uint8_t ax5043_ax25_init_registers_common(SPIDevice device) {
+static uint8_t ax5043_ax25_init_registers_common(AX5043Device device) {
     uint8_t rng = axradio_phy_chanpllrng[0];
     if (rng & 0x20)
         return AXRADIO_ERR_RANGING;
@@ -597,7 +596,7 @@ static uint8_t ax5043_ax25_init_registers_common(SPIDevice device) {
     return AXRADIO_ERR_NOERROR;
 }
 
-static void axradio_wait_for_xtal(SPIDevice device) {
+static void axradio_wait_for_xtal(AX5043Device device) {
     //printf("INFO: Waiting for crystal (axradio_wait_for_xtal)\n");
     while ((ax5043ReadReg(device, AX5043_XTALSTATUS) & 0x01) == 0) {
         vTaskDelay(CENTISECONDS(1));
@@ -609,7 +608,7 @@ static void axradio_wait_for_xtal(SPIDevice device) {
  * THEN THE SETTINGS THAT ARE JUST FOR THE TX
  */
 
-static void ax5043_ax25_set_registers_tx(SPIDevice device, bool band_vhf, bool rate_9600) {
+static void ax5043_ax25_set_registers_tx(AX5043Device device, bool band_vhf, bool rate_9600) {
     ax5043WriteReg(device, AX5043_PLLLOOP                 ,0x0A);
     ax5043WriteReg(device, AX5043_PLLCPI                  ,0x10);
     if (band_vhf) {
@@ -643,12 +642,12 @@ static void ax5043_ax25_set_registers_tx(SPIDevice device, bool band_vhf, bool r
 
 }
 
-static uint8_t ax5043_ax25_init_registers_tx(SPIDevice device, bool band_vhf, bool rate_9600) {
+static uint8_t ax5043_ax25_init_registers_tx(AX5043Device device, bool band_vhf, bool rate_9600) {
     ax5043_ax25_set_registers_tx(device, band_vhf, rate_9600);
     return ax5043_ax25_init_registers_common(device);
 }
 
-void ax5043_prepare_tx(SPIDevice device, bool band_vhf, bool rate_9600) {
+void ax5043_prepare_tx(AX5043Device device, bool band_vhf, bool rate_9600) {
     ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_XTAL_ON);
     ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_FIFO_ON);
     ax5043_ax25_init_registers_tx(device, band_vhf, rate_9600);
@@ -663,7 +662,7 @@ void ax5043_prepare_tx(SPIDevice device, bool band_vhf, bool rate_9600) {
  * THEN SETTINGS THAT ARE JUST FOR THE RX
  */
 
-static void ax5043_ax25_set_registers_rx(SPIDevice device, bool band_vhf, bool rate_9600) {
+static void ax5043_ax25_set_registers_rx(AX5043Device device, bool band_vhf, bool rate_9600) {
 
     /* PLLLOOP configs PLL filter and sets freq A or B */
    ax5043WriteReg(device, AX5043_PLLLOOP                 ,0x0A);  // 0B - Use FREQ A and 500kHz loop filter.  Set to 0A for 200kHz using less current
@@ -701,19 +700,19 @@ static void ax5043_ax25_set_registers_rx(SPIDevice device, bool band_vhf, bool r
 /**
  * This is called once the ranging is complete.  It finalizes the registers for receive
  */
-uint8_t ax5043_ax25_init_registers_rx(SPIDevice device, bool band_vhf, bool rate_9600) {
+uint8_t ax5043_ax25_init_registers_rx(AX5043Device device, bool band_vhf, bool rate_9600) {
     ax5043_ax25_set_registers_rx(device, band_vhf, rate_9600);
     return ax5043_ax25_init_registers_common(device);
 
 }
 
-static void ax5043_set_registers_rxcont(SPIDevice device){
+static void ax5043_set_registers_rxcont(AX5043Device device){
     ax5043WriteReg(device, AX5043_TMGRXAGC,                 0x00);  // Receiver AGC settling time.  Default is 00
     ax5043WriteReg(device, AX5043_TMGRXPREAMBLE1,           0x00);  // Receiver preamble timeout - Default is 00
     ax5043WriteReg(device, AX5043_PKTMISCFLAGS,             0x00);  // 0 turns all these off
 }
 
-uint8_t ax5043_receiver_on_continuous(SPIDevice device) {
+uint8_t ax5043_receiver_on_continuous(AX5043Device device) {
     uint8_t regValue;
 
     ax5043WriteReg(device, AX5043_RSSIREFERENCE, axradio_phy_rssireference); //
@@ -741,7 +740,7 @@ uint8_t ax5043_receiver_on_continuous(SPIDevice device) {
  * If everything works it returns success - AXRADIO_ERR_NOERROR
  *
  */
-uint8_t axradio_init(SPIDevice device, bool band_vhf, int32_t freq, bool rate_9600) {
+uint8_t axradio_init(AX5043Device device, bool band_vhf, int32_t freq, bool rate_9600) {
     //printf("Inside axradio_init_70cm\n");
 
     /* Store the current state and reset the radio.  This makes sure everything is
@@ -887,7 +886,7 @@ uint8_t axradio_init(SPIDevice device, bool band_vhf, int32_t freq, bool rate_96
 }
 
 
-uint8_t mode_tx(SPIDevice device, bool band_vhf, bool rate_9600) {
+uint8_t mode_tx(AX5043Device device, bool band_vhf, bool rate_9600) {
     int retVal;
 
     retVal = ax5043_off(device);
@@ -904,7 +903,7 @@ uint8_t mode_tx(SPIDevice device, bool band_vhf, bool rate_9600) {
 }
 
 
-uint8_t mode_rx(SPIDevice device, bool band_vhf, bool rate_9600) {
+uint8_t mode_rx(AX5043Device device, bool band_vhf, bool rate_9600) {
     int retVal;
 
     retVal = ax5043_off(device);
@@ -937,7 +936,7 @@ uint8_t mode_rx(SPIDevice device, bool band_vhf, bool rate_9600) {
  *
  * Returns RADIO_OK if all is well.
  */
-static uint8_t ax5043_reset(SPIDevice device) {
+static uint8_t ax5043_reset(AX5043Device device) {
 	//printf("INFO: Resetting AX5043 (ax5043_reset)\n");
 	uint8_t i;
 	// Initialize Interface
@@ -972,7 +971,7 @@ static uint8_t ax5043_reset(SPIDevice device) {
  * TODO - need to understand what this does.
  * It seems to get the VCO bias current
  */
-uint8_t axradio_get_pllvcoi(SPIDevice device)
+uint8_t axradio_get_pllvcoi(AX5043Device device)
 {
     if (axradio_phy_vcocalib) {
         uint8_t x = axradio_phy_chanvcoi[0];
@@ -994,12 +993,12 @@ uint8_t axradio_get_pllvcoi(SPIDevice device)
 }
 
 
-void start_ax25_rx(SPIDevice device, bool rate_9600) {
+void start_ax25_rx(AX5043Device device, bool rate_9600) {
     uint32_t freq;
     int status = 0;
     bool band_vhf = FALSE;
 
-    debug_print("Starting RX with SPIDevice %d, vhf=%d 9600bps=%d\n", device, band_vhf, rate_9600);
+    debug_print("Starting RX with AX5043Device %d, vhf=%d 9600bps=%d\n", device, band_vhf, rate_9600);
     //uint8_t retVal;
     ax5043WriteReg(device, AX5043_PINFUNCIRQ, 0x0); //disable IRQs
     freq = ReadMRAMCommandFreq();
@@ -1022,7 +1021,7 @@ void start_ax25_rx(SPIDevice device, bool rate_9600) {
 
 }
 
-void start_ax25_tx(SPIDevice device, bool rate_9600) {
+void start_ax25_tx(AX5043Device device, bool rate_9600) {
     uint16_t irqreq;
     uint16_t irqs = 0;
     uint32_t freq;
@@ -1030,7 +1029,7 @@ void start_ax25_tx(SPIDevice device, bool rate_9600) {
     bool band_vhf = FALSE;
 
   //printf("In Test_Tx\n");
-    debug_print("Starting TX with SPIDevice %d, vhf=%d 9600bps=%d\n", device, band_vhf, rate_9600);
+    debug_print("Starting TX with AX5043Device %d, vhf=%d 9600bps=%d\n", device, band_vhf, rate_9600);
 
     /* Get ready for TX */
   //printf("Disabling IRQs\n");
@@ -1084,7 +1083,7 @@ void start_ax25_tx(SPIDevice device, bool rate_9600) {
 
 }
 
-void fifo_send_sync(SPIDevice device, int final) {
+void fifo_send_sync(AX5043Device device, int final) {
   uint8_t i;
   uint8_t flags = 0x1C; // RAW, NOCRC, RESIDUE
   //uint8_t pktstart = 0x01;
@@ -1106,21 +1105,21 @@ void fifo_send_sync(SPIDevice device, int final) {
 
 }
 
-void fifo_commit(SPIDevice device) {
+void fifo_commit(AX5043Device device) {
   ax5043WriteReg(device, AX5043_FIFOSTAT, 4);
   //  usleep(1000);
       vTaskDelay(1);
 
 }  
 
-void fifo_repeat_byte(SPIDevice device, uint8_t b, uint8_t count, uint8_t flags) {
+void fifo_repeat_byte(AX5043Device device, uint8_t b, uint8_t count, uint8_t flags) {
   ax5043WriteReg(device, AX5043_FIFODATA, AX5043_FIFOCMD_REPEATDATA | (3 << 5));
   ax5043WriteReg(device, AX5043_FIFODATA, flags);
   ax5043WriteReg(device, AX5043_FIFODATA, count);
   ax5043WriteReg(device, AX5043_FIFODATA, b);
 }
 
-void fifo_queue_buffer(SPIDevice device, uint8_t *buf, uint8_t len, uint8_t flags) {
+void fifo_queue_buffer(AX5043Device device, uint8_t *buf, uint8_t len, uint8_t flags) {
   ax5043WriteReg(device, AX5043_FIFODATA, AX5043_FIFOCMD_DATA | (7 << 5));
   ax5043WriteReg(device, AX5043_FIFODATA, len+1); //len includes the flag byte
   ax5043WriteReg(device, AX5043_FIFODATA, flags);
@@ -1129,11 +1128,11 @@ void fifo_queue_buffer(SPIDevice device, uint8_t *buf, uint8_t len, uint8_t flag
   }
 }
 
-uint16_t fifo_free(SPIDevice device) {
+uint16_t fifo_free(AX5043Device device) {
   return (256*ax5043ReadReg(device, AX5043_FIFOFREE1) + ax5043ReadReg(device, AX5043_FIFOFREE0));
 }
 
-uint8_t get_rssi(SPIDevice device) {
+uint8_t get_rssi(AX5043Device device) {
     int8_t byteVal;
     int16_t wordVal;
     byteVal = (int8_t)ax5043ReadReg(device, AX5043_RSSI);
@@ -1155,7 +1154,7 @@ int32_t axradio_conv_freq_tohz(int32_t f) {
 }
 
 
-void quick_setfreq(SPIDevice device, int32_t f) {
+void quick_setfreq(AX5043Device device, int32_t f) {
   int32_t f1 = axradio_conv_freq_fromhz(f);
 
   /* Set LSB, per AX5043 documentation, to prevent synthesizer spurs */
@@ -1167,7 +1166,7 @@ void quick_setfreq(SPIDevice device, int32_t f) {
   ax5043WriteReg(device, AX5043_FREQA3, f1 >> 24);
 }
 
-void test_rx_freq(SPIDevice device, uint32_t freq) {
+void test_rx_freq(AX5043Device device, uint32_t freq) {
     ax5043PowerOn(device);
 
      printf("Transmitting on receive freq: %d\n", freq);
@@ -1190,7 +1189,7 @@ void test_rx_freq(SPIDevice device, uint32_t freq) {
          i++;
      }
 }
-void test_pll_2m_range(SPIDevice device, bool rate_9600) {
+void test_pll_2m_range(AX5043Device device, bool rate_9600) {
     int32_t i;
 
     ax5043PowerOn(device);
