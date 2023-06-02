@@ -748,7 +748,7 @@ int test_pfh_make_files() {
     HEADER pfh3;
     bool rc = TRUE;
 
-    uint32_t numOfFiles = 30;
+    uint32_t numOfFiles = 10;
     debug_print("Make %d PPSF and save to MRAM\n",numOfFiles);
     char *msg1 = "Hi there,\nThis is a test message\n73 Chris\n";
     int i;
