@@ -95,6 +95,22 @@ portTASK_FUNCTION_PROTO(UplinkTask, pvParameters)  {
     ResetAllWatchdogs();
     printf("Initializing Uplink FTL0 Task\n");
 
+    /* Setup a timer to send the status periodically */
+    xTimerHandle uplinkStatusTimerHandle;
+    volatile portBASE_TYPE timerStatus;
+    int pvtUplinkStatusTimerID = 0; // timer id
+
+    /* create a RTOS software timer - TODO period should be in MRAM and changeable from the ground using xTimerChangePeriod() */
+    uplinkStatusTimerHandle = xTimerCreate( "UPLINK STATUS", SECONDS(40), TRUE, &pvtUplinkStatusTimerID, ax25_send_status); // auto reload timer
+    /* start the timer */
+//    timerStatus = xTimerStart(uplinkStatusTimerHandle, 0); // Block time of zero as this can not block
+//    if (timerStatus != pdPASS) {
+//        debug_print("ERROR: Failed in init PB Status Timer\n");
+//// TODO =>        ReportError(RTOSfailure, FALSE, ReturnAddr, (int) PbTask); /* failed to create the RTOS timer */
+//        // TODO - it's possible this might fail.  Somehow we should recover from that.
+//    }
+
+
     while(1) {
         BaseType_t xStatus = xQueueReceive( xUplinkEventQueue, &ax25_event, CENTISECONDS(1) );  // Wait to see if data available
         if( xStatus == pdPASS ) {
