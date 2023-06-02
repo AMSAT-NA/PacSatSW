@@ -19,7 +19,7 @@ static uint8_t PAPowerFlagCnt=0,DCTPowerFlagCnt=0;
 static rx_radio_buffer_t rx_radio_buffer; // static buffer to store the channel and received bytes from the radio
 static rx_radio_buffer_t EMPTY_RADIO_BUFFER;
 //static uint8_t axradio_rxbuffer[AX25_PKT_BUFFER_LEN];  ******************** HERE WE ARE - REMOVING THIS
-static SPIDevice device = DCTDev0;
+static AX5043Device device = AX5043Dev0;
 extern bool monitorPackets;
 
 portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {

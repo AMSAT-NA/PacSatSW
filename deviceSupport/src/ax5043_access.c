@@ -3,6 +3,12 @@
  *
  *  Created on: Jun 15, 2019
  *      Author: bfisher
+ *
+ * This file contains the headers for AX5043 routines that are common across modes and frequencies.
+ * For example, it contains the routines to read and write registers and the routines to
+ * start and stop the radio.  It does not apply any configurations specific to modes or
+ * frequency bands.  For PACSAT that is all contained in ax5043_ax25.c
+ *
  */
 
 
@@ -28,35 +34,41 @@
 #include "nonvolManagement.h"
 
 
-// TODO - these bools are an array indexed by SPIDevice id
-static bool PowerOn[NUM_AX5043_SPI_DEVICES];
-static bool Rxing[NUM_AX5043_SPI_DEVICES];
-static bool Txing[NUM_AX5043_SPI_DEVICES];
+/* Local Variables */
+static bool PowerOn[NUM_AX5043_SPI_DEVICES+4];
+static bool Rxing[NUM_AX5043_SPI_DEVICES+4];
+static bool Txing[NUM_AX5043_SPI_DEVICES+4];
+
+/* This lookup table returns the SPIDevice id for a given AX5043Device id */
+static SPIDevice ax5043_spi_devices[] = {DCTDev0,DCTDev1};
+
 
 // TODO - this is only relevant if we are in half duplex emergency mode (which is TBD)
-bool IsRxing(SPIDevice device){
+bool IsRxing(AX5043Device device){
     return Rxing[device];
 }
-void ax5043WriteRegMulti(SPIDevice device, unsigned int firstReg, uint8_t *val,uint8_t length){
+void ax5043WriteRegMulti(AX5043Device device, unsigned int firstReg, uint8_t *val,uint8_t length){
     uint8_t srcbuf[4];
     uint32_t *command = (uint32_t *)srcbuf;
     srcbuf[0] = 0x00f0 | ((firstReg & 0xf00) >> 8);
     srcbuf[1] = (firstReg & 0xff);
 
-    SPISendCommand(device,*command,2,val,(uint16_t)length,0,0);
+    SPIDevice spidevice = ax5043_spi_devices[device];
+    SPISendCommand(spidevice,*command,2,val,(uint16_t)length,0,0);
 
 }
-void ax5043ReadRegMulti(SPIDevice device, unsigned int firstReg, uint8_t *val,uint8_t length){
+void ax5043ReadRegMulti(AX5043Device device, unsigned int firstReg, uint8_t *val,uint8_t length){
     uint8_t srcbuf[4];
     uint32_t *command = (uint32_t *)srcbuf;
     srcbuf[0] = 0x0070 | ((firstReg & 0xf00) >> 8);
     srcbuf[1] = (firstReg & 0xff);
 
-    SPISendCommand(device,*command,2,0,0,val,(uint16_t)length);
+    SPIDevice spidevice = ax5043_spi_devices[device];
+    SPISendCommand(spidevice,*command,2,0,0,val,(uint16_t)length);
 
 }
 
-void ax5043WriteReg(SPIDevice device, unsigned int reg, unsigned int val)  {
+void ax5043WriteReg(AX5043Device device, unsigned int reg, unsigned int val)  {
   //spiDAT1_t dc = {.WDEL = false, .CS_HOLD = true, .DFSEL = SPI_FMT_0, .CSNR = 1 };
   uint8_t srcbuf[3];
 
@@ -69,7 +81,8 @@ void ax5043WriteReg(SPIDevice device, unsigned int reg, unsigned int val)  {
 //  gioSetBit(spiPORT3,1,0);  //Set CS1 1 low
 //  spi_write(1,3,srcbuf);
 //  gioSetBit(spiPORT3,1,1);  //Set CS1 1 high
-  SPISendCommand(device,0,0,srcbuf,3,0,0);
+  SPIDevice spidevice = ax5043_spi_devices[device];
+  SPISendCommand(spidevice,0,0,srcbuf,3,0,0);
 
 #if 0
   if ((reg != AX5043_FIFODATA) && (reg != AX5043_FIFOSTAT)) {
@@ -83,7 +96,7 @@ void ax5043WriteReg(SPIDevice device, unsigned int reg, unsigned int val)  {
 
 }
 
-unsigned int ax5043ReadLongreg(SPIDevice device, unsigned int reg,int bytes)
+unsigned int ax5043ReadLongreg(AX5043Device device, unsigned int reg,int bytes)
 {
   uint8_t srcbuf[2];
   uint8_t dstbuf[4]={0,0,0,0};
@@ -93,14 +106,15 @@ unsigned int ax5043ReadLongreg(SPIDevice device, unsigned int reg,int bytes)
   srcbuf[0] = 0x0070 | ((reg & 0xf00) >> 8);
   srcbuf[1] = (reg & 0xff);
 
-  SPISendCommand(device,0,0,srcbuf,2,dstbuf,bytes);
+  SPIDevice spidevice = ax5043_spi_devices[device];
+  SPISendCommand(spidevice,0,0,srcbuf,2,dstbuf,bytes);
   for(i=0;i<bytes;i++){
       retval <<= 8;
       retval |= dstbuf[i];
   }
   return retval;
 }
-unsigned int ax5043ReadReg(SPIDevice device, unsigned int reg){
+unsigned int ax5043ReadReg(AX5043Device device, unsigned int reg){
     return ax5043ReadLongreg(device,reg,1);
 }
 
@@ -109,7 +123,7 @@ unsigned int ax5043ReadReg(SPIDevice device, unsigned int reg){
  */
 #define DIVIDEby2 0x5
 #define DIVIDEby1 0x4
-bool ax5043SetClockout(SPIDevice device){
+bool ax5043SetClockout(AX5043Device device){
     unsigned int retVal;
     retVal = ax5043ReadReg(device, AX5043_PINFUNCSYSCLK);
     ax5043WriteReg(device, AX5043_PINFUNCSYSCLK, DIVIDEby1); // Change the clock divider so it outputs 16MHz
@@ -120,25 +134,25 @@ bool ax5043SetClockout(SPIDevice device){
  * Common area to start and stop transmit and receive and to power off for safe mode
  */
 
-void ax5043PowerOn(SPIDevice device){
+void ax5043PowerOn(AX5043Device device){
     // Later boards are active high
     //GPIOSetOn(DCTPower);
     PowerOn[device]=true;
     vTaskDelay(CENTISECONDS(1)); // Don't try to mess with it for a bit
 }
-void ax5043PowerOff(SPIDevice device){
+void ax5043PowerOff(AX5043Device device){
     //GPIOSetOff(PAPower);  // Make sure the PA is off if we are turning off the 5043.
     //GPIOSetOff(DCTPower);
     PowerOn[device] = Rxing[device] = Txing[device] = false;
 }
 
-uint8_t ax5043_off_xtal(SPIDevice device) {
+uint8_t ax5043_off_xtal(AX5043Device device) {
     ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_XTAL_ON);
     ax5043WriteReg(device, AX5043_LPOSCCONFIG, 0x00); // LPOSC off
     return AXRADIO_ERR_NOERROR;
 }
 
-uint8_t ax5043_off(SPIDevice device) {
+uint8_t ax5043_off(AX5043Device device) {
     uint8_t retVal;
 
     retVal = ax5043_off_xtal(device);
@@ -156,7 +170,7 @@ uint8_t ax5043_off(SPIDevice device) {
  * We also need another function to start the command receiver.
  *
  */
-void ax5043StartRx(SPIDevice device){
+void ax5043StartRx(AX5043Device device){
     //printf("StartRx: Power=%d,Txing=%d,Rxing=%d\n",PowerOn,Txing,Rxing);
     ax5043StopTx(device);
     if(!PowerOn[device]){
@@ -170,7 +184,7 @@ void ax5043StartRx(SPIDevice device){
         Rxing[device]=true; Txing[device]=false;
     }
 }
-void ax5043StopRx(SPIDevice device){
+void ax5043StopRx(AX5043Device device){
     //printf("StopRx: Power=%d,Txing=%d,Rxing=%d\n",PowerOn,Txing,Rxing);
     if(Rxing[device] & PowerOn[device]){
         ax5043_off(device);  // Do not turn off power, just stop receiving
@@ -178,7 +192,7 @@ void ax5043StopRx(SPIDevice device){
     }
 }
 
-void ax5043StartTx(SPIDevice device){
+void ax5043StartTx(AX5043Device device){
     //printf("StartTx: Power=%d,Txing=%d,Rxing=%d\n",PowerOn,Txing,Rxing);
     if(Rxing[device]){
         ax5043StopRx(device);
@@ -192,7 +206,7 @@ void ax5043StartTx(SPIDevice device){
     start_ax25_tx(device, rate);
     Txing[device] = true; Rxing[device] = false;
 }
-void ax5043StopTx(SPIDevice device){
+void ax5043StopTx(AX5043Device device){
     //printf("StopTx: Power=%d,Txing=%d,Rxing=%d\n",PowerOn,Txing,Rxing);
     if(Txing[device] && PowerOn[device]){
         ax5043_off(device);

@@ -21,7 +21,7 @@ bool tx_make_packet(AX25_PACKET *packet, uint8_t *raw_bytes);
 
 static uint8_t tx_packet_buffer[AX25_PKT_BUFFER_LEN]; /* Buffer used when data copied from tx queue */
 static uint8_t tmp_packet_buffer[AX25_PKT_BUFFER_LEN]; /* Buffer used when constructing new packets. position 0 will hold the number of bytes */
-static SPIDevice device = DCTDev1;
+static AX5043Device device = AX5043Dev1;
 extern bool monitorPackets;
 
 /* Test Buffer PB Empty */
@@ -73,6 +73,9 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)  {
             //       printf("FIFO_FREE 2: %d\n",fifo_free());
             fifo_commit(device);
             //       printf("INFO: Waiting for transmission to complete\n");
+
+            // TODO - we don't really want to wait here.  While the TX is transmitting we can be yielding and doing other things
+            // Setup the interrupt to tell us when the buffer is empty and we can check the TX status then
             while (ax5043ReadReg(device, AX5043_RADIOSTATE) != 0) {
                 vTaskDelay(1);
             }
