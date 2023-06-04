@@ -728,7 +728,6 @@ int ftl0_send_nak(char *from_callsign, int channel, int err) {
 /**
  * ftl0_process_upload_cmd()
  *
- * selected_station is the index of the station in the upload list
  * The upload command packets data is parsed
  *
 Packet: UPLOAD_CMD
@@ -783,8 +782,8 @@ int ftl0_process_upload_cmd(ftl0_state_machine_t *state, uint8_t *data, int len)
              make sure there is still space available.  Reject and delete continues if there is no space.  But that could be cruel
              for long images that were 90% uploaded, then space runs out.
              */
-            trace_ftl0("Free blocks: %d of %d.  Free Bytes: %d\n",redstatfs.f_bfree, redstatfs.f_blocks, available);
-            if (available - state->length < UPLOAD_SPACE_THRESHOLD)
+            trace_ftl0("File length: %d.  Disk has Free blocks: %d of %d.  Free Bytes: %d\n",state->length, redstatfs.f_bfree, redstatfs.f_blocks, available);
+            if ((state->length + UPLOAD_SPACE_THRESHOLD) > available )
                 return ER_NO_ROOM;
         }
 

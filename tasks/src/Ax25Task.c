@@ -47,7 +47,7 @@
 #include "ax25_util.h"
 #include "str_util.h"
 
-#define TRACE_AX25_DL
+//#define TRACE_AX25_DL
 #ifdef TRACE_AX25_DL
 #define trace_dl printf
 #else
@@ -171,7 +171,9 @@ portTASK_FUNCTION_PROTO(Ax25Task, pvParameters)  {
         }
         ReportToWatchdog(CurrentTaskWD);
         /* Yield some time so any packets are sent, or so that others may do some processing */
-        vTaskDelay(CENTISECONDS(1));
+//        vTaskDelay(CENTISECONDS(1));
+        taskYIELD();
+
         ReportToWatchdog(CurrentTaskWD);
         xStatus = xQueueReceive( xRxEventQueue, &ax25_received_event, CENTISECONDS(1) );  // Wait to see if data available
         if( xStatus == pdPASS ) {
@@ -188,7 +190,8 @@ portTASK_FUNCTION_PROTO(Ax25Task, pvParameters)  {
             }
         }
         /* Yield some time so any packets are sent, or so that others may do some processing */
-        vTaskDelay(CENTISECONDS(1));
+        //vTaskDelay(CENTISECONDS(1));
+        taskYIELD();
         ReportToWatchdog(CurrentTaskWD);
 
         if (!in_test) {
