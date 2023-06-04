@@ -651,6 +651,7 @@ void RealConsoleTask(void)
                 printf("Unable to check disk space with statvfs: %s\n", red_strerror(red_errno));
             } else {
                 printf("Free blocks: %d of %d.  Free Bytes: %d\n",redstatfs.f_bfree, redstatfs.f_blocks, redstatfs.f_frsize * redstatfs.f_bfree);
+                printf("Available File Ids: %d of %d.  \n",redstatfs.f_ffree, redstatfs.f_files);
             }
             break;
         }

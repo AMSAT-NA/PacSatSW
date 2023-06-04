@@ -905,7 +905,7 @@ int ftl0_process_data_cmd(ftl0_state_machine_t *state, uint8_t *data, int len) {
     int32_t rc = dir_fs_write_file_chunk(file_name_with_path, data_bytes, ftl0_length, state->offset);
     if (rc == -1) {
         debug_print("FTL0[%d]:File I/O error writing chunk\n",state->channel);
-        return ER_NO_SUCH_FILE_NUMBER;
+        return ER_NO_ROOM; // This is most likely caused by running out of file ids or space
     }
 
     state->offset += ftl0_length;
@@ -931,8 +931,8 @@ int ftl0_process_data_end_cmd(ftl0_state_machine_t *state, uint8_t *data, int le
     char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
     dir_get_tmp_file_path_from_file_id(state->file_id, file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
 
-    /* We can't call dir_load_pacsat_file() here because we want to check the tmp file but then
-     * add the file after we rename it. So we validate it first. */
+    /* We can't call dir_load_pacsat_file() here because we want to check the tmp file first, then
+     * add the file after we rename it. So we validate it. */
 
     // Read enough of the file to parse the PFH
     int32_t rc = dir_fs_read_file_chunk(file_name_with_path, ftl0_pfh_byte_buffer, sizeof(ftl0_pfh_byte_buffer), 0);
@@ -952,6 +952,8 @@ int ftl0_process_data_end_cmd(ftl0_state_machine_t *state, uint8_t *data, int le
         }
         return ER_BAD_HEADER;
     }
+
+
 
 //
 //    int rc = dir_validate_file(pfh, tmp_filename);

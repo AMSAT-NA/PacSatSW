@@ -58,8 +58,6 @@ void header_copy_to_str(uint8_t *header, int length, char *destination, int maxb
 uint8_t * add_mandatory_header(uint8_t *p, HEADER *pfh);
 uint8_t * add_extended_header(uint8_t *p, HEADER *pfh);
 uint8_t * add_optional_header(uint8_t *p, HEADER *pfh);
-uint8_t * pfh_store_short(uint8_t *buffer, uint16_t n);
-uint8_t * pfh_store_int(uint8_t *buffer, uint32_t n);
 uint8_t * pfh_store_char_field(uint8_t *buffer, uint16_t id, uint8_t val);
 uint8_t * pfh_store_short_int_field(uint8_t *buffer, uint16_t id, uint16_t val);
 uint8_t * pfh_store_int_field(uint8_t *buffer, uint16_t id, uint32_t val);
@@ -112,7 +110,12 @@ void pfh_new_header(HEADER  *hdr) {
     hdr->file_description[0]     = '\0';
     hdr->compressionDesc[0] = '\0';
     hdr->userFileName[0]    = '\0';
+
+    hdr->wisp1[0]    = '\0';
+    hdr->wisp2[0]    = '\0';
+    hdr->wisp3[0]    = '\0';
 }
+
 
 /**
  * pfh_extract_header()
@@ -145,20 +148,15 @@ int pfh_extract_header( HEADER  *hdr, uint8_t *buffer, uint16_t nBytes, uint16_t
     bMore = 1;
 
     crc_result += buffer[0] & 0xff;
-    //debug_print("%02x ",buffer[0]);
     crc_result += buffer[1] & 0xff;
-    //debug_print("%02x ",buffer[1]);
     i = 2; /* skip over 0xAA 0x55 */
 
     while (bMore && i < nBytes) {
         crc_result += buffer[i] & 0xff;
-        //debug_print("%02x ",buffer[i]);
         id = buffer[i++];
         crc_result += buffer[i] & 0xff;
-        //debug_print("%02x ",buffer[i]);
         id += buffer[i++] << 8;
         crc_result += buffer[i] & 0xff;
-        //debug_print("%02x ",buffer[i]);
         length = buffer[i++];
 
         if (id != HEADER_CHECKSUM) {
@@ -265,9 +263,18 @@ int pfh_extract_header( HEADER  *hdr, uint8_t *buffer, uint16_t nBytes, uint16_t
         case USER_FILE_NAME:
             header_copy_to_str(&buffer[i], length, hdr->userFileName, 32);
             break;
+        case WISP1:
+            header_copy_to_str(&buffer[i], length, hdr->wisp1, 32);
+            break;
+        case WISP2:
+            header_copy_to_str(&buffer[i], length, hdr->wisp2, 32);
+            break;
+        case WISP3:
+            header_copy_to_str(&buffer[i], length, hdr->wisp3, 32);
+            break;
 
         default:
-            debug_print("** Unknown header id %d ** ", id);
+            debug_print("** Unknown header id %04x ** ", id);
 
             int n;
             for (n=0; n<length; n++) {
@@ -472,6 +479,12 @@ uint8_t * add_optional_header(uint8_t *p, HEADER *pfh) {
         p = pfh_store_str_field(p, COMPRESSION_DESCRIPTION, strlen(pfh->compressionDesc), pfh->compressionDesc);
     if (pfh->userFileName[0] != 0)
             p = pfh_store_str_field(p, USER_FILE_NAME, strlen(pfh->userFileName), pfh->userFileName);
+    if (pfh->wisp1[0] != 0)
+        p = pfh_store_str_field(p, WISP1, strlen(pfh->wisp1), pfh->wisp1);
+    if (pfh->wisp2[0] != 0)
+        p = pfh_store_str_field(p, WISP2, strlen(pfh->wisp2), pfh->wisp2);
+    if (pfh->wisp3[0] != 0)
+        p = pfh_store_str_field(p, WISP3, strlen(pfh->wisp3), pfh->wisp3);
     return p;
 }
 

@@ -60,6 +60,12 @@
 #define  COMPRESSION_DESCRIPTION 0x25
 #define  USER_FILE_NAME 0x26
 
+// TODO - need a more flexible way to store additional fields
+#define  WISP1 0x2a
+#define  WISP2 0x2e
+#define  WISP3 0x2f
+
+
 // Compression types
 #define  BODY_NOT_COMPRESSED 0x00
 #define  BODY_COMPRESSED_PKARC 0x01
@@ -70,6 +76,9 @@
 #define PFH_TYPE_WOD 3
 #define PFH_TYPE_IMAGES 211
 
+// These offsets are to the start of the field, i.e. they point to the ID number not the data.
+#define FILE_ID_BYTE_POS 2
+#define UPLOAD_TIME_BYTE_POS 87
 #define FILE_SIZE_BYTE_POS 26
 #define BODY_OFFSET_BYTE_POS 65
 #define HEADER_CHECKSUM_BYTE_POS 60
@@ -111,9 +120,9 @@ typedef struct {
   char          compressionDesc[33]; /* 0x25 */
   char          userFileName[33];    /* 0x26 */
 
-  char          other1[33];    /* 0x42 */
-  char          other2[33];    /* 0x43 */
-  char          other3[33];    /* 0x44 */
+  char          wisp1[33];    /* 0x2a */
+  char          wisp2[33];    /* 0x2e */
+  char          wisp3[33];    /* 0x2f */
 
 }
 HEADER;
@@ -121,6 +130,9 @@ HEADER;
 int pfh_extract_header(HEADER  *hdr, uint8_t *buffer, uint16_t nBytes, uint16_t *size, bool *crc_passed);
 int pfh_generate_header_bytes(HEADER *pfh, int body_size, uint8_t *header_bytes);
 void pfh_debug_print(HEADER *pfh);
+uint8_t * pfh_store_short(uint8_t *buffer, uint16_t n);
+uint8_t * pfh_store_int(uint8_t *buffer, uint32_t n);
+
 int test_pfh();
 int test_pfh_file();
 int test_pfh_make_files();

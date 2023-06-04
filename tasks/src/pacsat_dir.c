@@ -36,6 +36,9 @@ static DIR_NODE *dir_tail = NULL;  // the tail of the directory linked list
 DIR_NODE * dir_add_pfh(char *file_path, HEADER *new_pfh);
 void dir_delete_node(DIR_NODE *node);
 void insert_after(DIR_NODE *p, DIR_NODE *new_node);
+bool dir_fs_update_header(char *file_name_with_path, uint32_t file_id, uint32_t upload_time, uint16_t header_len);
+bool dir_fs_save_int(int32_t fp, uint32_t value, uint32_t offset);
+bool dir_fs_save_short(int32_t fp, uint16_t value, uint32_t offset);
 
 /* Local Variables */
 static HEADER pfh_buffer; // Static allocation of a header to use when we need to load/save the header details
@@ -159,34 +162,35 @@ DIR_NODE * dir_add_pfh(char *file_name, HEADER *new_pfh) {
         /* The length of the header and the file length do not change because we only change the upload time
          * and the file id.
          * So we can just re-write the header on top of the old with the new
-         * upload time.  This will recalc the bytes and the checksums
-         * WARNING: This does not work if a header has fields that are not recognized by the sat.
-         * Uploaded files must have their PFHs parsed and resaved before this process is run
+         * upload time.  We must recalc the header checksum
          */
-        uint32_t next_file_id = ReadMRAMNextFileNumber();
-
-        /* modify the uptime in the header */
-        new_pfh->uploadTime = new_node->upload_time;
-        new_pfh->fileId = next_file_id;
-        new_node->file_id = next_file_id;
-        /* Regenerate the bytes and generate the checksums.  FileSize is body_offset + body_size */
-        uint16_t body_offset = pfh_generate_header_bytes(new_pfh, new_pfh->fileSize - new_pfh->bodyOffset, pfh_byte_buffer);
-        if (body_offset != new_node->body_offset) {
-            debug_print("ERROR: Regenerated Header size is incorrect.  Could not update header.\n");
-            dir_delete_node(new_node);
-            return FALSE;
+        if (new_node->file_id == 0) {
+            // then we need a file_id.  This was not an upload
+            new_node->file_id = dir_next_file_number();
         }
+
+        /* store these values back in the header that the caller passed in */
+        new_pfh->uploadTime = new_node->upload_time;
+        new_pfh->fileId = new_node->file_id;
+//        /* Regenerate the bytes and generate the checksums.  FileSize is body_offset + body_size */
+//        uint16_t body_offset = pfh_generate_header_bytes(new_pfh, new_pfh->fileSize - new_pfh->bodyOffset, pfh_byte_buffer);
+//        if (body_offset != new_node->body_offset) {
+//            debug_print("ERROR: Regenerated Header size is incorrect.  Could not update header.\n");
+//            dir_delete_node(new_node);
+//            return FALSE;
+//        }
         char file_name_with_path[REDCONF_NAME_MAX+3U];
         snprintf(file_name_with_path, REDCONF_NAME_MAX+3U, "//%s",file_name);
-        int32_t num = dir_fs_write_file_chunk(file_name_with_path, pfh_byte_buffer, body_offset, 0);
-        if (num == -1) {
+        // Write the new file id, upload_time and recalc the checksum
+        bool rc = dir_fs_update_header(file_name_with_path, new_node->file_id, new_node->upload_time, new_node->body_offset);
+//        int32_t num = dir_fs_write_file_chunk(file_name_with_path, pfh_byte_buffer, body_offset, 0);
+        if (rc == FALSE) {
             // we could not save this
             debug_print("** Could not update the header for fh: %d to dir\n",new_node->file_id);
             dir_delete_node(new_node);
             return NULL;
         } else {
             debug_print("Saved: %d\n",new_node->file_id);
-            WriteMRAMNextFileNumber(new_node->file_id + 1);
         }
     }
     return new_node;
@@ -566,6 +570,108 @@ int32_t dir_fs_read_file_chunk(char *file_name_with_path, uint8_t *read_buffer, 
     }
     return numOfBytesRead;
 }
+
+/**
+ * This saves a big endian 4 byte int into little endian format in the MRAM
+ */
+bool dir_fs_save_int(int32_t fp, uint32_t value, uint32_t offset) {
+    int32_t numOfBytesWritten = -1;
+    int32_t rc = red_lseek(fp, offset + 3, RED_SEEK_SET);
+    if (rc == -1) {
+        return -1;
+    }
+    uint8_t data[4];
+    pfh_store_int(data, value);
+    numOfBytesWritten = red_write(fp, data, sizeof(data));
+    if (numOfBytesWritten != sizeof(data)) {
+        printf("Write returned: %d\n",numOfBytesWritten);
+        return -1;
+    }
+    return numOfBytesWritten;
+}
+
+/**
+ * This saves a big endian 2 byte short into into little endian format in the MRAM
+ */
+bool dir_fs_save_short(int32_t fp, uint16_t value, uint32_t offset) {
+    int32_t numOfBytesWritten = -1;
+    int32_t rc = red_lseek(fp, offset + 3, RED_SEEK_SET);
+    if (rc == -1) {
+        return -1;
+    }
+    uint8_t data[2];
+    pfh_store_short(data, value);
+    numOfBytesWritten = red_write(fp, data, sizeof(data));
+    if (numOfBytesWritten != sizeof(data)) {
+        printf("Write returned: %d\n",numOfBytesWritten);
+        return -1;
+    }
+    return numOfBytesWritten;
+}
+
+/**
+ * Update the header in place in MRAM. This preserves any pacsat header fields that the spacecraft
+ * does not understand, but which are important to the sender/receiver.
+ *
+ * This uses fixed offsets for the mandatory fields, which are defined in pacsat_header.h
+ *
+ * Returns TRUE or FALSE if there is an error
+ */
+bool dir_fs_update_header(char *file_name_with_path, uint32_t file_id, uint32_t upload_time, uint16_t body_offset) {
+    int32_t fp;
+    int32_t rc;
+
+    fp = red_open(file_name_with_path, RED_O_CREAT | RED_O_WRONLY);
+    if (fp == -1) {
+        debug_print("Unable to open %s for writing: %s\n", file_name_with_path, red_strerror(red_errno));
+        return FALSE;
+    }
+    rc = dir_fs_save_int(fp, file_id, FILE_ID_BYTE_POS);
+    if (rc == -1) {
+        debug_print("Unable to save fileid to %s with data at offset %d: %s\n", file_name_with_path, FILE_ID_BYTE_POS, red_strerror(red_errno));
+        rc = red_close(fp);
+        return FALSE;
+    }
+    rc = dir_fs_save_int(fp, upload_time, UPLOAD_TIME_BYTE_POS);
+    if (rc == -1) {
+        debug_print("Unable to save uploadtime to %s with data at offset %d: %s\n", file_name_with_path, UPLOAD_TIME_BYTE_POS, red_strerror(red_errno));
+        rc = red_close(fp);
+        return FALSE;
+    }
+
+    /* Then recalculate the checksum and write it */
+    uint16_t crc_result = 0;
+
+    /* Read the header */
+    int32_t num = dir_fs_read_file_chunk(file_name_with_path, pfh_byte_buffer, body_offset, 0);
+    if (num != body_offset) {
+        debug_print("Can not read the correct length of header bytes from %s \n", file_name_with_path);
+        rc = red_close(fp);
+        return FALSE;
+    }
+    /* First zero out the existing header checksum */
+    pfh_byte_buffer[HEADER_CHECKSUM_BYTE_POS +3] = 0x00;
+    pfh_byte_buffer[HEADER_CHECKSUM_BYTE_POS +4] = 0x00;
+
+    int j;
+    /* Then calculate the new one and save it back to MRAM */
+    for (j=0; j<body_offset; j++)
+        crc_result += pfh_byte_buffer[j] & 0xff;
+    rc = dir_fs_save_short(fp, crc_result, HEADER_CHECKSUM_BYTE_POS);
+    if (rc == -1) {
+        debug_print("Unable to save header checksum to %s with data at offset %d: %s\n", file_name_with_path, HEADER_CHECKSUM_BYTE_POS, red_strerror(red_errno));
+        rc = red_close(fp);
+        return FALSE;
+    }
+
+    rc = red_close(fp);
+    if (rc != 0) {
+        printf("Unable to close %s: %s\n", file_name_with_path, red_strerror(red_errno));
+    }
+
+    return TRUE;
+}
+
 
 /**
  * Get the size of a file.
