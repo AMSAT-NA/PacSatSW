@@ -52,7 +52,6 @@ int ftl0_process_data_end_cmd(ftl0_state_machine_t *state, uint8_t *data, int le
 int ftl0_make_packet(uint8_t *data_bytes, uint8_t *info, int length, int frame_type);
 int ftl0_parse_packet_type(uint8_t * data);
 int ftl0_parse_packet_length(uint8_t * data);
-void ftl0_make_tmp_filename(int file_id, char *dir_name, char *filename, int max_len);
 
 /* Local variables */
 static ftl0_state_machine_t ftl0_state_machine[NUM_OF_RX_CHANNELS];
@@ -774,7 +773,7 @@ int ftl0_process_upload_cmd(ftl0_state_machine_t *state, uint8_t *data, int len)
             return ER_NO_ROOM;
         } else {
             uint32_t available = redstatfs.f_frsize * redstatfs.f_bfree;
-            uint32_t allocated = 0;
+            //uint32_t allocated = 0;
             /* TODO - need to check all the partially uploaded files to see what remaining space they have claimed. Or
              when we first start to upload, seek to the end and size a full empty file.  But that could be very wasteful. It
              would need an expiry date and cleanup routine.
@@ -937,7 +936,7 @@ int ftl0_process_data_end_cmd(ftl0_state_machine_t *state, uint8_t *data, int le
     int32_t rc = dir_fs_read_file_chunk(file_name_with_path, ftl0_pfh_byte_buffer, sizeof(ftl0_pfh_byte_buffer), 0);
     if (rc == -1) {
         debug_print("Error reading file: %s\n",file_name_with_path);
-        return FALSE;
+        return ER_NO_SUCH_FILE_NUMBER;
     }
     uint16_t size;
     bool crc_passed = FALSE;
@@ -947,50 +946,52 @@ int ftl0_process_data_end_cmd(ftl0_state_machine_t *state, uint8_t *data, int le
         trace_ftl0("FTL0[%d] ** Header check failed for file: %s\n",state->channel, file_name_with_path);
         int32_t fp = red_unlink(file_name_with_path);
         if (fp == -1) {
-            printf("Unable to remove file: %s : %s\n", file_name_with_path, red_strerror(red_errno));
+            debug_print("Unable to remove tmp file: %s : %s\n", file_name_with_path, red_strerror(red_errno));
         }
         return ER_BAD_HEADER;
     }
 
+    int err = dir_validate_file(&ftl0_pfh_buffer, file_name_with_path);
+    if (err != ER_NONE) {
+        trace_ftl0("FTL0[%d] ** File validation failed for file: %s\n",state->channel, file_name_with_path);
+        int32_t fp = red_unlink(file_name_with_path);
+        if (fp == -1) {
+            debug_print("Unable to remove tmp file: %s : %s\n", file_name_with_path, red_strerror(red_errno));
+        }
+        return err;
+    }
 
+    /* Otherwise this looks good.  Rename the file by linking a new name and reoving the old name. Then
+     * add it to the directory. */
+    //TODO - note that we are renaming the file before we know that the ground station has received an ACK
+    char new_file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
+    dir_get_file_path_from_file_id(state->file_id, new_file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
 
-//
-//    int rc = dir_validate_file(pfh, tmp_filename);
-//    if (rc != ER_NONE) {
-//        free(pfh);
-//        if (remove(tmp_filename) != 0) {
-//            error_print("Could not remove the temp file: %s\n", tmp_filename);
-//        }
-//        return rc;
-//    }
-//
-//    /* Otherwise this looks good.  Rename the file and add it to the directory. */
-//    //TODO - note that we are renaming the file before we know that the ground station has received an ACK
-//    char new_filename[MAX_FILE_PATH_LEN];
-//    pfh_make_filename(uplink_list[selected_station].file_id, get_dir_folder(), new_filename, MAX_FILE_PATH_LEN);
-//    if (rename(tmp_filename, new_filename) == EXIT_SUCCESS) {
-////      char file_id_str[5];
-////      snprintf(file_id_str, 4, "%d",uplink_list[selected_station].file_id);
-////      strlcpy(pfh->fileName, file_id_str, sizeof(pfh->fileName));
-////      strlcpy(pfh->fileExt, PSF_FILE_EXT, sizeof(pfh->fileExt));
-//
-//        DIR_NODE *p = dir_add_pfh(pfh, new_filename);
-//        if (p == NULL) {
-//            error_print("** Could not add %s to dir\n",new_filename);
-//            free(pfh);
-//            if (remove(tmp_filename) != 0) {
-//                error_print("Could not remove the temp file: %s\n", new_filename);
-//            }
-//            return ER_NO_ROOM; /* This is a bit of a guess at the error, but it is unclear why else this would fail. */
-//        }
-//    } else {
-//        /* This looks like an io error and we can't rename the file.  Send error to the ground */
-//        free(pfh);
-//        if (remove(tmp_filename) != 0) {
-//            error_print("Could not remove the temp file: %s\n", tmp_filename);
-//        }
-//        return ER_NO_ROOM;
-//    }
+    rc = red_link(file_name_with_path, new_file_name_with_path);
+    if (rc == -1) {
+        debug_print("Unable to link new file: %s : %s\n", new_file_name_with_path, red_strerror(red_errno));
+        return ER_NO_ROOM;
+    }
+
+    DIR_NODE *p = dir_add_pfh(new_file_name_with_path, &ftl0_pfh_buffer);
+    if (p == NULL) {
+        debug_print("** Could not add %s to dir\n", new_file_name_with_path);
+        /* Remove the file that we could not add and leave the tmp file.  This will get cleaned up faster.  We are sending
+         * an error to the ground, so we are not accepting the file. */
+        rc = red_unlink(new_file_name_with_path);
+        if (rc == -1) {
+            debug_print("Unable to remove file: %s : %s\n", new_file_name_with_path, red_strerror(red_errno));
+        }
+        return ER_NO_ROOM; /* This is a bit of a guess at the error, but it is unclear why else this would fail. */
+    }
+
+    /* Otherwise File added to the dir.  Remove the tmp file*/
+    rc = red_unlink(file_name_with_path);
+    if (rc == -1) {
+        debug_print("Unable to remove tmp file: %s : %s\n", file_name_with_path, red_strerror(red_errno));
+        // TODO this is not fatal to the upload, but there needs to be a routine to clean up expired upload files
+    }
+
 
     return ER_NONE;
 }

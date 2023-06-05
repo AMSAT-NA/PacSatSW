@@ -281,11 +281,11 @@ void ConsoleTask(void *pvParameters){
 
     /* Load the directory from MRAM and perform some integrity checks */
 //    printf("Free heap size before dir loaded: %d\n",xPortGetFreeHeapSize());
-//    int rc = dir_load();
-//    if (rc != TRUE) {
-//        debug_print("ERROR: Could not load the directory from MRAM\n");
-//        // TODO - pretty fatal - need to handle or log this error
-//    }
+    int rc = dir_load();
+    if (rc != TRUE) {
+        debug_print("ERROR: Could not load the directory from MRAM\n");
+        // TODO - pretty fatal - need to handle or log this error
+    }
 //    printf("Free heap size after dir loaded: %d\n",xPortGetFreeHeapSize());
 
     xTaskCreate(RxTask,"RxTask",RX_STACK_SIZE, NULL, RX_PRIORITY,NULL);
@@ -300,6 +300,8 @@ void ConsoleTask(void *pvParameters){
     //AlertFlashingWait(CENTISECONDS(50),CENTISECONDS(10),CENTISECONDS(3));
     AllTasksStarted = true;
     StartStableCount();
+
+    debug_print("*** SET THE UNIX TIME BEFORE UPLOADING ANY TEST FILES ***\n");
 
     // Now head off to do the real work of the console task
     RealConsoleTask();

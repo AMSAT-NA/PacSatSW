@@ -31,9 +31,9 @@
 /* Dir variables */
 static DIR_NODE *dir_head = NULL;  // the head of the directory linked list
 static DIR_NODE *dir_tail = NULL;  // the tail of the directory linked list
+static uint8_t data_buffer[AX25_MAX_DATA_LEN]; /* Static buffer used to store file bytes loaded from MRAM */
 
 /* Forward declarations */
-DIR_NODE * dir_add_pfh(char *file_path, HEADER *new_pfh);
 void dir_delete_node(DIR_NODE *node);
 void insert_after(DIR_NODE *p, DIR_NODE *new_node);
 bool dir_fs_update_header(char *file_name_with_path, uint32_t file_id, uint32_t upload_time, uint16_t header_len);
@@ -91,15 +91,14 @@ void dir_get_file_path_from_file_id(uint32_t file_id, char *file_path, int max_l
  * to find the insertion point.
  * If we find a header with the same upload_time then this must be a duplicate and it
  * is discarded.
+ *
  * To update an item correctly, remove it from the list, set the upload_time to zero
  * and then call this routine to insert it at the end.
  *
  * If the upload_time was modified then the pacsat file header is resaved to disk
- * * WARNING: This does not work if a header has fields that are not recognized by the sat.
-   * Uploaded files must have their PFHs parsed and resaved with their data saved at the right
-   * offset, before this process is run
  *
- * The linked list takes care of allocating and deallocating memory for the DIR_NODEs
+ * This routine allocates memory for the DIR_NODE and the dir_delete_node function
+ * deallocates it
  *
  * TODO Currently this memory is allocated on the heap with pvPortMalloc and pPortFree.  We may
  * want to change that to a completely static allocation and hold a free list for nodes that
@@ -271,12 +270,6 @@ void dir_free() {
 bool dir_load_pacsat_file(char *file_name) {
 //    debug_print("Loading: %d from addr: %d \n", mram_file->file_id, mram_file->address);
 
-//    int err = dir_validate_file(pfh,psf_name);
-//    if (err != ER_NONE) {
-//        error_print("Err: %d - validating: %s\n", err, psf_name);
-//        return FALSE;
-//    }
-    //pfh_debug_print(pfh);
     char file_name_with_path[25];
     snprintf(file_name_with_path, 25, "//%s",file_name);
 
@@ -285,6 +278,14 @@ bool dir_load_pacsat_file(char *file_name) {
         debug_print("** Could not extract header from %s\n", file_name_with_path);
         return FALSE;
     }
+    /* TODO - do we want to validate the files every time we boot and load the dir?
+     * We would need to take an action if it fails
+     */
+//    int err = dir_validate_file(&pfh_buffer, file_name_with_path);
+//    if (err != ER_NONE) {
+//        debug_print("Err: %d - validating: %s\n", err, file_name_with_path);
+//        return FALSE;
+//    }
     DIR_NODE *p = dir_add_pfh(file_name, &pfh_buffer);
     if (p == NULL) {
         debug_print("** Could not add %s to dir\n", file_name_with_path);
@@ -305,10 +306,10 @@ int dir_load() {
     bool rc;
     REDDIR *pDir;
     char * path = "//";
-    printf("Loading Directory from %s:\n",path);
+//    printf("Loading Directory from %s:\n",path);
     pDir = red_opendir(path);
     if (pDir == NULL) {
-        printf("Unable to open dir: %s\n", red_strerror(red_errno));
+        debug_print("Unable to open dir: %s\n", red_strerror(red_errno));
         return FALSE;
     }
 
@@ -316,7 +317,7 @@ int dir_load() {
     red_errno = 0; /* Set error to zero so we can distinguish between a real error and the end of the DIR */
     pDirEnt = red_readdir(pDir);
     while (pDirEnt != NULL) {
-        debug_print("Loading: %s\n",pDirEnt->d_name);
+        //debug_print("Loading: %s\n",pDirEnt->d_name);
         rc = dir_load_pacsat_file(pDirEnt->d_name);
         if (rc != TRUE) {
             debug_print("May need to remove potentially corrupt or duplicate PACSAT file\n");
@@ -326,15 +327,15 @@ int dir_load() {
         pDirEnt = red_readdir(pDir);
     }
     if (red_errno != 0) {
-        printf("Error reading directory: %s\n", red_strerror(red_errno));
+        debug_print("*** Error reading directory: %s\n", red_strerror(red_errno));
 
     }
     int32_t rc2 = red_closedir(pDir);
     if (rc2 != 0) {
-        printf("Unable to close file: %s\n", red_strerror(red_errno));
+        debug_print("*** Unable to close file: %s\n", red_strerror(red_errno));
     }
 
-    debug_print("DONE:\n");
+//    debug_print("DONE:\n");
     return TRUE;
 }
 
@@ -363,33 +364,39 @@ int dir_load_header(char *file_name_with_path, uint8_t *byte_buffer, int buffer_
  * Returns ERR_NONE if everything is good.  Otherwise it returns an FTL0 error number.
  *
  */
-int dir_validate_file(HEADER *pfh, char *filename) {
-    debug_print("DIR: Checking data in file: %s\n",filename);
+int dir_validate_file(HEADER *pfh, char *file_name_with_path) {
+    debug_print("DIR: Checking data in file: %s\n",file_name_with_path);
 
     /* Now check the body */
-    short int body_checksum = 0;
-    unsigned int body_size = 0;
+    uint16_t body_checksum = 0;
+    uint32_t body_size = 0;
+    uint32_t offset = pfh->bodyOffset;
+    bool finished = FALSE;
 
-//    FILE *infile = fopen(filename, "rb");
-//    if (infile == NULL) {
-//        return ER_NO_SUCH_FILE_NUMBER;
-//    }
-//    fseek(infile, pfh->bodyOffset, SEEK_SET);
-//    int ch=fgetc(infile);
-//    while (ch!=EOF) {
-//        body_checksum += ch & 0xff;
-//        body_size++;
-//        ch=fgetc(infile);
-//    }
-//    fclose(infile);
-//    if (pfh->bodyCRC != body_checksum) {
-//        error_print("** Body check failed for %s\n",filename);
-//        return ER_BODY_CHECK;
-//    }
-//    if (pfh->fileSize != pfh->bodyOffset + body_size) {
-//        error_print("** Body check failed for %s\n",filename);
-//        return ER_FILE_COMPLETE;
-//    }
+    while (!finished) {
+        int32_t num_of_bytes_read = dir_fs_read_file_chunk(file_name_with_path, data_buffer, AX25_MAX_DATA_LEN, offset);
+        if (num_of_bytes_read == -1) {
+            return ER_NO_SUCH_FILE_NUMBER;
+        }
+
+        int j;
+        for (j=0; j<num_of_bytes_read;j++){
+            body_checksum += data_buffer[j] & 0xff;
+            body_size++;
+        }
+        if (num_of_bytes_read < AX25_MAX_DATA_LEN)
+            finished = true;
+        offset += num_of_bytes_read;
+    }
+
+    if (pfh->bodyCRC != body_checksum) {
+        debug_print("** Body check failed for %s\n",file_name_with_path);
+        return ER_BODY_CHECK;
+    }
+    if (pfh->fileSize != pfh->bodyOffset + body_size) {
+        debug_print("** Body check failed for %s\n",file_name_with_path);
+        return ER_FILE_COMPLETE;
+    }
 
     return ER_NONE;
 }
