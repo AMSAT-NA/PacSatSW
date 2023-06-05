@@ -47,7 +47,7 @@
 #include "ax25_util.h"
 #include "str_util.h"
 
-//#define TRACE_AX25_DL
+#define TRACE_AX25_DL
 #ifdef TRACE_AX25_DL
 #define trace_dl printf
 #else
@@ -224,15 +224,13 @@ portTASK_FUNCTION_PROTO(Ax25Task, pvParameters)  {
 /**
  * ax25_send_status()
  *
- * This is called from an RTOS timer to send the status periodically
+ * This is called from the Telemetry and Control task to send the status periodically
  * Puts a packet with the current status of the Uplink into the TxQueue
  *
  * Returns void to be compatible with timer callbacks
  *
  * NOTE that ax25_status_buffer is declared static because allocating a buffer of this
  * size causes a crash when this is called from a timer.
- *
- * We MUST NOT BLOCK because this can be called from a timer.  If the TX queue is full then we skip sending status
  *
  */
 void ax25_send_status() {
@@ -260,7 +258,7 @@ void ax25_send_status() {
 
         if (channels_available) {
             debug_print("SENDING OPEN: |%s|\n",buffer);
-            int rc = tx_send_ui_packet(BBS_CALLSIGN, BBSTAT, PID_NO_PROTOCOL, (uint8_t *)buffer, len, DONT_BLOCK);
+            int rc = tx_send_ui_packet(BBS_CALLSIGN, BBSTAT, PID_NO_PROTOCOL, (uint8_t *)buffer, len, BLOCK);
         } else {
             debug_print("Uplink is Full, nothing sent\n");
         }

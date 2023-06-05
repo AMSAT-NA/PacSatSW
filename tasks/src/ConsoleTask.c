@@ -1076,7 +1076,7 @@ void RealConsoleTask(void)
             break;
         }
         case testPbStatus:{
-            bool rc = pb_test_status();
+            pb_send_status();
             break;
         }
         case testPbList:{

@@ -18,7 +18,7 @@
 
 typedef enum {
     CurrentTaskWD=0,
-    TelemetryWD,
+    TelemetryAndControlWD,
     RxTaskWD,
     TxTaskWD,
     Ax25TaskWD,

@@ -35,17 +35,17 @@ typedef enum {
      * These are for the CAN task
      */
     CANMessageReceived,
-    /*
-     * These are for RIHU Coordination
-     */
-    CoordLIHU0IntMsg,
-    CoordLIHU1IntMsg,
-    CoordRxCANMsg,
-    CoordSendStatusMsg,
-    CoordSendPreflightInit,
-    CoordSendReset,
-    CoordSendInOrbit,
-    CoordForceStateCheckMsg,
+//    /*
+//     * These are for RIHU Coordination
+//     */
+//    CoordLIHU0IntMsg,
+//    CoordLIHU1IntMsg,
+//    CoordRxCANMsg,
+//    CoordSendStatusMsg,
+//    CoordSendPreflightInit,
+//    CoordSendReset,
+//    CoordSendInOrbit,
+//    CoordForceStateCheckMsg,
 
     /*
      * For messages to the radio task
@@ -55,8 +55,10 @@ typedef enum {
     PAPowerFlagMsg,
     DCTInitMessage,
     /*
-     * Messages to the telemetry task
+     * Messages to the telemetry and Control task
      */
+    TelemSendPbStatus,
+    TelemSendUplinkStatus,
     TelemCollectMsg,
     TelemSendErrorsResetMsg,
     TelemSendErrorsPowerCycleMsg

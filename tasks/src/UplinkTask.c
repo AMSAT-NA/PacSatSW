@@ -30,6 +30,7 @@
 #define trace_ftl0 //
 #endif
 
+void ftl0_status_callback();
 void ftl0_next_state_from_primative(ftl0_state_machine_t *state, AX25_event_t *event);
 void ftl0_state_uninit(ftl0_state_machine_t *state, AX25_event_t *event);
 void ftl0_state_cmd_wait(ftl0_state_machine_t *state, AX25_event_t *event);
@@ -57,6 +58,8 @@ int ftl0_parse_packet_length(uint8_t * data);
 static ftl0_state_machine_t ftl0_state_machine[NUM_OF_RX_CHANNELS];
 static AX25_event_t ax25_event; /* Static storage for event */
 static AX25_event_t send_event_buffer;
+static Intertask_Message statusMsg; // Storage used to send messages to the telem and control task
+
 
 #ifdef DEBUG
 /* This decodes the AX25 error numbers.  Only used for debug. */
@@ -100,14 +103,14 @@ portTASK_FUNCTION_PROTO(UplinkTask, pvParameters)  {
     int pvtUplinkStatusTimerID = 0; // timer id
 
     /* create a RTOS software timer - TODO period should be in MRAM and changeable from the ground using xTimerChangePeriod() */
-    uplinkStatusTimerHandle = xTimerCreate( "UPLINK STATUS", SECONDS(40), TRUE, &pvtUplinkStatusTimerID, ax25_send_status); // auto reload timer
+    uplinkStatusTimerHandle = xTimerCreate( "UPLINK STATUS", SECONDS(40), TRUE, &pvtUplinkStatusTimerID, ftl0_status_callback); // auto reload timer
     /* start the timer */
-//    timerStatus = xTimerStart(uplinkStatusTimerHandle, 0); // Block time of zero as this can not block
-//    if (timerStatus != pdPASS) {
-//        debug_print("ERROR: Failed in init PB Status Timer\n");
-//// TODO =>        ReportError(RTOSfailure, FALSE, ReturnAddr, (int) PbTask); /* failed to create the RTOS timer */
-//        // TODO - it's possible this might fail.  Somehow we should recover from that.
-//    }
+    timerStatus = xTimerStart(uplinkStatusTimerHandle, 0); // Block time of zero as this can not block
+    if (timerStatus != pdPASS) {
+        debug_print("ERROR: Failed in init PB Status Timer\n");
+// TODO =>        ReportError(RTOSfailure, FALSE, ReturnAddr, (int) PbTask); /* failed to create the RTOS timer */
+        // TODO - it's possible this might fail.  Somehow we should recover from that.
+    }
 
 
     while(1) {
@@ -131,6 +134,19 @@ portTASK_FUNCTION_PROTO(UplinkTask, pvParameters)  {
     }
 }
 
+/**
+ * ftl0_status_callback()
+ *
+ * This is called from a timer whenever the status of the Uplink should be sent.  The actual status is assembled and
+ * sent to the TX by the Telemetry and Control task
+ *
+ */
+void ftl0_status_callback() {
+    statusMsg.MsgType = TelemSendUplinkStatus;
+    NotifyInterTaskFromISR(ToTelemetryAndControl,&statusMsg);
+}
+
+
 /*
  The Uplink state machine processes the AX25 events - these are the same as the Data Link SM events, just the other way around
  Mainly we process:
@@ -147,7 +163,6 @@ enter UL_UNINIT.  We need to make sure that event is not putting us in a loop, w
 error or packet again and again.
 
 */
-
 void ftl0_next_state_from_primative(ftl0_state_machine_t *state, AX25_event_t *event) {
     switch (state->ul_state) {
         case UL_UNINIT : {
@@ -772,6 +787,8 @@ int ftl0_process_upload_cmd(ftl0_state_machine_t *state, uint8_t *data, int len)
             /* Can't check if we have space, assume an error */
             return ER_NO_ROOM;
         } else {
+            // TODO - we should first check against the maximum allowed file size, which should be a configurable
+            // parameter, but which also can't exceed the red-fs max file size
             uint32_t available = redstatfs.f_frsize * redstatfs.f_bfree;
             //uint32_t allocated = 0;
             /* TODO - need to check all the partially uploaded files to see what remaining space they have claimed. Or
@@ -881,6 +898,9 @@ int ftl0_process_upload_cmd(ftl0_state_machine_t *state, uint8_t *data, int len)
  * TODO
  * Reception of a data command also means that the filenumber should be saved. This is what "reserves" the
  * new file number.
+ * TODO - It is possible that a ground station requests to upload a file length X and then attempts to upload a much
+ * longer file.  This would fill our file system.  We should make sure that the loaded data does not exceed the
+ * promised file length or the maximum size we allow for a file
  *
  */
 int ftl0_process_data_cmd(ftl0_state_machine_t *state, uint8_t *data, int len) {

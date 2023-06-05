@@ -4,7 +4,7 @@
  *  Created on: Dec 1, 2022
  *      Author: g0kla
  *
-* This program is free software: you can redistribute it and/or modify
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -102,6 +102,7 @@ static uint8_t data_buffer[AX25_MAX_DATA_LEN]; /* Static buffer used to store fi
 static rx_radio_buffer_t pb_radio_buffer; /* Static buffer used to store packet as it is assembled and before copy to TX queue */
 //static uint8_t pb_packet_buffer[AX25_PKT_BUFFER_LEN];
 static char pb_status_buffer[135]; // 10 callsigns * 13 bytes + 4 + nul
+static Intertask_Message statusMsg; // Storage used to send messages to the Telemetry and Control task
 
 bool running_self_test = FALSE;
 
@@ -136,7 +137,7 @@ static uint8_t current_station_on_pb = 0; /* This keeps track of which station w
 /* Local Function prototypes */
 int pb_send_ok(char *from_callsign);
 int pb_send_err(char *from_callsign, int err);
-void pb_send_status();
+void pb_status_callback();
 void pb_make_list_str(char *buffer, int len);
 void pb_debug_print_list();
 void pb_debug_print_list_item(int i);
@@ -173,9 +174,9 @@ portTASK_FUNCTION_PROTO(PbTask, pvParameters)  {
     int pvtPbStatusTimerID = 0; // timer id
 
     /* create a RTOS software timer - TODO period should be in MRAM and changeable from the ground using xTimerChangePeriod() */
-    pbStatusTimerHandle = xTimerCreate( "PB STATUS", SECONDS(30), TRUE, &pvtPbStatusTimerID, pb_send_status); // auto reload timer
+    pbStatusTimerHandle = xTimerCreate( "PB STATUS", SECONDS(30), TRUE, &pvtPbStatusTimerID, pb_status_callback); // auto reload timer
     /* start the timer */
-//    timerStatus = xTimerStart(pbStatusTimerHandle, 0); // Block time of zero as this can not block
+    timerStatus = xTimerStart(pbStatusTimerHandle, 0); // Block time of zero as this can not block
     if (timerStatus != pdPASS) {
         debug_print("ERROR: Failed in init PB Status Timer\n");
 // TODO =>        ReportError(RTOSfailure, FALSE, ReturnAddr, (int) PbTask); /* failed to create the RTOS timer */
@@ -253,25 +254,26 @@ int pb_send_err(char *from_callsign, int err) {
     return rc;
 }
 
+/**
+ * pb_status_callback()
+ *
+ * This is called from a timer whenever the status of the PB should be sent.  The actual status is assembled and
+ * sent to the TX by the Telemetry and Control task
+ *
+ */
+void pb_status_callback() {
+    statusMsg.MsgType = TelemSendPbStatus;
+    NotifyInterTaskFromISR(ToTelemetryAndControl,&statusMsg);
+}
 
 /**
  * pb_send_status()
- *
- * TODO ***** This does not work from a timer because it checks the status of the PB in MRAM.
- * We could cache the pb_open/close variable in memory as a bool and that would work.  Better is if the timer call
- * back just sends a message to the task.  The task monitors for the messages and then executes this.
- * Then we can process many other events/messages. e.g. periodically check if callsigns on the
- * PB too long.
- *
- * This is called from an RTOS timer to send the status periodically
+ * *
+ * This is called from the telem and control task to send the status periodically
  * Puts a packet with the current status of the PB into the TxQueue
- *
- * Returns void to be compatible with timer callbacks
- *
+ * *
  * NOTE that pb_status_buffer is declared static because allocating a buffer of this
  * size causes a crash when this is called from a timer.
- *
- * We MUST NOT BLOCK because this can be called from a timer.  If the TX queue is full then we skip sending status
  *
  */
 void pb_send_status() {
@@ -279,7 +281,7 @@ void pb_send_status() {
 
    if (!ReadMRAMBoolState(StatePbEnabled)) {
         char shut[] = "PB Closed.";
-        int rc = tx_send_ui_packet(BROADCAST_CALLSIGN, PBSHUT, PID_NO_PROTOCOL, (uint8_t *)shut, strlen(shut), DONT_BLOCK);
+        int rc = tx_send_ui_packet(BROADCAST_CALLSIGN, PBSHUT, PID_NO_PROTOCOL, (uint8_t *)shut, strlen(shut), BLOCK);
         trace_pb("SENDING: %s |%s|\n",PBSHUT, shut);
         ReportToWatchdog(CurrentTaskWD);
         return;
@@ -293,7 +295,7 @@ void pb_send_status() {
         uint8_t len = strlen((char *)pb_status_buffer);
         trace_pb("SENDING: %s |%s|\n",CALL, pb_status_buffer);
 
-       int rc = tx_send_ui_packet(BROADCAST_CALLSIGN, CALL, PID_NO_PROTOCOL, (uint8_t *)pb_status_buffer, len, DONT_BLOCK);
+       int rc = tx_send_ui_packet(BROADCAST_CALLSIGN, CALL, PID_NO_PROTOCOL, (uint8_t *)pb_status_buffer, len, BLOCK);
         ReportToWatchdog(CurrentTaskWD);
         return;
     }

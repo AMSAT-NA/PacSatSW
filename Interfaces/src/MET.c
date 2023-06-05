@@ -147,7 +147,7 @@ static void METupdate(xTimerHandle x) {
         //uint32_t freq;
         /* This is every 4 seconds */
         if(TelemetryReady){//TelemCollect
-            NotifyInterTaskFromISR(ToTelemetry,&telemMsg);
+            NotifyInterTaskFromISR(ToTelemetryAndControl,&telemMsg);
         }
         Can2TimeoutTick(); // To determine if CAN2 partner is alive
         // For doppler simulation test?

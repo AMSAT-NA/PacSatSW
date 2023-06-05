@@ -30,7 +30,7 @@ extern bool monitorPackets;
 
 portTASK_FUNCTION_PROTO(TxTask, pvParameters)  {
 
-    vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)TxTaskWD ); // TODO - just reuse the Radio task name for now
+    vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)TxTaskWD );
     InitInterTask(ToTxTask, 10);
     ResetAllWatchdogs();
 //    printf("Initializing TX\n");

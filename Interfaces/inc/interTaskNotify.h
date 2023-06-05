@@ -23,7 +23,7 @@ typedef enum {
 	ToCommand,
 	ToRxTask,
     ToTxTask,
-	ToTelemetry,
+	ToTelemetryAndControl,
     // New message destinations go above here
 	ToCAN,
 	ToCoordinate,
