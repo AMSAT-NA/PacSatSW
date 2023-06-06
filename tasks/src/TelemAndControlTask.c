@@ -19,6 +19,7 @@
 
  */
 
+#include "MET.h"
 #include "pacsat.h"
 #include "PbTask.h"
 #include "Ax25Task.h"
@@ -33,6 +34,9 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)  {
 
     ResetAllWatchdogs();
     debug_print("Initializing Telem and Control Task\n");
+
+    // TODO - this is just for testing
+    //METTelemetryReady();
 
     while(1) {
         Intertask_Message messageReceived;
@@ -57,7 +61,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)  {
                 break;
 
             case TelemCollectMsg:
-                debug_print("Telem & Control: Collect telem\n");
+//                debug_print("Telem & Control: Collect RT telem\n");
 
                 break;
 
