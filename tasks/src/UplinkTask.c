@@ -95,7 +95,7 @@ portTASK_FUNCTION_PROTO(UplinkTask, pvParameters)  {
 
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)UplinkTaskWD );
     ResetAllWatchdogs();
-    printf("Initializing Uplink FTL0 Task\n");
+//    debug_print("Initializing Uplink FTL0 Task\n");
 
     /* Setup a timer to send the status periodically */
     xTimerHandle uplinkStatusTimerHandle;

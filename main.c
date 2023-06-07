@@ -281,13 +281,11 @@ void ConsoleTask(void *pvParameters){
 //                NULL,COMMAND_PRIORITY, NULL);
 
     /* Load the directory from MRAM and perform some integrity checks */
-//    printf("Free heap size before dir loaded: %d\n",xPortGetFreeHeapSize());
     int rc = dir_load();
     if (rc != TRUE) {
         debug_print("ERROR: Could not load the directory from MRAM\n");
-        // TODO - pretty fatal - need to handle or log this error
+        // TODO - bad or fatal - need to handle or log this error
     }
-//    printf("Free heap size after dir loaded: %d\n",xPortGetFreeHeapSize());
 
     xTaskCreate(RxTask,"RxTask",RX_STACK_SIZE, NULL, RX_PRIORITY,NULL);
     xTaskCreate(Ax25Task,"Ax25Task",AX25_STACK_SIZE, NULL, AX25_PRIORITY,NULL);
@@ -296,13 +294,13 @@ void ConsoleTask(void *pvParameters){
     xTaskCreate(TxTask,"Radio",RADIO_STACK_SIZE, NULL,TX_PRIORITY,NULL);
     xTaskCreate(TelemAndControlTask,"Telem and Control",TELEMETRY_STACK_SIZE, NULL,TELEMETRY_PRIORITY,NULL);
 
-    printf("Free heap size after tasks launched: %d\n",xPortGetFreeHeapSize());
+    debug_print("Free heap size after tasks launched: %d\n",xPortGetFreeHeapSize());
 
     //AlertFlashingWait(CENTISECONDS(50),CENTISECONDS(10),CENTISECONDS(3));
     AllTasksStarted = true;
     StartStableCount();
 
-    debug_print("*** SET THE UNIX TIME BEFORE UPLOADING ANY TEST FILES ***\n");
+    debug_print("*** NO RTC: SET THE UNIX TIME BEFORE UPLOADING ANY TEST FILES ***\n");
 
     // Now head off to do the real work of the console task
     RealConsoleTask();

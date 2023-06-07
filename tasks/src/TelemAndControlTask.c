@@ -33,7 +33,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)  {
     InitInterTask(ToTelemetryAndControl, 10);
 
     ResetAllWatchdogs();
-    debug_print("Initializing Telem and Control Task\n");
+//    debug_print("Initializing Telem and Control Task\n");
 
     // TODO - this is just for testing
     //METTelemetryReady();
@@ -45,18 +45,18 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)  {
         status = WaitInterTask(ToTelemetryAndControl, SECONDS(2), &messageReceived);
         ReportToWatchdog(CurrentTaskWD);
         if(status == 1){
-            int waiting=WaitingInterTask(ToTelemetryAndControl);
-            if(waiting != 0){
-                debug_print("MessagesWaiting=%d\n",WaitingInterTask(ToTelemetryAndControl));
-            }
+//            int waiting=WaitingInterTask(ToTelemetryAndControl);
+//            if(waiting != 0){
+//                debug_print("MessagesWaiting=%d\n",WaitingInterTask(ToTelemetryAndControl));
+//            }
             switch(messageReceived.MsgType){
             case TelemSendPbStatus:
-                debug_print("Telem & Control: Send the PB Status\n");
+                //debug_print("Telem & Control: Send the PB Status\n");
                 pb_send_status();
                 break;
 
             case TelemSendUplinkStatus:
-                debug_print("Telem & Control: Send the FTL0 Status\n");
+                //debug_print("Telem & Control: Send the FTL0 Status\n");
                 ax25_send_status();
                 break;
 

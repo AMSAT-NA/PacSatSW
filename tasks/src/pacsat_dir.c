@@ -259,7 +259,7 @@ void dir_free() {
         p = p->next;
         dir_delete_node(node);
     }
-    debug_print("Dir List Cleared\n");
+//    debug_print("Dir List Cleared\n");
 }
 
 /**

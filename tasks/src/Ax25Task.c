@@ -124,7 +124,7 @@ portTASK_FUNCTION_PROTO(Ax25Task, pvParameters)  {
 
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)Ax25TaskWD );
     ResetAllWatchdogs();
-    printf("Initializing Ax25 Data Link Task\n");
+//    printf("Initializing Ax25 Data Link Task\n");
 
 
     int chan;
@@ -237,7 +237,7 @@ void ax25_send_status() {
     ReportToWatchdog(CurrentTaskWD);
     if (!ReadMRAMBoolState(StateUplinkEnabled)) {
         // for now we send nothing.  If the uplink is shut it is silent
-        trace_dl("AX25: Uplink SHUT\n");
+        //trace_dl("OPEN: Uplink SHUT, nothing sent\n");
         return;
     } else  {
 
@@ -257,10 +257,10 @@ void ax25_send_status() {
         }
 
         if (channels_available) {
-            debug_print("SENDING OPEN: |%s|\n",buffer);
+            debug_print("SENDING: %s |%s|\n",BBSTAT, buffer);
             int rc = tx_send_ui_packet(BBS_CALLSIGN, BBSTAT, PID_NO_PROTOCOL, (uint8_t *)buffer, len, BLOCK);
         } else {
-            debug_print("Uplink is Full, nothing sent\n");
+            debug_print("OPEN: Uplink is Full, nothing sent\n");
         }
     }
     ReportToWatchdog(CurrentTaskWD);

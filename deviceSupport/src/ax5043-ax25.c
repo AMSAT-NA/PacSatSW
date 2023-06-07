@@ -803,7 +803,7 @@ uint8_t axradio_init(AX5043Device device, bool band_vhf, int32_t freq, bool rate
         vTaskDelay(CENTISECONDS(1));
     }
 
-    debug_print("After ranging: AX5043_PLLRANGINGA: %02.2x\n", ax5043ReadReg(device, AX5043_PLLRANGINGA)); //DEBUG RBG
+//    debug_print("After ranging: AX5043_PLLRANGINGA: %02.2x\n", ax5043ReadReg(device, AX5043_PLLRANGINGA)); //DEBUG RBG
 
     //printf("INFO: PLL ranging process complete\n");
     axradio_trxstate = trxstate_off;
@@ -877,10 +877,10 @@ uint8_t axradio_init(AX5043Device device, bool band_vhf, int32_t freq, bool rate
 #endif
 
     if (axradio_phy_chanpllrng[0] & 0x20) {
-        debug_print("RANGE ERROR!\n");
+        debug_print("*** PLL RANGE ERROR!\n");
         return AXRADIO_ERR_RANGING;
     } else {
-        debug_print("PLL LOCK: %d\n",axradio_phy_chanpllrng[0] & 0x40);
+//        debug_print("PLL LOCK: %d\n",axradio_phy_chanpllrng[0] & 0x40);
     }
     return AXRADIO_ERR_NOERROR;
 }
@@ -997,14 +997,13 @@ void start_ax25_rx(AX5043Device device, bool rate_9600) {
     uint32_t freq;
     int status = 0;
     bool band_vhf = FALSE;
-
-    debug_print("Starting RX with AX5043Device %d, vhf=%d 9600bps=%d\n", device, band_vhf, rate_9600);
-    //uint8_t retVal;
-    ax5043WriteReg(device, AX5043_PINFUNCIRQ, 0x0); //disable IRQs
     freq = ReadMRAMCommandFreq();
     if (freq < 150000000)
         band_vhf = TRUE;
-    debug_print("In start_rx, Setting freq to %d\n", freq); //DEBUG RBG
+    debug_print("Starting RX with AX5043Device %d, vhf=%d 9600bps=%d, freq=%d\n", device, band_vhf, rate_9600, freq);
+    //uint8_t retVal;
+    ax5043WriteReg(device, AX5043_PINFUNCIRQ, 0x0); //disable IRQs
+//    debug_print("In start_rx, Setting freq to %d\n", freq); //DEBUG RBG
     if ((status = axradio_init(device, band_vhf, freq, rate_9600)) != AXRADIO_ERR_NOERROR) {
         printf("ERROR: In start_rx, axradio_init returned: %d\n", status);
     }
@@ -1028,16 +1027,15 @@ void start_ax25_tx(AX5043Device device, bool rate_9600) {
     int status = 0;
     bool band_vhf = FALSE;
 
-  //printf("In Test_Tx\n");
-    debug_print("Starting TX with AX5043Device %d, vhf=%d 9600bps=%d\n", device, band_vhf, rate_9600);
+    freq = ReadMRAMTelemFreq();
+    if (freq < 150000000)
+        band_vhf = TRUE;
+    debug_print("Starting TX with AX5043Device %d, vhf=%d 9600bps=%d, freq=%d\n", device, band_vhf, rate_9600, freq);
 
     /* Get ready for TX */
   //printf("Disabling IRQs\n");
   ax5043WriteReg(device, AX5043_PINFUNCIRQ, 0x0); //disable IRQs
-  freq = ReadMRAMTelemFreq();
-  if (freq < 150000000)
-      band_vhf = TRUE;
-  debug_print("In start_tx, Setting freq to %d\n", freq); //DEBUG RBG
+//  debug_print("In start_tx, Setting freq to %d\n", freq); //DEBUG RBG
   if ((status = axradio_init(device, band_vhf, freq, rate_9600)) != AXRADIO_ERR_NOERROR) {
       printf("ERROR: In start_tx, axradio_init_70cm returned: %d", status);
       // TODO - what do we do if this error is returned?  Wait and try again?  Same issue for RX

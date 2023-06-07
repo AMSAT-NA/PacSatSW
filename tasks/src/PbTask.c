@@ -166,7 +166,7 @@ int pb_make_file_broadcast_packet(DIR_NODE *node, uint8_t *data_bytes, int numbe
 portTASK_FUNCTION_PROTO(PbTask, pvParameters)  {
 
     ResetAllWatchdogs();
-    debug_print("Initializing PB Task\n");
+//    debug_print("Initializing PB Task\n");
 
     /* Setup a timer to send the status periodically */
     xTimerHandle pbStatusTimerHandle;

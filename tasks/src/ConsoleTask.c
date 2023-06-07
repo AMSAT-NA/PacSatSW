@@ -116,6 +116,8 @@ enum {
     ,FormatFS
     ,LsFS
     ,RmFS
+    ,mkdirFS
+    ,rmdirFS
     ,GetRfPower
     ,SelectRFPowerLevels
     ,SetDCTDrivePower
@@ -246,10 +248,10 @@ commandPairs debugCommands[] = {
 #endif
                                 ,{"monitor on","Monitor sent and received packets",monitorOn}
                                 ,{"monitor off","Stop monitoring packets",monitorOff}
-                                ,{"pb shut","Shut the PB",pbShut}
-                                ,{"pb open","Open the PB for use",pbOpen}
-                                ,{"uplink shut","Shut the FTL0 Uplink",uplinkShut}
-                                ,{"uplink open","Open the FTL0 Uplink for use",uplinkOpen}
+                                ,{"shut pb","Shut the PB",pbShut}
+                                ,{"open pb","Open the PB for use",pbOpen}
+                                ,{"shut uplink","Shut the FTL0 Uplink",uplinkShut}
+                                ,{"open uplink","Open the FTL0 Uplink for use",uplinkOpen}
                                 ,{"hxd","Display Hex for file number",mramHxd}
                                 ,{"load dir","Load the directory from MRAM",dirLoad}
                                 ,{"clear dir","Clear the directory but leave the files in MRAM",dirClear}
@@ -275,6 +277,8 @@ commandPairs commonCommands[] = {
                                  ,{"format fs","Format the filesystem",FormatFS}
                                  ,{"ls","List files and directories in the filesystem",LsFS}
                                  ,{"rm","Remove a file from the filesystem",RmFS}
+                                 ,{"mkdir","Make a directory in the filesystem",mkdirFS}
+                                 ,{"rmdir","Remove a directory from the filesystem",rmdirFS}
                                  ,{"get rf power","Print the RF power settings",GetRfPower}
                                  ,{"get commands","Get a list the last 4 s/w commands",GetCommands}
                                  ,{"get gpios","Display the values of all GPIOS",GetGpios}
@@ -613,14 +617,22 @@ void RealConsoleTask(void)
 
         case LsFS:
         {
-
+            int numSpace=0;
+            char *srchStrng;
+            while(afterCommand[numSpace] == ' ') numSpace++;
+            srchStrng = &afterCommand[numSpace];
             REDDIR *pDir;
-            char * path = "//";
+            printf("%s:\n",srchStrng);
             printf("Name       Blks  Size \n");
             printf("---------- ----- --------\n");
-            pDir = red_opendir(path);
+            if(strlen(srchStrng)== 0){
+                pDir = red_opendir("//");
+            } else {
+                pDir = red_opendir(srchStrng);
+            }
             if (pDir == NULL) {
                 printf("Unable to open dir: %s\n", red_strerror(red_errno));
+                printf("Make sure the path is fully qualified and starts with //\n");
                 break;
             }
             uint32_t total_bytes = 0;
@@ -1153,6 +1165,42 @@ void RealConsoleTask(void)
             break;
         }
 
+        case mkdirFS: {
+            int numSpace=0;
+            char *srchStrng;
+            while(afterCommand[numSpace] == ' ') numSpace++;
+            srchStrng = &afterCommand[numSpace];
+            if(strlen(srchStrng)== 0){
+                printf("Usage: mkdir <file name with path>\n");
+                break;
+            }
+            int32_t rc = red_mkdir(srchStrng);
+            if (rc == -1) {
+                printf("Unable make dir %s: %s\n", srchStrng, red_strerror(red_errno));
+            }
+            break;
+        }
+
+        case rmdirFS: {
+            int numSpace=0;
+            char *srchStrng;
+            while(afterCommand[numSpace] == ' ') numSpace++;
+            srchStrng = &afterCommand[numSpace];
+            if(strlen(srchStrng)== 0){
+                printf("Usage: rmdir <file name with path>\n");
+                break;
+            }
+            int32_t rc = red_rmdir(srchStrng);
+            if (rc == -1) {
+                if (red_errno == RED_EBUSY)
+                    printf("Unable remove dir that contains other files or directories: %s\n", srchStrng, red_strerror(red_errno));
+                else
+                    printf("Unable remove dir %s: %s\n", srchStrng, red_strerror(red_errno));
+            }
+            break;
+        }
+
+
         case mramHxd: {
             int numSpace=0;
             char *srchStrng;
@@ -1233,14 +1281,24 @@ void RealConsoleTask(void)
         }
 
         case setRate1200:{
-            printf("Setting Radio to 1200bps.  A reset is needed to restart the radio.\n");
+            printf("Setting Radio to 1200bps.\n");
             WriteMRAMBoolState(StateAx25Rate9600, RATE_1200);
+            // TODO this should process all receive channels
+            ax5043StopRx(AX5043Dev0);
+            ax5043StopTx(AX5043Dev1);
+            ax5043StartRx(AX5043Dev0);
+            ax5043StartTx(AX5043Dev1);
             break;
         }
 
         case setRate9600:{
-            printf("Setting radio to 9600bps.  A reset is needed to restart the radio.\n");
+            printf("Setting radio to 9600bps.\n");
             WriteMRAMBoolState(StateAx25Rate9600, RATE_9600);
+            // TODO this should process all receive channels
+            ax5043StopRx(AX5043Dev0);
+            ax5043StopTx(AX5043Dev1);
+            ax5043StartRx(AX5043Dev0);
+            ax5043StartTx(AX5043Dev1);
             break;
         }
 
