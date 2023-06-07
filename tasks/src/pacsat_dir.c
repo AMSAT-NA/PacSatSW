@@ -303,6 +303,7 @@ bool dir_load_pacsat_file(char *file_name) {
  *
  */
 int dir_load() {
+    dir_free();
     bool rc;
     REDDIR *pDir;
     char * path = "//";
