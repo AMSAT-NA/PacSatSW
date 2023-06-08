@@ -35,6 +35,8 @@ uint32_t dir_next_file_number();
 DIR_NODE * dir_add_pfh(char *file_path, HEADER *new_pfh);
 void dir_get_tmp_file_path_from_file_id(uint32_t file_id, char *file_path, int max_length);
 void dir_get_file_path_from_file_id(uint32_t file_id, char *file_path, int max_length);
+void dir_get_filename_from_file_id(uint32_t file_id, char *file_name, int max_len);
+int32_t dir_check_folders();
 void dir_free();
 int dir_load();
 int dir_load_header(char *file_name_with_path, uint8_t *byte_buffer, int buffer_len, HEADER *pfh);

@@ -69,9 +69,9 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
         ReportToWatchdog(CurrentTaskWD);
         rssi = get_rssi(device);
         if (monitorPackets)
-            if (rssi > 160) { // this magic value is supposed to be above the background noise, so we only see actual transmissions
+            if (rssi > 170) { // this magic value is supposed to be above the background noise, so we only see actual transmissions
                 int16_t dbm = rssi - 255;
-                debug_print("RSSI: %d dBm  ",dbm);
+                debug_print("RSSI: %d dBm \n",dbm);
 //                debug_print("FRMRX: %d   ",ax5043ReadReg(device, AX5043_FRAMING) & 0x80 ); // FRAMING Pkt start bit detected - will print 128
 //                debug_print("RADIO: %d ",ax5043ReadReg(device, AX5043_RADIOSTATE) & 0xF ); // Radio State bits 0-3
             }

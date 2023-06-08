@@ -661,14 +661,14 @@ int test_pfh_file() {
 
     // Write the header into MRAM FS
 
-    rc = dir_fs_write_file_chunk("//0347",header,sizeof(header),0);
+    rc = dir_fs_write_file_chunk("//dir/0347",header,sizeof(header),0);
     if (rc == -1) {
         debug_print("FAILED to write header\n");
         return FALSE;
     }
     uint8_t buffer2[256];
     HEADER pfh2;
-    int num_bytes_read = dir_fs_read_file_chunk("//0347",buffer2,sizeof(buffer2),0);
+    int num_bytes_read = dir_fs_read_file_chunk("//dir/0347",buffer2,sizeof(buffer2),0);
     if (num_bytes_read == -1) {
         debug_print("ERROR reading header back from file system\n");
         return FALSE;

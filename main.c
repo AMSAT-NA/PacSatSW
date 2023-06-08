@@ -281,6 +281,11 @@ void ConsoleTask(void *pvParameters){
 //                NULL,COMMAND_PRIORITY, NULL);
 
     /* Load the directory from MRAM and perform some integrity checks */
+    int32_t ret = dir_check_folders();
+    if (ret == -1) {
+        debug_print("ERROR: Could not create the needed folders in MRAM\n");
+        // TODO - bad or fatal - need to handle or log this error
+    }
     int rc = dir_load();
     if (rc != TRUE) {
         debug_print("ERROR: Could not load the directory from MRAM\n");

@@ -716,8 +716,10 @@ int pb_handle_file_request(char *from_callsign, uint8_t *data, int len) {
         return FALSE;
     } else {
         // confirm it is really in MRAM and we can read the size
-        char file_name_with_path[REDCONF_NAME_MAX+3U];
-        snprintf(file_name_with_path, REDCONF_NAME_MAX+3U, "//%s",node->filename);
+        char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
+        strlcpy(file_name_with_path, DIR_FOLDER, sizeof(file_name_with_path));
+        strlcat(file_name_with_path, node->filename, sizeof(file_name_with_path));
+
         file_size = dir_fs_get_file_size(file_name_with_path);
         if (file_size == -1) {
             // We could not get the file size
@@ -1112,8 +1114,10 @@ int pb_make_dir_broadcast_packet(DIR_NODE *node, uint8_t *data_bytes, uint32_t *
     }
 
     /* Read the data into the mram_data_bytes buffer after the header bytes */
-    char file_name_with_path[REDCONF_NAME_MAX+3U];
-    snprintf(file_name_with_path, REDCONF_NAME_MAX+3U, "//%s",node->filename);
+    char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
+    strlcpy(file_name_with_path, DIR_FOLDER, sizeof(file_name_with_path));
+    strlcat(file_name_with_path, node->filename, sizeof(file_name_with_path));
+
     int rc = dir_fs_read_file_chunk(file_name_with_path, data_bytes + sizeof(PB_DIR_HEADER), buffer_size, *offset);
 
     if (rc == -1) {
@@ -1169,8 +1173,10 @@ int pb_broadcast_next_file_chunk(DIR_NODE *node, uint32_t offset, int length, ui
     if (number_of_bytes_read > file_size - offset)
         number_of_bytes_read = file_size - offset;
 ///    rc = dir_mram_read_file_chunk(mram_file,  data_buffer + sizeof(PB_FILE_HEADER), number_of_bytes_read, offset) ;
-    char file_name_with_path[REDCONF_NAME_MAX+3U];
-    snprintf(file_name_with_path, REDCONF_NAME_MAX+3U, "//%s",node->filename);
+    char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
+    strlcpy(file_name_with_path, DIR_FOLDER, sizeof(file_name_with_path));
+    strlcat(file_name_with_path, node->filename, sizeof(file_name_with_path));
+
     rc = dir_fs_read_file_chunk(file_name_with_path, data_buffer + sizeof(PB_FILE_HEADER), number_of_bytes_read, offset);
     if (rc == -1) {
         return 0; // Error with the read, zero bytes read

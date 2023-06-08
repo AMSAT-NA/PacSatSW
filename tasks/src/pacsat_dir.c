@@ -34,6 +34,7 @@ static DIR_NODE *dir_tail = NULL;  // the tail of the directory linked list
 static uint8_t data_buffer[AX25_MAX_DATA_LEN]; /* Static buffer used to store file bytes loaded from MRAM */
 
 /* Forward declarations */
+int32_t dir_check_folder(char *path);
 void dir_delete_node(DIR_NODE *node);
 void insert_after(DIR_NODE *p, DIR_NODE *new_node);
 bool dir_fs_update_header(char *file_name_with_path, uint32_t file_id, uint32_t upload_time, uint16_t header_len);
@@ -60,21 +61,68 @@ uint32_t dir_next_file_number() {
     return file_id;
 }
 
+/**
+ * For a temporary file that is being uploaded and given a file id, create
+ * the file name string with full path
+ */
 void dir_get_tmp_file_path_from_file_id(uint32_t file_id, char *file_path, int max_len) {
-    dir_get_file_path_from_file_id(file_id, file_path, max_len);
+    char file_id_str[5];
+    snprintf(file_id_str, 5, "%04x",file_id);
+    strlcpy(file_path, TMP_FOLDER, max_len);
+    strlcat(file_path, file_id_str, max_len);
     strlcat(file_path, ".", max_len);
     strlcat(file_path, "tmp", max_len);
 }
 
+/**
+ * Given a file id, create the file name string with full path
+ */
 void dir_get_file_path_from_file_id(uint32_t file_id, char *file_path, int max_len) {
     char file_id_str[5];
     snprintf(file_id_str, 5, "%04x",file_id);
-    strlcpy(file_path, "//", max_len);
-#ifdef DIR_SUBDIR_NAme
-    strlcat(file_path, DIR_SUBDIR_NAME, max_len);
-    strlcat(file_path, "/", max_len);
-#endif
+    strlcpy(file_path, DIR_FOLDER, max_len);
     strlcat(file_path, file_id_str, max_len);
+}
+
+void dir_get_filename_from_file_id(uint32_t file_id, char *file_name, int max_len) {
+    snprintf(file_name, max_len, "%04x",file_id);
+}
+
+/**
+ * Check that the required folders exist in the filesystem and create them if they
+ * are missing.  If they can not be created return the file system error number,
+ * otherwise return 0
+ */
+int32_t dir_check_folders() {
+    int32_t ret;
+    ret = dir_check_folder(DIR_FOLDER);
+    if (ret == -1) return ret;
+    ret = dir_check_folder(TMP_FOLDER);
+    if (ret == -1) return ret;
+    ret = dir_check_folder(WOD_FOLDER);
+    if (ret == -1) return ret;
+
+    return 0;
+}
+
+int32_t dir_check_folder(char *path) {
+    REDDIR *pDir;
+    int32_t rc = 0;
+    pDir = red_opendir(path);
+    if (pDir == NULL) {
+        debug_print("Making folder %s\n",path);
+        rc = red_mkdir(path);
+        if (rc == -1) {
+            debug_print("Unable to open dir: %s\n", red_strerror(red_errno));
+        }
+    } else {
+        int32_t rc2 = red_closedir(pDir);
+        if (rc2 != 0) {
+            debug_print("*** Unable to close dir: %s\n", red_strerror(red_errno));
+        }
+    }
+
+    return rc;
 }
 
 /**
@@ -178,8 +226,10 @@ DIR_NODE * dir_add_pfh(char *file_name, HEADER *new_pfh) {
 //            dir_delete_node(new_node);
 //            return FALSE;
 //        }
-        char file_name_with_path[REDCONF_NAME_MAX+3U];
-        snprintf(file_name_with_path, REDCONF_NAME_MAX+3U, "//%s",file_name);
+        char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
+        strlcpy(file_name_with_path, DIR_FOLDER, MAX_FILENAME_WITH_PATH_LEN);
+        strlcat(file_name_with_path, new_node->filename, MAX_FILENAME_WITH_PATH_LEN);
+
         // Write the new file id, upload_time and recalc the checksum
         bool rc = dir_fs_update_header(file_name_with_path, new_node->file_id, new_node->upload_time, new_node->body_offset);
 //        int32_t num = dir_fs_write_file_chunk(file_name_with_path, pfh_byte_buffer, body_offset, 0);
@@ -270,8 +320,11 @@ void dir_free() {
 bool dir_load_pacsat_file(char *file_name) {
 //    debug_print("Loading: %d from addr: %d \n", mram_file->file_id, mram_file->address);
 
-    char file_name_with_path[25];
-    snprintf(file_name_with_path, 25, "//%s",file_name);
+    char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
+    snprintf(file_name_with_path, MAX_FILENAME_WITH_PATH_LEN, "//%s",file_name);
+
+    strlcpy(file_name_with_path, DIR_FOLDER, sizeof(file_name_with_path));
+    strlcat(file_name_with_path, file_name, sizeof(file_name_with_path));
 
     int len = dir_load_header(file_name_with_path, pfh_byte_buffer, sizeof(pfh_byte_buffer), &pfh_buffer);
     if (len == -1) {
@@ -306,7 +359,7 @@ int dir_load() {
     dir_free();
     bool rc;
     REDDIR *pDir;
-    char * path = "//";
+    char * path = DIR_FOLDER;
 //    printf("Loading Directory from %s:\n",path);
     pDir = red_opendir(path);
     if (pDir == NULL) {
@@ -318,12 +371,14 @@ int dir_load() {
     red_errno = 0; /* Set error to zero so we can distinguish between a real error and the end of the DIR */
     pDirEnt = red_readdir(pDir);
     while (pDirEnt != NULL) {
-        //debug_print("Loading: %s\n",pDirEnt->d_name);
-        rc = dir_load_pacsat_file(pDirEnt->d_name);
-        if (rc != TRUE) {
-            debug_print("May need to remove potentially corrupt or duplicate PACSAT file\n");
-            /* Don't automatically remove here, otherwise loading the dir twice actually deletes all the
-             * files! */
+        if (!RED_S_ISDIR(pDirEnt->d_stat.st_mode)) {
+            //debug_print("Loading: %s\n",pDirEnt->d_name);
+            rc = dir_load_pacsat_file(pDirEnt->d_name);
+            if (rc != TRUE) {
+                debug_print("May need to remove potentially corrupt or duplicate PACSAT file\n");
+                /* Don't automatically remove here, otherwise loading the dir twice actually deletes all the
+                 * files! */
+            }
         }
         pDirEnt = red_readdir(pDir);
     }
@@ -333,7 +388,7 @@ int dir_load() {
     }
     int32_t rc2 = red_closedir(pDir);
     if (rc2 != 0) {
-        debug_print("*** Unable to close file: %s\n", red_strerror(red_errno));
+        debug_print("*** Unable to close dir: %s\n", red_strerror(red_errno));
     }
 
 //    debug_print("DONE:\n");

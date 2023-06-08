@@ -99,6 +99,10 @@ typedef enum {
     Channel_D,
 } rx_channel_t;
 
+#define DIR_FOLDER "//dir/"
+#define TMP_FOLDER "//tmp/"
+#define WOD_FOLDER "//wod/"
+
 #define AX25_MAX_DATA_LEN 240 /* This is the maximum number of bytes a packet can have */
 #define AX25_MAX_INFO_BYTES_LEN 223 /* This is the maximum number of info bytes a packet can have */
 #define AX25_PKT_BUFFER_LEN 260 /* This is the length of the buffers in the TX RX queues */

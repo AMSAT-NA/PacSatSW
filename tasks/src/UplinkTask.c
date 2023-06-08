@@ -981,9 +981,11 @@ int ftl0_process_data_end_cmd(ftl0_state_machine_t *state, uint8_t *data, int le
         return err;
     }
 
-    /* Otherwise this looks good.  Rename the file by linking a new name and reoving the old name. Then
+    /* Otherwise this looks good.  Rename the file by linking a new name and removing the old name. Then
      * add it to the directory. */
     //TODO - note that we are renaming the file before we know that the ground station has received an ACK
+    //       That is OK as long as we handle the situation where the ground station tries to finish the upload
+    //       and we no longer have the tmp file.  We should then send ACK, not BAD_FILE_NUMBER err.
     char new_file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
     dir_get_file_path_from_file_id(state->file_id, new_file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
 
@@ -993,7 +995,10 @@ int ftl0_process_data_end_cmd(ftl0_state_machine_t *state, uint8_t *data, int le
         return ER_NO_ROOM;
     }
 
-    DIR_NODE *p = dir_add_pfh(new_file_name_with_path, &ftl0_pfh_buffer);
+    /* We pass just the filename without the path into the dir add function */
+    char file_id_str[5];
+    dir_get_filename_from_file_id(state->file_id, file_id_str, sizeof(file_id_str));
+    DIR_NODE *p = dir_add_pfh(file_id_str, &ftl0_pfh_buffer);
     if (p == NULL) {
         debug_print("** Could not add %s to dir\n", new_file_name_with_path);
         /* Remove the file that we could not add and leave the tmp file.  This will get cleaned up faster.  We are sending
