@@ -50,6 +50,14 @@
 #define debug_print //
 #endif
 
+//#define TRACE_PB
+#ifdef TRACE_PB
+#define trace_pb printf
+#else
+#define trace_pb //
+#endif
+
+
 //#define TRACE_AX25_DL
 #ifdef TRACE_AX25_DL
 #define trace_dl printf

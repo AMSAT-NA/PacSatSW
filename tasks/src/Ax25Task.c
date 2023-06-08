@@ -250,10 +250,10 @@ void ax25_send_status() {
         }
 
         if (channels_available) {
-            debug_print("SENDING: %s |%s|\n",BBSTAT, buffer);
+            trace_ftl0("SENDING: %s |%s|\n",BBSTAT, buffer);
             int rc = tx_send_ui_packet(BBS_CALLSIGN, BBSTAT, PID_NO_PROTOCOL, (uint8_t *)buffer, len, BLOCK);
         } else {
-            debug_print("OPEN: Uplink is Full, nothing sent\n");
+            trace_ftl0("OPEN: Uplink is Full, nothing sent\n");
         }
     }
     ReportToWatchdog(CurrentTaskWD);

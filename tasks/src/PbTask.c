@@ -90,12 +90,6 @@ When we store data in a value or structure internally we need to convert it to b
 #include "time.h" // large file, not needed for flight
 #endif
 
-#define TRACE_PB
-#ifdef TRACE_PB
-#define trace_pb printf
-#else
-#define trace_pb //
-#endif
 
 
 static uint8_t data_buffer[AX25_MAX_DATA_LEN]; /* Static buffer used to store file bytes loaded from MRAM */

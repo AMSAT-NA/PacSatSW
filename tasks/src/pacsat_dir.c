@@ -490,7 +490,7 @@ DIR_NODE * dir_get_pfh_by_date(DIR_DATE_PAIR pair, DIR_NODE *p ) {
         DIR_NODE *node = p;
         p = p->next;
         if (node->upload_time >= pair.start && node->upload_time <= pair.end) {
-            debug_print("-> returning file id: %04x name: %s\n",node->file_id, node->filename);
+            trace_pb("-> returning file id: %04x name: %s\n",node->file_id, node->filename);
             return node;
         }
     }
