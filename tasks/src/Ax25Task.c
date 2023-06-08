@@ -47,13 +47,6 @@
 #include "ax25_util.h"
 #include "str_util.h"
 
-#define TRACE_AX25_DL
-#ifdef TRACE_AX25_DL
-#define trace_dl printf
-#else
-#define trace_dl //
-#endif
-
 /* Forward functions */
 void ax25_process_frame(char *from_callsign, char *to_callsign, rx_channel_t channel);
 void ax25_t1_expired(TimerHandle_t xTimer);
@@ -1513,7 +1506,9 @@ void iframe_pops_off_queue(AX25_data_link_state_machine_t *state, AX25_event_t *
  *
  */
 void process_iframe(AX25_data_link_state_machine_t *state, AX25_PACKET *packet, AX25_data_link_state_t final_state) {
+#ifdef TRACE_AX25
     print_decoded_packet("AX25: Received I-frame: ",packet);
+#endif
     if (packet->command == AX25_RESPONSE) {
         // Response received, discard the iframe. i.e do nothing with it.
         ax25_send_event(state, DL_ERROR_Indicate, packet, ERROR_S);

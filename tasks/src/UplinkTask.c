@@ -22,14 +22,7 @@
 #include "pacsat_dir.h"
 #include "str_util.h"
 
-
-#define TRACE_FTL0
-#ifdef TRACE_FTL0
-#define trace_ftl0 printf
-#else
-#define trace_ftl0 //
-#endif
-
+/* Forward functions */
 void ftl0_status_callback();
 void ftl0_next_state_from_primative(ftl0_state_machine_t *state, AX25_event_t *event);
 void ftl0_state_uninit(ftl0_state_machine_t *state, AX25_event_t *event);
@@ -286,6 +279,8 @@ void ftl0_state_cmd_ok(ftl0_state_machine_t *state, AX25_event_t *event) {
                         // If we sent error successfully then we stay in state UL_CMD_OK and the station can try another file
                         break;
                     }
+                    debug_print("FTL0[%d]: %s: UL_GO_RESP - File: %04x \n",state->channel, state->callsign, state->file_id);
+
                     // We move to state UL_DATA_RX
                     state->ul_state = UL_DATA_RX;
                     break;
@@ -402,9 +397,10 @@ void ftl0_state_data_rx(ftl0_state_machine_t *state, AX25_event_t *event) {
                     trace_ftl0("FTL0[%d]: %s: UL_DATA_RX - DATA END RECEIVED\n",state->channel, state->callsign);
                     int err = ftl0_process_data_end_cmd(state, event->packet.data, event->packet.data_len);
                     if (err != ER_NONE) {
+                        debug_print(" FTL0[%d] SENDING %s NAK for file %04x\n",state->channel, state->callsign, state->file_id);
                         rc = ftl0_send_nak(event->packet.from_callsign, event->channel, err);
                     } else {
-                        debug_print(" *** SENDING ACK *** \n");
+                        debug_print(" FTL0[%d] SENDING %s ACK for file %04x\n",state->channel, state->callsign, state->file_id);
                         rc = ftl0_send_ack(event->packet.from_callsign, event->channel);
                     }
                     state->ul_state = UL_CMD_OK;
@@ -807,7 +803,7 @@ int ftl0_process_upload_cmd(ftl0_state_machine_t *state, uint8_t *data, int len)
 //        ul_go_data.server_file_no = dir_next_file_number();
         state->file_id = dir_next_file_number();
         ul_go_data.server_file_no = htotl(state->file_id);
-        debug_print("Allocated file id: %04x\n",state->file_id);
+        trace_ftl0("Allocated file id: %04x\n",state->file_id);
         // New file so start uploading from offset 0
         ul_go_data.byte_offset = 0;
         state->offset = 0;
@@ -822,7 +818,7 @@ int ftl0_process_upload_cmd(ftl0_state_machine_t *state, uint8_t *data, int len)
         }
         int32_t cc = red_close(fp);
         if (cc == -1) {
-            printf("Unable to close %s: %s\n", file_name_with_path, red_strerror(red_errno));
+            debug_print("Unable to close %s: %s\n", file_name_with_path, red_strerror(red_errno));
         }
 
     } else { // File number was supplied in the Upload command
@@ -857,7 +853,7 @@ int ftl0_process_upload_cmd(ftl0_state_machine_t *state, uint8_t *data, int len)
          }
          rc = red_close(fp);
          if (rc != 0) {
-             printf("Unable to close %s: %s\n", file_name_with_path, red_strerror(red_errno));
+             debug_print("Unable to close %s: %s\n", file_name_with_path, red_strerror(red_errno));
          }
 
          // TODO - we need to check file length with the length previously supplied

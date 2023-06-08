@@ -49,6 +49,23 @@
 #else
 #define debug_print //
 #endif
+
+//#define TRACE_AX25_DL
+#ifdef TRACE_AX25_DL
+#define trace_dl printf
+#else
+void NullPrint(char *, ...);
+#define trace_dl NullPrint
+#endif
+
+//#define TRACE_FTL0
+#ifdef TRACE_FTL0
+#define trace_ftl0 printf
+#else
+void NullPrint(char *, ...);
+#define trace_ftl0 NullPrint
+#endif
+
 /*
  * Lots of time definitions
  */

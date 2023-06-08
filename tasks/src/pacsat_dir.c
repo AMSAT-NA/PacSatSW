@@ -219,6 +219,7 @@ DIR_NODE * dir_add_pfh(char *file_name, HEADER *new_pfh) {
         /* store these values back in the header that the caller passed in */
         new_pfh->uploadTime = new_node->upload_time;
         new_pfh->fileId = new_node->file_id;
+        // TODO - store the filename in the header and save to disK??
 //        /* Regenerate the bytes and generate the checksums.  FileSize is body_offset + body_size */
 //        uint16_t body_offset = pfh_generate_header_bytes(new_pfh, new_pfh->fileSize - new_pfh->bodyOffset, pfh_byte_buffer);
 //        if (body_offset != new_node->body_offset) {
@@ -239,7 +240,7 @@ DIR_NODE * dir_add_pfh(char *file_name, HEADER *new_pfh) {
             dir_delete_node(new_node);
             return NULL;
         } else {
-            debug_print("Saved: %d\n",new_node->file_id);
+            debug_print("DIR: Saved File: %s\n",file_name_with_path);
         }
     }
     return new_node;
@@ -421,7 +422,7 @@ int dir_load_header(char *file_name_with_path, uint8_t *byte_buffer, int buffer_
  *
  */
 int dir_validate_file(HEADER *pfh, char *file_name_with_path) {
-    debug_print("DIR: Checking data in file: %s\n",file_name_with_path);
+    //debug_print("DIR: Checking data in file: %s\n",file_name_with_path);
 
     /* Now check the body */
     uint16_t body_checksum = 0;

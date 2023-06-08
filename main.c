@@ -313,3 +313,7 @@ void ConsoleTask(void *pvParameters){
 void vApplicationIdleHook(){
     ReportToWatchdog(IdleWD);
 }
+
+/* This is used to null out debug_print and debug trace statements when DEBUG is off */
+void NullPrint(char * format,...){
+};
