@@ -47,14 +47,16 @@
 #ifdef DEBUG_PRINT
 #define debug_print printf
 #else
-#define debug_print //
+void NullPrint(char *, ...);
+#define debug_print NullPrint
 #endif
 
 //#define TRACE_PB
 #ifdef TRACE_PB
 #define trace_pb printf
 #else
-#define trace_pb //
+void NullPrint(char *, ...);
+#define trace_pb NullPrint
 #endif
 
 
