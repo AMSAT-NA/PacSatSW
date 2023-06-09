@@ -98,6 +98,10 @@ static volatile uint32_t interruptBits = 0;
 bool JustReleasedFromBooster; //Extern definition
 bool AllTasksStarted = false,CoordinationMessageReceived = false,SimDoppler=false;
 resetMemory_t tempPrintReset;
+#ifndef DEBUG_PRINT
+void NullPrintRoutine(char * format,...){
+};
+#endif
 void startup(void)
 {
     /*
