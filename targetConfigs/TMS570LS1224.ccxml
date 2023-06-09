@@ -13,11 +13,11 @@
                         
             <instance XML_version="1.2" href="drivers/tixds510cortexR.xml" id="drivers" xml="tixds510cortexR.xml" xmlpath="drivers"/>
             
-            <property Type="choicelist" Value="1" id="Debug Probe Selection">
+            <property Type="choicelist" Value="0" id="Debug Probe Selection">
                                 
                 <choice Name="Select by serial number" value="0">
                                         
-                    <property Type="stringfield" Value="HL512000" id="-- Enter the serial number"/>
+                    <property Type="stringfield" Value="L2381111" id="-- Enter the serial number"/>
                                     
                 </choice>
                             

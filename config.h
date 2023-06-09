@@ -38,7 +38,7 @@
 #define COM1_BAUD 38400
 #define COM2_BAUD 38400
 #ifdef DEBUG
-#define DEBUG_PRINT
+//#define DEBUG_PRINT
 #endif
 
 // This is for Golf-Tee when this IHU is a backup
@@ -47,7 +47,9 @@
 #ifdef DEBUG_PRINT
 #define debug_print printf
 #else
-#define debug_print //
+//#define debug_print //
+   void NullPrintRoutine(char *,...);
+#define debug_print NullPrintRoutine
 #endif
 /*
  * Lots of time definitions
