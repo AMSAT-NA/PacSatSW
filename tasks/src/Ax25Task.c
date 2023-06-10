@@ -375,7 +375,8 @@ void ax25_process_frame(char *from_callsign, char *to_callsign, rx_channel_t cha
             // TODO - we should log this error and downlink in telemetry
         }
     } else {
-        debug_print("AX25: Unknown destination: %s - Packet Ignored\n",to_callsign);
+        /* Silently ignore this, probablly noise that looks like a packet */
+        //debug_print("AX25: Unknown destination: %s - Packet Ignored\n",to_callsign);
     }
 }
 
