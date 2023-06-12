@@ -1546,7 +1546,11 @@ void process_iframe(AX25_data_link_state_machine_t *state, AX25_PACKET *packet, 
                 if (state->own_receiver_busy) {
                     // Discard iframe i.e. ignore it
                     if (packet->PF == 1) {
-                        send_rr_frame(state, packet);
+                        state->response_packet = EMPTY_PACKET;
+                        state->response_packet.PF = 1;
+                        state->response_packet.command = AX25_RESPONSE;
+                        state->response_packet.NR = state->VR;
+                        ax25_send_response(state->channel, TYPE_S_RNR, state->callsign, &state->response_packet, NOT_EXPEDITED);
                     }
                     state->dl_state = final_state;
                     return;
@@ -1589,7 +1593,7 @@ void process_iframe(AX25_data_link_state_machine_t *state, AX25_PACKET *packet, 
                             // Discard Iframe by ignoring
                             state->reject_exception = true;
                             state->response_packet = EMPTY_PACKET;
-                            state->response_packet.PF = packet->PF;
+                            state->response_packet.PF = packet->PF & 0b1;
                             state->response_packet.command = AX25_RESPONSE;
                             state->response_packet.NR = state->VR;
                             ax25_send_response(state->channel, TYPE_S_REJ, state->callsign, &state->response_packet, NOT_EXPEDITED);
@@ -1609,7 +1613,8 @@ void process_iframe(AX25_data_link_state_machine_t *state, AX25_PACKET *packet, 
 }
 
 /**
- * Send an RR frame
+ * Send an RR frame when processing and I frame.  Called from the process I frame function
+ * which is called from the Connected and Timer Recovery States
  */
 void send_rr_frame(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
     state->response_packet = EMPTY_PACKET;
