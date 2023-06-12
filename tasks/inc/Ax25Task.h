@@ -25,7 +25,7 @@ typedef enum {
 } AX25_data_link_state_t;
 
 typedef enum {
-    DL_NO_PRIMATIVE = 0,
+    DL_NO_primitive = 0,
 // DL Primitives (Received from DL):
     DL_CONNECT_Confirm,
     DL_CONNECT_Indicate,
@@ -53,7 +53,7 @@ typedef enum {
 // LM Events sent to DL
     LM_SEIZE_Confirm,
     LM_DATA_Indicate
-} AX25_primative_t;
+} AX25_primitive_t;
 
 /*
  * Error Codes
@@ -87,7 +87,7 @@ typedef enum {
 
 typedef struct {
     rx_channel_t channel;
-    AX25_primative_t primative;
+    AX25_primitive_t primitive;
     AX25_PACKET packet; // This needs to be a copy to avoid the data being changed before it is processed
     ax25_error_t error_num;
 } AX25_event_t;

@@ -24,7 +24,7 @@
 
 /* Forward functions */
 void ftl0_status_callback();
-void ftl0_next_state_from_primative(ftl0_state_machine_t *state, AX25_event_t *event);
+void ftl0_next_state_from_primitive(ftl0_state_machine_t *state, AX25_event_t *event);
 void ftl0_state_uninit(ftl0_state_machine_t *state, AX25_event_t *event);
 void ftl0_state_cmd_wait(ftl0_state_machine_t *state, AX25_event_t *event);
 void ftl0_state_cmd_ok(ftl0_state_machine_t *state, AX25_event_t *event);
@@ -67,7 +67,7 @@ char *ax25_errors_strs[] = {
 "ERROR H not defined",
 "N2 timeouts: unacknowledged data.", // I
 "N(r) sequence ERROR_.", // J
-"ERROR K not defined",
+"ERROR K - Unexpected FRMR while connected",
 "Control field invalid or not implemented.", // L
 "Information field was received in a U or S-type frame.", // M
 "Length of frame incorrect for frame type.", // N
@@ -113,13 +113,27 @@ portTASK_FUNCTION_PROTO(UplinkTask, pvParameters)  {
                 // something is seriously wrong.  Programming error.  Unlikely to occur in flight
                 debug_print("ERR: AX25 channel %d is invalid\n",ax25_event.channel);
             } else {
-//                trace_ftl0("Received event: %d\n",ax25_event.primative);
+//                trace_ftl0("Received event: %d\n",ax25_event.primitive);
 
-                if (ax25_event.primative == DL_ERROR_Indicate) {
-                    // These are just for debugging.  Another event is sent if an action is needed.
-                    debug_print("FTL0[%d]: ERR from AX25: %s\n",ax25_event.channel, ax25_errors_strs[ax25_event.error_num]);
+                if (ax25_event.primitive == DL_ERROR_Indicate) {
+                    // Most of these are just for debugging.  Typically another event is sent if an action is needed.
+                    switch (ax25_event.error_num) {
+                        case ERROR_F : {
+                            trace_ftl0("FTL0[%d]: DATA LINK RESET from AX25\n",ax25_event.channel);
+                            // We dont offload the callsign, we just reset the state machine
+                            ftl0_state_machine[ax25_event.channel].ul_state = UL_CMD_OK;
+                            ftl0_state_machine[ax25_event.channel].file_id = 0;
+                            ftl0_state_machine[ax25_event.channel].request_time = 0;
+                            ftl0_state_machine[ax25_event.channel].length = 0;
+                            break;
+                        }
+                        default : {
+                            debug_print("FTL0[%d]: ERR from AX25: %s\n",ax25_event.channel, ax25_errors_strs[ax25_event.error_num]);
+                            break;
+                        }
+                    }
                 } else {
-                    ftl0_next_state_from_primative(&ftl0_state_machine[ax25_event.channel], &ax25_event);
+                    ftl0_next_state_from_primitive(&ftl0_state_machine[ax25_event.channel], &ax25_event);
                 }
             }
         }
@@ -156,7 +170,7 @@ enter UL_UNINIT.  We need to make sure that event is not putting us in a loop, w
 error or packet again and again.
 
 */
-void ftl0_next_state_from_primative(ftl0_state_machine_t *state, AX25_event_t *event) {
+void ftl0_next_state_from_primitive(ftl0_state_machine_t *state, AX25_event_t *event) {
     switch (state->ul_state) {
         case UL_UNINIT : {
             ftl0_state_uninit(state, event);
@@ -189,7 +203,7 @@ void ftl0_next_state_from_primative(ftl0_state_machine_t *state, AX25_event_t *e
 void ftl0_state_uninit(ftl0_state_machine_t *state, AX25_event_t *event) {
 
     trace_ftl0("FTL0[%d]: STATE UNINIT: ",state->channel);
-    switch (event->primative) {
+    switch (event->primitive) {
 
         case DL_DISCONNECT_Indicate : {
             trace_ftl0("Disconnect is in progress from Layer 2\n");
@@ -225,7 +239,7 @@ void ftl0_state_cmd_wait(ftl0_state_machine_t *state, AX25_event_t *event) {
 
 void ftl0_state_cmd_ok(ftl0_state_machine_t *state, AX25_event_t *event) {
     trace_ftl0("FTL0[%d]: STATE CMD OK: ",state->channel);
-    switch (event->primative) {
+    switch (event->primitive) {
 
         case DL_DISCONNECT_Indicate : // considered fatal, we don't wait for confirm
         case DL_DISCONNECT_Confirm : {
@@ -236,7 +250,7 @@ void ftl0_state_cmd_ok(ftl0_state_machine_t *state, AX25_event_t *event) {
         case DL_CONNECT_Indicate :
         case DL_CONNECT_Confirm : {
             trace_ftl0("Connection from Layer 2\n");
-            // Perhaos the other end missed the connection and was still trying.  Send the CMD OK message again.
+            // Perhaps the other end missed the connection and was still trying.  Send the CMD OK message again.
             ftl0_remove_request(event->channel); // remove them first
             ftl0_connection_received(event->packet.from_callsign, event->packet.to_callsign, event->channel);
             break;
@@ -345,7 +359,7 @@ void ftl0_state_cmd_ok(ftl0_state_machine_t *state, AX25_event_t *event) {
  */
 void ftl0_state_data_rx(ftl0_state_machine_t *state, AX25_event_t *event) {
     trace_ftl0("FTL0[%d]: STATE UL_DATA_RX: ",state->channel);
-    switch (event->primative) {
+    switch (event->primitive) {
 
         case DL_DISCONNECT_Indicate : {
             trace_ftl0("Disconnect is in progress from Layer 2\n");
@@ -430,7 +444,7 @@ void ftl0_state_data_rx(ftl0_state_machine_t *state, AX25_event_t *event) {
 
 void ftl0_state_abort(ftl0_state_machine_t *state, AX25_event_t *event) {
     trace_ftl0("FTL0: STATE ABORT: ");
-    switch (event->primative) {
+    switch (event->primitive) {
 
         case DL_DISCONNECT_Indicate : {
             trace_ftl0("Disconnect is in progress from Layer 2\n");
@@ -463,12 +477,12 @@ void ftl0_state_abort(ftl0_state_machine_t *state, AX25_event_t *event) {
  */
 bool ftl0_send_event(AX25_event_t *received_event, AX25_event_t *send_event) {
     send_event->channel = received_event->channel;
-    send_event->primative = DL_DATA_Request;
+    send_event->primitive = DL_DATA_Request;
     send_event->packet.frame_type = TYPE_I;
     strlcpy(send_event->packet.to_callsign, received_event->packet.from_callsign, MAX_CALLSIGN_LEN);
     strlcpy(send_event->packet.from_callsign, BBS_CALLSIGN, MAX_CALLSIGN_LEN);
 
-    if (send_event->primative == DL_DATA_Request) {
+    if (send_event->primitive == DL_DATA_Request) {
         // Add data events directly to the iFrame Queue
         BaseType_t xStatus = xQueueSendToBack( xIFrameQueue[received_event->channel], send_event, CENTISECONDS(1) );
         if( xStatus != pdPASS ) {
@@ -486,7 +500,7 @@ bool ftl0_send_event(AX25_event_t *received_event, AX25_event_t *send_event) {
             // TODO - we should log this error and downlink in telemetry
             return FALSE;
         } else {
-            trace_ftl0("FTL0[%d]: Sending Event %d\n",send_event->channel, send_event->primative);
+            trace_ftl0("FTL0[%d]: Sending Event %d\n",send_event->channel, send_event->primitive);
         }
     }
     return TRUE;
@@ -554,6 +568,7 @@ bool ftl0_remove_request(rx_channel_t channel) {
     ftl0_state_machine[channel].file_id = 0;
     ftl0_state_machine[channel].request_time = 0;
     ftl0_state_machine[channel].length = 0;
+    ftl0_state_machine[channel].callsign[0] = 0;
 
     return TRUE;
 }
@@ -656,7 +671,7 @@ bool ftl0_connection_received(char *from_callsign, char *to_callsign, rx_channel
  */
 bool ftl0_disconnect(char *to_callsign, rx_channel_t channel) {
     trace_ftl0("FTL0: Disconnecting: %s\n", to_callsign);
-    send_event_buffer.primative = DL_DISCONNECT_Request;
+    send_event_buffer.primitive = DL_DISCONNECT_Request;
 
     bool rc = ftl0_send_event(&ax25_event, &send_event_buffer);
 
