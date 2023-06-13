@@ -120,7 +120,7 @@ portTASK_FUNCTION_PROTO(UplinkTask, pvParameters)  {
                     switch (ax25_event.error_num) {
                         case ERROR_F : {
                             trace_ftl0("FTL0[%d]: DATA LINK RESET from AX25\n",ax25_event.channel);
-                            // We dont offload the callsign, we just reset the state machine
+                            // We don't off load the callsign, we just reset the state machine
                             ftl0_state_machine[ax25_event.channel].ul_state = UL_CMD_OK;
                             ftl0_state_machine[ax25_event.channel].file_id = 0;
                             ftl0_state_machine[ax25_event.channel].request_time = 0;
@@ -205,16 +205,16 @@ void ftl0_state_uninit(ftl0_state_machine_t *state, AX25_event_t *event) {
     trace_ftl0("FTL0[%d]: STATE UNINIT: ",state->channel);
     switch (event->primitive) {
 
-        case DL_DISCONNECT_Indicate : {
-            trace_ftl0("Disconnect is in progress from Layer 2\n");
-            // We consider this fatal and do not wait for the confirm message
+        /* We receive either a DISCONNECT Indicate or a Confirm.  We only receive the Confirm if we send DISC and actually received the UA
+         * frame from the other side.  Otherwise if we time out or we receive a DM from the other end then we get a DISCONNECT Indicate
+         * message */
+        case DL_DISCONNECT_Indicate :
+        case DL_DISCONNECT_Confirm : {
+            trace_ftl0("Disconnected from Layer 2\n");
             ftl0_remove_request(event->channel);
             break;
         }
-        case DL_DISCONNECT_Confirm : {
-            trace_ftl0("Disconnected from Layer 2\n");
-            break;
-        }
+        /* We receive either a CONNECT Indicate or a CONNECT Confirm.  We only get the confirm if the Uplink initiated the request  */
         case DL_CONNECT_Indicate : {
             trace_ftl0("Connection from Layer 2\n");
             ftl0_connection_received(event->packet.from_callsign, event->packet.to_callsign, event->channel);
@@ -241,7 +241,7 @@ void ftl0_state_cmd_ok(ftl0_state_machine_t *state, AX25_event_t *event) {
     trace_ftl0("FTL0[%d]: STATE CMD OK: ",state->channel);
     switch (event->primitive) {
 
-        case DL_DISCONNECT_Indicate : // considered fatal, we don't wait for confirm
+        case DL_DISCONNECT_Indicate :
         case DL_DISCONNECT_Confirm : {
             trace_ftl0("Disconnected from Layer 2\n");
             ftl0_remove_request(event->channel);

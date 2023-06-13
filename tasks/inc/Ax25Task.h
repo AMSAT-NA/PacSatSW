@@ -111,7 +111,10 @@ typedef struct {
     uint8_t VR;   /* Receive state variable.  The sequence number of the next expected received I frame.
                      Updated when an I frame received and their (NS) send sequence number equals VR */
     uint8_t RC;  /* Retry count.  When this equals AX25_RETRIES_N2 we disconnect. */
-    bool layer_3_initiated;  /* SABM was sent at request of Layer 3 (Uplink state machine) i.e. DL_CONNECT_Request */
+    int SRTInTicks; /* Smoothed round trip time for packets between the two stations */
+    int T1VInTicks; /* Calculated time for T1 timer */
+    int T1TimeWhenLastStoppedInTicks; /* Time on T1 when it was stopped */
+    bool layer_3_initiated_the_request;  /* SABM was sent at request of Layer 3 (Uplink state machine) i.e. DL_CONNECT_Request */
     bool peer_receiver_busy; /* Remote station is busy and can not receive I frames */
     bool own_receiver_busy;  /* Layer 3 (the Uplink state machine) is busy and can not reveive I frames */
     bool reject_exception;   /* A REJ frame has been sent to the remote station */

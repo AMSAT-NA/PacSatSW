@@ -306,8 +306,8 @@ void start_timer(TimerHandle_t timer) {
 #ifdef DEBUG
         trace_dl("AX25[%d]: Start Timer %s at %d\n", (rx_channel_t)chan, pcTimerGetTimerName(timer), getSeconds());
 #endif
-        portBASE_TYPE timerT1Status = xTimerStart(timer, 0); // Block time of zero as this can not block
-        if (timerT1Status != pdPASS) {
+        portBASE_TYPE timerStatus = xTimerStart(timer, 0); // Block time of zero as this can not block
+        if (timerStatus != pdPASS) {
             debug_print("ERROR: Failed in init Timer\n");
             // TODO =>        ReportError(RTOSfailure, FALSE, ReturnAddr, (int) PbTask); /* failed to create the RTOS timer */
             // TODO - it's possible this might fail.  Somehow we should recover from that.
@@ -331,8 +331,8 @@ void stop_timer(TimerHandle_t timer) {
     uint32_t chan = (uint32_t)pvTimerGetTimerID( timer ); // timer id is treated as an integer and not as a pointer
     trace_dl("AX25[%d]: Stop Timer %s at %d\n", (rx_channel_t)chan, pcTimerGetTimerName(timer), getSeconds());
 #endif
-    portBASE_TYPE timerT1Status = xTimerStop(timer, 0); // Block time of zero as this can not block
-    if (timerT1Status != pdPASS) {
+    portBASE_TYPE timerStatus = xTimerStop(timer, 0); // Block time of zero as this can not block
+    if (timerStatus != pdPASS) {
         debug_print("ERROR: Failed to stop T1 Timer\n");
     }
 }
@@ -384,8 +384,14 @@ void ax25_process_frame(char *from_callsign, char *to_callsign, rx_channel_t cha
 
 
 /**
- * Create a response packet.
- * The dl_state of command and PF are set already in the response packet
+ * Create a packet and send to TX for transmission.
+ * The dl_state of PF should already be set already in the response packet
+ * If NR needs to be set, then that should already be set too.
+ * If a packet can only be a COMMAND or RESPONSE then the TX will send it correctly.  If there
+ * is a choice then it should already be set correctly in the packet
+ *
+ * TODO - rename this ax25_send so that it is not confused with COMMAND/RESPONSE packets
+ *
  */
 void ax25_send_response(rx_channel_t channel, ax25_frame_type_t frame_type, char *to_callsign, AX25_PACKET *response_packet, bool expedited) {
     strlcpy(response_packet->to_callsign, to_callsign, MAX_CALLSIGN_LEN);
@@ -669,7 +675,7 @@ void ax25_state_wait_conn_prim(AX25_data_link_state_machine_t *state, AX25_event
         case DL_POP_IFRAME_Request : {
             trace_dl("I-frame Request or pop from Layer 3\n");
             // Is layer 3 initiated
-            if (state->layer_3_initiated) {
+            if (state->layer_3_initiated_the_request) {
                 // TODO - This is what the spec says to do, but we will get stuck in a loop unless a new frame received or we time out?
                 // Instead we could ignore the data and tell layer 3 we are disconnected.  i.e. reset it.
                 BaseType_t xStatus = xQueueSendToFront( xIFrameQueue[state->channel], event, CENTISECONDS(1) );
@@ -757,21 +763,14 @@ void ax25_state_wait_conn_packet(AX25_data_link_state_machine_t *state, AX25_PAC
         case TYPE_U_UA : {
             trace_dl("UA\n");
             if (packet->PF == 1) {
-                if (!state->layer_3_initiated) {
-                    /* TODO - More thought needed here...
-                     * In this unusual situation, how is layer 3 initiated
-                     * The revised spec is wrong and confused.  The original spec says
-                     * to send DL_CONNECT_Indicate to layer 3 but I interpret that as
-                     * calling set_layer_3_initiated, which sends the same message
-                     * The revised spec says to send DL_CONNECT_Confirm if VS != VA, but surely we
-                     * are connected in this situation regardless?
-                     */
+                if (state->layer_3_initiated_the_request) {
+                    ax25_send_event(state, DL_CONNECT_Confirm, packet, NO_ERROR); // This is the only time we send CONNECT_Confirm, because Layer 3 requested the connection
+                } else {
                     if (state->VS != state->VA) {
-                        discard_iframe_queue(state);
+                        discard_iframe_queue(state); // this was in the original spec and seems to make sense
+                        ax25_send_event(state, DL_CONNECT_Indicate, packet, NO_ERROR);
                     }
-                    set_layer_3_initiated(state);
                 }
-                ax25_send_event(state, DL_CONNECT_Confirm, packet, NO_ERROR);
                 stop_timer(timerT1[state->channel]);
                 start_timer(timerT3[state->channel]);
                 state->VS = 0;
@@ -1056,10 +1055,9 @@ void ax25_state_connected_packet(AX25_data_link_state_machine_t *state, AX25_PAC
         case TYPE_U_UA : {
             trace_dl("UA\n");
             // This would trigger us establishing the data link
-            // Send ERROR Messsage to Layer 3.  We are already connected.  Layer 3 can ignore this
             ax25_send_event(state, DL_ERROR_Indicate, NULL, ERROR_C);
             establish_data_link(state);
-            clear_layer_3_initiated(state);
+            clear_layer_3_initiated(state);  // TODO - these seems like a logic error.  When we connect normally we set_layer_3_initiated.  We may need to clear it first here, but surely it is then initialized?
             state->dl_state = AWAITING_CONNECTION;
             break;
         }
@@ -1186,7 +1184,7 @@ void ax25_state_timer_rec_prim(AX25_data_link_state_machine_t *state, AX25_event
             discard_iframe_queue(state);
             establish_data_link(state);
             set_layer_3_initiated(state);
-            state->dl_state = TIMER_RECOVERY;
+            state->dl_state = AWAITING_CONNECTION;
             break;
         }
        case DL_TIMER_T1_Expire : {
@@ -1202,18 +1200,18 @@ void ax25_state_timer_rec_prim(AX25_data_link_state_machine_t *state, AX25_event
                 } else {
                     ax25_send_event(state, DL_ERROR_Indicate, &event->packet, ERROR_I);
                 }
-                ax25_send_event(state, DL_DISCONNECT_Confirm, &event->packet, NO_ERROR); // Tell Layer 3 link is dead
+                ax25_send_event(state, DL_DISCONNECT_Indicate, &event->packet, NO_ERROR); // Tell Layer 3 link is dead
                 discard_iframe_queue(state);
                 // Send DM Response F=0
                 state->response_packet = EMPTY_PACKET;
-                state->response_packet.PF = 1;
+                state->response_packet.PF = 0; // Send F = 0 as per DireWolf because this is not a response to P = 1.  This differs from the spec.
                 state->response_packet.command = AX25_RESPONSE;
                 ax25_send_response(state->channel, TYPE_U_DM, state->callsign, &state->response_packet, NOT_EXPEDITED);
                 state->dl_state = DISCONNECTED;
             } else {
                 transmit_enquiry(state);
-                state->dl_state = TIMER_RECOVERY;
                 state->RC = state->RC + 1;
+                state->dl_state = TIMER_RECOVERY;
             }
             break;
         }
@@ -1250,7 +1248,7 @@ void ax25_state_timer_rec_packet(AX25_data_link_state_machine_t *state, AX25_PAC
         case TYPE_U_DM : {
             trace_dl("DM\n");
             ax25_send_event(state, DL_ERROR_Indicate, packet, ERROR_E);
-            ax25_send_event(state, DL_DISCONNECT_Confirm, packet, NO_ERROR);
+            ax25_send_event(state, DL_DISCONNECT_Indicate, packet, NO_ERROR);
             discard_iframe_queue(state);
             stop_timer(timerT3[state->channel]);
             stop_timer(timerT1[state->channel]);
@@ -1260,7 +1258,7 @@ void ax25_state_timer_rec_packet(AX25_data_link_state_machine_t *state, AX25_PAC
         case TYPE_U_SABM : {
             trace_dl("SABM\n");
             state->response_packet = EMPTY_PACKET; // zero out the packet
-            state->response_packet.PF = packet->PF;
+            state->response_packet.PF = packet->PF & 0b1;
             // Set version 2.0 - we already have the default values of MODULO 8 and no SREJ.
             ax25_send_response(state->channel, TYPE_U_UA, state->callsign, &state->response_packet, NOT_EXPEDITED);
             clear_exception_conditions(state);
@@ -1306,11 +1304,11 @@ void ax25_state_timer_rec_packet(AX25_data_link_state_machine_t *state, AX25_PAC
             trace_dl("DISC\n");
             discard_iframe_queue(state);
             state->response_packet = EMPTY_PACKET; // zero out the packet
-            state->response_packet.PF = packet->PF;
+            state->response_packet.PF = packet->PF & 0b1;
             ax25_send_response(state->channel, TYPE_U_UA, state->callsign, &state->response_packet, NOT_EXPEDITED);
             ax25_send_event(state, DL_DISCONNECT_Indicate, packet, NO_ERROR);
             stop_timer(timerT3[state->channel]);
-            stop_timer(timerT1[state->channel]);  // TODO - the flow diagram says START T1, but that makes no sense
+            stop_timer(timerT1[state->channel]);
             state->dl_state = DISCONNECTED;
             break;
         }
@@ -1642,7 +1640,7 @@ void clear_exception_conditions(AX25_data_link_state_machine_t *state) {
     state->peer_receiver_busy = false;
     state->own_receiver_busy = false;
     state->reject_exception = false;
-    state->srej_exception = false;
+    state->srej_exception = 0;
     state->achnowledge_pending = false;
     discard_iframe_queue(state);
 }
@@ -1685,16 +1683,15 @@ void enquiry_response(AX25_data_link_state_machine_t *state, AX25_PACKET *packet
             ax25_send_response(state->channel, TYPE_S_RNR, state->callsign, &state->response_packet, NOT_EXPEDITED);
             state->achnowledge_pending = false;
             return;
+        } else {
+            // SREJ is not enabled, otherwise additional logic needed here for out of sequence frames and SREJ
+            // Instead, just send RR
         }
-    } else {
-        // SREJ is not enabled, otherwise additional logic needed here for out of sequence frames and SREJ
-        // Instead, just send RR
     }
 
     ax25_send_response(state->channel, TYPE_S_RR, state->callsign, &state->response_packet, NOT_EXPEDITED);
     state->achnowledge_pending = false;
     return;
-
 }
 
 /**
@@ -1774,7 +1771,7 @@ void check_iframes_acknowledged(AX25_data_link_state_machine_t *state, AX25_PACK
             state->VA = packet->NR;
             stop_timer(timerT1[state->channel]);
             start_timer(timerT3[state->channel]);
-            //TODO - we do not  Select T1 Value
+            // Here we would  Select T1 Value
         } else {
             // then not all frames ACK'd
             if (packet->NR != state->VA) { // we got an ack for part of the frames we have sent, but not all
@@ -1783,7 +1780,7 @@ void check_iframes_acknowledged(AX25_data_link_state_machine_t *state, AX25_PACK
                 start_timer(timerT1[state->channel]);
             }
             // otherwise the RR had an NR equal to the VA we already have.  A second confirmation of where we are
-            // but if our VS is out in front, don't we need to resend the frame?  What if VS > NR - then our integrity check fails below
+            // but if our VS is out in front, don't we need to resend the frame?  What if VS > NR -
         }
     }
 }
@@ -1823,14 +1820,95 @@ void check_need_for_response(AX25_data_link_state_machine_t *state, AX25_PACKET 
     }
 }
 
-void clear_layer_3_initiated(AX25_data_link_state_machine_t *state) {
-    ax25_send_event(state, DL_DISCONNECT_Confirm, NULL, NO_ERROR);
-    state->layer_3_initiated = false;
+void ui_check(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
+    if (packet->command == AX25_COMMAND) {
+        if (packet->data_len < AX25_MAX_INFO_BYTES_LEN) {
+            // DL_UINT_DATA_Indication
+        } else {
+            ax25_send_event(state, DL_ERROR_Indicate, packet, ERROR_K);
+        }
+    } else {
+        ax25_send_event(state, DL_ERROR_Indicate, packet, ERROR_Q);
+    }
+
 }
 
+/**
+ * select_t1_value()
+ * This calculates the value in RTOS Ticks.  However, it is currently not used.  A dynamic time for T1
+ * is used in AX25 to cope with Digipeters in the path.  That is not currently in scope for PACSAT. If
+ * we decide that digipeter paths via one or more spacecraft will be supported in some way, then this
+ * may need to be implemented.
+ *
+ * Here are implementation notes from DireWolf.  This is not adopted here, but these notes are left in
+ * case we implement in the future.  They come from this file:
+ * https://github.com/wb2osz/direwolf/blob/master/src/ax25_link.c
+ *
+ * WB2OSZ: It seems like a good idea to adapt to channel conditions, such as digipeater delays,
+ *      but it is fraught with peril if you are not careful.
+ *
+ *      For example, if we accept an incoming connection and only receive some I frames and
+ *      send no I frames, T1 never gets started.  In my earlier attempt, 't1_remaining_when_last_stopped'
+ *      had the initial value of 0 lacking any reason to set it differently.   The calculation here
+ *      then kept pushing t1v up up up.  After receiving 20 I frames and sending none,
+ *      t1v was over 300 seconds!!!
+ *
+ *      We need some way to indicate that 't1_remaining_when_last_stopped' is not valid and
+ *      not to use it.  Rather than adding a new variable, it is set to a negative value
+ *      initially to mean it has not been set yet.  That solves one problem.
+ *
+ *      T1 is paused whenever the channel is busy, either transmitting or receiving,
+ *      so the measured time could turn out to be a tiny fraction of a second, much less than
+ *      the frame transmission time.
+ *      If this gets too low, an unusually long random delay, before the sender's transmission,
+ *      could exceed this.  I put in a lower limit for t1v, currently 1 second.
+ *
+ *      What happens if we get multiple timeouts because we don't get a response?
+ *      For example, when we try to connect to a station which is not there, a KPC-3+ will give
+ *      up and report failure after 10 tries x 4 sec = 40 seconds.
+ *
+ *      The algorithm in the AX.25 protocol spec shows increasing timeout values.
+ *      It might seem like a good idea but either it was not thought out very well
+ *      or I am not understanding it.  If it is doubled each time, it gets awful large
+ *      very quickly.   If we try to connect to a station which is not there,
+ *      we want to know within a minute, not an hour later.
+ *
+ *      Keeping with the spirit of increasing the time but keeping it sane,
+ *      I increase the time linearly by a fraction of a second.
+ *
+ *
+ */
+void select_t1_value(AX25_data_link_state_machine_t *state) {
+    if (state->RC == 0) {
+        state->SRTInTicks = 7 * state->SRTInTicks/8 + AX25_TIMER_T1_PERIOD/8 - state->T1TimeWhenLastStoppedInTicks/8;
+        state->T1VInTicks = state->SRTInTicks * 2;
+    } else {
+        BaseType_t act = xTimerIsTimerActive(timerT1[state->channel]);
+        if (act != pdPASS) {
+            // Expired
+            state->T1VInTicks = (int)(state->RC / 4 + state->SRTInTicks * 2);
+        }
+    }
+}
+
+/**
+ * We are making a connection request but it is not initiated by Layer 3.
+ * This could be a reset of the data link due to a received frame from the
+ * other end.
+ */
+void clear_layer_3_initiated(AX25_data_link_state_machine_t *state) {
+    state->layer_3_initiated_the_request = false;
+}
+
+/**
+ * set_layer_3_initiated()
+ *
+ * This means Layer 3 asked for a connection
+ *
+ * Layer 3 will be sent a DL_CONNECT_Confirm when the UA frame is received.
+ */
 void set_layer_3_initiated(AX25_data_link_state_machine_t *state) {
-    ax25_send_event(state, DL_CONNECT_Indicate, NULL, NO_ERROR);
-    state->layer_3_initiated = true;
+    state->layer_3_initiated_the_request = true;
 }
 
 
