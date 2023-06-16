@@ -3,6 +3,20 @@
  *
  *  Created on: Feb 20, 2023
  *      Author: g0kla
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>
+ *
  */
 
 
@@ -180,6 +194,7 @@ uint8_t ax25_decode_packet(uint8_t *packet, int len, AX25_PACKET *decoded_packet
         if ((len - offset - 2) > AX25_MAX_INFO_BYTES_LEN) {
             debug_print("ERR: ax25_decode_packet() Too many bytes for an I-frame.  Data would overflow.\n");
             // TODO - per the AX25 spec, this sort of error should cause re-establishment of the data link if in connected mode.
+            // We should return a negative number with an AX25 ERROR code if this fails then the state machine can process the error
             return FALSE;
         }
         decoded_packet->frame_type = TYPE_I;

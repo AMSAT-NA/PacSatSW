@@ -42,8 +42,6 @@ static bool Txing[NUM_AX5043_SPI_DEVICES+4];
 /* This lookup table returns the SPIDevice id for a given AX5043Device id */
 static SPIDevice ax5043_spi_devices[] = {DCTDev0,DCTDev1};
 
-
-// TODO - this is only relevant if we are in half duplex emergency mode (which is TBD)
 bool IsRxing(AX5043Device device){
     return Rxing[device];
 }

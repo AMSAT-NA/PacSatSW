@@ -38,6 +38,14 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)  {
     // TODO - this is just for testing
     //METTelemetryReady();
 
+    /* After a short delay for things to settle, send the status to indicate we have rebooted */
+    vTaskDelay(SECONDS(1));
+    pb_send_status();
+    /* Wait a bit longer for ground stations to time out and then send uplink status */
+    vTaskDelay(SECONDS(6));
+    ax25_send_status();
+
+
     while(1) {
         Intertask_Message messageReceived;
         int status;

@@ -3,6 +3,20 @@
  *
  *  Created on: Dec 1, 2022
  *      Author: g0kla
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>
+ *
  */
 
 #include "ctype.h"
@@ -74,10 +88,10 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)  {
             fifo_commit(device);
             //       printf("INFO: Waiting for transmission to complete\n");
 
-            // TODO - we don't really want to wait here.  While the TX is transmitting we can be yielding and doing other things
+            // TODO - we need to support longer packets
             // Setup the interrupt to tell us when the buffer is empty and we can check the TX status then
             while (ax5043ReadReg(device, AX5043_RADIOSTATE) != 0) {
-                vTaskDelay(1);
+                vTaskDelay(1); // this will yield and allow other processing while it transmits
             }
             //       printf("INFO: Transmission complete\n");
         }
@@ -312,7 +326,6 @@ bool tx_send_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint
  *
  * Returns false if there is an issue
  *
- * TODO - Expedited is passed in but not yet implemented
  * TODO - channel is passed in but not yet implemented.  Only 1 TX channel is assumed
  */
 bool tx_send_packet(rx_channel_t channel, AX25_PACKET *packet, bool expedited, bool block) {

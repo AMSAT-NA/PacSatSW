@@ -719,7 +719,7 @@ int pb_handle_file_request(char *from_callsign, uint8_t *data, int len) {
             // We could not get the file size
             // TODO - we should either remove the file from the directory as well, or send a temporary error
             //        This will permanently mark the file as unavailable at the ground station, but it is still
-            //        in the DIR
+            //        in the DIR.  Most likely the disk was full or another process held a lock
             rc = pb_send_err(from_callsign, PB_ERR_FILE_NOT_AVAILABLE);
             if (rc != TRUE) {
                 debug_print("\n Error : Could not send ERR Response to TNC \n");
@@ -1102,8 +1102,6 @@ int pb_make_dir_broadcast_packet(DIR_NODE *node, uint8_t *data_bytes, uint32_t *
     int buffer_size = node->body_offset - *offset;  /* This is how much we have left to read */
     if (buffer_size <= 0) return 0; /* This is a failure as we return length 0 */
     if (buffer_size >= MAX_DIR_PFH_LENGTH) {
-        /* If we have an offset then we have already sent part of this, send the next part */
-        // TODO - pass the offset into this function..
         buffer_size = MAX_DIR_PFH_LENGTH;
     }
 
@@ -1120,7 +1118,6 @@ int pb_make_dir_broadcast_packet(DIR_NODE *node, uint8_t *data_bytes, uint32_t *
     *offset = *offset + buffer_size;
 
     length = sizeof(PB_DIR_HEADER) + buffer_size +2;
-    // TODO - no checksum yet
     int checksum = crc16(data_bytes, length-2);
     //debug_print("crc: %04x\n",checksum);
 

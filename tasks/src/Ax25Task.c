@@ -116,7 +116,7 @@ static xTimerHandle timerT3[NUM_OF_RX_CHANNELS];
 
 static rx_radio_buffer_t ax25_radio_buffer; /* Static storage for packets from the radio */
 static AX25_data_link_state_machine_t data_link_state_machine[NUM_OF_RX_CHANNELS];
-static const AX25_PACKET EMPTY_PACKET; // Use this to reset packet to zero
+static const AX25_PACKET EMPTY_PACKET; /* Use this to reset packet to zero */
 static AX25_event_t ax25_received_event; /* Static storage for received event */
 static AX25_event_t send_event_buffer; /* Static storage for event we are sending */
 static AX25_event_t timer_event; /* Static storage for timer events */
@@ -310,7 +310,7 @@ void start_timer(TimerHandle_t timer) {
         if (timerStatus != pdPASS) {
             debug_print("ERROR: Failed in init Timer\n");
             // TODO =>        ReportError(RTOSfailure, FALSE, ReturnAddr, (int) PbTask); /* failed to create the RTOS timer */
-            // TODO - it's possible this might fail.  Somehow we should recover from that.
+            // - it's possible this might fail.  Somehow we should recover from that.
         }
     }
 }
@@ -360,10 +360,11 @@ void ax25_process_frame(char *from_callsign, char *to_callsign, rx_channel_t cha
             if (strcasecmp(data_link_state_machine[channel].callsign, from_callsign) == 0) {
                 ax25_next_state_from_packet(&data_link_state_machine[channel], &data_link_state_machine[channel].decoded_packet);
             } else {
-                debug_print("AX25: BUSY!\n");
-                // TODO - send a DM or just ignore?
-//                data_link_state_machine[channel].response_packet = EMPTY_PACKET; // zero out the packet
-//                ax25_send_dm(data_link_state_machine.channel, &data_link_state_machine[channel].decoded_packet, &data_link_state_machine[channel].response_packet);
+                //debug_print("AX25: BUSY!\n");
+                /* Send a DM with P=1 as we can not accept a connection or other frames */
+                data_link_state_machine[channel].response_packet = EMPTY_PACKET; // zero out the packet
+                data_link_state_machine[channel].response_packet.PF = 1;
+                ax25_send_response(channel, TYPE_U_DM, from_callsign, &data_link_state_machine[channel].response_packet, NOT_EXPEDITED);
             }
         }
     } else if (strcasecmp(to_callsign, BROADCAST_CALLSIGN) == 0) {
@@ -837,14 +838,12 @@ void ax25_state_wait_release_packet(AX25_data_link_state_machine_t *state, AX25_
         case TYPE_U_UA : {
             trace_dl("UA\n");
             if (packet->PF == 1) {
-                //TODO - DL Disconnect Confirm sent to layer 3, but it is not processed
                 ax25_send_event(state, DL_DISCONNECT_Confirm, NULL, NO_ERROR);
 
                 // Stop T1
                 stop_timer(timerT1[state->channel]);
                 state->dl_state = DISCONNECTED;
             } else {
-                // TODO error number needs to be processed in layer 3, otherwise we are stuck
                 ax25_send_event(state, DL_ERROR_Indicate, NULL, ERROR_D);
             }
             break;
@@ -1057,7 +1056,7 @@ void ax25_state_connected_packet(AX25_data_link_state_machine_t *state, AX25_PAC
             // This would trigger us establishing the data link
             ax25_send_event(state, DL_ERROR_Indicate, NULL, ERROR_C);
             establish_data_link(state);
-            clear_layer_3_initiated(state);  // TODO - these seems like a logic error.  When we connect normally we set_layer_3_initiated.  We may need to clear it first here, but surely it is then initialized?
+            clear_layer_3_initiated(state);
             state->dl_state = AWAITING_CONNECTION;
             break;
         }
@@ -1074,7 +1073,7 @@ void ax25_state_connected_packet(AX25_data_link_state_machine_t *state, AX25_PAC
             ax25_send_response(state->channel, TYPE_U_UA, state->callsign, &state->response_packet, NOT_EXPEDITED);
             ax25_send_event(state, DL_DISCONNECT_Indicate, packet, NO_ERROR);
             stop_timer(timerT3[state->channel]);
-            stop_timer(timerT1[state->channel]);  // TODO - the flow diagram says START T1, but that makes no sense
+            stop_timer(timerT1[state->channel]);  // This is set to STOP as per the previous flow chart and DireWolf
             state->dl_state = DISCONNECTED;
             break;
         }
@@ -1750,18 +1749,14 @@ void invoke_retransmission(AX25_data_link_state_machine_t *state, int NR) {
 
 /**
  * We have received a frame with an NR that is an ack for all frames up to that
- * point.  Or rather it says "I am ready for the next number NR", achnowledging through NR -1.
+ * point.  Or rather it says "I am ready for the next number NR", acknowledging through NR -1.
  * We set VA equal to that NR number
- * TODO:
- * Our iFramesSent[] array holds the frames that we have sent.  This means we can delete (null)
- * this frame.  This is not required, but will help to show any bugs where we try to re-send a
- * frame that was already ack'd.  Note that it could be multiple frames.
  *
  */
 void check_iframes_acknowledged(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
     if (state->peer_receiver_busy) {
         state->VA = packet->NR;
-        start_timer(timerT3[state->channel]);  // TODO - revised flow chart says STOP T3. But PSGS and direwold have Start T3 per the old flow chart.
+        start_timer(timerT3[state->channel]);  // revised flow chart says STOP T3. But PSGS and direwold have Start T3 per the old flow chart.
         BaseType_t act = xTimerIsTimerActive(timerT1[state->channel]);
          if (act != pdPASS) {
              start_timer(timerT1[state->channel]);
@@ -1927,8 +1922,6 @@ bool VA_lte_NR_lte_VS(AX25_data_link_state_machine_t *state, int nr) {
 
 /**
  * Shift by VA or VR depending on what you pass in
- * TODO - this is ported code, but all modulo should use the ax25_MODULO function
- * DireWolf implements this as ax25_MODULO(x) - S->VA
  */
 int shiftByV(int x, int VA) {
     return (x - VA) & (MODULO-1);
@@ -1938,6 +1931,8 @@ int AX25_MODULO(int vs) {
     return (vs & (MODULO-1)); // uses masking rather than % so that negative numbers handled correctly
 }
 
+
+#ifdef DEBUG
 /**
  * TEST FUNCTIONS FOLLOW
  */
@@ -1973,3 +1968,5 @@ bool test_ax25_retransmission() {
     in_test = FALSE;
     return TRUE;
 }
+
+#endif

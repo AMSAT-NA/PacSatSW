@@ -1,5 +1,5 @@
-// PSK Transmit routines for AMSAT GOLF-TEE
-// R. Gopstein, Feb 2020
+// AX25 Configuration for the AX Radios
+// Chris Thompson G0KLA / VE2TCP 2023
 
 // Portions of the code below are subject to the following licenses:
 
@@ -73,7 +73,7 @@ static uint8_t ax5043_ax25_init_registers_common(AX5043Device device);
 static uint8_t ax5043_ax25_init_registers_tx(AX5043Device device, bool band_vhf, bool rate_9600);
 static uint8_t ax5043_ax25_init_registers_rx(AX5043Device device, bool band_vhf, bool rate_9600);
 
-/// TODO - these variables need to be indeced by AX5043Device id
+/// TODO - these variables need to be indexed by AX5043Device id
 
 /* Variables */
 static volatile uint8_t axradio_mode = AXRADIO_MODE_UNINIT;
@@ -91,17 +91,8 @@ const uint8_t axradio_phy_vcocalib = 0;
 uint8_t axradio_phy_chanvcoi[1];
 const uint8_t axradio_phy_chanvcoiinit[1] = { 0x97 };
 
-// TODO - confirm these were LEGACY_GOLF and can be removed
-//extern const uint8_t axradio_framing_swcrclen;
-////extern const uint8_t axradio_phy_innerfreqloop;
-//extern const uint8_t axradio_phy_pn9;
-//extern const uint8_t axradio_framing_addrlen;
-//extern const uint8_t axradio_framing_destaddrpos;
 
 static const int8_t  axradio_phy_rssireference = 57;// 0xF9 + 64;
-//extern const int8_t axradio_phy_rssireference;
-
-
 
 /**
  * FIRST ALL OF THE SETTINGS THAT ARE COMMON TO BOTH BANDS AND FOR RX AND TX
@@ -395,10 +386,10 @@ static void ax5043_ax25_set_registers(AX5043Device device, bool band_vhf, bool r
   ax5043WriteReg(device, AX5043_FOURFSK3                ,0x16); // per radio lab
   ax5043WriteReg(device, AX5043_BBOFFSRES3              ,0x00); // per radio lab
 
-  /* TODO - G0KLA - Signal filtering, for now per Jonathons code
+  /*
    * 03 is Gaussian BT = 0.5.  02 is Gaussian with BT = 0.3 and 00 is no filtering. */
   if (rate_9600) {
-      ax5043WriteReg(device, AX5043_MODCFGF                 ,0x03); // TX only  TODO - radio lab says 00, but is that for FSk or because I selected wrong.  Surely we want filtering
+      ax5043WriteReg(device, AX5043_MODCFGF                 ,0x03); // TX only  TODO - radio lab says 00, but is that for FSK or because I selected wrong.  Surely we want filtering
   } else {
       ax5043WriteReg(device, AX5043_MODCFGF                 ,0x03); // TX only
   }
@@ -416,7 +407,7 @@ static void ax5043_ax25_set_registers(AX5043Device device, bool band_vhf, bool r
       ax5043WriteReg(device, AX5043_FSKDEV1                 ,0x0A);
       ax5043WriteReg(device, AX5043_FSKDEV0                 ,0x8E);
   }
-  //TODO - G0KLA Sets up ANTENNA, MODCFGA sets bit shape as well, we should likely read first and just set the bits needed
+  /* Sets up ANTENNA, MODCFGA sets bit shape as well */
   ax5043WriteReg(device, AX5043_MODCFGA                 ,0x05); // TX differential antenna
   //ax5043WriteReg(device, AX5043_MODCFGA                 ,0x06); // TX Single ended through antenna
 
@@ -492,7 +483,7 @@ static void ax5043_ax25_set_registers(AX5043Device device, bool band_vhf, bool r
   ax5043WriteReg(device, AX5043_MATCH0PAT0              ,0xCC);
 //  ax5043WriteReg(device, AX5043_MATCH0LEN               ,0x00); // zero means pattern length is zero.  Match 0 used for Preamble 2
 //  ax5043WriteReg(device, AX5043_MATCH0MAX               ,0x7E);
-  ax5043WriteReg(device, AX5043_MATCH1PAT1              ,0x7E);  /// 7E for 1200  TODO - does this stay the same for 9600??
+  ax5043WriteReg(device, AX5043_MATCH1PAT1              ,0x7E);  /// 7E for 1200
   ax5043WriteReg(device, AX5043_MATCH1PAT0              ,0x7E);
   if (rate_9600) // unclear if this needs to be different, but it is from radio lab
       ax5043WriteReg(device, AX5043_MATCH1LEN               ,0x0A); // Bit 7 - 1 = raw, 0 = scrambled
@@ -536,10 +527,10 @@ static void ax5043_ax25_set_registers(AX5043Device device, bool band_vhf, bool r
 #endif
 
   ax5043WriteReg(device, AX5043_0xF1C                   ,0x07); // Programming manual specifies this value
-  ax5043WriteReg(device, AX5043_0xF21                   ,0x68); // TODO - Programming manual specifies 5C
-  ax5043WriteReg(device, AX5043_0xF22                   ,0xFF); // TODO - Programming manual specifies 53
-  ax5043WriteReg(device, AX5043_0xF23                   ,0x84); // TODO - Programming manual specifies 76
-  ax5043WriteReg(device, AX5043_0xF26                   ,0x98); // TODO - Programming manual specifies 92
+  ax5043WriteReg(device, AX5043_0xF21                   ,0x68); // From RadioLab
+  ax5043WriteReg(device, AX5043_0xF22                   ,0xFF); // From RadioLab
+  ax5043WriteReg(device, AX5043_0xF23                   ,0x84); // From RadioLab
+  ax5043WriteReg(device, AX5043_0xF26                   ,0x98); // From RadioLab
 
   /**
    * PERFTUNE52
@@ -760,7 +751,7 @@ uint8_t axradio_init(AX5043Device device, bool band_vhf, int32_t freq, bool rate
     // range all channels
     ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_XTAL_ON);
     ax5043WriteReg(device, AX5043_MODULATION              ,0x08); // GOLF uses 08.  It should not matter as just fopr ranging.  07 is FSK. 0A is AFSK.  0x04 is PSK
-    // TODO - should the freq dev be set to zero values here to make ranging work better??  It is in the GOLF code vs 0a8e
+    // The freq dev be set to zero values here to make ranging work better
     ax5043WriteReg(device, AX5043_FSKDEV2                 ,0x00);
     ax5043WriteReg(device, AX5043_FSKDEV1                 ,0x00);
     ax5043WriteReg(device, AX5043_FSKDEV0                 ,0x00);

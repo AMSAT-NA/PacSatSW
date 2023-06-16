@@ -1,8 +1,7 @@
 /**
  * ax5043.h
  *
- * TODO - things are not fully organized in this way currently, but this is the plan
- * This include file should include settings that are generic to all AX5043
+ * This file should include settings that are generic to all AX5043
  * Settings and functions that are true across all modes and frequencies should be in ax5043_access.h
  * Settings and functions that are specific to the AX25 configuration should be in ax5043_ax25.h
  *

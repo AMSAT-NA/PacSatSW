@@ -3,6 +3,20 @@
  *
  *  Created on: May 3, 2023
  *      Author: g0kla
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>
+ *
  */
 #include <strings.h>
 
@@ -276,9 +290,7 @@ void ftl0_state_cmd_ok(ftl0_state_machine_t *state, AX25_event_t *event) {
                     /* if OK to upload send UL_GO_RESP.  We determine if it is OK by checking if we have space
                      * and that it is a valid continue of file_id != 0
                      * This will send UL_GO_DATA packet if checks pass
-                     * TODO - the code might be clearer if this parses the request then returns here and then we
-                     * send the packet from here.  Then all packet sends are from this level of the state machine.
-                     * But this case within case is already long ... */
+ */
                     int err = ftl0_process_upload_cmd(state, event->packet.data, event->packet.data_len);
                     if (err != ER_NONE) {
                         // send the error
@@ -361,12 +373,7 @@ void ftl0_state_data_rx(ftl0_state_machine_t *state, AX25_event_t *event) {
     trace_ftl0("FTL0[%d]: STATE UL_DATA_RX: ",state->channel);
     switch (event->primitive) {
 
-        case DL_DISCONNECT_Indicate : {
-            trace_ftl0("Disconnect is in progress from Layer 2\n");
-            // We consider this fatal and do not wait for the confirm message
-            ftl0_remove_request(event->channel);
-            break;
-        }
+        case DL_DISCONNECT_Indicate :
         case DL_DISCONNECT_Confirm : {
             trace_ftl0("Disconnected from Layer 2\n");
             ftl0_remove_request(event->channel);
@@ -446,12 +453,7 @@ void ftl0_state_abort(ftl0_state_machine_t *state, AX25_event_t *event) {
     trace_ftl0("FTL0: STATE ABORT: ");
     switch (event->primitive) {
 
-        case DL_DISCONNECT_Indicate : {
-            trace_ftl0("Disconnect is in progress from Layer 2\n");
-            // We consider this fatal and do not wait for the confirm message
-            ftl0_remove_request(event->channel);
-            break;
-        }
+        case DL_DISCONNECT_Indicate :
         case DL_DISCONNECT_Confirm : {
             trace_ftl0("Disconnected from Layer 2\n");
             ftl0_remove_request(event->channel);
@@ -871,7 +873,7 @@ int ftl0_process_upload_cmd(ftl0_state_machine_t *state, uint8_t *data, int len)
              debug_print("Unable to close %s: %s\n", file_name_with_path, red_strerror(red_errno));
          }
 
-         // TODO - we need to check file length with the length previously supplied
+         // TODO - we need to check file length with the length previously supplied - LIST IN MRAM
          /* if <continue_file_no> is not 0 and the <file_length> does not
              agree with the <file_length> previously associated with the file identified by
              <continue_file_no>.  Continue is not possible.*/

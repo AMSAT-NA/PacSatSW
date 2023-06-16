@@ -444,7 +444,7 @@ void copyAndPack(uint8_t *byteBuf, FECBufferReturn *newBuffer, bool *startWithSy
 //    currentFrameBytes = (currentFrameWords * 10) / 8;
 //    currentFrameRemainder = (currentFrameWords * 10) % 8;
 
-    // Check for MAX_TELEM_BYTES - TODO RBG
+    // Check for MAX_TELEM_BYTES -
 
     //printf("In copyAndPack: newBuffer->length: %d\n", newBuffer->length);
     //printf("start: %d\n", start);

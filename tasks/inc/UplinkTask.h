@@ -83,8 +83,6 @@ typedef struct {
     uint32_t request_time; /* The time the request was received for timeout purposes */
     uint32_t offset;
     uint32_t length;
-    //AX25_PACKET decoded_packet;
-    //AX25_PACKET response_packet;
 } ftl0_state_machine_t;
 
 #endif /* TASKS_INC_UPLINKTASK_H_ */
