@@ -64,7 +64,7 @@ static uint8_t pfh_byte_buffer[MAX_BYTES_IN_PACSAT_FILE_HEADER]; /* Maximum size
  * This returns the next file number available for the upload process.
  * TODO - this will not cope well with failed uploads.  Those ids will be lost and
  * never used.  We are supposed to only "reserve" the file number when a DATA command is
- * actyally received, but we need to allocate it before that.  So it is not clear how we
+ * actually received, but we need to allocate it before that.  So it is not clear how we
  * reuse file numbers that are allocated but no bytes are ever received.
  *
  */

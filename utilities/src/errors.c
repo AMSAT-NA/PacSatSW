@@ -73,6 +73,8 @@ char *ErrMsg[EndOfErrors]={
                            ,"CAN write timeout"
                            ,"Experiment Failure"
                            ,"Debug Startup "
+                           ,"TX dropped packet"
+                           ,"RX dropped packet"
 };
 char *LIHUErrMsg[EndOfErrors]={
                                 " Int Watchdog "
@@ -107,25 +109,30 @@ char *LIHUErrMsg[EndOfErrors]={
                                ,"ExperimentFailure"
                                ,"IHUStateChange"
 };
+
+/* These task names need to correspond to the id returned by xTaskGetApplicationTaskTag(0)
+ * These need to be in the same order as the WdReporters_t enum in watchdogSupport.h
+ * as that is the enum used to set the task id */
 char *TaskNames[]={
                    "Unspecified",
+                   "Telemetry & Control",
+                   "Rx",
+                   "Tx",
+                   "Ax25",
+                   "Uplink",
+                   "PB",
+                   "Command",
                    "CAN Support",
-                   " Telemetry",
-                   " DwnControl",
-                   "   Radio   ",
-                   "  Command  ",
-                   "   Idle    ",
-                   " Experiment",
-                   " Coordinate",
-                   "  Interrupt",
-                   "  Console  "
+                   "Idle",
+                   "Interrupt",
+                   "Console"
 };
 #endif
 
 
 // Error Condition Event-Counter
 
-extern rt1Errors_t localErrorCollection; // Here is where we collect the errors for this processor
+extern rt1Errors_t localErrorCollection; // Here is where we collect the errors
 
 /*
  * Debugging Macros and Structures for errors and unexpected interrupts
@@ -252,6 +259,9 @@ void ReportError(ErrorType_t code, bool fatal, ErrorInfoType_t infoType, int inf
         case MRAMwrite:
             nonfatalCount = localErrorCollection.MramWtErrorCnt++; /* This it for downlinking */
             break;
+        case TxPacketDropped:
+            ////nonfatalCount = localErrorCollection.MramWtErrorCnt++; /* This it for downlinking */
+            break;
         default:
             nonfatalCount = 0;
             break;
@@ -284,7 +294,7 @@ void ReportError(ErrorType_t code, bool fatal, ErrorInfoType_t infoType, int inf
         printf("Error reporter gave port number %d\n",info);
         break;
     case CharString:
-        printf("Error reporter gave character string '%s'", (char *)info);
+        printf("Error reporter gave character string '%s'\n", (char *)info);
         break;
     case ReturnAddr:
         printf("Error reporter said its return address as %x\n",info);
@@ -310,7 +320,7 @@ void ReportError(ErrorType_t code, bool fatal, ErrorInfoType_t infoType, int inf
 #endif
 
     if(fatal){
-        //todo: Make this work    GPIOSetOff(IhuRfControl); /* Oops.  About to die.  Switch to direct link Rx->Tx */
+        /* Oops.  About to die.  Do we need to do anything?  e.g. Switch to direct link Rx->Tx */
         ProcessorReset();
     }
     else {

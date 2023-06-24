@@ -45,7 +45,9 @@ typedef enum _error {
 	,CANWriteTimeout
 	,ExperimentFailure
 	,DebugStartup
-	,EndOfErrors //32
+	,TxPacketDropped
+	,RxPacketDropped
+	,EndOfErrors //33 -TODO -- this used to have a max of 32,  Make sure that is not still the case in any telemetry
 } ErrorType_t;
 //#define EndOfErrors I2C2InUse+1
 

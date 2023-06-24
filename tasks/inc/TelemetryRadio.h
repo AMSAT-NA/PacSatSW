@@ -7,6 +7,8 @@
 
 #ifndef AUDIO_H_
 #define AUDIO_H_
+
+#ifdef LEGACY_GOLF
 #include <pacsat.h>
 
 typedef enum {
@@ -31,5 +33,7 @@ void AudioSetMixerSource(Mixer_Source src);
 
 uint8_t GetPAPowerFlagCnt(void);
 uint8_t GetDCTPowerFlagCnt(void);
+
+#endif
 
 #endif /* AUDIO_H_ */

@@ -308,9 +308,7 @@ void start_timer(TimerHandle_t timer) {
 #endif
         portBASE_TYPE timerStatus = xTimerStart(timer, 0); // Block time of zero as this can not block
         if (timerStatus != pdPASS) {
-            debug_print("ERROR: Failed in init Timer\n");
-            // TODO =>        ReportError(RTOSfailure, FALSE, ReturnAddr, (int) PbTask); /* failed to create the RTOS timer */
-            // - it's possible this might fail.  Somehow we should recover from that.
+            ReportError(RTOSfailure, FALSE, CharString, (int)"ERROR: Failed in init Timer"); /* failed to start the RTOS timer */
         }
     }
 }
@@ -391,8 +389,6 @@ void ax25_process_frame(char *from_callsign, char *to_callsign, rx_channel_t cha
  * If a packet can only be a COMMAND or RESPONSE then the TX will send it correctly.  If there
  * is a choice then it should already be set correctly in the packet
  *
- * TODO - rename this ax25_send so that it is not confused with COMMAND/RESPONSE packets
- *
  */
 void ax25_send_response(rx_channel_t channel, ax25_frame_type_t frame_type, char *to_callsign, AX25_PACKET *response_packet, bool expedited) {
     strlcpy(response_packet->to_callsign, to_callsign, MAX_CALLSIGN_LEN);
@@ -405,8 +401,9 @@ void ax25_send_response(rx_channel_t channel, ax25_frame_type_t frame_type, char
 #endif
     bool rc = tx_send_packet(channel, response_packet, expedited, BLOCK);
     if (rc == FALSE) {
-        // TODO - handle error
-        debug_print("ERR: Could not queue RR response\n");
+        /* log the error if this could not be queued. */
+        ReportError(TxPacketDropped, FALSE, CharString, (int)"TX Send Falure.  Packet Dropped."); // TX Send failure - packet dropped
+        debug_print("ERR: Sending packet\n");
     }
     taskYIELD();
 }
@@ -1488,14 +1485,14 @@ void iframe_pops_off_queue(AX25_data_link_state_machine_t *state, AX25_event_t *
 #endif
         bool rc = tx_send_packet(event->channel, &event->packet, NOT_EXPEDITED, BLOCK);
         if (rc == FALSE) {
-            // TODO - handle error - For now we put back on queue
-            debug_print("ERROR: Could not send I frame to TX queue\n");
-            // push iframe back on queue
-            BaseType_t xStatus = xQueueSendToFront( xIFrameQueue[state->channel], event, CENTISECONDS(1) );
+            debug_print("ERROR: Could not send I frame to TX queue. Pushing back on I-frame queue\n");
+            // push iframe back on queue, wait 2/10 second for queue to become available if needed
+            BaseType_t xStatus = xQueueSendToFront( xIFrameQueue[state->channel], event, CENTISECONDS(20) );
             if( xStatus != pdPASS ) {
                 /* The send operation could not complete because the queue was full */
-                debug_print("AX25: PROGRAM LOGIC ERROR: IFRAME QUEUE FULL: Could not push back to IFrame Queue\n");
-                // TODO - this must be prevented.  The Layer 3 machine should be throttled if this queue is full
+                ReportError(TxPacketDropped, FALSE, CharString, (int)"AX25: ERROR: IFRAME QUEUE FULL: Could not push back to IFrame Queue");
+                /* Ideally this should be prevented.  The Layer 3 machine
+                 * should be throttled if this queue is full.  At this point we drop the packet */
                 return;
             }
             return;
@@ -1797,12 +1794,14 @@ void establish_data_link(AX25_data_link_state_machine_t *state) {
  * Discard the queue of future Iframes to send.  This typically happens if we reset the data link
  */
 void discard_iframe_queue(AX25_data_link_state_machine_t *state) {
-    BaseType_t xStatus = xQueueReset(xIFrameQueue[state->channel]);
+    BaseType_t xStatus = pdFAIL;
+
+    xStatus = xQueueReset(xIFrameQueue[state->channel]);
     if( xStatus != pdPASS ) {
-        /* The reset operation could not complete because something is blocking the queue */
+        /* The reset operation could not complete because something is blocking the queue.  It does not
+         * look like this can actually happen.  The underlying function only ever returns pdPASS.
+         * If this error message shows up in testing we can work out how to handle it. */
         debug_print("AX25: SERIOUS ERROR: Could not reset the IFrame Queue\n");
-        // TODO - Do we rety a number of times?  Is it possible that this happens?  This is the queue that
-        // Layer 3 writes into.
     }
 }
 
@@ -1810,7 +1809,6 @@ void check_need_for_response(AX25_data_link_state_machine_t *state, AX25_PACKET 
     if (packet->command == AX25_COMMAND && packet->PF == 1) {
         enquiry_response(state, packet, 1);
     } else if (packet->command == AX25_RESPONSE && packet->PF == 1) {
-        // TODO - can we take any action here, or ignore in Layer 3?  Just debug info?
         ax25_send_event(state, DL_ERROR_Indicate, packet, ERROR_A);
     }
 }

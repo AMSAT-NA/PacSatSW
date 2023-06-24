@@ -326,32 +326,40 @@ bool tx_send_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint
  *
  * Returns false if there is an issue
  *
- * TODO - channel is passed in but not yet implemented.  Only 1 TX channel is assumed
+ * Channel is passed in but not yet implemented.  Only 1 TX channel is assumed
+ *
+ * NOTE - we have a mix of errors which could return FALSE.  If this is called from iFramePops then
+ * the failure causes the I-Frame to be put back on the queue.  That means logic errors will
+ * repeat in a loop.  They should be logged but return TRUE as we want to ignore the
+ * bad data.  That seems to be safer than locking up the BBS with a bad packet in a loop.
+ *
  */
 bool tx_send_packet(rx_channel_t channel, AX25_PACKET *packet, bool expedited, bool block) {
     if (channel >= NUM_OF_TX_CHANNELS) {
-        debug_print("ERR: tx_send_packet() Invalid radio channel %d\n",channel);
-        return false;
+        debug_print("LOGIC ERROR: tx_send_packet() Invalid radio channel %d\n",channel);
+        return TRUE; // return true here as we do not want to repeat this bad packet.  Data is dropped
     }
     bool rc = tx_make_packet(packet, tmp_packet_buffer);
+    if (rc == FALSE) {
+        debug_print("LOGIC ERROR: Invalid packet. Packet not sent\n");
+        return TRUE; // return true here as we do not want to repeat this bad packet.  Data is dropped
+    }
 //    print_packet("TX_SEND: ", &tmp_packet_buffer[1], tmp_packet_buffer[0]);
 
     TickType_t xTicksToWait = 0;
     BaseType_t xStatus = pdFAIL;
     if (block)
-        xTicksToWait = CENTISECONDS(1);
+        xTicksToWait = CENTISECONDS(20); // wait for about 255/1200 seconds, which is long enough to clear a packet from TX or several packets at 9600bps.
     if (expedited)
         xStatus = xQueueSendToFront( xTxPacketQueue, &tmp_packet_buffer, xTicksToWait );
     else
         xStatus = xQueueSendToBack( xTxPacketQueue, &tmp_packet_buffer, xTicksToWait );
     if( xStatus != pdPASS ) {
-        /* The send operation could not complete because the queue was full */
-        debug_print("TX QUEUE FULL: Could not add to Packet Queue\n");
-        // TODO - we should log this error and downlink in telemetry
-        return false;
+        /* The send operation could not complete because the queue was full.  The caller should log this error. */
+        return FALSE;
     }
 
-    return true;
+    return TRUE;
 }
 
 /**

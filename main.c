@@ -47,7 +47,7 @@
 #include "UplinkTask.h"
 #include "TelemAndControlTask.h"
 #include "pacsat_dir.h"
-#include "TelemetryRadio.h"
+//#include "TelemetryRadio.h"
 #include "RTISetup.h"
 #include "nonvol.h"
 #include "canID.h"
@@ -296,8 +296,8 @@ void ConsoleTask(void *pvParameters){
     xTaskCreate(Ax25Task,"Ax25Task",AX25_STACK_SIZE, NULL, AX25_PRIORITY,NULL);
     xTaskCreate(PbTask,"PbTask",PB_STACK_SIZE, NULL, PB_PRIORITY,NULL);
     xTaskCreate(UplinkTask,"UplinkTask",UPLINK_STACK_SIZE, NULL, UPLINK_PRIORITY,NULL);
-    xTaskCreate(TxTask,"Radio",RADIO_STACK_SIZE, NULL,TX_PRIORITY,NULL);
-    xTaskCreate(TelemAndControlTask,"Telem and Control",TELEMETRY_STACK_SIZE, NULL,TELEMETRY_PRIORITY,NULL);
+    xTaskCreate(TxTask,"TxTask",RADIO_STACK_SIZE, NULL,TX_PRIORITY,NULL);
+    xTaskCreate(TelemAndControlTask,"Telem and Control Task",TELEMETRY_STACK_SIZE, NULL,TELEMETRY_PRIORITY,NULL);
 
     debug_print("Free heap size after tasks launched: %d\n",xPortGetFreeHeapSize());
 

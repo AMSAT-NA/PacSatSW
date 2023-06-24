@@ -16,6 +16,10 @@
 
 #define WATCHDOG_CHECK_FREQ_SECS 10
 
+/* This id is passed into vTaskSetApplicationTaskTag() at the start of each task.  It
+ * can later be retreived with xTaskGetApplicationTaskTag(0) to get the id of the
+ * current task.
+ * These need to be in the same order as the Task Name string enum in errors.c */
 typedef enum {
     CurrentTaskWD=0,
     TelemetryAndControlWD,
@@ -26,14 +30,14 @@ typedef enum {
     PBTaskWD,
     CommandWD,
     CANSupportWD,
-    IdleWD, // Not used in RT
+    IdleWD,
     /* Add any new tasks to watch in here.  Maximum number of tasks is 9. */
     /* The nine limit is the number of bits available in the downlink */
     LastWD,
     InterruptThd = LastWD,
     ConsoleTsk
     /*
-     * NB: Task numbers must be the same in both RTIHU and LIHU and any changes must be recorded in FoxTelem's
+     * NB: any changes must be recorded in FoxTelem's
      * golf_task_name.tab file.
      */
 }WdReporters_t;

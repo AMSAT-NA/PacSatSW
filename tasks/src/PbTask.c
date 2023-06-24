@@ -892,9 +892,10 @@ int pb_next_action() {
             if (data_len == 0) {
                 debug_print("ERROR: ** Could not create the test DIR Broadcast frame\n");
                 /* To avoid a loop where we keep hitting this error, we remove the station from the PB */
-                // TODO - this is a serious issue and we should log/report it in telemetry
+                // TODO - this only occirs if we cant read from file system, so requested file is corrupt perhaps.  Mark as unavailable?
                 pb_remove_request(current_station_on_pb);
-                return FALSE; }
+                return FALSE;
+            }
             ReportToWatchdog(CurrentTaskWD);
 
             /* Send the fill and finish */
@@ -904,7 +905,7 @@ int pb_next_action() {
             if (rc != TRUE) {
                 debug_print("ERROR: Could not send broadcast packet to TNC \n");
                 /* To avoid a loop where we keep hitting this error, we remove the station from the PB */
-                // TODO - this is a serious issue and we should log/report it in telemetry
+                // TODO - we could not send the packet.  We should log/report it in telemetry
                 pb_remove_request(current_station_on_pb);
                 return FALSE;
             }
