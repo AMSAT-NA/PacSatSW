@@ -719,39 +719,35 @@ void RealConsoleTask(void)
 
         case showDownlinkSize:{
 #define memberSize(type, member) sizeof(((type *)0)->member)
-            printf("\nPayload Sizes: Header=%d,RTHealth=%d (common=%d,common2=%d,specific=%d),\nmin=%d,max=%d,WODHealth=%d,Diag=%d\n",
+            printf("\nPayload Sizes: Header=%d,RTHealth=%d (common=%d,common2=%d,specific=%d),\nmin=%d,max=%d,WODHealth=%d\n",
                    sizeof(header_t),sizeof(realTimePayload_t),
                    sizeof(commonRtMinmaxWodPayload_t),sizeof(commonRtWodPayload_t),sizeof(realtimeSpecific_t),
                    sizeof(minValuesPayload_t),sizeof(maxValuesPayload_t),
-                   sizeof(WODHousekeepingPayload_t),sizeof(DiagnosticPayload_t));
-            printf("               RagnarokRT=%d,RagnarokWod=%d,RadiationRT=%d,RadiationWod=%d\n\n",
-                   sizeof(ragnarok_t),sizeof(WODRagnarokPayload_t),sizeof(radiation_t),sizeof(WODRadiationPayload_t));
+                   sizeof(WODHousekeepingPayload_t));
 
             printf("Frame sizes: \n"
                     "      Payload Only,   Current Filler   Current Size\n");
 
-            printf("RT1        %03d           %03d             %03d\n"
-                    "RT2        %03d           %03d             %03d\n",
-                    sizeof(realTimeMinFrame_t)-memberSize(realTimeMinFrame_t,filler),memberSize(realTimeMinFrame_t,filler),sizeof(realTimeMinFrame_t),
-                    sizeof(realTimeMaxFrame_t)-memberSize(realTimeMaxFrame_t,filler),memberSize(realTimeMaxFrame_t,filler),sizeof(realTimeMaxFrame_t));
+            printf("RT1        %03d           \n"
+                    "RT2        %03d          \n",
+                    sizeof(realTimeMinFrame_t),
+                    sizeof(realTimeMaxFrame_t));
+//                    sizeof(realTimeMinFrame_t)-memberSize(realTimeMinFrame_t,filler),memberSize(realTimeMinFrame_t,filler),sizeof(realTimeMinFrame_t),
+//                    sizeof(realTimeMaxFrame_t)-memberSize(realTimeMaxFrame_t,filler),memberSize(realTimeMaxFrame_t,filler),sizeof(realTimeMaxFrame_t));
 
-            printf("AllWOD1    %03d           %03d             %03d\n"
-                    "AllWOD2    %03d           %03d             %03d\n"
-                    "AllWOD3    %03d           %03d             %03d\n",
-                    sizeof(allWOD1Frame_t)-memberSize(allWOD1Frame_t,filler),memberSize(allWOD1Frame_t,filler),sizeof(allWOD1Frame_t),
-                    sizeof(allWOD2Frame_t)-memberSize(allWOD2Frame_t,filler),memberSize(allWOD2Frame_t,filler),sizeof(allWOD2Frame_t),
-                    sizeof(allWOD3Frame_t)-memberSize(allWOD3Frame_t,filler),memberSize(allWOD3Frame_t,filler),sizeof(allWOD3Frame_t)
+            printf("AllWOD1    %03d       \n",
+                    sizeof(allWOD1Frame_t)
+//                    sizeof(allWOD1Frame_t)-memberSize(allWOD1Frame_t,filler),memberSize(allWOD1Frame_t,filler),sizeof(allWOD1Frame_t),
+//                    sizeof(allWOD2Frame_t)-memberSize(allWOD2Frame_t,filler),memberSize(allWOD2Frame_t,filler),sizeof(allWOD2Frame_t),
+//                    sizeof(allWOD3Frame_t)-memberSize(allWOD3Frame_t,filler),memberSize(allWOD3Frame_t,filler),sizeof(allWOD3Frame_t)
             );
-            printf("SafeData1  %03d           %03d             %03d\n"
-                    "SafeData2  %03d           %03d             %03d\n"
-                    "SafeWOD    %03d           %03d             %03d\n"
-                    "Diagnostic %03d           %03d             %03d\n"
-                    ,sizeof(safeData1Frame_t)-memberSize(safeData1Frame_t,filler),memberSize(safeData1Frame_t,filler),sizeof(safeData1Frame_t)
-                    ,sizeof(safeData2Frame_t)-memberSize(safeData2Frame_t,filler),memberSize(safeData2Frame_t,filler),sizeof(safeData2Frame_t)
-                    ,sizeof(safeWODFrame_t)-memberSize(safeWODFrame_t,filler),memberSize(safeWODFrame_t,filler),sizeof(safeWODFrame_t)
-                    ,sizeof(diagFrame_t)-memberSize(diagFrame_t,filler),memberSize(diagFrame_t,filler),sizeof(diagFrame_t)
+            printf("SafeData1  %03d       \n"
+                    "SafeWOD    %03d      \n"
+                    ,sizeof(safeData1Frame_t)
+                    ,sizeof(safeWODFrame_t)
+//                    ,sizeof(safeData1Frame_t)-memberSize(safeData1Frame_t,filler),memberSize(safeData1Frame_t,filler),sizeof(safeData1Frame_t)
+//                    ,sizeof(safeWODFrame_t)-memberSize(safeWODFrame_t,filler),memberSize(safeWODFrame_t,filler),sizeof(safeWODFrame_t)
             );
-            printf("\nAllFrames = %d\n",sizeof(allFrames_t));
 
              break;
          }

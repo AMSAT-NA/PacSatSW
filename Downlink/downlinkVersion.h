@@ -1,4 +1,4 @@
 #ifndef DownlinkVersionMajor
-#define DownlinkVersionMajor 6
-#define DownlinkVersionMinor 7
+#define DownlinkVersionMajor 1
+#define DownlinkVersionMinor 0
 #endif

@@ -6,9 +6,9 @@
 #error Wrong Archtecture
 #endif
 typedef struct  __attribute__((__packed__)) _maxSpecific_t {
-    uint32_t maxTimestampUptime;       //Offset=512
-    uint16_t maxTimestampEpoch;       //Offset=544
-    uint8_t maxCRCerror;       //Offset=560
-    uint8_t pad0;       //Offset=568
-} maxSpecific_t; // Total Size=576 bits or 72 bytes with 0 left over
+    uint32_t maxTimestampUptime;       //Offset=0
+    uint16_t maxTimestampEpoch;       //Offset=32
+    uint8_t maxCRCerror;       //Offset=48
+    uint8_t pad0;       //Offset=56
+} maxSpecific_t; // Total Size=64 bits or 8 bytes with 0 left over
 #endif

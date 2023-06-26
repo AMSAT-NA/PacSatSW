@@ -6,11 +6,11 @@
 #error Wrong Archtecture
 #endif
 typedef struct  __attribute__((__packed__)) _minSpecific_t {
-    uint32_t minTimestampUptime;       //Offset=512
-    uint16_t minTimestampEpoch;       //Offset=544
-    uint16_t minmaxResetEpoch;       //Offset=560
-    uint32_t minmaxResetSecs;       //Offset=576
-    uint8_t minCRCerror;       //Offset=608
-    uint8_t Pad192[3];       //Offset=616
-} minSpecific_t; // Total Size=640 bits or 80 bytes with 0 left over
+    uint32_t minTimestampUptime;       //Offset=0
+    uint16_t minTimestampEpoch;       //Offset=32
+    uint16_t minmaxResetEpoch;       //Offset=48
+    uint32_t minmaxResetSecs;       //Offset=64
+    uint8_t minCRCerror;       //Offset=96
+    uint8_t Pad192[3];       //Offset=104
+} minSpecific_t; // Total Size=128 bits or 16 bytes with 0 left over
 #endif

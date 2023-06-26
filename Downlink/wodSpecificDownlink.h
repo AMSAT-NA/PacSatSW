@@ -6,12 +6,12 @@
 #error Wrong Archtecture
 #endif
 typedef struct  __attribute__((__packed__)) _wodSpecific_t {
-    uint32_t WODTimestampUptime;       //Offset=768
-    uint16_t WODTimestampReset;       //Offset=800
-    uint8_t WodCRCError;       //Offset=816
-    unsigned int pad202:5;       //Offset=824
-    unsigned int inScienceMode:1;       //Offset=829
-    unsigned int inHealthMode:1;       //Offset=830
-    unsigned int inSafeMode:1;       //Offset=831
-} wodSpecific_t; // Total Size=832 bits or 104 bytes with 0 left over
+    uint32_t WODTimestampUptime;       //Offset=0
+    uint16_t WODTimestampReset;       //Offset=32
+    uint8_t WodCRCError;       //Offset=48
+    unsigned int pad202:5;       //Offset=56
+    unsigned int inScienceMode:1;       //Offset=61
+    unsigned int inHealthMode:1;       //Offset=62
+    unsigned int inSafeMode:1;       //Offset=63
+} wodSpecific_t; // Total Size=64 bits or 8 bytes with 0 left over
 #endif
