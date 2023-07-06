@@ -9,6 +9,7 @@
  */
 #include <ax5043-ax25.h>
 #include <pacsat.h>
+#include <tests/inc/filesystem_tests.h>
 #include "stdarg.h"
 #include "stdlib.h"
 #include "nonvolManagement.h"
@@ -114,6 +115,7 @@ enum {
     ,MountFS
     ,UnMountFS
     ,FormatFS
+    ,TestFS
     ,LsFS
     ,RmFS
     ,mkdirFS
@@ -275,6 +277,7 @@ commandPairs commonCommands[] = {
                                  ,{"mount fs","Mount the filesystem",MountFS}
                                  ,{"unmount fs","unmount the filesystem",UnMountFS}
                                  ,{"format fs","Format the filesystem",FormatFS}
+                                 ,{"test fs","Run filesystem tests (destructive)",TestFS}
                                  ,{"ls","List files and directories in the filesystem",LsFS}
                                  ,{"rm","Remove a file from the filesystem",RmFS}
                                  ,{"mkdir","Make a directory in the filesystem",mkdirFS}
@@ -612,6 +615,18 @@ void RealConsoleTask(void)
             } else {
                 printf("Filesystem formatted\n");
             }
+            break;
+        }
+
+        case TestFS:
+        {
+            int secret = parseNumber(afterCommand);
+            printf("NOTE:  This test will wipe out the file system in MRAM.\n\n");
+            if(secret!=42){
+                printf("  To confirm you must give the command with an argument of 42, for example 'test filesystem 42'\n");
+                break;
+            }
+            filesystemTest();
             break;
         }
 
