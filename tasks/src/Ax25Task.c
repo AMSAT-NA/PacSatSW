@@ -237,7 +237,7 @@ void ax25_send_status() {
     } else  {
 
         char buffer[25];
-        uint8_t len = 11; // Open ABCD.\0
+        uint8_t len = 6 + NUM_OF_RX_CHANNELS; // Open ABCD.   - we do not send the string termination chat or it is transmitted too
         int channels_available = NUM_OF_RX_CHANNELS;
         strlcpy(buffer,"Open ", sizeof(buffer));
 
@@ -250,6 +250,7 @@ void ax25_send_status() {
                 strlcat(buffer, " ", sizeof(buffer));
               }
         }
+        strlcat(buffer, ".", sizeof(buffer));
 
         if (channels_available) {
             trace_ftl0("SENDING: %s |%s|\n",BBSTAT, buffer);
