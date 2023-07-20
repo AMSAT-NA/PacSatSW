@@ -260,7 +260,7 @@ void ReportError(ErrorType_t code, bool fatal, ErrorInfoType_t infoType, int inf
             nonfatalCount = localErrorCollection.MramWtErrorCnt++; /* This it for downlinking */
             break;
         case TxPacketDropped:
-            ////nonfatalCount = localErrorCollection.MramWtErrorCnt++; /* This it for downlinking */
+            nonfatalCount = localErrorCollection.TxDroppedPkts++; /* This it for downlinking */
             break;
         default:
             nonfatalCount = 0;

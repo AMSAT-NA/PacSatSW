@@ -6,15 +6,17 @@
 #error Wrong Archtecture
 #endif
 typedef struct  __attribute__((__packed__)) _commonRtMinmaxWodPayload_t {
-    uint8_t DCT1Power;       //Offset=0
-    uint8_t DCT2Power;       //Offset=8
-    uint8_t DCT1RSSI;       //Offset=16
-    uint8_t DCT2RSSI;       //Offset=24
-    uint8_t DCT1RlftdPower;       //Offset=32
-    uint8_t busV;       //Offset=40
-    uint8_t TxPAi;       //Offset=48
-    uint8_t TxTemp;       //Offset=56
-    uint8_t FwdPower;       //Offset=64
-    uint8_t pad30[2];       //Offset=72
-} commonRtMinmaxWodPayload_t; // Total Size=88 bits or 11 bytes with 0 left over
+    uint8_t TXPower;       //Offset=0
+    uint8_t TXPwrMode;       //Offset=8
+    uint8_t RX0PwrMode;       //Offset=16
+    uint8_t RX1PwrMode;       //Offset=24
+    uint8_t RX2PwrMode;       //Offset=32
+    uint8_t RX3PwrMode;       //Offset=40
+    uint8_t RX0RSSI;       //Offset=48
+    uint8_t RX1RSSI;       //Offset=56
+    uint8_t RX2RSSI;       //Offset=64
+    uint8_t RX3RSSI;       //Offset=72
+    uint8_t IHUTemp;       //Offset=80
+    uint8_t pad30[2];       //Offset=88
+} commonRtMinmaxWodPayload_t; // Total Size=104 bits or 13 bytes with 0 left over
 #endif

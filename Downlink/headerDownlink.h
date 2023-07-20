@@ -6,8 +6,8 @@
 #error Wrong Archtecture
 #endif
 typedef struct  __attribute__((__packed__)) _header_t {
-    uint16_t resetCnt;       //Offset=0
-    uint16_t uptime[2];       //Offset=16
+    uint32_t uptime;       //Offset=0
+    uint16_t resetCnt;       //Offset=32
     uint8_t protocolVersion;       //Offset=48
     uint8_t versionMajor;       //Offset=56
     uint8_t versionMinor;       //Offset=64

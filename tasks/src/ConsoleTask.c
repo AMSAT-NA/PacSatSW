@@ -728,10 +728,10 @@ void RealConsoleTask(void)
             printf("Frame sizes: \n"
                     "      Payload Only,   Current Filler   Current Size\n");
 
-            printf("RT1        %03d           \n"
-                    "RT2        %03d          \n",
-                    sizeof(realTimeMinFrame_t),
-                    sizeof(realTimeMaxFrame_t));
+            printf("RT1        %03d           \n",
+                    //"RT2        %03d          \n",
+                    //sizeof(realTimeFrame_t),
+                    sizeof(realTimeFrame_t));
 //                    sizeof(realTimeMinFrame_t)-memberSize(realTimeMinFrame_t,filler),memberSize(realTimeMinFrame_t,filler),sizeof(realTimeMinFrame_t),
 //                    sizeof(realTimeMaxFrame_t)-memberSize(realTimeMaxFrame_t,filler),memberSize(realTimeMaxFrame_t,filler),sizeof(realTimeMaxFrame_t));
 
@@ -982,7 +982,7 @@ void RealConsoleTask(void)
 
         case getax5043:{
             // TX on UHF (typically)
-            AX5043Device dev = AX5043Dev1;
+            AX5043Device dev = TX_DEVICE;
             printf("AX5043 dev %d TX:\n",dev);
             printf(" FIFOSTAT: %02x\n", ax5043ReadReg(dev, AX5043_FIFOSTAT));
             printf(" PWRMODE:: %02x\n", ax5043ReadReg(dev, AX5043_PWRMODE));
@@ -1007,10 +1007,10 @@ void RealConsoleTask(void)
             printf(" TXPWRCOEFFB1: %x\n", ax5043ReadReg(dev, AX5043_TXPWRCOEFFB1));
 
             // RX on VHF (typically)
-            dev = AX5043Dev0;
+            dev = RX0_DEVICE;
             printf("\nAX5043 dev %d RX:\n",dev);
             printf(" FIFOSTAT: %02x\n", ax5043ReadReg(dev, AX5043_FIFOSTAT));
-            printf(" PWRMODE:: %02x\n", ax5043ReadReg(dev, AX5043_PWRMODE));
+            printf(" PWRMODE: %02x\n", ax5043ReadReg(dev, AX5043_PWRMODE));
             printf(" XTALCAP: %d\n", ax5043ReadReg(dev, AX5043_XTALCAP));
             printf(" PLLLOOP: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLLOOP));
             printf(" PLLCPI: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLCPI));

@@ -19,10 +19,52 @@
 
  */
 
-#include "MET.h"
 #include "pacsat.h"
+#include "MET.h"
+#include "MRAMmap.h"
+#include "nonvolManagement.h"
 #include "PbTask.h"
 #include "Ax25Task.h"
+#include "RxTask.h"
+#include "TxTask.h"
+#include "errors.h"
+#include "Max31725Temp.h"
+#include "ax5043_access.h"
+#include "ax5043-ax25.h"
+
+#include "downlink.h"
+#include "rt1ErrorsDownlink.h"
+
+typedef struct {
+    header_t header;
+    realTimePayload_t rtHealth;
+    minValuesPayload_t minVals;
+    maxValuesPayload_t maxVals;
+} telem_buffer_t;
+
+realTimeFrame_t realtimeFrame;
+
+
+/* Forward declarations */
+void tac_telem_timer_callback();
+void tac_collect_telemetry(telem_buffer_t *buffer);
+void tac_send_telemetry(telem_buffer_t *buffer);
+
+
+
+/* Local variables */
+static xTimerHandle timerTelemSend;
+static Intertask_Message statusMsg; // Storage used to send messages to the Telemetry and Control task
+
+
+/* A buffer to store telemetry values as they are collected.  We do not need to double buffer as they are copied to
+ * a TX queue before being sent */
+static telem_buffer_t telem_buffer;
+
+/* Globals we need access to */
+extern bool InSafeMode;
+extern rt1Errors_t localErrorCollection;
+
 
 /**
  * The Telemetry and Control task ...
@@ -31,32 +73,51 @@
 portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)  {
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)TelemetryAndControlWD );
     InitInterTask(ToTelemetryAndControl, 10);
+    localErrorCollection.valid = 1;
 
     ResetAllWatchdogs();
 //    debug_print("Initializing Telem and Control Task\n");
 
-    // TODO - this is just for testing
-    //METTelemetryReady();
+    /* Create a periodic timer to send telemetry */
+    timerTelemSend = xTimerCreate( "TelemSend", TAC_TIMER_SEND_TELEMETRY_PERIOD, TRUE, (void *)0, tac_telem_timer_callback);
+    portBASE_TYPE timerStatus = xTimerStart(timerTelemSend, 0); // Block time of zero as this can not block
+    if (timerStatus != pdPASS) {
+        ReportError(RTOSfailure, FALSE, CharString, (int)"ERROR: Failed in starting Telem Timer"); /* failed to start the RTOS timer */
+    }
+
 
     /* After a short delay for things to settle, send the status to indicate we have rebooted */
-    vTaskDelay(SECONDS(1));
+    vTaskDelay(WATCHDOG_SHORT_WAIT_TIME);
     pb_send_status();
-    /* Wait a bit longer for ground stations to time out and then send uplink status */
-    vTaskDelay(SECONDS(6));
+    ReportToWatchdog(TelemetryAndControlWD); /* Tell the WD we are ok after that delay */
+
+    /* Wait a bit longer and then send uplink status */
+    vTaskDelay(WATCHDOG_SHORT_WAIT_TIME);
     ax25_send_status();
+    ReportToWatchdog(TelemetryAndControlWD); /* Tell the WD we are ok after that delay */
+
+    //TODO - include any checks needed here to make sure hardware is available
+   // I2CDevicePoll(); /* verify that ICR, CIU, etc are communicating over I2c */
+    ReportToWatchdog(TelemetryAndControlWD); /* Tell the WD we are ok after that delay */
+
+    /* When everything is settled after boot we can start collecting telemetry.  We don't want uninitialized values
+     * to corrupt the telemetry, especially WOD or min/max */
+    METTelemetryReady();
 
 
     while(1) {
         Intertask_Message messageReceived;
         int status;
         ReportToWatchdog(CurrentTaskWD);
-        status = WaitInterTask(ToTelemetryAndControl, SECONDS(2), &messageReceived);
+        status = WaitInterTask(ToTelemetryAndControl, WATCHDOG_SHORT_WAIT_TIME, &messageReceived);
         ReportToWatchdog(CurrentTaskWD);
-        if(status == 1){
-//            int waiting=WaitingInterTask(ToTelemetryAndControl);
-//            if(waiting != 0){
-//                debug_print("MessagesWaiting=%d\n",WaitingInterTask(ToTelemetryAndControl));
-//            }
+        if (status == pdFAIL){
+            ReportError(RTOSfailure, false, ReturnAddr,(int) TelemAndControlTask);
+        } else {
+            //            int waiting=WaitingInterTask(ToTelemetryAndControl);
+            //            if(waiting != 0){
+            //                debug_print("MessagesWaiting=%d\n",WaitingInterTask(ToTelemetryAndControl));
+            //            }
             switch(messageReceived.MsgType){
             case TelemSendPbStatus:
                 //debug_print("Telem & Control: Send the PB Status\n");
@@ -69,8 +130,11 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)  {
                 break;
 
             case TelemCollectMsg:
-//                debug_print("Telem & Control: Collect RT telem\n");
+                tac_collect_telemetry(&telem_buffer);
+                break;
 
+            case TelemSendRealtimeMsg:
+                tac_send_telemetry(&telem_buffer);
                 break;
 
 
@@ -80,5 +144,104 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)  {
     }
 }
 
+/**
+ * tac_telem_timer_callback()
+ *
+ * This is called from a timer whenever the telemetry should be sent.
+ */
+void tac_telem_timer_callback() {
+    statusMsg.MsgType = TelemSendRealtimeMsg;
+    NotifyInterTaskFromISR(ToTelemetryAndControl,&statusMsg);
+}
 
+void tac_collect_telemetry(telem_buffer_t *buffer) {
+    //debug_print("Telem & Control: Collect RT telem\n");
+
+
+    if(!IsStabilizedAfterBoot()) return;
+
+    logicalTime_t time;
+    getTimestamp(&time);
+    buffer->header.uptime = time.METcount;
+    buffer->header.resetCnt = time.IHUresetCnt;
+    buffer->header.protocolVersion = 0;
+    buffer->header.versionMajor = DownlinkVersionMajor;
+    buffer->header.versionMinor = DownlinkVersionMinor;
+    buffer->header.inScienceMode = 0;
+    buffer->header.inHealthMode = 0;
+    buffer->header.inSafeMode = 0;
+
+    /**
+     * Initial telemetry for the protoype booster board:
+     * For each Radio RSSI
+     *  Radio Power
+     *  Radio mode
+     *  Radio temperature?
+     * PB enabled
+     * FTL0 enabled
+     * MODE - safe/health/exp
+     * CPU temp
+     * Errors
+     *
+     */
+    uint8_t temp8;
+    if(Get8BitTemp31725(&temp8)) {
+        buffer->rtHealth.common.IHUTemp = temp8;
+    } else {
+        debug_print("TAC: ERROR I2C temp request failed\n");
+    }
+
+    /* TX Telemetry */
+    uint16_t rf_pwr = ax5043ReadReg(TX_DEVICE, AX5043_TXPWRCOEFFB0)
+            + (ax5043ReadReg(TX_DEVICE, AX5043_TXPWRCOEFFB1) << 8);
+    buffer->rtHealth.common.TXPower = rf_pwr;
+    buffer->rtHealth.common.TXPwrMode = ax5043ReadReg(TX_DEVICE, AX5043_PWRMODE);
+
+
+    /* RX0 Telemetry */
+    uint8_t rssi0 = ax5043ReadReg(RX0_DEVICE, AX5043_RSSI);
+    buffer->rtHealth.common.RX0RSSI = rssi0;
+    buffer->rtHealth.common.RX0PwrMode = ax5043ReadReg(RX0_DEVICE, AX5043_PWRMODE);
+
+    // TODO - calculate min max and store in MRAM
+
+
+}
+
+/**
+ * Send telemetry that we have collected over the last period.
+ * Realtime telemetry is sent in a UI frame.  The frame type depends on the mode and the
+ * sequence
+ * WOD telemetry is saved to a file
+ *
+ * The telemetry to send is determined by the mode that we are in.
+ *
+ */
+void tac_send_telemetry(telem_buffer_t *buffer) {
+    if(!IsStabilizedAfterBoot()) return;
+
+    int len = 0;
+    uint8_t *frame;
+    if (ReadMRAMBoolState(StateCommandedSafeMode) || ReadMRAMBoolState(StateAutoSafe)) {
+        /* Setup Type 1 frame */
+        realtimeFrame.header = buffer->header;
+        realtimeFrame.rtHealth = buffer->rtHealth;
+        len = sizeof(realtimeFrame);
+
+        frame = (uint8_t *)&realtimeFrame;
+        debug_print("Sending Type 1 Frame %d:%d\n",realtimeFrame.header.resetCnt, realtimeFrame.header.uptime);
+//        debug_print("Bytes sent:");
+//        int i=0;
+//        for (i=0; i<11; i++) {
+//            debug_print("%0x ",frame[i]);
+//        }
+//        debug_print("\n");
+    }
+    if (len == 0 || len > AX25_MAX_INFO_BYTES_LEN) {
+        //TODO - send error
+        return;
+
+    }
+    int rc = tx_send_ui_packet(BROADCAST_CALLSIGN, TLMP1, PID_NO_PROTOCOL, frame, len, BLOCK);
+}
 

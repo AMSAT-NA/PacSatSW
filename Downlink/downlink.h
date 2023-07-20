@@ -97,33 +97,36 @@ typedef struct __attribute__((__packed__)){
 #define TOTAL_FRAME_SIZE 648 /* This will add some zeros to fill the frame to this size after the payloads*/
 #define CODE_WORDS_PER_FRAME 3 /* Every 223 bytes takes one code word */
 #define MAX_PAYLOADS_PER_FRAME 9 /*Does not include CRC; includes header and filler*/
-typedef struct __attribute__((__packed__)) { //Frame type 0
+typedef struct __attribute__((__packed__)) { //Frame type 1
 	header_t header;
 	realTimePayload_t rtHealth;
-	minValuesPayload_t minVals;
-} realTimeMinFrame_t;
-typedef struct __attribute__((__packed__)) {
+
+} realTimeFrame_t;
+typedef struct __attribute__((__packed__)) { //Frame type 2
+    header_t header;
+    minValuesPayload_t minVals;
+} minFrame_t;
+typedef struct __attribute__((__packed__)) { // Type 3
 	header_t header;
-	realTimePayload_t rtHealth;
 	maxValuesPayload_t maxVals;
-} realTimeMaxFrame_t;
-typedef struct __attribute__((__packed__)) {
+} maxFrame_t;
+typedef struct __attribute__((__packed__)) { // Type 4
 	header_t header;
 	WODHousekeepingPayload_t HKWod[3];
 } allWOD1Frame_t;
-typedef struct __attribute__((__packed__)) { //Frame type 3
+typedef struct __attribute__((__packed__)) { //Frame type 5
     header_t header;
     realTimePayload_t rtHealth;
     minValuesPayload_t minVals;
     maxValuesPayload_t maxVals;
 } safeData1Frame_t;
 
-typedef struct __attribute__((__packed__)) { //Frame type 4
+typedef struct __attribute__((__packed__)) { //Frame type 6
     header_t header;
     WODHousekeepingPayload_t HKWod[3];
 } safeWODFrame_t;
 
 
-#define DOWNLINK_IHU_TEMP_OFFSET 550 /* Subtrace this from ADC reading to put in 8-bit downlink */
+#define DOWNLINK_IHU_TEMP_OFFSET 550 /* Subtract this from ADC reading to put in 8-bit downlink */
 
 #endif /* DOWNLINK_H_ */

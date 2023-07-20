@@ -27,6 +27,7 @@
 #include "FreeRTOS.h"
 #include "os_task.h"
 #include "mram.h"
+#include "ADS7828.h"
 
 //Flight software headers
 #include "TMS570Hardware.h"
@@ -151,6 +152,10 @@ void startup(void)
     /* Serial port and LEDs */
     hetREG1->DIR=0x00000017; //We want them to start out as output, I suppose.
     hetREG1->DOUT=0x00000017;
+
+    /* Poll the I2C devices to see which are working.
+     * This also calls the init routine for the temperature device */
+    I2CDevicePoll();
 
 //Probably not used for pacsat
     MyLocalCanID = RTIHU_Primary;

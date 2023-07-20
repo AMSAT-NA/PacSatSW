@@ -48,6 +48,7 @@ typedef struct  __attribute__((__packed__)) _rt1Errors_t {
     uint8_t IOMMAccvioCnt;       //Offset=400
     uint8_t nonFatalCnt;       //Offset=408
     uint8_t SWVersion[2];       //Offset=416
-    uint16_t pad362;       //Offset=432
+    uint8_t TxDroppedPkts;       //Offset=432
+    uint8_t pad362;       //Offset=440
 } rt1Errors_t; // Total Size=448 bits or 56 bytes with 0 left over
 #endif

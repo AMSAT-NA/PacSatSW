@@ -115,6 +115,19 @@ void NullPrint(char *, ...);
 #define BROADCAST_CALLSIGN "VE2TCP-11"
 #define DIGI_CALLSIGN "VE2TCP-1"
 
+/* PB Destination callsigns.  Listed here so all callsigns are in the same place */
+#define PBLIST "PBLIST" // destination for PB Status when open
+#define PBFULL "PBFULL" // destination for PB status when list is full
+#define PBSHUT "PBSHUT" // destination for PB status when it is closed
+#define QST "QST-1" // destination for broadcast dir and file frames
+#define STATUS "STATUS" // destination for status frames
+#define BSTAT "BSTAT" // destination for broadcast status frames
+#define BBSTAT "BBSTAT" // destination for bbs status frames
+
+/* Telemetry destination callsigns */
+#define TLMP1 "TLMP1" // destination for telemetry frames type 1
+
+
 #define NUM_OF_TX_CHANNELS 1 // The number of transmitters we have
 #define NUM_OF_RX_CHANNELS 1 // The number of receivers we have - TODO this should tie to the Device numbers for AX5043s
 
@@ -150,6 +163,9 @@ typedef enum {
 #define AX25_TIMER_T1_PERIOD SECONDS(3)
 #define AX25_TIMER_T3_PERIOD SECONDS(30) /* Idle timeout if nothing heard */
 #define AX25_RETRIES_N2 10 /* Number of retries permitted by the Data Link State Machine */
+
+/* Default is to send telemetry every 2 mins */
+#define TAC_TIMER_SEND_TELEMETRY_PERIOD SECONDS(10) //SECONDS(120)
 
 /* At least this many bytes should be free after a file is uploaded.  Each disk block is 256 Bytes.
  * If this is set to 4*256 then we can run out of space while uploading.  Some investigation is needed

@@ -101,7 +101,7 @@ static const int8_t  axradio_phy_rssireference = 57;// 0xF9 + 64;
 static void ax5043_ax25_set_registers(AX5043Device device, bool band_vhf, bool rate_9600) {
 
     if (rate_9600) {
-        /* NOTE that 0x07 GMSK does not work on receive.  Use GFSK 0x07 with BT = 0.5.  This works better than 0.3 for RX.
+        /* NOTE that 0x07 GMSK does not work on receive.  Use GFSK 0x08 with BT = 0.5.  This works better than 0.3 for RX.
          * More testing needed for TX, which may work best with GMSK */
         ax5043WriteReg(device, AX5043_MODULATION              ,0x08); // AFSK.  0x04 is PSK. GMSK for 9600 is 0x07
         ax5043WriteReg(device, AX5043_ENCODING                ,0x07); // Differential encoding, bit inversion, no scrambler.  Use 0x07 for G3RUH scrambler

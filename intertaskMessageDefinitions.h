@@ -60,6 +60,7 @@ typedef enum {
     TelemSendPbStatus,
     TelemSendUplinkStatus,
     TelemCollectMsg,
+    TelemSendRealtimeMsg,
     TelemSendErrorsResetMsg,
     TelemSendErrorsPowerCycleMsg
 

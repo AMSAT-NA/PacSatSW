@@ -35,7 +35,7 @@ bool tx_make_packet(AX25_PACKET *packet, uint8_t *raw_bytes);
 
 static uint8_t tx_packet_buffer[AX25_PKT_BUFFER_LEN]; /* Buffer used when data copied from tx queue */
 static uint8_t tmp_packet_buffer[AX25_PKT_BUFFER_LEN]; /* Buffer used when constructing new packets. position 0 will hold the number of bytes */
-static AX5043Device device = AX5043Dev1;
+static AX5043Device device = TX_DEVICE;
 extern bool monitorPackets;
 
 /* Test Buffer PB Empty */
@@ -113,7 +113,7 @@ void radio_set_power(uint32_t regVal) {
 /**
  * tx_make_ui_packet()
  * Create an AX25 packet
- * from and to callsigns are strings will nul termination
+ * from and to callsigns are strings with nul termination
  * pid byte is F0, BB or BD
  * bytes is a buffer of length len that is sent in the body of the packet
  * raw_bytes must be allocated by the caller and contains the packet.  The length is
