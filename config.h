@@ -165,7 +165,7 @@ typedef enum {
 #define AX25_RETRIES_N2 10 /* Number of retries permitted by the Data Link State Machine */
 
 /* Default is to send telemetry every 2 mins */
-#define TAC_TIMER_SEND_TELEMETRY_PERIOD SECONDS(10) //SECONDS(120)
+#define TAC_TIMER_SEND_TELEMETRY_PERIOD SECONDS(60) //SECONDS(120)
 
 /* At least this many bytes should be free after a file is uploaded.  Each disk block is 256 Bytes.
  * If this is set to 4*256 then we can run out of space while uploading.  Some investigation is needed
