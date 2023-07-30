@@ -61,16 +61,52 @@ static uint8_t pfh_byte_buffer[MAX_BYTES_IN_PACSAT_FILE_HEADER]; /* Maximum size
 /**
  * dir_next_file_number()
  *
- * This returns the next file number available for the upload process.
- * TODO - this will not cope well with failed uploads.  Those ids will be lost and
- * never used.  We are supposed to only "reserve" the file number when a DATA command is
- * actually received, but we need to allocate it before that.  So it is not clear how we
- * reuse file numbers that are allocated but no bytes are ever received.
+ * This returns the next file number available for the upload process.  This is an important
+ * process and must be reliable.  If something goes wrong or becomes corrupted then it could
+ * return a file number that is already in use or return a filenumber that is much too large
+ * potentially shortening the pool of available file handles.
+ *
+ * As a safety check the next file number should be based on the highest file number
+ * actually used in the dir and the file numbers used by existing temporary upload files.  This
+ * will benefit from a process that expires old temporary files that have become stale but it is
+ * not required.
+ *
+ * This will not cope well with failed uploads if a successful file has been saved to the
+ * dir after it.  Those ids will be lost and never used.  We are supposed to only "reserve" the
+ * file number when a DATA command is actually received, but we need to allocate it before that.
+ * So it is not clear how we reuse file numbers that are allocated but no bytes are ever received.
+ *
+ * This returns the next file id or zero if there is an error
  *
  */
 uint32_t dir_next_file_number() {
-    uint32_t file_id = ReadMRAMNextFileNumber();
-    WriteMRAMNextFileNumber(file_id + 1);
+    bool success = false;
+    uint32_t file_id = ReadMRAMHighestFileNumber() + 1; /* Get the next number */
+    while (!success) {
+        /* Now check if we already have a temp file with this id */
+        char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
+        dir_get_tmp_file_path_from_file_id(file_id, file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
+        int32_t fp = red_open(file_name_with_path, RED_O_RDONLY);
+        if (fp == -1) {
+            if (red_errno == RED_ENOENT) {
+                /* No file so we can use this one */
+                success = true;
+            } else {
+                /* Some other file-io error */
+                debug_print("dir: err %s\n",red_strerror(red_errno));
+                return 0;
+            }
+        } else {
+            /* File exists, close it and check the next number */
+            int32_t rc2 = red_close(fp);
+            if (rc2 != 0) {
+                debug_print("*** Unable to close tmp file: %s\n", red_strerror(red_errno));
+                /* If we carry on here then we might use all the open files.  Something is wrong, return */
+                return 0;
+            }
+            file_id = file_id + 1;
+        }
+    }
     return file_id;
 }
 
@@ -256,6 +292,11 @@ DIR_NODE * dir_add_pfh(char *file_name, HEADER *new_pfh) {
             debug_print("DIR: Saved File: %s\n",file_name_with_path);
         }
     }
+
+    uint32_t file_id = ReadMRAMHighestFileNumber();
+    if (new_node->file_id > file_id)
+        WriteMRAMHighestFileNumber(new_node->file_id);
+
     return new_node;
 }
 
@@ -371,6 +412,8 @@ bool dir_load_pacsat_file(char *file_name) {
  */
 int dir_load() {
     dir_free();
+    WriteMRAMHighestFileNumber(0); /* Reset the nexxt file id as we will calculate the highest file number */
+
     bool rc;
     REDDIR *pDir;
     char * path = DIR_FOLDER;

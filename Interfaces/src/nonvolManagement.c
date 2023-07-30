@@ -338,12 +338,12 @@ uint32_t ReadMRAMDCTDriveHighPower(void){
     READ_UINT32(DCTDriveHighPower,DCT_DEFAULT_HIGH_POWER);
 }
 
-void WriteMRAMNextFileNumber(uint32_t id){
-    WRITE_UINT32(NextFileNumber,id);
+void WriteMRAMHighestFileNumber(uint32_t id){
+    WRITE_UINT32(HighestFileNumber,id);
 }
 
-uint32_t ReadMRAMNextFileNumber(void){
-    READ_UINT32(NextFileNumber,0); // default to zero if corrupt
+uint32_t ReadMRAMHighestFileNumber(void){
+    READ_UINT32(HighestFileNumber,0); // default to zero if corrupt
 }
 
 /*
@@ -388,7 +388,7 @@ void SetupMRAMStates() {
     WriteMRAMEnterAutosafe(DEFAULT_AUTOSAFE_INTO);
     WriteMRAMExitAutosafe(DEFAULT_AUTOSAFE_OUTOF);
 
-    WriteMRAMNextFileNumber(1);  // Start the file system at file 1.  File Id 0 is reserved and sent when a station does not have a file to upload.
+    WriteMRAMHighestFileNumber(0);  // Start the file system at file 1, so the highest file number is zero.  File Id 0 is reserved and sent when a station does not have a file to upload.
 
     /* These are like 'set internal schedule' but sets relative to startup, not to current time */
     WriteMRAMTimeout(NoCommandTimeout,NO_COMMAND_TIMEOUT);

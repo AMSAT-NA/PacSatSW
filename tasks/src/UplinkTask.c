@@ -819,6 +819,10 @@ int ftl0_process_upload_cmd(ftl0_state_machine_t *state, uint8_t *data, int len)
         /* We have space so allocate a file number, store in uplink list and send to the station */
 //        ul_go_data.server_file_no = dir_next_file_number();
         state->file_id = dir_next_file_number();
+        if (state->file_id == 0) {
+            debug_print("Unable to allocated new file id: %s\n", red_strerror(red_errno));
+            return ER_NO_ROOM;  // TODO - is this the best error to send?  File system is unavailable it seems
+        }
         ul_go_data.server_file_no = htotl(state->file_id);
         trace_ftl0("Allocated file id: %04x\n",state->file_id);
         // New file so start uploading from offset 0

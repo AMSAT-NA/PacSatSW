@@ -754,7 +754,7 @@ bool make_test_header(HEADER *pfh, uint32_t fh, unsigned int file_id, char *file
 
 int test_pfh_make_files() {
     // First reset the filnumbers as this is a test and we want them to start from 0
-    WriteMRAMNextFileNumber(0);
+    WriteMRAMHighestFileNumber(0);
     printf("Next file number reset to zero\n");
 
     // Make a pacsat file to save

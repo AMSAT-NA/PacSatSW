@@ -1248,12 +1248,12 @@ void RealConsoleTask(void)
             break;
         }
         case getNextFileNumber:{
-            uint32_t next_file_id = ReadMRAMNextFileNumber();
+            uint32_t next_file_id = dir_next_file_number();
             printf("Next File Number from the Dir will be: %04x\n",next_file_id);
             break;
         }
         case resetNextFileNumber:{
-            WriteMRAMNextFileNumber(0);
+            WriteMRAMHighestFileNumber(0);
             printf("Next file number reset to zero\n");
             break;
         }

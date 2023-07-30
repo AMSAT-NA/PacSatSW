@@ -74,7 +74,7 @@ typedef struct {
     uint32_t TimeoutTimes[MaxNumberOfTimeouts][2];
     uint32_t PostLVTimeout[2];
     uint16_t  EclipseActionCommanded[2];
-    uint32_t NextFileNumber[2];
+    uint32_t HighestFileNumber[2];
     uint32_t SpareData[13];
     uint8_t  NonVolatileStates[MaxStates][2];
 
