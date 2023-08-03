@@ -28,6 +28,7 @@
 #include "os_task.h"
 #include "MET.h"
 #include "inet.h"
+#include "nonvol.h"
 #include "nonvolManagement.h"
 #include "redposix.h"
 
@@ -61,12 +62,18 @@ int ftl0_make_packet(uint8_t *data_bytes, uint8_t *info, int length, int frame_t
 int ftl0_parse_packet_type(uint8_t * data);
 int ftl0_parse_packet_length(uint8_t * data);
 
+bool ftl0_get_file_upload_record(uint32_t file_id, InProcessFileUpload_t * file_upload_record);
+bool ftl0_set_file_upload_record(InProcessFileUpload_t * file_upload_record);
+bool ftl0_mram_get_file_upload_record(uint32_t id, InProcessFileUpload_t * file_upload_record);
+bool ftl0_mram_set_file_upload_record(uint32_t id, InProcessFileUpload_t * file_upload_record);
+bool ftl0_clear_upload_table();
+
 /* Local variables */
 static ftl0_state_machine_t ftl0_state_machine[NUM_OF_RX_CHANNELS];
 static AX25_event_t ax25_event; /* Static storage for event */
 static AX25_event_t send_event_buffer;
 static Intertask_Message statusMsg; // Storage used to send messages to the telem and control task
-
+static const MRAMmap_t *LocalFlash = (MRAMmap_t *) 0; /* Used to index the MRAM static storage where the File Upload Table is stored */
 
 #ifdef DEBUG
 /* This decodes the AX25 error numbers.  Only used for debug. */
@@ -531,8 +538,8 @@ bool ftl0_add_request(char *from_callsign, rx_channel_t channel) {
     int i;
     /* Each station can only be on the Uplink once, so reject if the callsign is already in the list */
     for (i=0; i < NUM_OF_RX_CHANNELS; i++) {
-        if (ftl0_state_machine[channel].ul_state != UL_UNINIT) {
-            if (strcasecmp(ftl0_state_machine[channel].callsign, from_callsign) == 0) {
+        if (ftl0_state_machine[i].ul_state != UL_UNINIT) {
+            if (strcasecmp(ftl0_state_machine[i].callsign, from_callsign) == 0) {
                 trace_ftl0("FTL0: %s is already on the uplink\n",from_callsign);
                 return FALSE; // Station is already on the Uplink
             }
@@ -877,7 +884,7 @@ int ftl0_process_upload_cmd(ftl0_state_machine_t *state, uint8_t *data, int len)
              debug_print("Unable to close %s: %s\n", file_name_with_path, red_strerror(red_errno));
          }
 
-         // TODO - we need to check file length with the length previously supplied - LIST IN MRAM
+         // TODO - IMPORTANT - we need to check file length with the length previously supplied - LIST IN MRAM
          /* if <continue_file_no> is not 0 and the <file_length> does not
              agree with the <file_length> previously associated with the file identified by
              <continue_file_no>.  Continue is not possible.*/
@@ -1083,3 +1090,249 @@ int ftl0_parse_packet_length(uint8_t * data) {
     int length = (data[1] >> 5) * 256 + data[0];
     return length;
 }
+
+/**
+ * Given a file_id, return the in process file upload record.
+ * Returns true if the record exists or false if it does not exist
+ *
+ */
+bool ftl0_get_file_upload_record(uint32_t file_id, InProcessFileUpload_t * file_upload_record) {
+    int i;
+    for (i=0; i < MAX_IN_PROCESS_FILE_UPLOADS; i++) {
+        bool rc = ftl0_mram_get_file_upload_record(i, file_upload_record);
+        if (rc == FALSE) return FALSE;
+        if (file_id == file_upload_record->file_id)
+            return TRUE;
+    }
+    return FALSE;
+}
+
+/**
+ * Given an upload record with a file_id, store the in process file upload record.
+ * If the table is full then the oldest record is removed and replaced.
+ * Return true if it could be stored or false otherwise.
+ */
+bool ftl0_set_file_upload_record(InProcessFileUpload_t * file_upload_record) {
+    int i;
+    int oldest_id = -1;
+    int first_empty_id = -1;
+    uint32_t oldest_date = 0xFFFFFFFF;
+    InProcessFileUpload_t tmp_file_upload_record;
+    /* Check that we do not already have this record, note the first empty slot and the oldest slot */
+    for (i=0; i < MAX_IN_PROCESS_FILE_UPLOADS; i++) {
+        bool rc = ftl0_mram_get_file_upload_record(i, &tmp_file_upload_record);
+        if (rc == FALSE) return FALSE;
+        if (tmp_file_upload_record.file_id == file_upload_record->file_id) {
+            /* This file id is already being uploaded, so this is an error */
+            return FALSE;
+        }
+        if (first_empty_id == -1 && tmp_file_upload_record.file_id == 0) {
+            /* This is an empty slot, store it here */
+            first_empty_id = i;
+        } else {
+            /* Slot is occupied, see if it is the oldest slot in case we need to replace it */
+            if (tmp_file_upload_record.request_time < oldest_date) {
+                /* This time is older than the oldest date so far.  Make sure this is not
+                 * live right now and then note it as the oldest */
+                bool on_the_uplink_now = FALSE;
+                int j;
+                for (j=0; j < NUM_OF_RX_CHANNELS; j++) {
+                    if (ftl0_state_machine[j].ul_state != UL_UNINIT) {
+                        if (strcasecmp(ftl0_state_machine[j].callsign, tmp_file_upload_record.callsign) == 0) {
+                            on_the_uplink_now = TRUE;                        }
+                    }
+                }
+                if (!on_the_uplink_now) {
+                    oldest_id = i;
+                    oldest_date = tmp_file_upload_record.request_time;
+                }
+            }
+        }
+    }
+    if (first_empty_id != -1) {
+        bool rc2 = ftl0_mram_set_file_upload_record(first_empty_id, file_upload_record);
+        debug_print("Store in empty slot %d\n",first_empty_id);
+        if (rc2 == FALSE) return FALSE;
+        return TRUE;
+    }
+
+    /* We could not find a slot so overwrite the oldest. */
+    if (oldest_id != -1) {
+        debug_print("Store in oldest slot %d\n",oldest_id);
+        bool rc3 = ftl0_mram_set_file_upload_record(oldest_id, file_upload_record);
+        if (rc3 == FALSE) return FALSE;
+        return TRUE;
+    }
+    return FALSE;
+}
+
+/**
+ * Read a record from the file upload table
+ */
+bool ftl0_mram_get_file_upload_record(uint32_t id, InProcessFileUpload_t * file_upload_record) {
+    bool rc = readNV(file_upload_record, sizeof(InProcessFileUpload_t),NVConfigData, (int)&(LocalFlash->FileUploadsTable[id]));
+    if (!rc) {
+        debug_print("MRAM File Upload table read - FAILED\n");
+        return FALSE;
+    }
+    return TRUE;
+}
+
+/**
+ * Write a record to the file upload table
+ */
+bool ftl0_mram_set_file_upload_record(uint32_t id, InProcessFileUpload_t * file_upload_record) {
+    bool rc = writeNV(file_upload_record, sizeof(InProcessFileUpload_t),NVConfigData, (int)&(LocalFlash->FileUploadsTable[id]));
+    if (!rc) {
+        debug_print("MRAM File Upload table write - FAILED\n");
+        return FALSE;
+    }
+    return TRUE;
+}
+
+bool ftl0_remove_file_upload_record(uint32_t id) {
+    InProcessFileUpload_t tmp_file_upload_record;
+    InProcessFileUpload_t tmp_file_upload_record2;
+    tmp_file_upload_record.file_id = 0;
+    tmp_file_upload_record.length = 0;
+    tmp_file_upload_record.request_time = 0;
+    tmp_file_upload_record.callsign[0] = 0;
+
+    int i;
+    for (i=0; i < MAX_IN_PROCESS_FILE_UPLOADS; i++) {
+        bool rc = ftl0_mram_get_file_upload_record(i, &tmp_file_upload_record2);
+        if (rc == FALSE) return FALSE;
+        if (tmp_file_upload_record2.file_id == id) {
+            if (!ftl0_mram_set_file_upload_record(i, &tmp_file_upload_record)) {
+                return FALSE;
+            }
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+bool ftl0_clear_upload_table() {
+    int i;
+    InProcessFileUpload_t tmp_file_upload_record;
+    tmp_file_upload_record.file_id = 0;
+    tmp_file_upload_record.length = 0;
+    tmp_file_upload_record.request_time = 0;
+    tmp_file_upload_record.callsign[0] = 0;
+
+    for (i=0; i < MAX_IN_PROCESS_FILE_UPLOADS; i++) {
+        if (!ftl0_mram_set_file_upload_record(i, &tmp_file_upload_record)) {
+            return FALSE;
+        }
+    }
+    return TRUE;
+}
+
+#ifdef DEBUG
+
+int test_ftl0_upload_table() {
+    printf("##### TEST UPLOAD TABLE:\n");
+    int rc = TRUE;
+    if (!ftl0_clear_upload_table()) { debug_print("Could not clear upload table - FAILED\n"); return FALSE;}
+
+    /* Test core set/get functions */
+    InProcessFileUpload_t file_upload_record;
+    strlcpy(file_upload_record.callsign,"G0KLA", sizeof(file_upload_record.callsign));
+    file_upload_record.file_id = 99;
+    file_upload_record.length = 12345;
+    file_upload_record.request_time = 555;
+
+    /* Store in the middle of the table.  In a later test this will be the oldest. */
+    if (!ftl0_mram_set_file_upload_record(15, &file_upload_record)) {  debug_print("Could not add record - FAILED\n"); return FALSE; }
+
+    InProcessFileUpload_t record;
+    if (!ftl0_mram_get_file_upload_record(15, &record))  {  debug_print("Could not read record - FAILED\n"); return FALSE; }
+
+    if (record.file_id != file_upload_record.file_id)  {  debug_print("Wrong file id - FAILED\n"); return FALSE; }
+    if (record.length != file_upload_record.length)  {  debug_print("Wrong length - FAILED\n"); return FALSE; }
+    if (record.request_time != file_upload_record.request_time)  {  debug_print("Wrong request_time - FAILED\n"); return FALSE; }
+    if (strcmp(record.callsign, file_upload_record.callsign) != 0)  {  debug_print("Wrong callsign - FAILED\n"); return FALSE; }
+
+    /* Now test adding by file id */
+    InProcessFileUpload_t file_upload_record2;
+    strlcpy(file_upload_record2.callsign,"AC2CZ", sizeof(file_upload_record.callsign));
+    file_upload_record2.file_id = 1010;
+    file_upload_record2.length = 659;
+    file_upload_record2.request_time = 666;
+
+    if (!ftl0_set_file_upload_record(&file_upload_record2) ) {  debug_print("Could not add record2 - FAILED\n"); return FALSE; }
+
+    InProcessFileUpload_t record2;
+    if (!ftl0_get_file_upload_record(1010, &record2))  {  debug_print("Could not read record2 - FAILED\n"); return FALSE; }
+
+    if (record2.file_id != file_upload_record2.file_id)  {  debug_print("Wrong file id for record 2 - FAILED\n"); return FALSE; }
+    if (record2.length != file_upload_record2.length)  {  debug_print("Wrong length for record 2 - FAILED\n"); return FALSE; }
+    if (record2.request_time != file_upload_record2.request_time)  {  debug_print("Wrong request_time for record 2 - FAILED\n"); return FALSE; }
+    if (strcmp(record2.callsign, file_upload_record2.callsign) != 0)  {  debug_print("Wrong callsign for record 2 - FAILED\n"); return FALSE; }
+
+    /* Test add duplicate file id - error */
+    InProcessFileUpload_t file_upload_record3;
+    strlcpy(file_upload_record3.callsign,"VE2TCP", sizeof(file_upload_record.callsign));
+    file_upload_record3.file_id = 1010;
+    file_upload_record3.length = 6539;
+    file_upload_record3.request_time = 669;
+
+    if (ftl0_set_file_upload_record(&file_upload_record3) ) {  debug_print("Error - added duplicate file id for record3 - FAILED\n"); return FALSE; }
+
+    /* Now test that we replace the oldest if all slots are full.  Currently we have added two records. */
+    InProcessFileUpload_t tmp_file_upload_record;
+    strlcpy(tmp_file_upload_record.callsign,"D0MMY", sizeof(file_upload_record.callsign));
+    tmp_file_upload_record.length = 123;
+    int j;
+    for (j=0; j < MAX_IN_PROCESS_FILE_UPLOADS; j++) {
+        tmp_file_upload_record.file_id = 100 + j;
+        tmp_file_upload_record.request_time = 669 + j;
+        if (!ftl0_set_file_upload_record(&tmp_file_upload_record)) {
+            return FALSE;
+        }
+    }
+
+    /* The last two records added above should have replaced older records, with the second to last being in slot 15 */
+    InProcessFileUpload_t record4;
+    if (!ftl0_mram_get_file_upload_record(15, &record4))  {  debug_print("Could not read oldest record - FAILED\n"); return FALSE; }
+
+    if (record4.file_id != 100 + MAX_IN_PROCESS_FILE_UPLOADS-2)  {  debug_print("Wrong oldest file id - FAILED\n"); return FALSE; }
+    if (record4.length != 123)  {  debug_print("Wrong length - FAILED\n"); return FALSE; }
+    if (record4.request_time != 669 + MAX_IN_PROCESS_FILE_UPLOADS-2)  {  debug_print("Wrong oldest request_time - FAILED\n"); return FALSE; }
+    if (strcmp(record4.callsign, "D0MMY") != 0)  {  debug_print("Wrong oldest callsign - FAILED\n"); return FALSE; }
+
+    /* Now clear an upload record as though it completes or is purged */
+    if (!ftl0_remove_file_upload_record(105))  {  debug_print("Could not remove record for id 105 - FAILED\n"); return FALSE; }
+
+    InProcessFileUpload_t record5;
+    if (ftl0_get_file_upload_record(105, &record5))  {  debug_print("ERROR: Should not be able to read record5 - FAILED\n"); return FALSE; }
+
+    /* Now add a new record and it should go exactly in that empty slot.  Record 105 was the 6th record added above
+     * and onlyt slot 0 and 15 were full.  So it should be in slot 6  */
+    InProcessFileUpload_t file_upload_record6;
+    strlcpy(file_upload_record6.callsign,"VE2TCP", sizeof(file_upload_record.callsign));
+    file_upload_record6.file_id = 9990;
+    file_upload_record6.length = 123999;
+    file_upload_record6.request_time = 999;
+
+    if (!ftl0_set_file_upload_record(&file_upload_record6) ) {  debug_print("Error - could not add record6 - FAILED\n"); return FALSE; }
+
+    InProcessFileUpload_t record7;
+    if (!ftl0_mram_get_file_upload_record(6, &record7))  {  debug_print("ERROR: Could not read slot 6 - FAILED\n"); return FALSE; }
+    if (record7.file_id != 9990)  {  debug_print("Wrong file id in slot 6- FAILED\n"); return FALSE; }
+
+    /* And reset everything */
+    if (!ftl0_clear_upload_table()) { debug_print("Could not clear upload table - FAILED\n"); return FALSE;}
+
+
+    if (rc == TRUE)
+        printf("##### TEST UPLOAD TABLE: success:\n");
+    else
+        printf("##### TEST UPLOAD TABLE: fail:\n");
+
+
+    return rc;
+
+}
+
+#endif

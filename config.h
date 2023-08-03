@@ -171,7 +171,12 @@ typedef enum {
  * If this is set to 4*256 then we can run out of space while uploading.  Some investigation is needed
  * to see why.. */
 #define UPLOAD_SPACE_THRESHOLD 5*256
-/*
+
+ /* The number of file uploads that can be requested but not completed.  Each will create a temporary file
+  * in the file system and each takes up an entry in the file_uploads_table in MRAM.  */
+#define MAX_IN_PROCESS_FILE_UPLOADS 25
+
+ /*
  * TASK INFORMATION This is the info like stack sizes and priorities for the tasks
  */
 #define CONSOLE_STACK_SIZE configMINIMAL_STACK_SIZE*11

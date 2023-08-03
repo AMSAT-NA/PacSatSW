@@ -312,6 +312,8 @@ void ConsoleTask(void *pvParameters){
 
     debug_print("*** NO RTC: SET THE UNIX TIME BEFORE UPLOADING ANY TEST FILES ***\n");
 
+    test_ftl0_upload_table();
+
     // Now head off to do the real work of the console task
     RealConsoleTask();
 }

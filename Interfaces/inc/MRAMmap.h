@@ -88,7 +88,16 @@ typedef struct _authKey {
     uint32_t magic; //Make sure it was initialized
 } AuthKey_t;
 
-#define MRAM_VERSION 3
+/* This stores the details of an in process file upload */
+typedef struct _inProcessFileUpload {
+    char callsign[MAX_CALLSIGN_LEN];
+    uint32_t file_id;
+    uint32_t length;
+    uint32_t request_time;
+} InProcessFileUpload_t;
+
+
+#define MRAM_VERSION 4
 
 /* Top level MRAM storage map */
 typedef struct {
@@ -96,6 +105,7 @@ typedef struct {
         uint32_t MRAMVersion1; // This should always have the real version number
         StateSavingMRAM_t StatesInMRAM;
 		AuthKey_t AuthenticateKey;
+		InProcessFileUpload_t FileUploadsTable[MAX_IN_PROCESS_FILE_UPLOADS];
         uint32_t MRAMVersion2; // This is likely to be wrong if something above changed size
 } MRAMmap_t;
 
