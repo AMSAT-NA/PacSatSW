@@ -63,6 +63,7 @@
 #include "pacsat_dir.h" // for dir commands and test routines
 #include "redposix.h"
 #include "Ax25Task.h"
+#include "UplinkTask.h"
 //Extern definition
 extern uint8_t SWCmdRing[SW_CMD_RING_SIZE],SWCmdIndex;
 
@@ -170,6 +171,7 @@ enum {
     ,testDir
     ,sendUplinkStatus
     ,testRetransmission
+    ,testUploadTable
 #endif
     ,monitorOn
     ,monitorOff
@@ -245,6 +247,7 @@ commandPairs debugCommands[] = {
                                 ,{"test dir","Test the Pacsat Directory.  The command 'make psf' must already have been run",testDir}
                                 ,{"send uplink status","Send Uplink status",sendUplinkStatus}
                                 ,{"test retransmission","Test the AX25 I frame retransmission",testRetransmission}
+                                ,{"test upload table","Test the storage of Upload recoords in the MRAM table",testUploadTable}
 #endif
                                 ,{"monitor on","Monitor sent and received packets",monitorOn}
                                 ,{"monitor off","Stop monitoring packets",monitorOff}
@@ -1059,18 +1062,22 @@ void RealConsoleTask(void)
         }
 
 #ifdef DEBUG
-        /* G0KLA TEST ROUTINES */
+        /* G0KLA TEST ROUTINES
+         * This is a subset of the self tests.  They do not cause a transmission
+         * It does create a test file in the directory that needs to be removed manually
+         */
         case testPacsat:{
 
             if(! pb_test_callsigns()) {  debug_print("### Callsign TEST FAILED\n"); break; }
             if(!test_ax25_util_decode_packet()) {  debug_print("### Packet Decode TEST FAILED\n"); break; }
-            if(! pb_test_list()) {  debug_print("### pb list TEST FAILED\n"); break; }
+            if(! pb_test_list()) {  debug_print("### pb list TEST FAILED.  ** was PB Enabled?? Use 'open pb' to enable it ** \n"); break; }
             if(! pb_clear_list()) {  debug_print("### pb list clear TEST FAILED\n"); break; }
             if(! tx_test_make_packet()) {  debug_print("### tx make packet TEST FAILED\n"); break; }
             if(! test_pfh()) {  debug_print("### pfh TEST FAILED\n"); break; }
             if(! test_pfh_file()) {  debug_print("### pfh TEST FILE FAILED\n"); break; }
 
-            //if(! test_pfh_make_files()) {  debug_print("### pfh TEST MAKE FILES FAILED\n"); break; }
+            if(! test_ftl0_upload_table()) {  debug_print("### FTL0 Upload Table TEST FAILED\n"); break; }
+
 
             debug_print("### ALL TESTS PASSED\n");
             break;
@@ -1089,6 +1096,7 @@ void RealConsoleTask(void)
         }
         case testPbList:{
             bool rc = pb_test_list();
+            if (rc != TRUE) debug_print (".. was PB Enabled?? Use 'open pb' to enable it \n");
             break;
         }
         case testPbClearList:{
@@ -1125,6 +1133,10 @@ void RealConsoleTask(void)
         }
         case testRetransmission:{
             bool rc = test_ax25_retransmission();
+            break;
+        }
+        case testUploadTable:{
+            bool rc = test_ftl0_upload_table();
             break;
         }
 
