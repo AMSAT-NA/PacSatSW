@@ -153,11 +153,7 @@ void startup(void)
     hetREG1->DIR=0x00000017; //We want them to start out as output, I suppose.
     hetREG1->DOUT=0x00000017;
 
-    /* Poll the I2C devices to see which are working.
-     * This also calls the init routine for the temperature device */
-    I2CDevicePoll();
-
-//Probably not used for pacsat
+    //Probably not used for pacsat
     MyLocalCanID = RTIHU_Primary;
     PartnerLocalCanID = RTIHU_Secondary;
 
@@ -215,8 +211,12 @@ void ConsoleTask(void *pvParameters){
     I2cInit(I2C2);
     GPIOEzInit(LED1);
     GPIOEzInit(LED2);
-
     GPIOInit(DCTInterrupt,ToRxTask,DCTInterruptMsg,None);
+    /* Poll the I2C devices to see which are working.
+     * This also calls the init routine for the temperature device */
+    I2CDevicePoll();
+
+
 
     /*
      * The rest of the code in the Console task that is in this module is just testing devices.
