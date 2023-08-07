@@ -1035,7 +1035,7 @@ void RealConsoleTask(void)
 
         case getRSSI:{
             int rssi = get_rssi(AX5043Dev0);
-            printf("RSSI is %d\n",((int16_t)rssi) - 255);
+            printf("RSSI is %d dBm\n",((int16_t)rssi) - 255);
             break;
         }
         case testRxFreq: {
