@@ -15,6 +15,10 @@
 #define RTIHU_TMP_ADDRESS (0x90 >> 1) /* 7-bit address mode */
 #define RTIHU_TMP_PORT I2C1
 
+#define RTC_ADDRESS (0xD0 >> 1) /* 7-bit address mode */
+#define RTC_PORT I2C1
+
+
 #define ICR_ADC_I2C_ADDRESS 0x4B //ICR voltages
 #define ICR_ADC_I2C_PORT I2C2
 

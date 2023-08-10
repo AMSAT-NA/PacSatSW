@@ -312,6 +312,7 @@ static inline bool DoIO(){
         i2cSetCount(thisBus, thisBusData->RxBytes);
         i2cSetMode(thisBus, I2C_MASTER);
         i2cSetStop(thisBus);
+        vTaskDelay(CENTISECONDS(50));
         i2cSetStart(thisBus);
         waitingForSemaphore[busNum] = true; //Ok, time to pay attention to the semaphore
         i2cReceive(thisBus, thisBusData->RxBytes, thisBusData->RxBuffer);

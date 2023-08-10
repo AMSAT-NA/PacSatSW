@@ -49,6 +49,7 @@
 #include "CANSupport.h"
 #include "ax5043.h"
 #include "Max31725Temp.h"
+#include "Max31331Rtc.h"
 #include "GPIO9539.h"
 #include "inet.h"
 #include "errors.h"
@@ -190,6 +191,7 @@ enum {
     ,getUnxTime
     ,setRate9600
     ,setRate1200
+    ,getRtc
 };
 
 
@@ -266,6 +268,7 @@ commandPairs debugCommands[] = {
                                 ,{"set unix time","Set the number of seconds since Unix epoch",setUnxTime}
                                 ,{"set rate 1200","Set the radio to 1200 bps AFSK packets",setRate1200}
                                 ,{"set rate 9600","Set the radio to 9600 bps GMSK packets",setRate9600}
+                                ,{"get rtc","Get the status and time from the Real Time Clock",getRtc}
 
 };
 commandPairs commonCommands[] = {
@@ -1285,6 +1288,12 @@ void RealConsoleTask(void)
             uint32_t t = (uint32_t)strtol(afterCommand,&nextNum,0);
             printf("Setting unix time to: %d\n",t);
             setUnixTime(t);
+            printf("Setting RTC\n");
+            bool set = SetRtcTime31331(&t);
+            if (set)
+                printf("Setting RTC\n");
+            else
+                printf("Failed to set RTC\n");
             break;
         }
 
@@ -1308,6 +1317,19 @@ void RealConsoleTask(void)
             ax5043StartRx(AX5043Dev0);
             ax5043StartTx(AX5043Dev1);
             break;
+        }
+
+        case getRtc:{
+            bool rc = false;
+
+            uint32_t time;
+            rc = GetRtcTime31331(&time);
+            if (rc == FALSE)
+                 printf(" Error, time unavailable\n");
+             else {
+                 printf("Unix time: %d\n",time);
+             }
+             break;
         }
 
         case HelpAll:{

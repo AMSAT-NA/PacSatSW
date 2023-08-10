@@ -39,6 +39,7 @@
 #include "spiDriver.h"
 #include "i2cDriver.h"
 #include "gpioDriver.h"
+#include "Max31331Rtc.h"
 #include "ConsoleTask.h"
 #include "CommandTask.h"
 #include "TxTask.h"
@@ -310,7 +311,15 @@ void ConsoleTask(void *pvParameters){
     AllTasksStarted = true;
     StartStableCount();
 
-    debug_print("*** NO RTC: SET THE UNIX TIME BEFORE UPLOADING ANY TEST FILES ***\n");
+    bool rtc = InitRtc31331();
+    if (rtc == FALSE) {
+        debug_print("*** NO RTC: SET THE UNIX TIME BEFORE UPLOADING ANY TEST FILES ***\n");
+    } else {
+        debug_print("RTC Initialized\n");
+        uint32_t utime = 0;
+        rtc = GetRtcTime31331(&utime);
+        setUnixTime(utime);
+    }
 
     // Now head off to do the real work of the console task
     RealConsoleTask();
