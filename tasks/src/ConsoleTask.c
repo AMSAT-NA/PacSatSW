@@ -192,6 +192,7 @@ enum {
     ,setRate9600
     ,setRate1200
     ,getRtc
+    ,setRtc
 };
 
 
@@ -265,10 +266,11 @@ commandPairs debugCommands[] = {
                                 ,{"reset next filenumber","Reset the next Dir file number to zero.",resetNextFileNumber}
                                 ,{"heap free","Show free bytes in the heap.",heapFree}
                                 ,{"get unix time","Get the number of seconds since the Unix epoch",getUnxTime}
-                                ,{"set unix time","Set the number of seconds since Unix epoch",setUnxTime}
+                                ,{"set unix time","Set the Real Time Clock and update the IHU Unix time",setUnxTime}
                                 ,{"set rate 1200","Set the radio to 1200 bps AFSK packets",setRate1200}
                                 ,{"set rate 9600","Set the radio to 9600 bps GMSK packets",setRate9600}
                                 ,{"get rtc","Get the status and time from the Real Time Clock",getRtc}
+                                ,{"set rtc","Set the Real Time Clock and update the IHU Unix time",setRtc}
 
 };
 commandPairs commonCommands[] = {
@@ -1283,7 +1285,8 @@ void RealConsoleTask(void)
             break;
         }
 
-        case setUnxTime:{
+        case setUnxTime:
+        case setRtc: {
             static char *nextNum;
             uint32_t t = (uint32_t)strtol(afterCommand,&nextNum,0);
             printf("Setting unix time to: %d\n",t);
@@ -1327,7 +1330,7 @@ void RealConsoleTask(void)
             if (rc == FALSE)
                  printf(" Error, time unavailable\n");
              else {
-                 printf("Unix time: %d\n",time);
+                 printf("Time: %d vs IHU Unix time %d\n",time, getUnixTime());
              }
              break;
         }

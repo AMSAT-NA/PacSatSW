@@ -123,7 +123,7 @@ bool GetRtcTime31331(uint32_t *time){
 
     debug_print("Date: %d-%d-%d %02d:%02d:%02d\n",(tm_time.tm_year+1900), tm_time.tm_mon+1, tm_time.tm_mday, tm_time.tm_hour, tm_time.tm_min, tm_time.tm_sec);
 
-    *time = mktime(&tm_time) - 2208988800L + 6 * 60 * 60;  // Adjust because TI Time library used Epoch of 1-1-1900 UTC - 6
+    *time = mktime(&tm_time) - 2208988800L + 6 * 60 * 60;  // Adjust because TI Time library used Epoch of 1-1-1900 UTC - 6. Time protocol in RFC 868 specifies offset as 2208988800L
     return TRUE;
 }
 
