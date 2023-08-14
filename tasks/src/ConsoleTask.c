@@ -854,11 +854,10 @@ void RealConsoleTask(void)
             break;
         }
         case getI2cState:{
+
             printf("I2c device state:\n"
-                    "    ICR ADC: %d    Solar ADC:   %d,   CSS ADC: %d\n"
-                    "RT-IHU Temp %d\n",
-                    ICRTelemIsOk(),SolarTelemIsOk(),CSSTelemIsOk(),
-                    RTTempIsOk());
+                    "RT-IHU Temp %s\n",
+                    RTTempIsOk()?"Ok":"Not Ok (poll i2c to retry)");
             break;
         }
         case telem0:{
@@ -1044,7 +1043,7 @@ void RealConsoleTask(void)
 
         case getRSSI:{
             int rssi = get_rssi(AX5043Dev0);
-            printf("RSSI is %d\n",((int16_t)rssi) - 255);
+            printf("RSSI is %d dBm\n",((int16_t)rssi) - 255);
             break;
         }
         case testRxFreq: {

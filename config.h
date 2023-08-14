@@ -28,7 +28,7 @@
 #define WATCHDOG_ENABLE
 #   define SOFTWARE_TYPE "V"
 #endif
-#define VERSION "1e" /*Exactly 2 characters will show in the diagnostic downlink*/
+#define VERSION "1f" /*Exactly 2 characters will show in the diagnostic downlink*/
 #define PACSAT_FW_VERSION_STRING SOFTWARE_TYPE PACSAT_NUMBER "." VERSION
 
 #define PACSAT_MAX_MRAMS 4
