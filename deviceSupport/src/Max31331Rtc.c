@@ -69,6 +69,27 @@ int time_to_rtc_regs(max3133x_rtc_time_regs_t *regs, const struct tm *time, hour
 void to_12hr(uint8_t hr, uint8_t *hr_12, uint8_t *pm);
 
 /**
+ * POSIX definition of seconds since the Epoch
+ * https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap04.html#tag_04_15
+ *
+ * The last three terms of the expression add in a day for each year that follows a leap year
+ * starting with the first leap year since the Epoch. The first term adds a day every 4 years
+ * starting in 1973, the second subtracts a day back out every 100 years starting in 2001, and
+ * the third adds a day back in every 400 years starting in 2001. The divisions in the formula
+ * are integer divisions; that is, the remainder is discarded leaving only the integer quotient.
+ *
+ * This is tested to produce the same result as the TI function call:
+ * mktime(&tm_time) - 2208988800L + 6 * 60 * 60
+ *
+ */
+uint32_t rtc_mktime(struct rtc_tm *tm_time) {
+    uint32_t t = tm_time->tm_sec + tm_time->tm_min*60 + tm_time->tm_hour*3600 + tm_time->tm_yday*86400 +
+        (tm_time->tm_year-70)*31536000 + ((tm_time->tm_year-69)/4)*86400 -
+        ((tm_time->tm_year-1)/100)*86400 + ((tm_time->tm_year+299)/400)*86400;
+    return t;
+}
+
+/**
  * Need to clear the reset bit and enable the oscillator or it will not tick
  *
  */
@@ -121,7 +142,7 @@ bool GetRtcTime31331(uint32_t *time){
     struct tm tm_time;
     rtc_regs_to_time(&tm_time, time_regs, NULL);
 
-    debug_print("Date: %d-%d-%d %02d:%02d:%02d\n",(tm_time.tm_year+1900), tm_time.tm_mon+1, tm_time.tm_mday, tm_time.tm_hour, tm_time.tm_min, tm_time.tm_sec);
+    debug_print("Date: %d-%d-%d %02d:%02d:%02d UTC\n",(tm_time.tm_year+1900), tm_time.tm_mon+1, tm_time.tm_mday, tm_time.tm_hour, tm_time.tm_min, tm_time.tm_sec);
 
     *time = mktime(&tm_time) - 2208988800L + 6 * 60 * 60;  // Adjust because TI Time library used Epoch of 1-1-1900 UTC - 6. Time protocol in RFC 868 specifies offset as 2208988800L
     return TRUE;
@@ -137,6 +158,7 @@ bool SetRtcTime31331(uint32_t *unixtime) {
     }
     time_t t  = (time_t)(*unixtime + 2208988800L - 6 * 60 * 60); // Adjust because TI Time library used Epoch of 1-1-1900 UTC - 6
     time = gmtime(&t);
+    if (time == NULL) return FALSE;
 
     char buf[30];
     strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", time);

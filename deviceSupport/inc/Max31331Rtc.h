@@ -149,6 +149,24 @@ enum max31331_register_address{
     MAX31331_END
 };
 
+/**
+ * TODO: If we use this tm struct then we do not need to include the time.h functions
+ *
+ *
+ */
+struct rtc_tm
+{
+    int tm_sec;      /* seconds after the minute   - [0,59]  */
+    int tm_min;      /* minutes after the hour     - [0,59]  */
+    int tm_hour;     /* hours after the midnight   - [0,23]  */
+    int tm_mday;     /* day of the month           - [1,31]  */
+    int tm_mon;      /* months since January       - [0,11]  */
+    int tm_year;     /* years since 1900                     */
+    int tm_wday;     /* days since Sunday          - [0,6]   */
+    int tm_yday;     /* days since Jan 1st         - [0,365] */
+    int tm_isdst;    /* Daylight Savings Time flag           */
+};
+
 typedef enum {
         HOUR24 = 0, /**< 24-Hour format */
         HOUR12 = 1, /**< 12-Hour format */
@@ -620,6 +638,7 @@ typedef struct {
 } max3133x_rtc_time_regs_t;
 
 bool InitRtc31331(void);
+uint32_t rtc_mktime(struct rtc_tm *tm_time);
 bool GetStatus31331(uint8_t *cfg);
 bool GetRtcTime31331(uint32_t *time);
 bool SetRtcTime31331(uint32_t *time);
