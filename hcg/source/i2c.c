@@ -112,8 +112,8 @@ void i2cInit(void)
     i2cREG1->PSC = 9U;
 
     /** - set clock rate */
-    i2cREG1->CKH = 395U;
-    i2cREG1->CKL = 395U;
+    i2cREG1->CKH = 35U;
+    i2cREG1->CKL = 35U;
 
     /** - set i2c pins functional mode */
     i2cREG1->PFNC = (0U);

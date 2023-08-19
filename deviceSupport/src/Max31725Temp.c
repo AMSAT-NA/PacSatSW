@@ -24,10 +24,10 @@ bool GetConfig31725(uint8_t *cfg){
     return I2cSendCommand(MAX31725_PORT,MAX31725_ADDR,&send,1,cfg,1);
 }
 bool GetTemp31725(int16_t *temp){
-    bool retval;
+    bool retval=true;
     int16_t localTemp;
     send = MAX31725_REG_TEMP;
-    retval = I2cSendCommand(MAX31725_PORT, MAX31725_ADDR, &send,1,&localTemp,2);
+    //retval = I2cSendCommand(MAX31725_PORT, MAX31725_ADDR, &send,1,&localTemp,2);
     *temp = localTemp >> 4; //Only 12 bits.
     return retval;
 }
