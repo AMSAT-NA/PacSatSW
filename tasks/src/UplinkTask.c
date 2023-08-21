@@ -64,9 +64,12 @@ int ftl0_parse_packet_length(uint8_t * data);
 
 bool ftl0_get_file_upload_record(uint32_t file_id, InProcessFileUpload_t * file_upload_record);
 bool ftl0_set_file_upload_record(InProcessFileUpload_t * file_upload_record);
+bool ftl0_update_file_upload_record(InProcessFileUpload_t * file_upload_record);
+bool ftl0_remove_file_upload_record(uint32_t id);
 bool ftl0_mram_get_file_upload_record(uint32_t id, InProcessFileUpload_t * file_upload_record);
 bool ftl0_mram_set_file_upload_record(uint32_t id, InProcessFileUpload_t * file_upload_record);
 bool ftl0_clear_upload_table();
+int ftl0_get_space_reserved_by_upload_table();
 
 /* Local variables */
 static ftl0_state_machine_t ftl0_state_machine[NUM_OF_RX_CHANNELS];
@@ -170,7 +173,7 @@ portTASK_FUNCTION_PROTO(UplinkTask, pvParameters)  {
  *
  */
 void ftl0_status_callback() {
-    statusMsg.MsgType = TelemSendUplinkStatus;
+    statusMsg.MsgType = TacSendUplinkStatus;
     NotifyInterTaskFromISR(ToTelemetryAndControl,&statusMsg);
 }
 
@@ -297,9 +300,11 @@ void ftl0_state_cmd_ok(ftl0_state_machine_t *state, AX25_event_t *event) {
                     /* if OK to upload send UL_GO_RESP.  We determine if it is OK by checking if we have space
                      * and that it is a valid continue of file_id != 0
                      * This will send UL_GO_DATA packet if checks pass
- */
+                     */
                     int err = ftl0_process_upload_cmd(state, event->packet.data, event->packet.data_len);
-                    if (err != ER_NONE) {
+                    if (err == ER_NONE) {
+                        // All is good
+                    } else {
                         // send the error
                         rc = ftl0_send_err(event->packet.from_callsign, event->channel, err);
                         if (rc != TRUE) {
@@ -312,7 +317,7 @@ void ftl0_state_cmd_ok(ftl0_state_machine_t *state, AX25_event_t *event) {
                         // If we sent error successfully then we stay in state UL_CMD_OK and the station can try another file
                         break;
                     }
-                    debug_print("FTL0[%d]: %s: UL_GO_RESP - File: %04x \n",state->channel, state->callsign, state->file_id);
+                    //debug_print("FTL0[%d]: %s: UL_GO_RESP - File: %04x \n",state->channel, state->callsign, state->file_id);
 
                     // We move to state UL_DATA_RX
                     state->ul_state = UL_DATA_RX;
@@ -417,7 +422,16 @@ void ftl0_state_data_rx(ftl0_state_machine_t *state, AX25_event_t *event) {
                             break;
                         }
                         // If we sent error successfully then we stay in state UL_DATA_RX and the station can send more data
-
+                        // Update the upload record in case nothing else is received
+                        InProcessFileUpload_t file_upload_record;
+                        if (ftl0_get_file_upload_record(state->file_id, &file_upload_record) ) {
+                            file_upload_record.request_time = state->request_time;
+                            file_upload_record.offset = state->offset;
+                            if (!ftl0_update_file_upload_record(&file_upload_record) ) {
+                                debug_print("Unable to update upload record in MRAM\n");
+                                // do not treat this as fatal because the file can still be uploaded
+                            }
+                        }
                     }
                     break;
                 }
@@ -425,11 +439,14 @@ void ftl0_state_data_rx(ftl0_state_machine_t *state, AX25_event_t *event) {
                     trace_ftl0("FTL0[%d]: %s: UL_DATA_RX - DATA END RECEIVED\n",state->channel, state->callsign);
                     int err = ftl0_process_data_end_cmd(state, event->packet.data, event->packet.data_len);
                     if (err != ER_NONE) {
-                        debug_print(" FTL0[%d] SENDING %s NAK for file %04x\n",state->channel, state->callsign, state->file_id);
+                        //debug_print(" FTL0[%d] SENDING %s NAK for file %04x\n",state->channel, state->callsign, state->file_id);
                         rc = ftl0_send_nak(event->packet.from_callsign, event->channel, err);
                     } else {
-                        debug_print(" FTL0[%d] SENDING %s ACK for file %04x\n",state->channel, state->callsign, state->file_id);
+                        //debug_print(" FTL0[%d] SENDING %s ACK for file %04x\n",state->channel, state->callsign, state->file_id);
                         rc = ftl0_send_ack(event->packet.from_callsign, event->channel);
+                    }
+                    if (!ftl0_remove_file_upload_record(state->file_id))  {
+                        debug_print(" FTL0[%d] Could not remove upload record for %s file id %04x\n",state->channel, state->callsign, state->file_id);
                     }
                     state->ul_state = UL_CMD_OK;
                     if (rc != TRUE) {
@@ -551,7 +568,7 @@ bool ftl0_add_request(char *from_callsign, rx_channel_t channel) {
     ftl0_state_machine[channel].ul_state = UL_CMD_OK;
     ftl0_state_machine[channel].channel = channel;
     ftl0_state_machine[channel].file_id = 0; // Set once the UPLD packet received
-    ftl0_state_machine[channel].request_time = getSeconds(); // for timeout
+    ftl0_state_machine[channel].request_time = getUnixTime(); // for timeout
     ftl0_state_machine[channel].file_id = 0; // Set when UPLD packet received
 
     return TRUE;
@@ -797,8 +814,11 @@ int ftl0_process_upload_cmd(ftl0_state_machine_t *state, uint8_t *data, int len)
     /* This is the data we are going to send */
     FTL0_UL_GO_DATA ul_go_data;
 
-    /* Check if data is valid */
+    /* Check if received data is valid */
     if (state->file_id == 0) {
+        /* first check against the maximum allowed file size, TODO - which should be a configurable param from the ground */
+        if (state->length > MAX_FILESIZE)
+            return ER_NO_ROOM;
         /* Do we have space */
         REDSTATFS redstatfs;
         int32_t red = red_statvfs("/", &redstatfs);
@@ -807,24 +827,17 @@ int ftl0_process_upload_cmd(ftl0_state_machine_t *state, uint8_t *data, int len)
             /* Can't check if we have space, assume an error */
             return ER_NO_ROOM;
         } else {
-            // TODO - we should first check against the maximum allowed file size, which should be a configurable
-            // parameter, but which also can't exceed the red-fs max file size
             uint32_t available = redstatfs.f_frsize * redstatfs.f_bfree;
-            //uint32_t allocated = 0;
-            /* TODO - need to check all the partially uploaded files to see what remaining space they have claimed. Or
-             when we first start to upload, seek to the end and size a full empty file.  But that could be very wasteful. It
-             would need an expiry date and cleanup routine.
-             A better method could be to check only the other files uploading right now and then check continues to
-             make sure there is still space available.  Reject and delete continues if there is no space.  But that could be cruel
-             for long images that were 90% uploaded, then space runs out.
-             */
-            trace_ftl0("File length: %d.  Disk has Free blocks: %d of %d.  Free Bytes: %d\n",state->length, redstatfs.f_bfree, redstatfs.f_blocks, available);
-            if ((state->length + UPLOAD_SPACE_THRESHOLD) > available )
+
+            /* Need to check all the partially uploaded files to see what remaining space they have claimed. */
+            uint32_t upload_table_space = ftl0_get_space_reserved_by_upload_table();
+
+            trace_ftl0("File length: %d. Upload table: %d  Disk has Free blocks: %d of %d.  Free Bytes: %d\n",state->length, upload_table_space, redstatfs.f_bfree, redstatfs.f_blocks, available);
+            if ((state->length + upload_table_space + UPLOAD_SPACE_THRESHOLD) > available )
                 return ER_NO_ROOM;
         }
 
         /* We have space so allocate a file number, store in uplink list and send to the station */
-//        ul_go_data.server_file_no = dir_next_file_number();
         state->file_id = dir_next_file_number();
         if (state->file_id == 0) {
             debug_print("Unable to allocated new file id: %s\n", red_strerror(red_errno));
@@ -849,69 +862,117 @@ int ftl0_process_upload_cmd(ftl0_state_machine_t *state, uint8_t *data, int len)
             debug_print("Unable to close %s: %s\n", file_name_with_path, red_strerror(red_errno));
         }
 
-    } else { // File number was supplied in the Upload command
-        /* Is this a valid continue? Check to see if there is a tmp file
-          */
-         // TODO - we also need to check the situation where we have the complete file but the ground station never received the ACK.
-         //        So an atttempt to upload a finished file that belongs to this station, that has the right length, should get an ACK to finish upload off
-         char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
-         dir_get_tmp_file_path_from_file_id(state->file_id, file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
-         trace_ftl0("FTL0[%d]: Checking continue file: %s\n",state->channel, file_name_with_path);
-
-         // TODO - we check that the file exists, but for now we do not check that it belongs to this station.  That allows two
-         // stations to cooperatively upload the same file, but it also allows a station to corrupt someone elses file
-         int32_t fp = red_open(file_name_with_path, RED_O_RDONLY);
-         if (fp == -1) {
-             debug_print("No such file number \n");
-             return ER_NO_SUCH_FILE_NUMBER;
+        /* Store in an upload table record.  The state will now contain all the details */
+         InProcessFileUpload_t file_upload_record;
+         strlcpy(file_upload_record.callsign,state->callsign, sizeof(file_upload_record.callsign));
+         file_upload_record.file_id = state->file_id;
+         file_upload_record.length = state->length;
+         file_upload_record.request_time = state->request_time;
+         file_upload_record.offset = state->offset;
+         if (!ftl0_set_file_upload_record(&file_upload_record) ) {
+             debug_print("Unable to create upload record in MRAM for file id %04x\n",state->file_id);
+             // this is not fatal as we may still be able to upload the file, though a later continue may not work
          }
-         int rc;
-         int32_t off = red_lseek(fp, 0, RED_SEEK_END);
-         if (off == -1) {
-             debug_print("Unable to seek %s  to end: %s\n", file_name_with_path, red_strerror(red_errno));
+    } else {
+        /* File number was supplied in the Upload command.  In this situation we send a GO response with the offset
+         * that the station should use to continue the upload.  Space should still be available as it was allocated
+         * before.  If there is an error then that is returned instead of GO.
+         * If there is an upload record then that is not changed by a continue, even if there is an error. */
 
-             rc = red_close(fp);
-             if (rc != 0) {
-                 debug_print("Unable to close %s: %s\n", file_name_with_path, red_strerror(red_errno));
-             }
-             return ER_NO_SUCH_FILE_NUMBER;
-         } else {
-             state->offset = off;
-             trace_ftl0("FTL0[%d]: Continuing file %04x at offset %d\n",state->channel, state->file_id, state->offset);
-         }
-         rc = red_close(fp);
-         if (rc != 0) {
-             debug_print("Unable to close %s: %s\n", file_name_with_path, red_strerror(red_errno));
-         }
+        // We first need to check the situation where we have the complete file but the ground station never received the ACK.
+        // So If we get a continue request and the offset is at the end of the file and the file is on the disk, then we send
+        // ER_FILE_COMPLETE.
+        char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
+        dir_get_file_path_from_file_id(state->file_id, file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
+        trace_ftl0("FTL0[%d]: Checking if file: %s already uploaded\n",state->channel, file_name_with_path);
 
-         // TODO - IMPORTANT - we need to check file length with the length previously supplied - LIST IN MRAM
-         /* if <continue_file_no> is not 0 and the <file_length> does not
-             agree with the <file_length> previously associated with the file identified by
-             <continue_file_no>.  Continue is not possible.*/
-         // code this error check
+        int32_t fp = red_open(file_name_with_path, RED_O_RDONLY);
+        if (fp != -1) { // File is already on disk
+            trace_ftl0("File is already on disk\n");
+            int32_t off = red_lseek(fp, 0, RED_SEEK_END);
+            int32_t rc = red_close(fp);
+            if (rc != 0) {
+                debug_print("Unable to close %s: %s\n", file_name_with_path, red_strerror(red_errno));
+            }
+            if (off == -1) {
+                debug_print("Unable to seek %s  to end: %s\n", file_name_with_path, red_strerror(red_errno));
+                return ER_NO_SUCH_FILE_NUMBER; // something is wrong with this file - tell ground station to ask for a new number
+            } else {
+                if (state->length == off) { // we have the full file
+                    trace_ftl0("FTL0[%d]: We already have file %04x at final offset %d -- ER FILE COMPLETE\n",state->channel, state->file_id, state->offset);
+                    return ER_FILE_COMPLETE;
+                }
+            }
+        }
 
-         // TODO - do we recheck that space is still available here?  See the note above on space available
+        /* Is this a valid continue? Check to see if there is a tmp file and an upload table entry
+         */
+        InProcessFileUpload_t upload_record;
+        if (!ftl0_get_file_upload_record(state->file_id, &upload_record))  {
+            debug_print("Could not read upload record for file id %04x - FAILED\n",state->file_id);
+            return ER_NO_SUCH_FILE_NUMBER;
+        } else {
+            /* if <continue_file_no> is not 0 and the <file_length> does not
+               agree with the <file_length> previously associated with the file identified by
+               <continue_file_no>.  Continue is not possible.*/
+            if (upload_record.length != state->length) {
+                debug_print("Promised file length does not match - BAD CONTINUE\n");
+                return ER_BAD_CONTINUE;
+            }
+            /* If this file does not belong to this callsign then reject */
+            if (strcmp(upload_record.callsign, state->callsign) != 0) {
+                debug_print("Callsign does not match - BAD CONTINUE\n");
+                return ER_BAD_CONTINUE;
+            }
+        }
 
-         ul_go_data.server_file_no = htotl(state->file_id);
-         ul_go_data.byte_offset = htotl(state->offset); // this is the end of the file so far
-     }
+        dir_get_tmp_file_path_from_file_id(state->file_id, file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
+        trace_ftl0("FTL0[%d]: Checking continue file: %s\n",state->channel, file_name_with_path);
 
-     int rc = ftl0_make_packet(send_event_buffer.packet.data, (uint8_t *)&ul_go_data, sizeof(ul_go_data), UL_GO_RESP);
-         if (rc != TRUE) {
-             debug_print("Could not make FTL0 UL GO packet \n");
-             return ER_ILL_FORMED_CMD; // TODO This will cause err 1 to be sent and the station to be offloaded.  Is that right..
-         }
+        fp = red_open(file_name_with_path, RED_O_RDONLY);
+        if (fp == -1) {
+            debug_print("No such file number \n");
+            return ER_NO_SUCH_FILE_NUMBER;
+        }
+        int rc;
+        int32_t off = red_lseek(fp, 0, RED_SEEK_END);
+        if (off == -1) {
+            debug_print("Unable to seek %s  to end: %s\n", file_name_with_path, red_strerror(red_errno));
 
-         send_event_buffer.packet.data_len = sizeof(ul_go_data)+2;
+            rc = red_close(fp);
+            if (rc != 0) {
+                debug_print("Unable to close %s: %s\n", file_name_with_path, red_strerror(red_errno));
+            }
+            return ER_NO_SUCH_FILE_NUMBER;
+        } else {
+            state->offset = off;
+            trace_ftl0("FTL0[%d]: Continuing file %04x at offset %d\n",state->channel, state->file_id, state->offset);
+        }
+        rc = red_close(fp);
+        if (rc != 0) {
+            debug_print("Unable to close %s: %s\n", file_name_with_path, red_strerror(red_errno));
+        }
 
-         rc = ftl0_send_event(&ax25_event, &send_event_buffer);
-         if (rc != TRUE) {
-             debug_print("Could not send FTL0 UL GO packet to TNC \n");
-             return ER_ILL_FORMED_CMD; // TODO This will cause err 1 to be sent and the station to be offloaded.  Is that right..
-         } else {
-             trace_ftl0("FTL0:[%d]: Sending FTL0 UL_GO PKT\n",state->channel);
-         }
-     return ER_NONE;
+        ul_go_data.server_file_no = htotl(state->file_id);
+        ul_go_data.byte_offset = htotl(state->offset); // this is the end of the file so far
+    }
+
+    int rc = ftl0_make_packet(send_event_buffer.packet.data, (uint8_t *)&ul_go_data, sizeof(ul_go_data), UL_GO_RESP);
+    if (rc != TRUE) {
+        debug_print("Could not make FTL0 UL GO packet \n");
+        return ER_ILL_FORMED_CMD; // TODO This will cause err 1 to be sent and the station to be offloaded.  Is that right..
+    }
+
+    send_event_buffer.packet.data_len = sizeof(ul_go_data)+2;
+
+    rc = ftl0_send_event(&ax25_event, &send_event_buffer);
+    if (rc != TRUE) {
+        debug_print("Could not send FTL0 UL GO packet to TNC \n");
+        return ER_ILL_FORMED_CMD; // TODO This will cause err 1 to be sent and the station to be offloaded.  Is that right..
+    } else {
+        trace_ftl0("FTL0:[%d]: Sending FTL0 UL_GO PKT\n",state->channel);
+    }
+    return ER_NONE;
 }
 
 /**
@@ -1007,9 +1068,11 @@ int ftl0_process_data_end_cmd(ftl0_state_machine_t *state, uint8_t *data, int le
 
     /* Otherwise this looks good.  Rename the file by linking a new name and removing the old name. Then
      * add it to the directory. */
-    //TODO - note that we are renaming the file before we know that the ground station has received an ACK
-    //       That is OK as long as we handle the situation where the ground station tries to finish the upload
-    //       and we no longer have the tmp file.  We should then send ACK, not BAD_FILE_NUMBER err.
+    /* Note that we are renaming the file before we know that the ground station has received an ACK
+           That is OK as long as we handle the situation where the ground station tries to finish the upload
+           and we no longer have the tmp file.  This is handled in process_upload_command() where ER_FILE_COMPLETE
+           is sent.
+     */
     char new_file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
     dir_get_file_path_from_file_id(state->file_id, new_file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
 
@@ -1040,7 +1103,6 @@ int ftl0_process_data_end_cmd(ftl0_state_machine_t *state, uint8_t *data, int le
         debug_print("Unable to remove tmp file: %s : %s\n", file_name_with_path, red_strerror(red_errno));
         // TODO this is not fatal to the upload, but there needs to be a routine to clean up expired upload files
     }
-
 
     return ER_NONE;
 }
@@ -1151,14 +1213,14 @@ bool ftl0_set_file_upload_record(InProcessFileUpload_t * file_upload_record) {
     }
     if (first_empty_id != -1) {
         bool rc2 = ftl0_mram_set_file_upload_record(first_empty_id, file_upload_record);
-        debug_print("Store in empty slot %d\n",first_empty_id);
+        //debug_print("Store in empty slot %d\n",first_empty_id);
         if (rc2 == FALSE) return FALSE;
         return TRUE;
     }
 
     /* We could not find a slot so overwrite the oldest. */
     if (oldest_id != -1) {
-        debug_print("Store in oldest slot %d\n",oldest_id);
+        //debug_print("Store in oldest slot %d\n",oldest_id);
         bool rc3 = ftl0_mram_set_file_upload_record(oldest_id, file_upload_record);
         if (rc3 == FALSE) return FALSE;
         return TRUE;
@@ -1167,10 +1229,33 @@ bool ftl0_set_file_upload_record(InProcessFileUpload_t * file_upload_record) {
 }
 
 /**
- * Read a record from the file upload table
+ * Given an upload record with a file_id, update the file upload record.
+ * Return true if it could be updated or false otherwise.
  */
-bool ftl0_mram_get_file_upload_record(uint32_t id, InProcessFileUpload_t * file_upload_record) {
-    bool rc = readNV(file_upload_record, sizeof(InProcessFileUpload_t),NVConfigData, (int)&(LocalFlash->FileUploadsTable[id]));
+bool ftl0_update_file_upload_record(InProcessFileUpload_t * file_upload_record) {
+    int i;
+    InProcessFileUpload_t tmp_file_upload_record;
+    /* Find the record and update it */
+    for (i=0; i < MAX_IN_PROCESS_FILE_UPLOADS; i++) {
+        bool rc = ftl0_mram_get_file_upload_record(i, &tmp_file_upload_record);
+        if (rc == FALSE) return FALSE;
+        if (tmp_file_upload_record.file_id == file_upload_record->file_id) {
+            /* Update the record in this slot */
+            bool rc3 = ftl0_mram_set_file_upload_record(i, file_upload_record);
+            if (rc3 == FALSE) return FALSE;
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+
+/**
+ * Read a record from the file upload table slot
+ */
+bool ftl0_mram_get_file_upload_record(uint32_t slot, InProcessFileUpload_t * file_upload_record) {
+    bool rc = readNV(file_upload_record, sizeof(InProcessFileUpload_t),NVConfigData, (int)&(LocalFlash->FileUploadsTable[slot]));
     if (!rc) {
         debug_print("MRAM File Upload table read - FAILED\n");
         return FALSE;
@@ -1190,6 +1275,11 @@ bool ftl0_mram_set_file_upload_record(uint32_t id, InProcessFileUpload_t * file_
     return TRUE;
 }
 
+/**
+ * ftl0_remove_file_upload_record()
+ * Remove the record from the upload table based on the file id
+ * Return TRUE if it was removed or did not exist.  Otherwise return FALSE;
+ */
 bool ftl0_remove_file_upload_record(uint32_t id) {
     InProcessFileUpload_t tmp_file_upload_record;
     InProcessFileUpload_t tmp_file_upload_record2;
@@ -1197,6 +1287,7 @@ bool ftl0_remove_file_upload_record(uint32_t id) {
     tmp_file_upload_record.length = 0;
     tmp_file_upload_record.request_time = 0;
     tmp_file_upload_record.callsign[0] = 0;
+    tmp_file_upload_record.offset = 0;
 
     int i;
     for (i=0; i < MAX_IN_PROCESS_FILE_UPLOADS; i++) {
@@ -1209,7 +1300,29 @@ bool ftl0_remove_file_upload_record(uint32_t id) {
             return TRUE;
         }
     }
-    return FALSE;
+    return TRUE;
+}
+
+/**
+ * Calculate and return the total space consumed by the upload table.  This indicates
+ * how much data we are expecting to receive from uploaded files.  If we want to guarantee
+ * they can be uploaded them we need to keep this amount of space free.
+ *
+ */
+int ftl0_get_space_reserved_by_upload_table() {
+    int i;
+    uint32_t space_reserved = 0;
+    InProcessFileUpload_t rec;
+
+    for (i=0; i < MAX_IN_PROCESS_FILE_UPLOADS; i++) {
+        if (!ftl0_mram_get_file_upload_record(i, &rec)) {
+            return FALSE;
+        }
+        if (rec.file_id != 0) {
+            space_reserved += (rec.length - rec.offset); /* We exclude the offset because that will be included in the space consumed on the disk */
+        }
+    }
+    return space_reserved;
 }
 
 bool ftl0_clear_upload_table() {
@@ -1219,6 +1332,7 @@ bool ftl0_clear_upload_table() {
     tmp_file_upload_record.length = 0;
     tmp_file_upload_record.request_time = 0;
     tmp_file_upload_record.callsign[0] = 0;
+    tmp_file_upload_record.offset = 0;
 
     for (i=0; i < MAX_IN_PROCESS_FILE_UPLOADS; i++) {
         if (!ftl0_mram_set_file_upload_record(i, &tmp_file_upload_record)) {
@@ -1230,6 +1344,28 @@ bool ftl0_clear_upload_table() {
 
 #ifdef DEBUG
 
+/**
+ * TEST ROUTINES
+ */
+
+bool ftl0_debug_list_upload_table() {
+    int i;
+    InProcessFileUpload_t rec;
+
+    for (i=0; i < MAX_IN_PROCESS_FILE_UPLOADS; i++) {
+        if (!ftl0_mram_get_file_upload_record(i, &rec)) {
+            return FALSE;
+        }
+        if (rec.file_id != 0) {
+            uint32_t now = getUnixTime();
+            debug_print("%d- File: %04x by %s length: %d offset: %d for %d seconds\n",i, rec.file_id, rec.callsign, rec.length, rec.offset, now-rec.request_time);
+        }
+    }
+    uint32_t space = ftl0_get_space_reserved_by_upload_table();
+    debug_print("Total Space Allocated: %d\n",space);
+    return TRUE;
+}
+
 int test_ftl0_upload_table() {
     printf("##### TEST UPLOAD TABLE:\n");
     int rc = TRUE;
@@ -1240,7 +1376,8 @@ int test_ftl0_upload_table() {
     strlcpy(file_upload_record.callsign,"G0KLA", sizeof(file_upload_record.callsign));
     file_upload_record.file_id = 99;
     file_upload_record.length = 12345;
-    file_upload_record.request_time = 555;
+    file_upload_record.request_time = 1692394562;
+    file_upload_record.offset = 0;
 
     /* Store in the middle of the table.  In a later test this will be the oldest. */
     if (!ftl0_mram_set_file_upload_record(15, &file_upload_record)) {  debug_print("Could not add record - FAILED\n"); return FALSE; }
@@ -1253,12 +1390,16 @@ int test_ftl0_upload_table() {
     if (record.request_time != file_upload_record.request_time)  {  debug_print("Wrong request_time - FAILED\n"); return FALSE; }
     if (strcmp(record.callsign, file_upload_record.callsign) != 0)  {  debug_print("Wrong callsign - FAILED\n"); return FALSE; }
 
+    uint32_t space = ftl0_get_space_reserved_by_upload_table();
+    if (space != file_upload_record.length)  {  debug_print("Wrong table space - FAILED\n"); return FALSE; }
+
     /* Now test adding by file id */
     InProcessFileUpload_t file_upload_record2;
     strlcpy(file_upload_record2.callsign,"AC2CZ", sizeof(file_upload_record.callsign));
     file_upload_record2.file_id = 1010;
     file_upload_record2.length = 659;
-    file_upload_record2.request_time = 666;
+    file_upload_record2.request_time = 1692394562+1;
+    file_upload_record2.offset = 0;
 
     if (!ftl0_set_file_upload_record(&file_upload_record2) ) {  debug_print("Could not add record2 - FAILED\n"); return FALSE; }
 
@@ -1275,7 +1416,8 @@ int test_ftl0_upload_table() {
     strlcpy(file_upload_record3.callsign,"VE2TCP", sizeof(file_upload_record.callsign));
     file_upload_record3.file_id = 1010;
     file_upload_record3.length = 6539;
-    file_upload_record3.request_time = 669;
+    file_upload_record3.request_time = 1692394562+2;
+    file_upload_record3.offset = 0;
 
     if (ftl0_set_file_upload_record(&file_upload_record3) ) {  debug_print("Error - added duplicate file id for record3 - FAILED\n"); return FALSE; }
 
@@ -1286,7 +1428,8 @@ int test_ftl0_upload_table() {
     int j;
     for (j=0; j < MAX_IN_PROCESS_FILE_UPLOADS; j++) {
         tmp_file_upload_record.file_id = 100 + j;
-        tmp_file_upload_record.request_time = 669 + j;
+        tmp_file_upload_record.request_time = 1692394562 + 3 + j;
+        tmp_file_upload_record.offset = 0;
         if (!ftl0_set_file_upload_record(&tmp_file_upload_record)) {
             return FALSE;
         }
@@ -1298,7 +1441,7 @@ int test_ftl0_upload_table() {
 
     if (record4.file_id != 100 + MAX_IN_PROCESS_FILE_UPLOADS-2)  {  debug_print("Wrong oldest file id - FAILED\n"); return FALSE; }
     if (record4.length != 123)  {  debug_print("Wrong length - FAILED\n"); return FALSE; }
-    if (record4.request_time != 669 + MAX_IN_PROCESS_FILE_UPLOADS-2)  {  debug_print("Wrong oldest request_time - FAILED\n"); return FALSE; }
+    if (record4.request_time != 1692394562 + 3 + MAX_IN_PROCESS_FILE_UPLOADS-2)  {  debug_print("Wrong oldest request_time - FAILED\n"); return FALSE; }
     if (strcmp(record4.callsign, "D0MMY") != 0)  {  debug_print("Wrong oldest callsign - FAILED\n"); return FALSE; }
 
     /* Now clear an upload record as though it completes or is purged */
@@ -1314,12 +1457,18 @@ int test_ftl0_upload_table() {
     file_upload_record6.file_id = 9990;
     file_upload_record6.length = 123999;
     file_upload_record6.request_time = 999;
+    file_upload_record6.offset = 122999;
 
     if (!ftl0_set_file_upload_record(&file_upload_record6) ) {  debug_print("Error - could not add record6 - FAILED\n"); return FALSE; }
 
     InProcessFileUpload_t record7;
     if (!ftl0_mram_get_file_upload_record(6, &record7))  {  debug_print("ERROR: Could not read slot 6 - FAILED\n"); return FALSE; }
     if (record7.file_id != 9990)  {  debug_print("Wrong file id in slot 6- FAILED\n"); return FALSE; }
+
+    if (!ftl0_debug_list_upload_table()) { debug_print("Could not print upload table - FAILED\n"); return FALSE; }
+
+    int reserved = 123 * 24 + 1000;
+    if (ftl0_get_space_reserved_by_upload_table() != reserved) { debug_print("Wrong space reserved: %d  - FAILED\n",reserved); return FALSE; }
 
     /* And reset everything */
     if (!ftl0_clear_upload_table()) { debug_print("Could not clear upload table - FAILED\n"); return FALSE;}

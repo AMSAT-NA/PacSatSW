@@ -57,12 +57,13 @@ typedef enum {
     /*
      * Messages to the telemetry and Control task
      */
-    TelemSendPbStatus,
-    TelemSendUplinkStatus,
-    TelemCollectMsg,
-    TelemSendRealtimeMsg,
-    TelemSendErrorsResetMsg,
-    TelemSendErrorsPowerCycleMsg
+    TacSendPbStatus,
+    TacSendUplinkStatus,
+    TacCollectMsg,
+    TacSendRealtimeMsg,
+    TacMaintenanceMsg,
+    TacSendErrorsResetMsg,
+    TacSendErrorsPowerCycleMsg
 
 }IntertaskMessageType;
 

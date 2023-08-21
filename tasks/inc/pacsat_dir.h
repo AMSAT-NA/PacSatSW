@@ -46,6 +46,7 @@ int32_t dir_fs_read_file_chunk(char *file_name_with_path, uint8_t *read_buffer, 
 int32_t dir_fs_get_file_size(char *file_name_with_path);
 DIR_NODE * dir_get_pfh_by_date(DIR_DATE_PAIR pair, DIR_NODE *p );
 DIR_NODE * dir_get_node_by_id(int file_id);
+void dir_maintenance();
 void dir_debug_print(DIR_NODE *p);
 
 /* Test functions */

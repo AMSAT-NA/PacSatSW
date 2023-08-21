@@ -153,6 +153,7 @@ typedef enum {
 #define MAX_PB_HOLES_LIST_BYTES 222 /* The max length of a holes list = ( AX25_MAX_DATA_LEN - 17 ) to nearest 6 */
 #define MAX_FILENAME_WITH_PATH_LEN 25 /* Max length of a filename with its path.  This requires a shallow dir structure. */
 #define MAX_BYTES_IN_PACSAT_FILE_HEADER 512
+#define MAX_FILESIZE 512 * 1024 /* Any file over this size will be rejected as having no room.  This is really just to confirm that the upload size is not corrupt */
 
 #define PB_MAX_PERIOD_FOR_CLIENTS_IN_SECONDS 600  // TODO - Should be in MRAM and commandable.  10 mins
 #define MAX_PKTS_IN_TX_PKT_QUEUE_FOR_TNC_TO_BE_BUSY 2 // TODO - Should be in MRAM and commandable. 2
@@ -166,6 +167,9 @@ typedef enum {
 
 /* Default is to send telemetry every 2 mins */
 #define TAC_TIMER_SEND_TELEMETRY_PERIOD SECONDS(60) //SECONDS(120)
+#define TAC_TIMER_MAINTENANCE_PERIOD SECONDS(120)  // every 1.5 hours or about once per orbit
+
+#define DIR_MAX_FILE_AGE 3*60 // 5*24*60*60 5 days to keep files
 
 /* At least this many bytes should be free after a file is uploaded.  Each disk block is 256 Bytes.
  * If this is set to 4*256 then we can run out of space while uploading.  Some investigation is needed

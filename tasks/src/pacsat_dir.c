@@ -289,7 +289,7 @@ DIR_NODE * dir_add_pfh(char *file_name, HEADER *new_pfh) {
             dir_delete_node(new_node);
             return NULL;
         } else {
-            debug_print("DIR: Saved File: %s\n",file_name_with_path);
+            //debug_print("DIR: Saved File: %s\n",file_name_with_path);
         }
     }
 
@@ -412,7 +412,7 @@ bool dir_load_pacsat_file(char *file_name) {
  */
 int dir_load() {
     dir_free();
-    WriteMRAMHighestFileNumber(0); /* Reset the nexxt file id as we will calculate the highest file number */
+    //WriteMRAMHighestFileNumber(0); /* Reset the next file id as we will calculate the highest file number */
 
     bool rc;
     REDDIR *pDir;
@@ -568,6 +568,42 @@ DIR_NODE * dir_get_node_by_id(int file_id) {
         p = p->next;
     }
     return NULL;
+}
+
+void dir_maintenance() {
+    uint32_t now = getUnixTime();
+
+    DIR_NODE *p = dir_head;
+    while (p != NULL) {
+        debug_print("CHECKING: File id: %04x name: %s up:%d age:%d sec\n",p->file_id, p->filename, p->upload_time, now-p->upload_time);
+        int32_t age = now-p->upload_time;
+        if (age < 0) {
+            // this looks wrong, something is corrupt.  Skip it
+            p = p->next;
+        } else {
+            if (age > DIR_MAX_FILE_AGE) {
+                // Remove this file it is over the max age
+                char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
+                strlcpy(file_name_with_path, DIR_FOLDER, sizeof(file_name_with_path));
+                strlcat(file_name_with_path, p->filename, sizeof(file_name_with_path));
+
+                debug_print("Purging: %s\n",file_name_with_path);
+                int32_t fp = red_unlink(file_name_with_path);
+                if (fp == -1) {
+                    debug_print("Unable to remove file: %s : %s\n", file_name_with_path, red_strerror(red_errno));
+                } else {
+                    // Remove from the dir
+                    DIR_NODE *node = p;
+                    p = p->next;
+                    dir_delete_node(node);
+                }
+            } else {
+                // Then Check if there is a nearer expiry date in the header
+                p = p->next;
+            }
+        }
+        vTaskDelay(CENTISECONDS(10)); // yield some time so that other things can do work
+    }
 }
 
 #ifdef DEBUG

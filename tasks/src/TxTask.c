@@ -28,6 +28,8 @@
 #include "FreeRTOS.h"
 #include "os_task.h"
 #include "ax25_util.h"
+#include "nonvolManagement.h"
+
 
 void radio_set_power(uint32_t regVal);
 bool tx_make_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t *bytes, int len, uint8_t *raw_bytes);
@@ -53,10 +55,10 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)  {
     xTxPacketQueue = xQueueCreate( TX_PACKET_QUEUE_LEN, AX25_PKT_BUFFER_LEN * sizeof( uint8_t ) );
     if (xTxPacketQueue == NULL) {
         /* The queue could not be created.  This is fatal and should only happen in test if we are short of memory at startup */
-        debug_print("FATAL ERROR: Could not create TX Packet Queue\n");
+        ReportError(RTOSfailure, TRUE, CharString, (int)"FATAL ERROR: Could not create TX Packet Queue");
     }
 
-
+    bool rate = ReadMRAMBoolState(StateAx25Rate9600);
     ax5043StartTx(device);
     radio_set_power(0x020); // minimum power to test
 
@@ -68,8 +70,10 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)  {
         uint8_t pktstart_flag = 0x01;
         uint8_t pktend_flag = 0x02;
         uint8_t raw_no_crc_flag = 0x18; // Flag of 0x18 is RAW no CRC
-        uint8_t preamble_length = 32; // TODO - Set programatically!!!!  10 for 1200 bps - Radio lab recommends 32 for 9600, may need as much as 56.
-
+        uint8_t preamble_length = 32; // 10 for 1200 bps - Radio lab recommends 32 for 9600, may need as much as 56.
+        if (rate == RATE_1200) {
+            preamble_length = 10;
+        }
         ReportToWatchdog(CurrentTaskWD);
         BaseType_t xStatus = xQueueReceive( xTxPacketQueue, &tx_packet_buffer, CENTISECONDS(10) );  // TODO - adjust block time vs watchdog
         ReportToWatchdog(CurrentTaskWD);

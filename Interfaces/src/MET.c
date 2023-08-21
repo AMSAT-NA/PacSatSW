@@ -96,7 +96,7 @@ void initMET() {
 
     /* And get the time on orbit */
     secondsInOrbit = ReadMRAMSecondsOnOrbit();
-    telemMsg.MsgType = TelemCollectMsg; // Just set up this message for later use
+    telemMsg.MsgType = TacCollectMsg; // Just set up this message for later use
     ResetAllWatchdogs();
 }
 

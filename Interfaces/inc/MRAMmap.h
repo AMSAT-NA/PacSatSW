@@ -90,14 +90,15 @@ typedef struct _authKey {
 
 /* This stores the details of an in process file upload */
 typedef struct _inProcessFileUpload {
-    char callsign[MAX_CALLSIGN_LEN];
-    uint32_t file_id;
-    uint32_t length;
-    uint32_t request_time;
+    char callsign[MAX_CALLSIGN_LEN]; /* The callsign of the stations that initiated the upload */
+    uint32_t file_id; /* The file id that was allocated by the dir.  A standard function calculates the tmp file name on disk */
+    uint32_t length;  /* The promised length of the file given by the station when it requested the upload */
+    uint32_t offset;  /* The offset at the end of the latest block uploaded */
+    uint32_t request_time; /* The date/time that this upload was requested */
 } InProcessFileUpload_t;
 
 
-#define MRAM_VERSION 4
+#define MRAM_VERSION 5
 
 /* Top level MRAM storage map */
 typedef struct {

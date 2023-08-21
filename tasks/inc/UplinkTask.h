@@ -91,4 +91,5 @@ typedef struct {
  * Routine prototypes
  */
 void UplinkTask(void *pvParameters);
+bool ftl0_debug_list_upload_table();
 int test_ftl0_upload_table();

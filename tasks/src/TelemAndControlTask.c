@@ -27,6 +27,7 @@
 #include "Ax25Task.h"
 #include "RxTask.h"
 #include "TxTask.h"
+#include "pacsat_dir.h"
 #include "errors.h"
 #include "Max31725Temp.h"
 #include "ax5043_access.h"
@@ -47,6 +48,7 @@ realTimeFrame_t realtimeFrame;
 
 /* Forward declarations */
 void tac_telem_timer_callback();
+void tac_maintenance_timer_callback();
 void tac_collect_telemetry(telem_buffer_t *buffer);
 void tac_send_telemetry(telem_buffer_t *buffer);
 
@@ -54,6 +56,7 @@ void tac_send_telemetry(telem_buffer_t *buffer);
 
 /* Local variables */
 static xTimerHandle timerTelemSend;
+static xTimerHandle timerMaintenance;
 static Intertask_Message statusMsg; // Storage used to send messages to the Telemetry and Control task
 
 
@@ -83,6 +86,13 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)  {
     portBASE_TYPE timerStatus = xTimerStart(timerTelemSend, 0); // Block time of zero as this can not block
     if (timerStatus != pdPASS) {
         ReportError(RTOSfailure, FALSE, CharString, (int)"ERROR: Failed in starting Telem Timer"); /* failed to start the RTOS timer */
+    }
+
+    /* Create a periodic timer for maintenance */
+    timerMaintenance = xTimerCreate( "Maintenance", TAC_TIMER_MAINTENANCE_PERIOD, TRUE, (void *)0, tac_maintenance_timer_callback);
+    portBASE_TYPE timerStatus2 = xTimerStart(timerMaintenance, 0); // Block time of zero as this can not block
+    if (timerStatus2 != pdPASS) {
+        ReportError(RTOSfailure, FALSE, CharString, (int)"ERROR: Failed in starting Maintenance Timer"); /* failed to start the RTOS timer */
     }
 
 
@@ -119,21 +129,26 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)  {
             //                debug_print("MessagesWaiting=%d\n",WaitingInterTask(ToTelemetryAndControl));
             //            }
             switch(messageReceived.MsgType){
-            case TelemSendPbStatus:
+            case TacSendPbStatus:
                 //debug_print("Telem & Control: Send the PB Status\n");
                 pb_send_status();
                 break;
 
-            case TelemSendUplinkStatus:
+            case TacSendUplinkStatus:
                 //debug_print("Telem & Control: Send the FTL0 Status\n");
                 ax25_send_status();
                 break;
 
-            case TelemCollectMsg:
+            case TacMaintenanceMsg:
+                debug_print("Telem & Control: Running DIR Maintenance\n");
+                dir_maintenance();
+                break;
+
+            case TacCollectMsg:
                 tac_collect_telemetry(&telem_buffer);
                 break;
 
-            case TelemSendRealtimeMsg:
+            case TacSendRealtimeMsg:
                 tac_send_telemetry(&telem_buffer);
                 break;
 
@@ -150,9 +165,20 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)  {
  * This is called from a timer whenever the telemetry should be sent.
  */
 void tac_telem_timer_callback() {
-    statusMsg.MsgType = TelemSendRealtimeMsg;
+    statusMsg.MsgType = TacSendRealtimeMsg;
     NotifyInterTaskFromISR(ToTelemetryAndControl,&statusMsg);
 }
+
+/**
+ * tac_maintenance_timer_callback()
+ *
+ * This is called from a timer whenever directory and upload table maintenance should be run.
+ */
+void tac_maintenance_timer_callback() {
+    statusMsg.MsgType = TacMaintenanceMsg;
+    NotifyInterTaskFromISR(ToTelemetryAndControl,&statusMsg);
+}
+
 
 void tac_collect_telemetry(telem_buffer_t *buffer) {
     //debug_print("Telem & Control: Collect RT telem\n");
@@ -229,7 +255,7 @@ void tac_send_telemetry(telem_buffer_t *buffer) {
         len = sizeof(realtimeFrame);
 
         frame = (uint8_t *)&realtimeFrame;
-        debug_print("Sending Type 1 Frame %d:%d\n",realtimeFrame.header.resetCnt, realtimeFrame.header.uptime);
+//        debug_print("Sending Type 1 Frame %d:%d\n",realtimeFrame.header.resetCnt, realtimeFrame.header.uptime);
 //        debug_print("Bytes sent:");
 //        int i=0;
 //        for (i=0; i<11; i++) {

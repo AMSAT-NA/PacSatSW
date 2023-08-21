@@ -256,7 +256,7 @@ int pb_send_err(char *from_callsign, int err) {
  *
  */
 void pb_status_callback() {
-    statusMsg.MsgType = TelemSendPbStatus;
+    statusMsg.MsgType = TacSendPbStatus;
     NotifyInterTaskFromISR(ToTelemetryAndControl,&statusMsg);
 }
 

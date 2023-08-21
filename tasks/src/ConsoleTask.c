@@ -173,6 +173,7 @@ enum {
     ,sendUplinkStatus
     ,testRetransmission
     ,testUploadTable
+    ,listUploadTable
 #endif
     ,monitorOn
     ,monitorOff
@@ -250,7 +251,8 @@ commandPairs debugCommands[] = {
                                 ,{"test dir","Test the Pacsat Directory.  The command 'make psf' must already have been run",testDir}
                                 ,{"send uplink status","Send Uplink status",sendUplinkStatus}
                                 ,{"test retransmission","Test the AX25 I frame retransmission",testRetransmission}
-                                ,{"test upload table","Test the storage of Upload recoords in the MRAM table",testUploadTable}
+                                ,{"test upload table","Test the storage of Upload records in the MRAM table",testUploadTable}
+                                ,{"list upload table","List the Upload records in the MRAM table",listUploadTable}
 #endif
                                 ,{"monitor on","Monitor sent and received packets",monitorOn}
                                 ,{"monitor off","Stop monitoring packets",monitorOff}
@@ -1141,6 +1143,10 @@ void RealConsoleTask(void)
         }
         case testUploadTable:{
             bool rc = test_ftl0_upload_table();
+            break;
+        }
+        case listUploadTable:{
+            bool rc = ftl0_debug_list_upload_table();
             break;
         }
 
