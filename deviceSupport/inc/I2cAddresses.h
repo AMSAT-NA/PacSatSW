@@ -12,13 +12,13 @@
 #define ICRTELEMETRY_H_
 #include <pacsat.h>
 
-#define RTIHU_TMP_ADDRESS (0x90 >> 1) /* 7-bit address mode */
-#define RTIHU_TMP_PORT I2C1
+#define PACBOARD_TEMP_ADDRESS (0x90 >> 1) /* 7-bit address mode */
+#define PACBOARD_TEMP_PORT I2C1
 
 #define RTC_ADDRESS (0xD0 >> 1) /* 7-bit address mode */
 #define RTC_PORT I2C1
 
-
+#if 0
 #define ICR_ADC_I2C_ADDRESS 0x4B //ICR voltages
 #define ICR_ADC_I2C_PORT I2C2
 
@@ -38,5 +38,5 @@
 #define ICR_COLLECTION_REQUEST 0X01
 #define ICR_STATUS_REQUEST 0x02
 #define ICR_TELEMETRY_REQUEST 0x03
-
+#endif
 #endif /* ICRTELEMETRY_H_ */
