@@ -422,15 +422,16 @@ void ftl0_state_data_rx(ftl0_state_machine_t *state, AX25_event_t *event) {
                             break;
                         }
                         // If we sent error successfully then we stay in state UL_DATA_RX and the station can send more data
-                        // Update the upload record in case nothing else is received
-                        InProcessFileUpload_t file_upload_record;
-                        if (ftl0_get_file_upload_record(state->file_id, &file_upload_record) ) {
-                            file_upload_record.request_time = state->request_time;
-                            file_upload_record.offset = state->offset;
-                            if (!ftl0_update_file_upload_record(&file_upload_record) ) {
-                                debug_print("Unable to update upload record in MRAM\n");
-                                // do not treat this as fatal because the file can still be uploaded
-                            }
+
+                    }
+                    // Update the upload record in case nothing else is received
+                    InProcessFileUpload_t file_upload_record;
+                    if (ftl0_get_file_upload_record(state->file_id, &file_upload_record) ) {
+                        file_upload_record.request_time = getUnixTime(); // this is updated when we receive data
+                        file_upload_record.offset = state->offset;
+                        if (!ftl0_update_file_upload_record(&file_upload_record) ) {
+                            debug_print("Unable to update upload record in MRAM\n");
+                            // do not treat this as fatal because the file can still be uploaded
                         }
                     }
                     break;
@@ -1222,6 +1223,7 @@ bool ftl0_set_file_upload_record(InProcessFileUpload_t * file_upload_record) {
     if (oldest_id != -1) {
         //debug_print("Store in oldest slot %d\n",oldest_id);
         bool rc3 = ftl0_mram_set_file_upload_record(oldest_id, file_upload_record);
+        //TODO - this has to purge the old tmp file as well or it needs to be cleaned up by maintenance func
         if (rc3 == FALSE) return FALSE;
         return TRUE;
     }
@@ -1342,6 +1344,97 @@ bool ftl0_clear_upload_table() {
     return TRUE;
 }
 
+/**
+ * ftl0_maintenance()
+ * Remove expired entries from the file upload table and delete their tmp file on disk
+ * Remove any orpaned tmp files on disk
+ *
+ */
+void ftl0_maintenance() {
+    //debug_print("Running FTL0 Maintenance\n");
+
+    // First remove any expired entries in the table
+    int i;
+    InProcessFileUpload_t rec;
+    InProcessFileUpload_t blank_file_upload_record;
+    blank_file_upload_record.file_id = 0;
+    blank_file_upload_record.length = 0;
+    blank_file_upload_record.request_time = 0;
+    blank_file_upload_record.callsign[0] = 0;
+    blank_file_upload_record.offset = 0;
+
+    for (i=0; i < MAX_IN_PROCESS_FILE_UPLOADS; i++) {
+        if (!ftl0_mram_get_file_upload_record(i, &rec)) {
+            // skip and keep going in case this is temporary;
+        }
+        // TODO - do not remove file the is currently in the upload FTL0 state machine
+        if (rec.file_id != 0) {
+            uint32_t now = getUnixTime();
+            int32_t age = now-rec.request_time;
+            if (age < 0) {
+                // this looks wrong, something is corrupt.  Skip it
+            } else if (age > FTL0_MAX_UPLOAD_RECORD_AGE) {
+                debug_print("REMOVING RECORD: %d- File: %04x by %s length: %d offset: %d for %d seconds\n",i, rec.file_id, rec.callsign, rec.length, rec.offset, now-rec.request_time);
+                if (ftl0_mram_set_file_upload_record(i, &blank_file_upload_record)) {
+                    // Remove the tmp file
+                    char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
+                    dir_get_tmp_file_path_from_file_id(rec.file_id, file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
+                    int32_t fp = red_unlink(file_name_with_path);
+                    if (fp == -1) {
+                        debug_print("Unable to remove tmp file: %s : %s\n", file_name_with_path, red_strerror(red_errno));
+                    }
+                } else {
+                    debug_print(" FTL0 Maintenance - Could not remove upload record %d\n",i);
+                }
+            }
+        }
+        vTaskDelay(CENTISECONDS(10)); // yield some time so that other things can do work
+    }
+
+    // Next remove any orphaned tmp files
+    REDDIR *pDir;
+    char * path = TMP_FOLDER;
+    //printf("Checking TMP Directory from %s:\n",path);
+    pDir = red_opendir(path);
+    if (pDir == NULL) {
+        debug_print("Unable to open tmp folder: %s\n", red_strerror(red_errno));
+        return;
+    }
+
+    REDDIRENT *pDirEnt;
+    red_errno = 0; /* Set error to zero so we can distinguish between a real error and the end of the DIR */
+    pDirEnt = red_readdir(pDir);
+    while (pDirEnt != NULL) {
+        if (!RED_S_ISDIR(pDirEnt->d_stat.st_mode)) {
+            //debug_print("Checking: %s\n",pDirEnt->d_name);
+            uint32_t id = dir_get_file_id_from_filename(pDirEnt->d_name);
+            if (id == 0) {
+                debug_print("Could not get file id for file %s\n",pDirEnt->d_name);
+            }
+            // If this is not in the upload table then remove the file
+            if(!ftl0_get_file_upload_record(id, &rec)) {
+                // Remove the tmp file
+                char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
+                dir_get_tmp_file_path_from_file_id(id, file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
+                int32_t fp = red_unlink(file_name_with_path);
+                if (fp == -1) {
+                    debug_print("Unable to remove orphaned tmp file: %s : %s\n", file_name_with_path, red_strerror(red_errno));
+                }
+            }
+        }
+        vTaskDelay(CENTISECONDS(10)); // yield some time so that other things can do work
+        pDirEnt = red_readdir(pDir);
+    }
+    if (red_errno != 0) {
+        debug_print("*** Error reading tmp directory: %s\n", red_strerror(red_errno));
+    }
+    int32_t rc2 = red_closedir(pDir);
+    if (rc2 != 0) {
+        debug_print("*** Unable to close tmp dir: %s\n", red_strerror(red_errno));
+    }
+
+}
+
 #ifdef DEBUG
 
 /**
@@ -1408,8 +1501,22 @@ int test_ftl0_upload_table() {
 
     if (record2.file_id != file_upload_record2.file_id)  {  debug_print("Wrong file id for record 2 - FAILED\n"); return FALSE; }
     if (record2.length != file_upload_record2.length)  {  debug_print("Wrong length for record 2 - FAILED\n"); return FALSE; }
+    if (record2.offset != file_upload_record2.offset)  {  debug_print("Wrong offset for record 2 - FAILED\n"); return FALSE; }
     if (record2.request_time != file_upload_record2.request_time)  {  debug_print("Wrong request_time for record 2 - FAILED\n"); return FALSE; }
     if (strcmp(record2.callsign, file_upload_record2.callsign) != 0)  {  debug_print("Wrong callsign for record 2 - FAILED\n"); return FALSE; }
+
+    /* Test update */
+    record2.offset = 98;
+    if (!ftl0_update_file_upload_record(&record2) ) {  debug_print("Error - could not update record2 - FAILED\n"); return FALSE; }
+
+    InProcessFileUpload_t record_up;
+    if (!ftl0_get_file_upload_record(1010, &record_up))  {  debug_print("Could not read record_up - FAILED\n"); return FALSE; }
+
+    if (record_up.file_id != file_upload_record2.file_id)  {  debug_print("Wrong file id for record_up - FAILED\n"); return FALSE; }
+    if (record_up.length != file_upload_record2.length)  {  debug_print("Wrong length for record_up - FAILED\n"); return FALSE; }
+    if (record_up.offset != 98)  {  debug_print("Wrong offset for record_up - FAILED\n"); return FALSE; }
+    if (record_up.request_time != file_upload_record2.request_time)  {  debug_print("Wrong request_time for record_up - FAILED\n"); return FALSE; }
+    if (strcmp(record_up.callsign, file_upload_record2.callsign) != 0)  {  debug_print("Wrong callsign for record_up - FAILED\n"); return FALSE; }
 
     /* Test add duplicate file id - error */
     InProcessFileUpload_t file_upload_record3;

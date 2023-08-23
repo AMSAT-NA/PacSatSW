@@ -24,6 +24,7 @@
  * that uses the file_id as the file handle.
  *
  */
+#include <stdlib.h> //TODO - only added for strtol - hex conversion.  Is this really needed?
 #include <assert.h>
 #include "MRAMmap.h"
 #include "nonvol.h"
@@ -135,6 +136,15 @@ void dir_get_file_path_from_file_id(uint32_t file_id, char *file_path, int max_l
 
 void dir_get_filename_from_file_id(uint32_t file_id, char *file_name, int max_len) {
     snprintf(file_name, max_len, "%04x",file_id);
+}
+
+uint32_t dir_get_file_id_from_filename(char *file_name) {
+    char file_id_str[5];
+    strlcpy(file_id_str,file_name,sizeof(file_id_str)); // copy first 4 chars
+    int ret = strlen(file_id_str);
+    if (ret != 4) return 0;
+    uint32_t id = (uint32_t)strtol(file_id_str, NULL, 16);
+    return id;
 }
 
 /**
@@ -575,36 +585,40 @@ void dir_maintenance() {
 
     DIR_NODE *p = dir_head;
     while (p != NULL) {
-        debug_print("CHECKING: File id: %04x name: %s up:%d age:%d sec\n",p->file_id, p->filename, p->upload_time, now-p->upload_time);
+        //debug_print("CHECKING: File id: %04x name: %s up:%d age:%d sec\n",p->file_id, p->filename, p->upload_time, now-p->upload_time);
         int32_t age = now-p->upload_time;
         if (age < 0) {
             // this looks wrong, something is corrupt.  Skip it
             p = p->next;
-        } else {
-            if (age > DIR_MAX_FILE_AGE) {
-                // Remove this file it is over the max age
-                char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
-                strlcpy(file_name_with_path, DIR_FOLDER, sizeof(file_name_with_path));
-                strlcat(file_name_with_path, p->filename, sizeof(file_name_with_path));
+        } else if (pb_is_file_in_use(p->file_id)) {
+            // This file is currently being broadcast then skip it until next time
+            p = p->next;
+        } else if (age > DIR_MAX_FILE_AGE) {
+            // Remove this file it is over the max age
+            char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
+            strlcpy(file_name_with_path, DIR_FOLDER, sizeof(file_name_with_path));
+            strlcat(file_name_with_path, p->filename, sizeof(file_name_with_path));
 
-                debug_print("Purging: %s\n",file_name_with_path);
-                int32_t fp = red_unlink(file_name_with_path);
-                if (fp == -1) {
-                    debug_print("Unable to remove file: %s : %s\n", file_name_with_path, red_strerror(red_errno));
-                } else {
-                    // Remove from the dir
-                    DIR_NODE *node = p;
-                    p = p->next;
-                    dir_delete_node(node);
-                }
-            } else {
-                // Then Check if there is a nearer expiry date in the header
+            //debug_print("Purging: %s\n",file_name_with_path);
+            int32_t fp = red_unlink(file_name_with_path);
+            if (fp == -1) {
+                // This was probablly open because it is being update or broadcast.  So it is OK to skip until next time
+                debug_print("Unable to remove file: %s : %s\n", file_name_with_path, red_strerror(red_errno));
                 p = p->next;
+            } else {
+                // Remove from the dir
+                DIR_NODE *node = p;
+                p = p->next;
+                dir_delete_node(node);
             }
+        } else {
+            // TODO - Check if there is an expiry date in the header
+            p = p->next;
         }
         vTaskDelay(CENTISECONDS(10)); // yield some time so that other things can do work
     }
 }
+
 
 #ifdef DEBUG
 

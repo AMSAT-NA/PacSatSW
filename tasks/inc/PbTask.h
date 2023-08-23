@@ -106,6 +106,7 @@ typedef struct t_broadcast_request_header AX25_HEADER;
  */
 void PbTask(void *pvParameters);
 void pb_send_status();
+bool pb_is_file_in_use(uint32_t file_id);
 int pb_clear_list();
 bool pb_test_callsigns();
 bool pb_test_ok();

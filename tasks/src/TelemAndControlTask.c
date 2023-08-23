@@ -28,6 +28,7 @@
 #include "RxTask.h"
 #include "TxTask.h"
 #include "pacsat_dir.h"
+#include "UplinkTask.h"
 #include "errors.h"
 #include "Max31725Temp.h"
 #include "ax5043_access.h"
@@ -140,8 +141,10 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)  {
                 break;
 
             case TacMaintenanceMsg:
-                debug_print("Telem & Control: Running DIR Maintenance\n");
+                //debug_print("TAC: Running DIR Maintenance\n");
                 dir_maintenance();
+                //debug_print("TAC: Running FTL0 Maintenance\n");
+                ftl0_maintenance();
                 break;
 
             case TacCollectMsg:

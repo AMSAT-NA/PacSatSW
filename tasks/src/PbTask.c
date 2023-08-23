@@ -350,6 +350,18 @@ void pb_debug_print_list_item(int i) {
 #endif
 
 /**
+ * Return true if this file is in use by the PB
+ */
+bool pb_is_file_in_use(uint32_t file_id) {
+    int i;
+    for (i=0; i < number_on_pb; i++) {
+    if (pb_list[i].node->file_id == file_id)
+        return TRUE;
+    }
+    return FALSE;
+}
+
+/**
  * pb_add_request()
  *
  * Add a callsign and its request to the PB

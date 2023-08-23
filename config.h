@@ -167,9 +167,10 @@ typedef enum {
 
 /* Default is to send telemetry every 2 mins */
 #define TAC_TIMER_SEND_TELEMETRY_PERIOD SECONDS(60) //SECONDS(120)
-#define TAC_TIMER_MAINTENANCE_PERIOD SECONDS(120)  // every 1.5 hours or about once per orbit
+#define TAC_TIMER_MAINTENANCE_PERIOD SECONDS(90*60)  // 90*60 every 1.5 hours or about once per orbit
 
-#define DIR_MAX_FILE_AGE 3*60 // 5*24*60*60 5 days to keep files
+#define DIR_MAX_FILE_AGE 5*24*60*60 // 5*24*60*60 5 days to keep files
+#define FTL0_MAX_UPLOAD_RECORD_AGE 3*60*60 // 3*24*60*60 3 days to keep upload records.  This is reset when a station uploads new data for a file
 
 /* At least this many bytes should be free after a file is uploaded.  Each disk block is 256 Bytes.
  * If this is set to 4*256 then we can run out of space while uploading.  Some investigation is needed
