@@ -169,7 +169,7 @@ typedef struct i2c_config_reg
                                  | ((uint32)1U << 5U) \
                                  | ((uint32)1U << 4U) \
                                  | ((uint32)1U << 3U) \
-                                 | ((uint32)0U << 2U) \
+                                 | ((uint32)1U << 2U) \
                                  | ((uint32)1U << 1U) \
                                  | ((uint32)1U))
   

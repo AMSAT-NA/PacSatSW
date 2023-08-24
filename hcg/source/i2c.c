@@ -143,7 +143,7 @@ void i2cInit(void)
                   | (uint32)((uint32)1U << 5U)     /* Stop Condition detect interrupt */
                   | (uint32)((uint32)1U << 4U)     /* Transmit data ready interrupt   */
                   | (uint32)((uint32)1U << 3U)     /* Receive data ready interrupt    */
-                  | (uint32)((uint32)0U << 2U)     /* Register Access ready interrupt */
+                  | (uint32)((uint32)1U << 2U)     /* Register Access ready interrupt */
                   | (uint32)((uint32)1U << 1U)     /* No Acknowledgement interrupt    */
                   | (uint32)((uint32)1U);     /* Arbitration Lost interrupt      */
 

@@ -155,7 +155,7 @@ typedef enum {
     } hour_format_t;
 
 // These need to be reversed for big endian
-#ifdef 0
+#if 0
 
 /**
  * @brief STATUS Register
@@ -432,7 +432,7 @@ typedef union { // reversed for big endian
 } max3133x_year_reg_t;
 
 // These need to be reversed for big endian
-#ifdef 0
+#if 0
 /**
  * @brief ALM_SEC Register
  */
