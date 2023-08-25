@@ -239,12 +239,17 @@ static inline bool DoIO(){
      */
     successFlag[busNum] = true;
     majorFailure[busNum] = false;
+    i2cInit();
     if (thisBusData->TxBytes != 0){
         i2cSetSlaveAdd(thisBus, thisBusData->SlaveAddress);
         i2cSetDirection(thisBus, I2C_TRANSMITTER);
         i2cSetCount(thisBus, thisBusData->TxBytes);
         i2cSetMode(thisBus, I2C_MASTER);
-        i2cSetStop(thisBus);
+        if(thisBusData->RxBytes == 0){
+            i2cSetStop(thisBus);
+        } else {
+            thisBus->MDR &= ~((uint32)I2C_STOP_COND);
+        }
         i2cSetStart(thisBus);
         waitingForSemaphore[busNum] = true;
         i2cSend(thisBus,thisBusData->TxBytes,thisBusData->TxBuffer);
@@ -273,6 +278,7 @@ static inline bool DoIO(){
 
     // Here we do the read.  Similarly, this can accommodate a no-read transaction.
     if (successFlag[busNum] && thisBusData->RxBytes != 0){
+#if 0
         loopCount=10,delayCount=10;
         while(i2cIsMasterReady(thisBus) != true){
             loopCount--;
@@ -286,12 +292,14 @@ static inline bool DoIO(){
                 }
             }
         }
+#endif
+        i2cClearSCD(thisBus);
         i2cSetSlaveAdd(thisBus, thisBusData->SlaveAddress);
         i2cSetDirection(thisBus, I2C_RECEIVER);
         i2cSetCount(thisBus, thisBusData->RxBytes);
         i2cSetMode(thisBus, I2C_MASTER);
         i2cSetStop(thisBus);
-        vTaskDelay(CENTISECONDS(50));
+        //vTaskDelay(CENTISECONDS(50));
         i2cSetStart(thisBus);
         waitingForSemaphore[busNum] = true; //Ok, time to pay attention to the semaphore
         i2cReceive(thisBus, thisBusData->RxBytes, thisBusData->RxBuffer);
@@ -344,6 +352,10 @@ void i2cNotification(i2cBASE_t *i2cDev,uint32_t interruptType)
          */
         giveSemaphore = true;
         break;
+    }
+    case I2C_ARDY_INT:{
+        i2cDev->STR |= I2C_ARDY_INT; //Write to status bit to clear it
+        giveSemaphore = true;
     }
     case I2C_TX_INT:
     case I2C_RX_INT:
