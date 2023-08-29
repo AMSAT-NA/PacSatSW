@@ -212,9 +212,12 @@ bool I2cSendCommand (I2cBusNum busNum, uint32_t address, void *sndBuffer,uint16_
 
 }
 
+#define noHALCOGEN
 
 static inline bool DoIO(){
+#ifndef noHALCOGEN
     int loopCount,delayCount;
+#endif
     int busNum = HW_I2C_BUS;
     I2cBusData *thisBusData = I2cBuses[busNum];
     i2cBASE_t *thisBus = busAddress[busNum];
@@ -239,42 +242,53 @@ static inline bool DoIO(){
      */
     successFlag[busNum] = true;
     majorFailure[busNum] = false;
-    i2cInit();
-    if (thisBusData->TxBytes != 0){
-        i2cSetSlaveAdd(thisBus, thisBusData->SlaveAddress);
-        i2cSetDirection(thisBus, I2C_TRANSMITTER);
-        i2cSetCount(thisBus, thisBusData->TxBytes);
-        i2cSetMode(thisBus, I2C_MASTER);
+#ifdef noHALCOGEN
+    {
+        uint32_t MDRreg = I2C_MASTER | I2C_TRANSMITTER | I2C_RESET_OUT | I2C_START_COND;
+        thisBus->CNT = thisBusData->TxBytes;
+        thisBus->SAR = thisBusData->SlaveAddress;
         if(thisBusData->RxBytes == 0){
-            i2cSetStop(thisBus);
-        } else {
-            thisBus->MDR &= ~((uint32)I2C_STOP_COND);
+            //No receive, so we want a stop state after this data is sent
+            MDRreg |= I2C_STOP_COND;
         }
-        i2cSetStart(thisBus);
-        waitingForSemaphore[busNum] = true;
-        i2cSend(thisBus,thisBusData->TxBytes,thisBusData->TxBuffer);
-            if(xSemaphoreTake(thisBusData->I2cDoneSemaphore,I2C_TIMEOUT)!=pdTRUE){
-                vPortEnterCritical();
-                if(xSemaphoreTake(thisBusData->I2cDoneSemaphore,0)!=pdTRUE) {
-                    waitingForSemaphore[busNum] = false; //Ignore interrupts that might free the semaphore
-                    vPortExitCritical();
-                    //ReportError(I2cError[busNum],false,CharString,(int)"SemaSend");
-                    // This is just a timeout here
-                    return false;
-                }
-                // If we are here, the semaphore was released just before we were going to call the error
-                // routine.  It took a while, but all is well now.
-                vPortExitCritical();
-            }
-         // If we are NOT in control, chances are good the in-control CPU poked at the I2c at the same time
-         // we tried to get the local temp.  Ignore it.  Otherwise, some other sort of major problem.  Reset
-         // the bus.
-        if(majorFailure[busNum]){
-            ReportError(I2cError[busNum],false,CharString,(int)"ArbitrationFailure");
-            I2cResetBus(busNum,true); //Try to reset--call it an error
+        thisBus->MDR = MDRreg;
+    }
+#else
+    i2cSetSlaveAdd(thisBus, thisBusData->SlaveAddress);
+    i2cSetDirection(thisBus, I2C_TRANSMITTER);
+    i2cSetCount(thisBus, thisBusData->TxBytes);
+    i2cSetMode(thisBus, I2C_MASTER);
+    if(thisBusData->RxBytes == 0){
+        i2cSetStop(thisBus);
+    } else {
+        thisBus->MDR &= ~((uint32)I2C_STOP_COND);
+    }
+    i2cSetStart(thisBus);
+#endif
+    waitingForSemaphore[busNum] = true;
+    i2cSend(thisBus,thisBusData->TxBytes,thisBusData->TxBuffer);
+    if(xSemaphoreTake(thisBusData->I2cDoneSemaphore,I2C_TIMEOUT)!=pdTRUE){
+        vPortEnterCritical();
+        if(xSemaphoreTake(thisBusData->I2cDoneSemaphore,0)!=pdTRUE) {
+            waitingForSemaphore[busNum] = false; //Ignore interrupts that might free the semaphore
+            vPortExitCritical();
+            //ReportError(I2cError[busNum],false,CharString,(int)"SemaSend");
+            // This is just a timeout here
             return false;
         }
+        // If we are here, the semaphore was released just before we were going to call the error
+        // routine.  It took a while, but all is well now.
+        vPortExitCritical();
     }
+    // If we are NOT in control, chances are good the in-control CPU poked at the I2c at the same time
+    // we tried to get the local temp.  Ignore it.  Otherwise, some other sort of major problem.  Reset
+    // the bus.
+    if(majorFailure[busNum]){
+        ReportError(I2cError[busNum],false,CharString,(int)"ArbitrationFailure");
+        I2cResetBus(busNum,true); //Try to reset--call it an error
+        return false;
+    }
+
 
     // Here we do the read.  Similarly, this can accommodate a no-read transaction.
     if (successFlag[busNum] && thisBusData->RxBytes != 0){
@@ -293,6 +307,15 @@ static inline bool DoIO(){
             }
         }
 #endif
+#ifdef noHALCOGEN
+        {
+            uint32_t MDRreg = I2C_MASTER | I2C_RECEIVER | I2C_RESET_OUT | I2C_START_COND | I2C_STOP_COND;
+            thisBus->CNT = thisBusData->RxBytes;
+            thisBus->SAR = thisBusData->SlaveAddress;
+            thisBus->MDR = MDRreg;
+        }
+
+#else
         i2cClearSCD(thisBus);
         i2cSetSlaveAdd(thisBus, thisBusData->SlaveAddress);
         i2cSetDirection(thisBus, I2C_RECEIVER);
@@ -301,20 +324,21 @@ static inline bool DoIO(){
         i2cSetStop(thisBus);
         //vTaskDelay(CENTISECONDS(50));
         i2cSetStart(thisBus);
+#endif
         waitingForSemaphore[busNum] = true; //Ok, time to pay attention to the semaphore
         i2cReceive(thisBus, thisBusData->RxBytes, thisBusData->RxBuffer);
-            if(!majorFailure[busNum]){
-                if(xSemaphoreTake(thisBusData->I2cDoneSemaphore,SECONDS(5)/*SHORT_WAIT_TIME*/)!=pdTRUE){
-                    waitingForSemaphore[busNum] = false;
-                    ReportError(I2cError[busNum],false,CharString,(int)"Timeout");
-                }
+        if(!majorFailure[busNum]){
+            if(xSemaphoreTake(thisBusData->I2cDoneSemaphore,SECONDS(5)/*SHORT_WAIT_TIME*/)!=pdTRUE){
+                waitingForSemaphore[busNum] = false;
+                ReportError(I2cError[busNum],false,CharString,(int)"Timeout");
             }
+        }
         if(majorFailure[busNum]){
-                // If we are NOT in control, chances are good the in-control CPU poked at the I2c at the same time
-                // we tried to get the local temp.  Ignore it.  Otherwise, some other sort of major problem.  Reset
-                // the bus.
-                ReportError(I2cError[busNum],false,CharString,(int)"MajorFail");
-                I2cResetBus(busNum,true); //Try to reset--call it an error
+            // If we are NOT in control, chances are good the in-control CPU poked at the I2c at the same time
+            // we tried to get the local temp.  Ignore it.  Otherwise, some other sort of major problem.  Reset
+            // the bus.
+            ReportError(I2cError[busNum],false,CharString,(int)"MajorFail");
+            I2cResetBus(busNum,true); //Try to reset--call it an error
 
             return false;
         }
@@ -324,12 +348,12 @@ static inline bool DoIO(){
         // If it failed, and bus is not in the stopped condition...
         waitingForSemaphore[busNum] = true; //Ok, time to pay attention to the semaphore
         i2cSetStop(thisBus);    // Stop it
-       // And wait for the interrupt saying it has stopped
-            if(xSemaphoreTake(thisBusData->I2cDoneSemaphore,SHORT_WAIT_TIME)!=pdTRUE){
-                waitingForSemaphore[busNum] = false;
-                ReportError(I2cError[busNum],false,TaskNumber,(int)__builtin_return_address(0));
-                return false;
-            }
+        // And wait for the interrupt saying it has stopped
+        if(xSemaphoreTake(thisBusData->I2cDoneSemaphore,SHORT_WAIT_TIME)!=pdTRUE){
+            waitingForSemaphore[busNum] = false;
+            ReportError(I2cError[busNum],false,TaskNumber,(int)__builtin_return_address(0));
+            return false;
+        }
     }
     return successFlag[busNum];
 }
