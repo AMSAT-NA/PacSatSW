@@ -272,7 +272,7 @@ commandPairs debugCommands[] = {
                                 ,{"set rate 9600","Set the radio to 9600 bps GMSK packets",setRate9600}
                                 ,{"get rtc","Get the status and time from the Real Time Clock",getRtc}
                                 ,{"set rtc","Set the Real Time Clock and update the IHU Unix time",setRtc}
-                                ,{"reg rtc","Read the specified register in the rtc",regRtc}
+                                ,{"get regrtc","Read the specified register in the rtc",regRtc}
 
 };
 commandPairs commonCommands[] = {
@@ -869,10 +869,8 @@ void RealConsoleTask(void)
         }
         case getI2cState:{
             printf("I2c device state:\n"
-                    "    ICR ADC: %d    Solar ADC:   %d,   CSS ADC: %d\n"
-                    "RT-IHU Temp %d\n",
-                    ICRTelemIsOk(),SolarTelemIsOk(),CSSTelemIsOk(),
-                    RTTempIsOk());
+                    "   PacSat Board Temp: %d    RTC: %d\n",
+                    RTTempIsOk(),RTCIsOk());
             break;
         }
         case telem0:{

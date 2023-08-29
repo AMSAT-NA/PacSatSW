@@ -178,7 +178,7 @@ bool I2cSendCommand (I2cBusNum busNum, uint32_t address, void *sndBuffer,uint16_
     I2cBusData *thisBusData = I2cBuses[busNum];
     static int taskWithSemaphore = 0;
     bool retVal = true;
-    if(sndLength+rcvLength == 0)return false;
+    if(sndLength == 0)return false; // We must send something.  We need not receive though.
 
     /*
      * The driver code is not reentrant.  Block here if another task is using it already
@@ -215,9 +215,6 @@ bool I2cSendCommand (I2cBusNum busNum, uint32_t address, void *sndBuffer,uint16_
 #define noHALCOGEN
 
 static inline bool DoIO(){
-#ifndef noHALCOGEN
-    int loopCount,delayCount;
-#endif
     int busNum = HW_I2C_BUS;
     I2cBusData *thisBusData = I2cBuses[busNum];
     i2cBASE_t *thisBus = busAddress[busNum];
@@ -228,8 +225,7 @@ static inline bool DoIO(){
      */
 
     /*
-     * Here we do an initial send.  I'm not sure if any I2c I/O does not have a send at first,
-     * but we can accommodate that.
+     * Here we do an initial send.  Any I2c must start with a transmit with this driver.
      *
      * First just make sure that the semaphore is taken.  It might
      * have been freed by an error or something.
@@ -242,7 +238,6 @@ static inline bool DoIO(){
      */
     successFlag[busNum] = true;
     majorFailure[busNum] = false;
-#ifdef noHALCOGEN
     {
         uint32_t MDRreg = I2C_MASTER | I2C_TRANSMITTER | I2C_RESET_OUT | I2C_START_COND;
         thisBus->CNT = thisBusData->TxBytes;
@@ -253,18 +248,6 @@ static inline bool DoIO(){
         }
         thisBus->MDR = MDRreg;
     }
-#else
-    i2cSetSlaveAdd(thisBus, thisBusData->SlaveAddress);
-    i2cSetDirection(thisBus, I2C_TRANSMITTER);
-    i2cSetCount(thisBus, thisBusData->TxBytes);
-    i2cSetMode(thisBus, I2C_MASTER);
-    if(thisBusData->RxBytes == 0){
-        i2cSetStop(thisBus);
-    } else {
-        thisBus->MDR &= ~((uint32)I2C_STOP_COND);
-    }
-    i2cSetStart(thisBus);
-#endif
     waitingForSemaphore[busNum] = true;
     i2cSend(thisBus,thisBusData->TxBytes,thisBusData->TxBuffer);
     if(xSemaphoreTake(thisBusData->I2cDoneSemaphore,I2C_TIMEOUT)!=pdTRUE){
@@ -292,22 +275,6 @@ static inline bool DoIO(){
 
     // Here we do the read.  Similarly, this can accommodate a no-read transaction.
     if (successFlag[busNum] && thisBusData->RxBytes != 0){
-#if 0
-        loopCount=10,delayCount=10;
-        while(i2cIsMasterReady(thisBus) != true){
-            loopCount--;
-            if((loopCount <= 0)){
-                vTaskDelay(2);
-                loopCount = 10;
-                delayCount--;
-                if(delayCount<0){
-                    I2cResetBus(busNum,true); //Try to reset--call it an error
-                    return false;
-                }
-            }
-        }
-#endif
-#ifdef noHALCOGEN
         {
             uint32_t MDRreg = I2C_MASTER | I2C_RECEIVER | I2C_RESET_OUT | I2C_START_COND | I2C_STOP_COND;
             thisBus->CNT = thisBusData->RxBytes;
@@ -315,16 +282,6 @@ static inline bool DoIO(){
             thisBus->MDR = MDRreg;
         }
 
-#else
-        i2cClearSCD(thisBus);
-        i2cSetSlaveAdd(thisBus, thisBusData->SlaveAddress);
-        i2cSetDirection(thisBus, I2C_RECEIVER);
-        i2cSetCount(thisBus, thisBusData->RxBytes);
-        i2cSetMode(thisBus, I2C_MASTER);
-        i2cSetStop(thisBus);
-        //vTaskDelay(CENTISECONDS(50));
-        i2cSetStart(thisBus);
-#endif
         waitingForSemaphore[busNum] = true; //Ok, time to pay attention to the semaphore
         i2cReceive(thisBus, thisBusData->RxBytes, thisBusData->RxBuffer);
         if(!majorFailure[busNum]){

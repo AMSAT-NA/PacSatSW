@@ -16,7 +16,7 @@
 
 uint16_t uint16_swap(uint16_t);
 
-bool ICRStat = false, CSSStat = false, SolarStat = false,RTTempStat=false;
+bool RTCStat=false,RTTempStat=false;
 
 /* ADS7828 ADC conversion command table
  * single-ended input conversion mode
@@ -63,22 +63,18 @@ void getADCchannels(int num, I2cBusNum port, uint8_t I2Caddress, uint16_t *stora
 
 /* this function tests for the presence of I2c devices.  It ADS7828 ADCs in the PSU and Battery cards */
 void I2CDevicePoll()  {
+    uint8_t cfg[1];
+
     //uint8_t dummy=5,sendVal = (SINGLE_ENDED | CH1 | INTERNAL_REFERENCE_CONVERTER_ON); // Turn on the reference and converter
     // Within this module we poll the 7828s.  Then we call other device support routines for the rest
 	//ICRStat = I2cSendCommand(ICR_ADC_I2C_PORT,ICR_ADC_I2C_ADDRESS,&sendVal,1,&dummy,1);
     //CSSStat = I2cSendCommand(CSS_ADC_I2C_PORT,CSS_ADC_I2C_ADDRESS,&sendVal,1,&dummy,1);
     //SolarStat = I2cSendCommand(SOLAR_ADC_I2C_PORT,SOLAR_ADC_I2C_ADDRESS,&sendVal,1,&dummy,1);
     RTTempStat = InitTemp31725();
-
+    RTCStat = GetStatus31331(cfg);
 }
-bool ICRTelemIsOk(void){
-    return ICRStat;
-}
-bool CSSTelemIsOk(void){
-    return CSSStat;
-}
-bool SolarTelemIsOk(void){
-    return SolarStat;
+bool RTCIsOk(void){
+    return RTCStat;
 }
 bool RTTempIsOk(void){
     return RTTempStat;

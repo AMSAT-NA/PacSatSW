@@ -103,12 +103,11 @@ bool InitRtc31331(void){
 
 bool GetStatus31331(uint8_t *cfg){
     buf[0] = MAX31331_STATUS;
-    I2cSendCommand(MAX31331_PORT,MAX31331_ADDR,buf,0,cfg,1);
-    return TRUE;
+    return I2cSendCommand(MAX31331_PORT,MAX31331_ADDR,buf,1,cfg,1);
 }
 bool GetRtcTime31331(uint32_t *time){
     int8_t regs[20];
-    send = MAX31331_SECONDS;
+    send = 0;//MAX31331_SECONDS;
     if (!I2cSendCommand(MAX31331_PORT,MAX31331_ADDR,&send,1,&regs,20)) return FALSE;
 //    int j;
 //    debug_print("Time: ");
