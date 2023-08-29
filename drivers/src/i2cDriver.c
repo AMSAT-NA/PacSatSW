@@ -60,12 +60,11 @@ static I2cBusData bus1Data,bus2Data;
 static I2cBusData *I2cBuses[]={&bus1Data,&bus2Data};
 static i2cBASE_t *busAddress[]={i2cREG1,0};
 static ErrorType_t I2cError[] = {I2C1failure,I2C2failure};
-static bool busUsingOS[]={false,false};
 static volatile bool waitFlag[] = {true,true};
 static volatile bool successFlag[] = {true,true};
 static volatile bool majorFailure[] = {false,false}; // This is for stuff that looks like the bus has come loose or something
 static volatile bool waitingForSemaphore[] = {false,false};
-
+static volatile bool firstInit[] = {true,true};
 
 /* Forward (i.e. internal only) routine declarations */
 
@@ -85,9 +84,8 @@ void I2cInit(I2cBusNum thisBusNumber) {
      * from here because if you call those routines, then you can use I2cSendCommand
      * (below) before the OS is started.
      */
-    bool firstTime = true; // Allows us to use this as part of resetting a failed bus
+    bool firstTime = firstInit[thisBusNumber]; // Allows us to use this as part of resetting a failed bus
     I2cBusData *thisBusData = I2cBuses[thisBusNumber];
-    if(busUsingOS[thisBusNumber]) firstTime = false; //This bus is already initted
 
 
     // Init the data counts
@@ -130,8 +128,8 @@ void I2cInit(I2cBusNum thisBusNumber) {
             ReportError(SemaphoreFail,true,CharString,(int)"I2cTakeSema");
         };
     }
-    // All ready.  Not just set this boolean so the rest will use semaphores instead of looping
-    busUsingOS[thisBusNumber]= true;
+    // All ready.  Do not create semaphores again
+    firstInit[thisBusNumber]= false;
 
     return;
 }
@@ -180,26 +178,23 @@ bool I2cSendCommand (I2cBusNum busNum, uint32_t address, void *sndBuffer,uint16_
     I2cBusData *thisBusData = I2cBuses[busNum];
     static int taskWithSemaphore = 0;
     bool retVal = true;
-#define MAX31725_ADDR (0x90 >> 1)
-    if(sndLength+rcvLength == 0)return false;
+    if(sndLength == 0)return false; // We must send something.  We need not receive though.
 
-    if(busUsingOS[busNum]){
-        /*
-         * The driver code is not reentrant.  Block here if another task is using it already
-         */
+    /*
+     * The driver code is not reentrant.  Block here if another task is using it already
+     */
+    ReportToWatchdog(CurrentTaskWD);
+    if(xSemaphoreTake(thisBusData->I2cInUseSemaphore,WATCHDOG_SHORT_WAIT_TIME)!= pdTRUE){
         ReportToWatchdog(CurrentTaskWD);
-            if(xSemaphoreTake(thisBusData->I2cInUseSemaphore,WATCHDOG_SHORT_WAIT_TIME)!= pdTRUE){
-                ReportToWatchdog(CurrentTaskWD);
 
-            /* If we can't get it within a few seconds...trouble */
-            ReportError(I2CInUse,false,TaskNumber,taskWithSemaphore);
-            taskWithSemaphore = -1;
-            return false;
+        /* If we can't get it within a few seconds...trouble */
+        ReportError(I2CInUse,false,TaskNumber,taskWithSemaphore);
+        taskWithSemaphore = -1;
+        return false;
 
-        }
-        ReportToWatchdog(CurrentTaskWD);
-        taskWithSemaphore = (((uint32_t)xTaskGetApplicationTaskTag(0)));
     }
+    ReportToWatchdog(CurrentTaskWD);
+    taskWithSemaphore = (((uint32_t)xTaskGetApplicationTaskTag(0)));
     /*
      * Set up the bus data structure with info about the IO.  This might not be needed except for
      * the semaphore. Everything else could be local variables, but let's not mess with a generally
@@ -210,22 +205,14 @@ bool I2cSendCommand (I2cBusNum busNum, uint32_t address, void *sndBuffer,uint16_
     thisBusData->TxBuffer = sndBuffer;
     thisBusData->RxBytes=rcvLength;
     thisBusData->TxBytes=sndLength;
-    //if(busAddress[busNum != 0]){
-        retVal = DoIO();
-    //} else {
-    //    retVal = DoEmulatedIO();
-    //}
-    if(busUsingOS[busNum]){
-        xSemaphoreGive(thisBusData->I2cInUseSemaphore);
-        taskWithSemaphore = 0;
-    }
+    retVal = DoIO();
+    xSemaphoreGive(thisBusData->I2cInUseSemaphore);
+    taskWithSemaphore = 0;
     return retVal;
 
 }
 
-
 static inline bool DoIO(){
-    int loopCount,delayCount;
     int busNum = HW_I2C_BUS;
     I2cBusData *thisBusData = I2cBuses[busNum];
     i2cBASE_t *thisBus = busAddress[busNum];
@@ -236,15 +223,12 @@ static inline bool DoIO(){
      */
 
     /*
-     * Here we do an initial send.  I'm not sure if any I2c I/O does not have a send at first,
-     * but we can accommodate that.
-     */
-    if(busUsingOS[busNum]){
-        // First just make sure that the semaphore is taken.  It might
-        // have been freed by an error or something.
-        xSemaphoreTake(thisBusData->I2cDoneSemaphore,0);
-    }
-    /*
+     * Here we do an initial send.  Any I2c must start with a transmit with this driver.
+     *
+     * First just make sure that the semaphore is taken.  It might
+     * have been freed by an error or something.
+     * xSemaphoreTake(thisBusData->I2cDoneSemaphore,0);
+     *
      * "Success" will be false if there is a NACK interrupt
      * "MajorFailure" will be false if there is a AL interrupt.
      * Note that AL on the satellite probably means that the I2c bus is
@@ -252,87 +236,64 @@ static inline bool DoIO(){
      */
     successFlag[busNum] = true;
     majorFailure[busNum] = false;
-    if (thisBusData->TxBytes != 0){
-        i2cSetSlaveAdd(thisBus, thisBusData->SlaveAddress);
-        i2cSetDirection(thisBus, I2C_TRANSMITTER);
-        i2cSetCount(thisBus, thisBusData->TxBytes);
-        i2cSetMode(thisBus, I2C_MASTER);
-        i2cSetStop(thisBus);
-        i2cSetStart(thisBus);
-        waitingForSemaphore[busNum] = true;
-        i2cSend(thisBus,thisBusData->TxBytes,thisBusData->TxBuffer);
-        if(busUsingOS[busNum]){
-            // If the OS is running wait using a semaphore (released below by the interrupt routine)
-            // Note that the semaphore timeout must be shorter than the I2C Mutex
-            if(xSemaphoreTake(thisBusData->I2cDoneSemaphore,I2C_TIMEOUT)!=pdTRUE){
-                vPortEnterCritical();
-                if(xSemaphoreTake(thisBusData->I2cDoneSemaphore,0)!=pdTRUE) {
-                    waitingForSemaphore[busNum] = false; //Ignore interrupts that might free the semaphore
-                    vPortExitCritical();
-                    //ReportError(I2cError[busNum],false,CharString,(int)"SemaSend");
-                    // This is just a timeout here
-                    return false;
-                }
-                // If we are here, the semaphore was released just before we were going to call the error
-                // routine.  It took a while, but all is well now.
-                vPortExitCritical();
-            }
-        } else {
-            //If no OS, loop waiting for the flag (set below by the interrupt routine)
-            while(waitFlag[busNum]){};
-            waitFlag[busNum] = true;
+    {
+        uint32_t MDRreg = I2C_MASTER | I2C_TRANSMITTER | I2C_RESET_OUT | I2C_START_COND;
+        thisBus->CNT = thisBusData->TxBytes;
+        thisBus->SAR = thisBusData->SlaveAddress;
+        if(thisBusData->RxBytes == 0){
+            //No receive, so we want a stop state after this data is sent
+            MDRreg |= I2C_STOP_COND;
         }
-         // If we are NOT in control, chances are good the in-control CPU poked at the I2c at the same time
-         // we tried to get the local temp.  Ignore it.  Otherwise, some other sort of major problem.  Reset
-         // the bus.
-        if(majorFailure[busNum]){
-            ReportError(I2cError[busNum],false,CharString,(int)"ArbitrationFailure");
-            I2cResetBus(busNum,true); //Try to reset--call it an error
+        thisBus->MDR = MDRreg;
+    }
+    waitingForSemaphore[busNum] = true;
+    i2cSend(thisBus,thisBusData->TxBytes,thisBusData->TxBuffer);
+    if(xSemaphoreTake(thisBusData->I2cDoneSemaphore,I2C_TIMEOUT)!=pdTRUE){
+        vPortEnterCritical();
+        if(xSemaphoreTake(thisBusData->I2cDoneSemaphore,0)!=pdTRUE) {
+            waitingForSemaphore[busNum] = false; //Ignore interrupts that might free the semaphore
+            vPortExitCritical();
+            //ReportError(I2cError[busNum],false,CharString,(int)"SemaSend");
+            // This is just a timeout here
             return false;
         }
+        // If we are here, the semaphore was released just before we were going to call the error
+        // routine.  It took a while, but all is well now.
+        vPortExitCritical();
     }
+    // If we are NOT in control, chances are good the in-control CPU poked at the I2c at the same time
+    // we tried to get the local temp.  Ignore it.  Otherwise, some other sort of major problem.  Reset
+    // the bus.
+    if(majorFailure[busNum]){
+        ReportError(I2cError[busNum],false,CharString,(int)"ArbitrationFailure");
+        I2cResetBus(busNum,true); //Try to reset--call it an error
+        return false;
+    }
+
 
     // Here we do the read.  Similarly, this can accommodate a no-read transaction.
     if (successFlag[busNum] && thisBusData->RxBytes != 0){
-        loopCount=10,delayCount=10;
-        while(i2cIsMasterReady(thisBus) != true){
-            loopCount--;
-            if((loopCount <= 0) && (busUsingOS[busNum])){
-                vTaskDelay(2);
-                loopCount = 10;
-                delayCount--;
-                if(delayCount<0){
-                    I2cResetBus(busNum,true); //Try to reset--call it an error
-                    return false;
-                }
-            }
+        {
+            uint32_t MDRreg = I2C_MASTER | I2C_RECEIVER | I2C_RESET_OUT | I2C_START_COND | I2C_STOP_COND;
+            thisBus->CNT = thisBusData->RxBytes;
+            thisBus->SAR = thisBusData->SlaveAddress;
+            thisBus->MDR = MDRreg;
         }
-        i2cSetSlaveAdd(thisBus, thisBusData->SlaveAddress);
-        i2cSetDirection(thisBus, I2C_RECEIVER);
-        i2cSetCount(thisBus, thisBusData->RxBytes);
-        i2cSetMode(thisBus, I2C_MASTER);
-        i2cSetStop(thisBus);
-        vTaskDelay(CENTISECONDS(50));
-        i2cSetStart(thisBus);
+
         waitingForSemaphore[busNum] = true; //Ok, time to pay attention to the semaphore
         i2cReceive(thisBus, thisBusData->RxBytes, thisBusData->RxBuffer);
-        if(busUsingOS[busNum]){
-            if(!majorFailure[busNum]){
-                if(xSemaphoreTake(thisBusData->I2cDoneSemaphore,SECONDS(5)/*SHORT_WAIT_TIME*/)!=pdTRUE){
-                    waitingForSemaphore[busNum] = false;
-                    ReportError(I2cError[busNum],false,CharString,(int)"Timeout");
-                }
+        if(!majorFailure[busNum]){
+            if(xSemaphoreTake(thisBusData->I2cDoneSemaphore,SECONDS(5)/*SHORT_WAIT_TIME*/)!=pdTRUE){
+                waitingForSemaphore[busNum] = false;
+                ReportError(I2cError[busNum],false,CharString,(int)"Timeout");
             }
-        } else {
-            while(waitFlag[busNum]){};
-            waitFlag[busNum] = true;
         }
         if(majorFailure[busNum]){
-                // If we are NOT in control, chances are good the in-control CPU poked at the I2c at the same time
-                // we tried to get the local temp.  Ignore it.  Otherwise, some other sort of major problem.  Reset
-                // the bus.
-                ReportError(I2cError[busNum],false,CharString,(int)"MajorFail");
-                I2cResetBus(busNum,true); //Try to reset--call it an error
+            // If we are NOT in control, chances are good the in-control CPU poked at the I2c at the same time
+            // we tried to get the local temp.  Ignore it.  Otherwise, some other sort of major problem.  Reset
+            // the bus.
+            ReportError(I2cError[busNum],false,CharString,(int)"MajorFail");
+            I2cResetBus(busNum,true); //Try to reset--call it an error
 
             return false;
         }
@@ -342,12 +303,11 @@ static inline bool DoIO(){
         // If it failed, and bus is not in the stopped condition...
         waitingForSemaphore[busNum] = true; //Ok, time to pay attention to the semaphore
         i2cSetStop(thisBus);    // Stop it
-        if(busUsingOS[busNum]){ // And wait for the interrupt saying it has stopped
-            if(xSemaphoreTake(thisBusData->I2cDoneSemaphore,SHORT_WAIT_TIME)!=pdTRUE){
-                waitingForSemaphore[busNum] = false;
-                ReportError(I2cError[busNum],false,TaskNumber,(int)__builtin_return_address(0));
-                return false;
-            }
+        // And wait for the interrupt saying it has stopped
+        if(xSemaphoreTake(thisBusData->I2cDoneSemaphore,SHORT_WAIT_TIME)!=pdTRUE){
+            waitingForSemaphore[busNum] = false;
+            ReportError(I2cError[busNum],false,TaskNumber,(int)__builtin_return_address(0));
+            return false;
         }
     }
     return successFlag[busNum];
@@ -371,6 +331,10 @@ void i2cNotification(i2cBASE_t *i2cDev,uint32_t interruptType)
          */
         giveSemaphore = true;
         break;
+    }
+    case I2C_ARDY_INT:{
+        i2cDev->STR |= I2C_ARDY_INT; //Write to status bit to clear it
+        giveSemaphore = true;
     }
     case I2C_TX_INT:
     case I2C_RX_INT:
@@ -403,14 +367,10 @@ void i2cNotification(i2cBASE_t *i2cDev,uint32_t interruptType)
      */
     if(giveSemaphore){
         //Only free give the semaphore if someone is waiting for it.  Otherwise the interrupt was not relevant
-        if(busUsingOS[thisBusIndex] && waitingForSemaphore[thisBusIndex]){
             I2cBusData *thisBusData = I2cBuses[thisBusIndex];
             BaseType_t higherPrioTaskWoken;
             (void)(xSemaphoreGiveFromISR(thisBusData->I2cDoneSemaphore,&higherPrioTaskWoken));
             waitingForSemaphore[thisBusIndex] = false;
-        } else {
-            waitFlag[thisBusIndex] = false;
-        }
     }
 }
 

@@ -194,6 +194,7 @@ enum {
     ,setRate1200
     ,getRtc
     ,setRtc
+    ,regRtc
 };
 
 
@@ -273,6 +274,7 @@ commandPairs debugCommands[] = {
                                 ,{"set rate 9600","Set the radio to 9600 bps GMSK packets",setRate9600}
                                 ,{"get rtc","Get the status and time from the Real Time Clock",getRtc}
                                 ,{"set rtc","Set the Real Time Clock and update the IHU Unix time",setRtc}
+                                ,{"get regrtc","Read the specified register in the rtc",regRtc}
 
 };
 commandPairs commonCommands[] = {
@@ -408,6 +410,18 @@ void RealConsoleTask(void)
  //           printf("Size of MRAM1 is %dKB\n",getMRAMSize(1)/1024);
  //           printf("Size of MRAM2 is %dKB\n",getMRAMSize(MRAM2Dev)/1024);
  //           printf("Size of MRAM3 is %dKB\n",getMRAMSize(MRAM3Dev)/1024);
+            break;
+        }
+        case regRtc:{
+            uint8_t readReg=parseNumber(afterCommand);
+            bool status;
+            //uint8_t data[8];
+            uint8_t data;
+            status = I2cSendCommand(MAX31331_PORT,MAX31331_ADDR,&readReg,1,&data,1);
+ //           printf("Status=%d,reg values from %d are: %x %x %x %x %x %x %x %x\n",
+ //                   status,readReg,data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7]);
+            printf("Status=%d,reg %d value: 0x%x\n",
+                    status,readReg,data);
             break;
         }
         case testAllMRAM:{
@@ -857,9 +871,9 @@ void RealConsoleTask(void)
         }
         case getI2cState:{
 
-            printf("I2c device state:\n"
-                    "RT-IHU Temp %s\n",
-                    RTTempIsOk()?"Ok":"Not Ok (poll i2c to retry)");
+            printf("I2c device state: (1 is ok)\n"
+                    "   PacSat Board Temp: %d    RTC: %d\n",
+                    RTTempIsOk(),RTCIsOk());
             break;
         }
         case telem0:{

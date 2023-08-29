@@ -112,8 +112,8 @@ void i2cInit(void)
     i2cREG1->PSC = 9U;
 
     /** - set clock rate */
-    i2cREG1->CKH = 395U;
-    i2cREG1->CKL = 395U;
+    i2cREG1->CKH = 35U;
+    i2cREG1->CKL = 35U;
 
     /** - set i2c pins functional mode */
     i2cREG1->PFNC = (0U);
@@ -143,7 +143,7 @@ void i2cInit(void)
                   | (uint32)((uint32)1U << 5U)     /* Stop Condition detect interrupt */
                   | (uint32)((uint32)1U << 4U)     /* Transmit data ready interrupt   */
                   | (uint32)((uint32)1U << 3U)     /* Receive data ready interrupt    */
-                  | (uint32)((uint32)0U << 2U)     /* Register Access ready interrupt */
+                  | (uint32)((uint32)1U << 2U)     /* Register Access ready interrupt */
                   | (uint32)((uint32)1U << 1U)     /* No Acknowledgement interrupt    */
                   | (uint32)((uint32)1U);     /* Arbitration Lost interrupt      */
 

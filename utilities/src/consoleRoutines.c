@@ -158,8 +158,8 @@ void DisplayTelemetry(uint32_t typeRequested){
          */
         int i;
         printf("I2c device state:\n"
-                "    ICR ADC: %d    Solar ADC:   %d,   CSS ADC: %d\n",
-                ICRTelemIsOk(),SolarTelemIsOk(),CSSTelemIsOk());
+                "    PacSat Board Temp: %d, RealTimeClock: %d\n",
+                RTTempIsOk(),RTCIsOk());
 
         printf("MRAM State Values:\n\r"
                 " CommandedSafeMode=%d,Autosafe=%d\n\r"

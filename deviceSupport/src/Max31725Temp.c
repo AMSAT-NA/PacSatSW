@@ -5,6 +5,7 @@
  *      Author: bfisher
  */
 #include <pacsat.h>
+#include "I2cAddresses.h"
 #include "Max31725Temp.h"
 #include "i2cDriver.h"
 static uint8_t buf[2],send;
@@ -12,22 +13,18 @@ static uint8_t buf[2],send;
 bool InitTemp31725(void){
     buf[0] = MAX31725_REG_CONFIG;
     buf[1] = MAX31725_CONFIG_TIMEOUT;
-#ifdef RTIHU_BOARD_LAUNCHPAD
-    return false && buf[0];
-#else
-    return I2cSendCommand(MAX31725_PORT,MAX31725_ADDR,buf,2,0,0);
-#endif
+    return I2cSendCommand(PACBOARD_TEMP_PORT,PACBOARD_TEMP_ADDRESS,buf,2,0,0);
     }
 
 bool GetConfig31725(uint8_t *cfg){
     send = MAX31725_REG_CONFIG;
-    return I2cSendCommand(MAX31725_PORT,MAX31725_ADDR,&send,1,cfg,1);
+    return I2cSendCommand(PACBOARD_TEMP_PORT,PACBOARD_TEMP_ADDRESS,&send,1,cfg,1);
 }
 bool GetTemp31725(int16_t *temp){
-    bool retval;
+    bool retval=true;
     int16_t localTemp;
     send = MAX31725_REG_TEMP;
-    retval = I2cSendCommand(MAX31725_PORT, MAX31725_ADDR, &send,1,&localTemp,2);
+    retval = I2cSendCommand(PACBOARD_TEMP_PORT, PACBOARD_TEMP_ADDRESS, &send,1,&localTemp,2);
     *temp = localTemp >> 4; //Only 12 bits.
     return retval;
 }
