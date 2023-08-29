@@ -212,8 +212,6 @@ bool I2cSendCommand (I2cBusNum busNum, uint32_t address, void *sndBuffer,uint16_
 
 }
 
-#define noHALCOGEN
-
 static inline bool DoIO(){
     int busNum = HW_I2C_BUS;
     I2cBusData *thisBusData = I2cBuses[busNum];

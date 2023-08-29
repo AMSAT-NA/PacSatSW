@@ -12,6 +12,7 @@
 #include "FreeRTOS.h"
 #include "os_task.h"
 #include "Max31725Temp.h"
+#include "Max31331Rtc.h"
 
 
 uint16_t uint16_swap(uint16_t);

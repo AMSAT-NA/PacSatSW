@@ -185,11 +185,11 @@ void tac_collect_telemetry(telem_buffer_t *buffer) {
      *
      */
     uint8_t temp8;
-    //if(Get8BitTemp31725(&temp8)) {
-    //    buffer->rtHealth.common.IHUTemp = temp8;
-    //} else {
-    //    debug_print("TAC: ERROR I2C temp request failed\n");
-    //}
+    if(Get8BitTemp31725(&temp8)) {
+        buffer->rtHealth.common.IHUTemp = temp8;
+    } else {
+        debug_print("TAC: ERROR I2C temp request failed\n");
+    }
 
     /* TX Telemetry */
     uint16_t rf_pwr = ax5043ReadReg(TX_DEVICE, AX5043_TXPWRCOEFFB0)
