@@ -68,81 +68,82 @@ uint8_t SWCmdRing[4] = {0,0,0,0};
 
 void CommandTask(void *pvParameters)
 {
-    bool FallbackTimerActive = true;
-
-    /*
-     * This is a task which sits around waiting for a message either from the the hardware or the software
-     * command decoder to tell it that a command has been received.  When that happens, it acts on the
-     * command.
-     *
-     * It is also used to update time time-based items that can't be done from the MET module because
-     * they must not be done from an interrupt routine.
-     */
-
-
-    //Intertask_Message message;
-    vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)CommandWD );
-    ReportToWatchdog(CommandWD);
-
-    //RestartUplinkDecode(); // Initialize software command decoder
-    SWCmdCount = 0;
-    HWCmdCount = 0;
-
-    InitInterTask(ToCommand, 10);
-    InitEncryption();
-    CommandTimeEnabled = ReadMRAMBoolState(StateCommandTimeCheck);
+//    bool FallbackTimerActive = true;
+//
+//    /*
+//     * This is a task which sits around waiting for a message either from the the hardware or the software
+//     * command decoder to tell it that a command has been received.  When that happens, it acts on the
+//     * command.
+//     *
+//     * It is also used to update time time-based items that can't be done from the MET module because
+//     * they must not be done from an interrupt routine.
+//     */
+//
+//
+//    //Intertask_Message message;
+//    vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)CommandWD );
+//    ReportToWatchdog(CommandWD);
+//
+//    //RestartUplinkDecode(); // Initialize software command decoder
+//    SWCmdCount = 0;
+//    HWCmdCount = 0;
+//
+//    InitInterTask(ToCommand, 10);
+//    InitEncryption();
+//    CommandTimeEnabled = ReadMRAMBoolState(StateCommandTimeCheck);
     while (1) {
-        bool gotSomething;
-        Intertask_Message msg;
-        ReportToWatchdog(CommandWD);
-        gotSomething=WaitInterTask(ToCommand,SECONDS(2), &msg);
-        /*
-         * Since this task is not terribly busy, we will also use it to trigger things that
-         * run on a timer.
-         */
-        ReportToWatchdog(CommandWD);
-        if(gotSomething && (msg.MsgType == CmdControlHasChanged)) {
-            /*
-             * We have switched control type.  If we are not in control, but were before then we want to
-             * start up the command receiver
-             */
-#ifdef FOR_RECEIVE
-                ax5043StartRx(device);
-#else
-                ax5043StopRx(device);
-#endif
-
-        } else if(gotSomething){
-            /* Here we actually received a message, so there is a command */
-            //GPIOSetOff(LED3); // THere was a command.  Tell a human for ground testing
-            JustReleasedFromBooster = false;
-            if(FallbackTimerActive){
-                /*
-                 * Remember we have received a command and turn off the fallback
-                 * timer.
-                 */
-                WriteMRAMCommandReceived(true);
-                FallbackTimerActive = false;
-            }
-            if(msg.MsgType == CmdTypeRawSoftware){
-                DecodeSoftwareCommand(msg.argument);
-            } else if(msg.MsgType == CmdTypeHardware){
-                int fixedUp=0;
-                //
-                // The data lines are not attached to adjacent pins
-                // in order so we have to straighten them out.
-                if(msg.argument & 2){
-                    fixedUp |= 8;
-                }
-                if(msg.argument & 1){
-                    fixedUp |= 1;
-                }
-                DecodeHardwareCommand((UplinkCommands)fixedUp);
-            }
-        } else {
-            // Just another timed thing not really related to this task
-            //GPIOSetOn(LED3); // Turn the light off (so command light was on about 2 seconds)
-        }
+        taskYIELD();
+//        bool gotSomething;
+//        Intertask_Message msg;
+//        ReportToWatchdog(CommandWD);
+//        gotSomething=WaitInterTask(ToCommand,SECONDS(2), &msg);
+//        /*
+//         * Since this task is not terribly busy, we will also use it to trigger things that
+//         * run on a timer.
+//         */
+//        ReportToWatchdog(CommandWD);
+//        if(gotSomething && (msg.MsgType == CmdControlHasChanged)) {
+//            /*
+//             * We have switched control type.  If we are not in control, but were before then we want to
+//             * start up the command receiver
+//             */
+//#ifdef FOR_RECEIVE
+//                ax5043StartRx(device);
+//#else
+//                ax5043StopRx(device);
+//#endif
+//
+//        } else if(gotSomething){
+//            /* Here we actually received a message, so there is a command */
+//            //GPIOSetOff(LED3); // THere was a command.  Tell a human for ground testing
+//            JustReleasedFromBooster = false;
+//            if(FallbackTimerActive){
+//                /*
+//                 * Remember we have received a command and turn off the fallback
+//                 * timer.
+//                 */
+//                WriteMRAMCommandReceived(true);
+//                FallbackTimerActive = false;
+//            }
+//            if(msg.MsgType == CmdTypeRawSoftware){
+//                DecodeSoftwareCommand(msg.argument);
+//            } else if(msg.MsgType == CmdTypeHardware){
+//                int fixedUp=0;
+//                //
+//                // The data lines are not attached to adjacent pins
+//                // in order so we have to straighten them out.
+//                if(msg.argument & 2){
+//                    fixedUp |= 8;
+//                }
+//                if(msg.argument & 1){
+//                    fixedUp |= 1;
+//                }
+//                DecodeHardwareCommand((UplinkCommands)fixedUp);
+//            }
+//        } else {
+//            // Just another timed thing not really related to this task
+//            //GPIOSetOn(LED3); // Turn the light off (so command light was on about 2 seconds)
+//        }
     }
 }
 
