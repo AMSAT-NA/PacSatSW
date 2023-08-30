@@ -12,6 +12,7 @@
 
 #define PID_FILE        0xBB
 #define PID_DIRECTORY   0xBD
+#define PID_COMMAND     0xBC
 #define PID_NO_PROTOCOL 0xF0
 
 #define MAX_PB_LENGTH 10 /* This is the maximum number of stations that can be on the PB at one time */

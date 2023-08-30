@@ -68,6 +68,7 @@ uint8_t SWCmdRing[4] = {0,0,0,0};
 
 void CommandTask(void *pvParameters)
 {
+    debug_print("Starting command task\n");
     bool FallbackTimerActive = true;
 
     /*
@@ -82,15 +83,16 @@ void CommandTask(void *pvParameters)
 
     //Intertask_Message message;
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)CommandWD );
-    ReportToWatchdog(CommandWD);
+    InitInterTask(ToCommand, 10);
+    ResetAllWatchdogs();
 
     //RestartUplinkDecode(); // Initialize software command decoder
     SWCmdCount = 0;
     HWCmdCount = 0;
 
-    InitInterTask(ToCommand, 10);
-    InitEncryption();
-    CommandTimeEnabled = ReadMRAMBoolState(StateCommandTimeCheck);
+//    InitEncryption();
+//    CommandTimeEnabled = ReadMRAMBoolState(StateCommandTimeCheck);
+    debug_print("Waiting for command ...\n");
     while (1) {
         bool gotSomething;
         Intertask_Message msg;
@@ -101,18 +103,8 @@ void CommandTask(void *pvParameters)
          * run on a timer.
          */
         ReportToWatchdog(CommandWD);
-        if(gotSomething && (msg.MsgType == CmdControlHasChanged)) {
-            /*
-             * We have switched control type.  If we are not in control, but were before then we want to
-             * start up the command receiver
-             */
-#ifdef FOR_RECEIVE
-                ax5043StartRx(device);
-#else
-                ax5043StopRx(device);
-#endif
-
-        } else if(gotSomething){
+        if(gotSomething){
+            debug_print("GOT SOMETHING\n");
             /* Here we actually received a message, so there is a command */
             //GPIOSetOff(LED3); // THere was a command.  Tell a human for ground testing
             JustReleasedFromBooster = false;

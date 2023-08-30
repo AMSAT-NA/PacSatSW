@@ -97,6 +97,7 @@ static rx_radio_buffer_t pb_radio_buffer; /* Static buffer used to store packet 
 //static uint8_t pb_packet_buffer[AX25_PKT_BUFFER_LEN];
 static char pb_status_buffer[135]; // 10 callsigns * 13 bytes + 4 + nul
 static Intertask_Message statusMsg; // Storage used to send messages to the Telemetry and Control task
+static Intertask_Message commandMsg; // Storage to send messages to Command Task
 
 bool running_self_test = FALSE;
 
@@ -533,6 +534,10 @@ void pb_process_frame(char *from_callsign, char *to_callsign, uint8_t *data, int
             // File Request
             pb_handle_file_request(from_callsign, data, len);
         }
+        if ((broadcast_request_header->pid & 0xff) == PID_COMMAND) {
+            // COMMAND
+            pb_handle_command(from_callsign, data, len);
+        }
     } else {
         trace_pb("PB: Unknown destination: %s - Packet Ignored\n",to_callsign);
     }
@@ -823,6 +828,33 @@ int pb_handle_file_request(char *from_callsign, uint8_t *data, int len) {
     }
 
     } /* switch */
+    return rc;
+}
+
+/**
+ * pb_handle_command()
+ *
+ * Send a received command to the command task.
+ *
+ * Returns TRUE if it could be sent, otherwise it returns FALSE
+ *
+ */
+int pb_handle_command(char *from_callsign, uint8_t *data, int len) {
+    bool rc = TRUE;
+    debug_print("Received Command from %s length %d\n",from_callsign, len);
+
+    // ACK the station
+    rc = pb_send_ok(from_callsign);
+    if (rc != TRUE) {
+        debug_print("\n Error : Could not send OK Response to TNC \n");
+    }
+
+    statusMsg.MsgType = TacSendPbStatus;
+    NotifyInterTaskFromISR(ToCommand,&statusMsg);
+
+//    commandMsg.MsgType = CmdTypeRawSoftware;
+//    // TODO - set the data and arguments here
+//    rc = NotifyInterTask(ToCommand, CENTISECONDS(10),&commandMsg);
     return rc;
 }
 
