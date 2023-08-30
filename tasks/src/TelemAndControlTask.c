@@ -23,6 +23,7 @@
 #include "MET.h"
 #include "MRAMmap.h"
 #include "nonvolManagement.h"
+#include "redposix.h"
 #include "PbTask.h"
 #include "Ax25Task.h"
 #include "RxTask.h"
@@ -154,9 +155,6 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)  {
             case TacSendRealtimeMsg:
                 tac_send_telemetry(&telem_buffer);
                 break;
-
-
-
             }
         }
     }
@@ -213,6 +211,24 @@ void tac_collect_telemetry(telem_buffer_t *buffer) {
      * Errors
      *
      */
+
+    /* File Storage */
+    REDSTATFS redstatfs;
+    bool rc = red_statvfs("/", &redstatfs);
+    if (rc != 0) {
+        printf("TAC: Unable to check disk space with statvfs: %s\n", red_strerror(red_errno));
+    } else {
+        //printf("Free blocks: %d of %d.  Free Bytes: %d\n",redstatfs.f_bfree, redstatfs.f_blocks, redstatfs.f_frsize * redstatfs.f_bfree);
+        //printf("Available File Ids: %d of %d.  \n",redstatfs.f_ffree, redstatfs.f_files);
+        buffer->rtHealth.common.FSAvailable = redstatfs.f_bfree;
+        buffer->rtHealth.common.FSTotalFiles = redstatfs.f_files - redstatfs.f_ffree;
+    }
+    buffer->rtHealth.common.UploadQueueBytes = (uint16_t)ftl0_get_space_reserved_by_upload_table();
+    buffer->rtHealth.common.UploadQueueFiles = ftl0_get_num_of_files_in_upload_table();
+
+    buffer->rtHealth.common2.pbEnabled = ReadMRAMBoolState(StatePbEnabled);
+    buffer->rtHealth.common2.uplinkEnabled = ReadMRAMBoolState(StateUplinkEnabled);
+
     uint8_t temp8;
     if(Get8BitTemp31725(&temp8)) {
         buffer->rtHealth.common.IHUTemp = temp8;
@@ -226,14 +242,12 @@ void tac_collect_telemetry(telem_buffer_t *buffer) {
     buffer->rtHealth.common.TXPower = rf_pwr;
     buffer->rtHealth.common.TXPwrMode = ax5043ReadReg(TX_DEVICE, AX5043_PWRMODE);
 
-
     /* RX0 Telemetry */
     uint8_t rssi0 = ax5043ReadReg(RX0_DEVICE, AX5043_RSSI);
     buffer->rtHealth.common.RX0RSSI = rssi0;
     buffer->rtHealth.common.RX0PwrMode = ax5043ReadReg(RX0_DEVICE, AX5043_PWRMODE);
 
     // TODO - calculate min max and store in MRAM
-
 
 }
 
@@ -252,7 +266,7 @@ void tac_send_telemetry(telem_buffer_t *buffer) {
     int len = 0;
     uint8_t *frame;
     if (ReadMRAMBoolState(StateCommandedSafeMode) || ReadMRAMBoolState(StateAutoSafe)) {
-        /* Setup Type 1 frame */
+        /* Setup Type 1 frame - This will copy the buffer into the frame */
         realtimeFrame.header = buffer->header;
         realtimeFrame.rtHealth = buffer->rtHealth;
         len = sizeof(realtimeFrame);
@@ -267,7 +281,7 @@ void tac_send_telemetry(telem_buffer_t *buffer) {
 //        debug_print("\n");
     }
     if (len == 0 || len > AX25_MAX_INFO_BYTES_LEN) {
-        //TODO - send error
+        debug_print("ERROR: Telemetry frame length of %d is not valid.  Frame not sent\n",len);
         return;
 
     }

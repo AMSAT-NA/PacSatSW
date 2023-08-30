@@ -400,7 +400,7 @@ bool pb_add_request(char *from_callsign, uint8_t type, DIR_NODE * node, uint32_t
     pb_list[number_on_pb].offset = offset;
     //logicalTime_t time;
     //getTime(&time);
-    uint32_t secs = getSeconds();
+    uint32_t secs = getUnixTime();
 //    debug_print(" at time: %i ",secs);
     pb_list[number_on_pb].request_time = secs;
     pb_list[number_on_pb].hole_num = num_of_holes;
@@ -841,11 +841,11 @@ int pb_next_action() {
 
     //TODO - broadcast the number of bytes transmitted to BSTAT periodically so stations can calc efficiency
 
-    //TODO - DIR maintenance.  Daily scan the dir for corrupt or expired files and delete them.  This could run slowly, 1 file scan per pb_action.  But what if we remove a file we are broadcasting?
-
-    uint32_t now = getSeconds();
-    if ((now - pb_list[current_station_on_pb].request_time) > PB_MAX_PERIOD_FOR_CLIENTS_IN_SECONDS) {
+    uint32_t now = getUnixTime();
+    int16_t age = now - pb_list[current_station_on_pb].request_time;
+    if (age > PB_MAX_PERIOD_FOR_CLIENTS_IN_SECONDS) {
         /* This station has exceeded the time allowed on the PB */
+        trace_pb("PB: TIMEOUT - Station %s on for %d secs and was removed\n", pb_list[current_station_on_pb].callsign, age);
         pb_remove_request(current_station_on_pb);
         /* If we removed a station then we don't want/need to increment the current station pointer */
         return TRUE;
