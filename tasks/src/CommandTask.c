@@ -68,7 +68,6 @@ uint8_t SWCmdRing[4] = {0,0,0,0};
 
 void CommandTask(void *pvParameters)
 {
-    debug_print("Starting command task\n");
     bool FallbackTimerActive = true;
 
     /*
@@ -83,17 +82,18 @@ void CommandTask(void *pvParameters)
 
     //Intertask_Message message;
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)CommandWD );
-    InitInterTask(ToCommand, 10);
-    ResetAllWatchdogs();
+    ReportToWatchdog(CommandWD);
 
     //RestartUplinkDecode(); // Initialize software command decoder
     SWCmdCount = 0;
     HWCmdCount = 0;
 
-//    InitEncryption();
-//    CommandTimeEnabled = ReadMRAMBoolState(StateCommandTimeCheck);
+    InitInterTask(ToCommand, 10);
+    InitEncryption();
+    CommandTimeEnabled = ReadMRAMBoolState(StateCommandTimeCheck);
     debug_print("Waiting for command ...\n");
     while (1) {
+        taskYIELD();
         bool gotSomething;
         Intertask_Message msg;
         ReportToWatchdog(CommandWD);
@@ -104,7 +104,6 @@ void CommandTask(void *pvParameters)
          */
         ReportToWatchdog(CommandWD);
         if(gotSomething){
-            debug_print("GOT SOMETHING\n");
             /* Here we actually received a message, so there is a command */
             //GPIOSetOff(LED3); // THere was a command.  Tell a human for ground testing
             JustReleasedFromBooster = false;
@@ -117,7 +116,8 @@ void CommandTask(void *pvParameters)
                 FallbackTimerActive = false;
             }
             if(msg.MsgType == CmdTypeRawSoftware){
-                DecodeSoftwareCommand(msg.argument);
+                debug_print("COMMAND!!\n");
+                //DecodeSoftwareCommand(msg.argument);
             } else if(msg.MsgType == CmdTypeHardware){
                 int fixedUp=0;
                 //

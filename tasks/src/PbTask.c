@@ -97,7 +97,6 @@ static rx_radio_buffer_t pb_radio_buffer; /* Static buffer used to store packet 
 //static uint8_t pb_packet_buffer[AX25_PKT_BUFFER_LEN];
 static char pb_status_buffer[135]; // 10 callsigns * 13 bytes + 4 + nul
 static Intertask_Message statusMsg; // Storage used to send messages to the Telemetry and Control task
-static Intertask_Message commandMsg; // Storage to send messages to Command Task
 
 bool running_self_test = FALSE;
 
@@ -145,6 +144,7 @@ FILE_DATE_PAIR * get_file_holes_list(unsigned char *data);
 int get_num_of_file_holes(int request_len);
 int pb_handle_dir_request(char *from_callsign, unsigned char *data, int len);
 int pb_handle_file_request(char *from_callsign, uint8_t *data, int len);
+int pb_handle_command(char *from_callsign, uint8_t *data, int len);
 void pb_debug_print_dir_holes(DIR_DATE_PAIR *holes, int num_of_holes);
 void debug_print_hole(DIR_DATE_PAIR *hole);
 void pb_debug_print_file_holes(FILE_DATE_PAIR *holes, int num_of_holes);
@@ -849,7 +849,7 @@ int pb_handle_command(char *from_callsign, uint8_t *data, int len) {
         debug_print("\n Error : Could not send OK Response to TNC \n");
     }
 
-    statusMsg.MsgType = TacSendPbStatus;
+    statusMsg.MsgType = CmdTypeRawSoftware;
     NotifyInterTaskFromISR(ToCommand,&statusMsg);
 
 //    commandMsg.MsgType = CmdTypeRawSoftware;
