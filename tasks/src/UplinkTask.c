@@ -69,7 +69,6 @@ bool ftl0_remove_file_upload_record(uint32_t id);
 bool ftl0_mram_get_file_upload_record(uint32_t id, InProcessFileUpload_t * file_upload_record);
 bool ftl0_mram_set_file_upload_record(uint32_t id, InProcessFileUpload_t * file_upload_record);
 bool ftl0_clear_upload_table();
-int ftl0_get_space_reserved_by_upload_table();
 
 /* Local variables */
 static ftl0_state_machine_t ftl0_state_machine[NUM_OF_RX_CHANNELS];
@@ -1327,6 +1326,22 @@ int ftl0_get_space_reserved_by_upload_table() {
     return space_reserved;
 }
 
+int ftl0_get_num_of_files_in_upload_table() {
+    int i;
+    int num = 0;
+    InProcessFileUpload_t rec;
+
+    for (i=0; i < MAX_IN_PROCESS_FILE_UPLOADS; i++) {
+        if (!ftl0_mram_get_file_upload_record(i, &rec)) {
+            return FALSE;
+        }
+        if (rec.file_id != 0) {
+            num += 1;
+        }
+    }
+    return num;
+}
+
 bool ftl0_clear_upload_table() {
     int i;
     InProcessFileUpload_t tmp_file_upload_record;
@@ -1371,9 +1386,7 @@ void ftl0_maintenance() {
         if (rec.file_id != 0) {
             uint32_t now = getUnixTime();
             int32_t age = now-rec.request_time;
-            if (age < 0) {
-                // this looks wrong, something is corrupt.  Skip it
-            } else if (age > FTL0_MAX_UPLOAD_RECORD_AGE) {
+            if (age > FTL0_MAX_UPLOAD_RECORD_AGE) {
                 debug_print("REMOVING RECORD: %d- File: %04x by %s length: %d offset: %d for %d seconds\n",i, rec.file_id, rec.callsign, rec.length, rec.offset, now-rec.request_time);
                 if (ftl0_mram_set_file_upload_record(i, &blank_file_upload_record)) {
                     // Remove the tmp file

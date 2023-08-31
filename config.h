@@ -28,7 +28,7 @@
 #define WATCHDOG_ENABLE
 #   define SOFTWARE_TYPE "V"
 #endif
-#define VERSION "1g" /*Exactly 2 characters will show in the diagnostic downlink*/
+#define VERSION "1h" /*Exactly 2 characters will show in the diagnostic downlink*/
 #define PACSAT_FW_VERSION_STRING SOFTWARE_TYPE PACSAT_NUMBER "." VERSION
 
 #define PACSAT_MAX_MRAMS 4
@@ -170,7 +170,7 @@ typedef enum {
 #define TAC_TIMER_MAINTENANCE_PERIOD SECONDS(90*60)  // 90*60 every 1.5 hours or about once per orbit
 
 #define DIR_MAX_FILE_AGE 5*24*60*60 // 5*24*60*60 5 days to keep files
-#define FTL0_MAX_UPLOAD_RECORD_AGE 3*60*60 // 3*24*60*60 3 days to keep upload records.  This is reset when a station uploads new data for a file
+#define FTL0_MAX_UPLOAD_RECORD_AGE 3*60*60 // 3*24*60*60 3 days to keep upload records.  This is reset when a station uploads new data for a file.  Note that is should be long enough to make sure that files are not purged while a station is trying to upload it.  i.e. At least 3-5 mins
 
 /* At least this many bytes should be free after a file is uploaded.  Each disk block is 256 Bytes.
  * If this is set to 4*256 then we can run out of space while uploading.  Some investigation is needed

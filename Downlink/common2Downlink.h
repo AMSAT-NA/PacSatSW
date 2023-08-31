@@ -8,18 +8,20 @@
 typedef struct  __attribute__((__packed__)) _commonRtWodPayload_t {
     unsigned int AutoSafeAllowed:1;       //Offset=0
     unsigned int AutoSafeModeActive:1;       //Offset=1
-    unsigned int transponderEnabled:1;       //Offset=2
-    unsigned int pad202:5;       //Offset=3
+    unsigned int pbEnabled:1;       //Offset=2
+    unsigned int uplinkEnabled:1;       //Offset=3
+    unsigned int pad202:4;       //Offset=4
     uint8_t TLMresets;       //Offset=8
-    uint8_t wodSize;       //Offset=16
-    uint8_t swCmds[4];       //Offset=24
-    uint8_t hwCmdCnt;       //Offset=56
-    uint8_t swCmdCntICR;       //Offset=64
-    uint8_t swCmdCntDCT;       //Offset=72
-    uint8_t DCT1Status;       //Offset=80
-    uint8_t DCT2Status;       //Offset=88
-    uint8_t LMRAMstatus;       //Offset=96
-    uint8_t PrimMRAMstatus;       //Offset=104
-    uint8_t SecndMRAMstatus;       //Offset=112
-} commonRtWodPayload_t; // Total Size=120 bits or 15 bytes with 0 left over
+    uint8_t pad316;       //Offset=16
+    uint8_t wodSize;       //Offset=24
+    uint32_t swCmds;       //Offset=32
+    uint8_t hwCmdCnt;       //Offset=64
+    uint8_t swCmdCntICR;       //Offset=72
+    uint8_t swCmdCntDCT;       //Offset=80
+    uint8_t DCT1Status;       //Offset=88
+    uint8_t DCT2Status;       //Offset=96
+    uint8_t LMRAMstatus;       //Offset=104
+    uint8_t PrimMRAMstatus;       //Offset=112
+    uint8_t SecndMRAMstatus;       //Offset=120
+} commonRtWodPayload_t; // Total Size=128 bits or 16 bytes with 0 left over
 #endif
