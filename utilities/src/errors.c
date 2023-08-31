@@ -148,17 +148,6 @@ void * __builtin_return_address (unsigned int level);
 
 
 /*
- * Here are the interrupt service routines and error hooks
- */
-
-void vApplicationStackOverflowHook( xTaskHandle *pxTask, signed portCHAR *pcTaskName ){
-#ifdef DEBUG_AIDS
-    stackInfo = (struct _stack *)pxTask;
-#endif
-    ReportError(StackOverflow,TRUE,CharString,(int)pcTaskName);
-}
-
-/*
  * And here are routines that are called externally
  */
 static bool OKToWriteSaveAcrossReset = false;
