@@ -159,9 +159,9 @@ bool SetRtcTime31331(uint32_t *unixtime) {
     time = gmtime(&t);
     if (time == NULL) return FALSE;
 
-    char buf[30];
-    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", time);
-    debug_print(" trying to set RTC to time: %s\n", buf);
+//    char buf[30];
+//    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", time);
+//    debug_print(" trying to set RTC to time: %s\n", buf);
 
 
     int rc = time_to_rtc_regs(&regs, time, HOUR24);

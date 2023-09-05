@@ -85,6 +85,8 @@ When we store data in a value or structure internally we need to convert it to b
 #include "PbTask.h"
 #include "TxTask.h"
 #include "pacsat_dir.h"
+#include "CommandTask.h"
+#include "TMS570Hardware.h"
 #include "crc16.h"
 #ifdef DEBUG
 #include "time.h" // large file, not needed for flight
@@ -836,25 +838,42 @@ int pb_handle_file_request(char *from_callsign, uint8_t *data, int len) {
  *
  * Send a received command to the command task.
  *
- * Returns TRUE if it could be sent, otherwise it returns FALSE
+ * Returns TRUE if it could be processed, otherwise it returns FALSE
  *
  */
 int pb_handle_command(char *from_callsign, uint8_t *data, int len) {
     bool rc = TRUE;
-    debug_print("Received Command from %s length %d\n",from_callsign, len);
 
+    SWCmdUplink *sw_command;
+    sw_command = (SWCmdUplink *)(data + sizeof(AX25_HEADER));
+
+//    debug_print("Received Command %04x:%x addr: %d names: %d cmd %d from %s length %d\n",ttohs(sw_command->resetNumber), ttoh24(sw_command->secondsSinceReset),
+//                sw_command->address, sw_command->namespaceNumber, ttohs(sw_command->comArg.command), from_callsign, len);
+
+
+    /* Pass the data to the command processor */
+    rc = DecodeSoftwareCommand(sw_command);
+
+    if (rc) {
     // ACK the station
-    rc = pb_send_ok(from_callsign);
-    if (rc != TRUE) {
-        debug_print("\n Error : Could not send OK Response to TNC \n");
+        bool r = pb_send_ok(from_callsign);
+        if (r != TRUE) {
+            debug_print("\n Error : Could not send OK Response to TNC \n");
+        }
+
+        // Special case - this needs to happen after the OK sent - and by this point the command is in host format
+        if ( sw_command->comArg.command == SWCmdOpsResetSpecified) {
+            WaitSystemWithWatchdog(CENTISECONDS(10));
+            ProcessorReset();
+        }
+
+    } else {
+        bool r = pb_send_err(from_callsign, 5);
+        if (r != TRUE) {
+            debug_print("\n Error : Could not send ERR Response to TNC \n");
+        }
     }
 
-    statusMsg.MsgType = CmdTypeRawSoftware;
-    NotifyInterTaskFromISR(ToCommand,&statusMsg);
-
-//    commandMsg.MsgType = CmdTypeRawSoftware;
-//    // TODO - set the data and arguments here
-//    rc = NotifyInterTask(ToCommand, CENTISECONDS(10),&commandMsg);
     return rc;
 }
 

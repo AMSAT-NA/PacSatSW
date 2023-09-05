@@ -25,6 +25,7 @@
 #include "canDriver.h"
 #include "inet.h"
 #include "ax5043_access.h"
+#include "Max31331Rtc.h"
 
 #define command_print if(PrintCommandInfo)printf
 
@@ -35,23 +36,19 @@ extern int32_t WODHkStoreIndex,WODSciStoreIndex;
 extern rt1Errors_t localErrorCollection;
 
 static uint8_t SWCmdCount,HWCmdCount;
-static AX5043Device device = AX5043Dev0;
 
 /*
  * Forward Routines
  */
 static void DecodeHardwareCommand(UplinkCommands);
-static void DecodeSoftwareCommand(uint32_t);
-static void TlmSWCommands(CommandAndArgs *comarg);
-static void OpsSWCommands(CommandAndArgs *comarg);
-static void DispatchSoftwareCommand(SWCmdUplink *uplink,bool local);
+static bool TlmSWCommands(CommandAndArgs *comarg);
+static bool OpsSWCommands(CommandAndArgs *comarg);
+static bool DispatchSoftwareCommand(SWCmdUplink *uplink,bool local);
 bool AuthenticateSoftwareCommand(SWCmdUplink *uplink);
 bool CommandTimeOK(SWCmdUplink *uplink);
 
 
 static bool PrintCommandInfo = false,CommandTimeEnabled = false;
-static bool VUCIsDisabled=false;
-static uint8_t UplinkCommandBuffer[SW_UPLINK_BUFFERS][SW_UPLINK_BITS]; // One byte per bit as required by fec code
 uint8_t SWCmdRing[4] = {0,0,0,0};
 
 //#define SPECIAL_RANDOM_NUMBER 49093  /* For little endian */
@@ -116,8 +113,7 @@ void CommandTask(void *pvParameters)
                 FallbackTimerActive = false;
             }
             if(msg.MsgType == CmdTypeRawSoftware){
-                debug_print("COMMAND!!\n");
-                //DecodeSoftwareCommand(msg.argument);
+                debug_print("COMMAND VIA MESSAGE NOT SUPPORTED!!\n");
             } else if(msg.MsgType == CmdTypeHardware){
                 int fixedUp=0;
                 //
@@ -180,7 +176,7 @@ static void DecodeHardwareCommand(UplinkCommands command){
     }
 }
 
-void DispatchSoftwareCommand(SWCmdUplink *uplink,bool local){
+bool DispatchSoftwareCommand(SWCmdUplink *uplink,bool local){
     uint8_t nameSpace;
 
     /*
@@ -193,7 +189,7 @@ void DispatchSoftwareCommand(SWCmdUplink *uplink,bool local){
     nameSpace = uplink->namespaceNumber;
     if(uplink->address != OUR_ADDRESS){
         command_print("Wrong address %x\n\r",uplink->address);
-        return;
+        return FALSE;
     }
     if(local && (nameSpace != SWCmdNSInternal)){
         //Enter in the telemetry ring buffer only if it originated on this
@@ -213,17 +209,15 @@ void DispatchSoftwareCommand(SWCmdUplink *uplink,bool local){
 
     switch(nameSpace){
     case SWCmdNSSpaceCraftOps: {
-        OpsSWCommands(&uplink->comArg);
-        break;
+        return OpsSWCommands(&uplink->comArg);
     }
     case SWCmdNSTelemetry:{
-        TlmSWCommands(&uplink->comArg);
-        break;
+        return TlmSWCommands(&uplink->comArg);
     }
     default:
         printf("Unknown namespace %d\n\r",nameSpace);
         localErrorCollection.DCTCmdFailNamespaceCnt++;
-        return;
+        return FALSE;
 
     }
 }
@@ -233,7 +227,7 @@ void DispatchSoftwareCommand(SWCmdUplink *uplink,bool local){
  * print the command so the uplink can be tested.
  */
 
-void OpsSWCommands(CommandAndArgs *comarg){
+bool OpsSWCommands(CommandAndArgs *comarg){
 
     switch((int)comarg->command){
 
@@ -276,27 +270,48 @@ void OpsSWCommands(CommandAndArgs *comarg){
         //ClearMinMax();
         break;
 
-    case SWCmdOpsEnableTransponder: {
-        bool turnOn;
-        turnOn = (comarg->arguments[0] != 0);
-        if(turnOn){
-            command_print("Enable transponder\n\r");
-
-        } else {
-            command_print("Disable transponder\n\r");
-        }
-        //EnableTransponder(turnOn);
-        break;
-    }
     case SWCmdOpsNoop:
         command_print("No-op command\n\r");
         break;
+    case SWCmdOpsEnablePb: {
+        bool turnOn;
+        turnOn = (comarg->arguments[0] != 0);
+        if(turnOn){
+            command_print("Enable PB\n\r");
 
+        } else {
+            command_print("Disable PB\n\r");
+        }
+        WriteMRAMBoolState(StatePbEnabled,turnOn);
+        break;
+    }
+    case SWCmdOpsEnableUplink: {
+        bool turnOn;
+        turnOn = (comarg->arguments[0] != 0);
+        if(turnOn){
+            command_print("Enable Uplink\n\r");
 
+        } else {
+            command_print("Disable Uplink\n\r");
+        }
+        WriteMRAMBoolState(StateUplinkEnabled,turnOn);
+        break;
+    }
+    case SWCmdOpsSetTime:{
+        uint32_t time = comarg->arguments[0] + (comarg->arguments[1] << 16);
+        command_print("Set time to %d\n\r",time);
+        setUnixTime(time);
+        bool set = SetRtcTime31331(&time);
+        if (set) {
+            command_print("Setting RTC\n");
+        } else {
+            command_print("Failed to set RTC\n");
+        }
+        break;
+    }
     case SWCmdOpsResetSpecified:{
-            command_print("Reset this RT-IHU\n");
-            WaitSystemWithWatchdog(CENTISECONDS(10));
-            ProcessorReset();
+            command_print("Reset IHU\n");
+            // This will execute when we return to the PB task
         break;
     }
     case SWCmdOpsEnableCommandTimeCheck:{
@@ -336,10 +351,9 @@ void OpsSWCommands(CommandAndArgs *comarg){
      default:
         localErrorCollection.DCTCmdFailCommandCnt++;
         command_print("Unknown Ops Command %d\n\r",comarg->command);
-        break;
-
-
+        return FALSE;
     }
+    return TRUE;
 }
 void EnableCommandPrint(bool enable){
     PrintCommandInfo = enable;
@@ -353,7 +367,7 @@ void EnableCommandTimeCheck(bool enable){
     }
     WriteMRAMBoolState(StateCommandTimeCheck,CommandTimeEnabled);
 }
-void TlmSWCommands(CommandAndArgs *comarg){
+bool TlmSWCommands(CommandAndArgs *comarg){
     switch(comarg->command){
     case SWCmdTlmWODSaveSize:
         command_print("Change WOD size to %d\n\r",comarg->arguments[0]);
@@ -376,46 +390,34 @@ void TlmSWCommands(CommandAndArgs *comarg){
     default:
         localErrorCollection.DCTCmdFailCommandCnt++;
         printf("Unknown Tlm Command\n\r");
-        break;
+        return FALSE;
     }
+    return TRUE;
 }
 
-void DecodeSoftwareCommand(uint32_t bufferIndex){
+bool DecodeSoftwareCommand(SWCmdUplink *softwareCommand) {
 
-    uint8_t UplinkCommandDecoded[SW_CMD_STRUCT_SIZE+SW_UPLINK_CRC]; //Leave extra space for CRC
-    bool retVal;
-    SWCmdUplink *softwareCommand = (SWCmdUplink *)&UplinkCommandDecoded;
+    if(AuthenticateSoftwareCommand(softwareCommand)){
+        command_print("\n\rCommand Authenticated!\n");
+    } else {
+        command_print("\n\rCommand does not authenticate\n");
+    }
 
-    retVal = ao_fec_decode(&UplinkCommandBuffer[bufferIndex][0], SW_UPLINK_BITS, &UplinkCommandDecoded[0],
-                           SW_CMD_STRUCT_SIZE+SW_UPLINK_CRC, (void *)0);
-    if(retVal){
+
+        softwareCommand->comArg.command = ttohs(softwareCommand->comArg.command);
+        softwareCommand->comArg.arguments[0] = ttohs(softwareCommand->comArg.arguments[0]);
+        softwareCommand->comArg.arguments[1] = ttohs(softwareCommand->comArg.arguments[1]);
+        softwareCommand->comArg.arguments[2] = ttohs(softwareCommand->comArg.arguments[2]);
+        softwareCommand->comArg.arguments[3] = ttohs(softwareCommand->comArg.arguments[3]);
+
         /*
-         * Some of these need to be fixed for authentication to work
+         * Here we have a command that was received on the uplink and ready to act on.  Also send
+         * it to the other processors
          */
 
+        bool rc = DispatchSoftwareCommand(softwareCommand,true);
 
-        if(AuthenticateSoftwareCommand(softwareCommand)){
-            command_print("\n\rCommand Authenticated!\n");
-
-            softwareCommand->comArg.arguments[0] = ttohs(softwareCommand->comArg.arguments[0]);
-            softwareCommand->comArg.arguments[1] = ttohs(softwareCommand->comArg.arguments[1]);
-            softwareCommand->comArg.arguments[2] = ttohs(softwareCommand->comArg.arguments[2]);
-            softwareCommand->comArg.arguments[3] = ttohs(softwareCommand->comArg.arguments[3]);
-
-
-            /*
-             * Here we have a command that was received on the uplink and ready to act on.  Also send
-             * it to the other processors
-             */
-
-            DispatchSoftwareCommand((SWCmdUplink *)UplinkCommandDecoded,true);
-        } else {
-            command_print("\n\rCommand does not authenticate\n");
-        }
-    } else {
-        localErrorCollection.DCTCmdFailCRCCnt++;
-        command_print("\n\rCRC does not match\n\r");
-    }
+        return rc;
 
 }
 
@@ -501,52 +503,7 @@ bool CommandTimeOK(SWCmdUplink *uplink){
  * These routines are called from different tasks
  **********************************************************************************/
 
-void incomingRawSoftwareCommand(uint8_t *packet) {
-    /*
-     * This routine is called from TelemetryRadio (and thus executes in that task's context)
-     * when it receives an incoming raw software command packet.  This routines job
-     * is to collect the packet and then send it in an intertask
-     * message to the command task for decoding.
-     */
 
-    //    static uint8_t RFCommand[SW_UPLINK_BYTES];  // This is the actual message
-    static uint8_t swCommandBufferIndex=0;          // And this is the index for the double-buffered message
-    // sent to the command task.
-    int i,bitNum=0,byteNum=0;
-
-
-    Intertask_Message msg;
-    command_print("Incoming RF software command received\n");
-
-    for (i=0; i<SW_UPLINK_BITS; i++) {
-        /*
-         * Turn the single bits into the bytes that the FEC decode wants.
-         */
-
-        if (packet[byteNum] & 1<<(7-bitNum)) {
-            UplinkCommandBuffer[0][i]=0;
-        } else {
-            UplinkCommandBuffer[0][i]=0xff;
-        }
-
-        if(++bitNum >=8){
-            bitNum=0;
-            byteNum++;
-        }
-    }
-
-    msg.MsgType = CmdTypeRawSoftware;
-
-    msg.argument = swCommandBufferIndex++; // If we allow several commands, this will be the array index to UplinkCommandBuffer
-    if(swCommandBufferIndex >= SW_UPLINK_BUFFERS)swCommandBufferIndex = 0;
-
-    ReportToWatchdog(CurrentTaskWD);
-    NotifyInterTask(ToCommand,WATCHDOG_MAX_WAIT_TIME,(Intertask_Message *)&msg);
-    ReportToWatchdog(CurrentTaskWD);
-
-    return;
-
-}
 
 /*
  * Here are the timeout callbacks relating to commands
@@ -571,7 +528,4 @@ uint8_t GetHWCmdCount(void){
 }
 uint8_t GetSWCmdCount(void){
     return SWCmdCount;
-}
-bool GetVUCDisabled(void){
-    return VUCIsDisabled;
 }

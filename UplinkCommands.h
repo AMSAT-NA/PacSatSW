@@ -125,10 +125,10 @@ typedef enum {
 	,SWCmdOpsEnableAutosafe
 	,SWCmdOpsClearMinMax
 	,SWCmdOpsNoop
-	,SWCmdOpsForceOffExp1
-	,SWCmdOpsArmDeorbit=12
+	,SWCmdOpsEnablePb
+	,SWCmdOpsEnableUplink=12
 	,SWCmdOpsDeployAntennas   // Args = (bus, antennaNumber,time, override)
-	,SWCmdOpsEnableTransponder
+	,SWCmdOpsSetTime // Args = (unix time)
 	,SWCmdOpsSetGyroReg // Args = (reg number,value)
 	,SWCmdOpsEnableCommandTimeCheck //16
 	,SWCmdOpsSetAutosafeVoltages //17
