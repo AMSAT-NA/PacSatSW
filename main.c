@@ -274,18 +274,6 @@ void ConsoleTask(void *pvParameters){
 
     //////////////////////////////////////// Deployables //////////////////////////////////////////////////
 
-    /*
-     * Time to release the antennas.
-     */
-//    xTaskCreate(CANTask, "Can", CAN_STACK_SIZE, NULL,CAN_PRIORITY, NULL);
-
-    /*
-     * We create the coordination task first.  It will get us switched into either "InControl" or "AliveNotControlling".
-     * When we are in one or the other, we init the appropriate GPIOs.
-     */
-//   xTaskCreate(CommandTask, "Command", COMMAND_STACK_SIZE,
- //               NULL,COMMAND_PRIORITY, NULL);
-
     /* Load the directory from MRAM and perform some integrity checks */
     int32_t ret = dir_check_folders();
     if (ret == -1) {
@@ -297,7 +285,8 @@ void ConsoleTask(void *pvParameters){
         debug_print("ERROR: Could not load the directory from MRAM\n");
         // TODO - bad or fatal - need to handle or log this error
     }
-
+    xTaskCreate(CommandTask, "Command", COMMAND_STACK_SIZE,
+                 NULL,COMMAND_PRIORITY, NULL);
     xTaskCreate(RxTask,"RxTask",RX_STACK_SIZE, NULL, RX_PRIORITY,NULL);
     xTaskCreate(Ax25Task,"Ax25Task",AX25_STACK_SIZE, NULL, AX25_PRIORITY,NULL);
     xTaskCreate(PbTask,"PbTask",PB_STACK_SIZE, NULL, PB_PRIORITY,NULL);
@@ -327,7 +316,24 @@ void ConsoleTask(void *pvParameters){
 void vApplicationIdleHook(){
     ReportToWatchdog(IdleWD);
 }
+#ifdef DEBUG
+void vApplicationMallocFailedHook(void){
+    printf("Malloc Failed.  Heap is too small?  Current heap available is 0x%x\n",
+           xPortGetFreeHeapSize());
+    while(1){
+        taskYIELD();
+    }
+}
+//vApplicationStackOverflowHook( ( TaskHandle_t ) pxCurrentTCB, pxCurrentTCB->pcTaskName );
+vApplicationStackOverflowHook(pxCurrentTCB,taskName ){
+    printf("Stack overflow in task %s\n",taskName);
+    while(1){
+        taskYIELD();
+    }
 
+}
+
+#endif
 /* This is used to null out debug_print and debug trace statements when DEBUG is off */
 void NullPrint(char * format,...){
 };

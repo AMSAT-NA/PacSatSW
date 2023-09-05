@@ -76,7 +76,7 @@
 
 #ifndef FREERTOS_CONFIG_H
 #define FREERTOS_CONFIG_H
-
+#include "config.h" /*In order to get DEBUG */
 /*-----------------------------------------------------------
  * Application specific definitions.
  *
@@ -99,16 +99,20 @@
 #define configTICK_RATE_HZ			  			( ( TickType_t ) 100 )//BF was 1000
 #define configMAX_PRIORITIES		  			( 8 )
 #define configMINIMAL_STACK_SIZE	  			( ( unsigned short ) 128 )
-//#define configTOTAL_HEAP_SIZE		  			( ( size_t ) 32768 )
-#define configTOTAL_HEAP_SIZE                   ( ( size_t ) 65536 ) /*BF Changed*/
+//#define configTOTAL_HEAP_SIZE		  			( ( size_t ) 32768 ) //Default
+#define configTOTAL_HEAP_SIZE                   ( ( size_t ) (2*65536 )) /*BF Changed*/
 #define configMAX_TASK_NAME_LEN		  			( 16 )
 #define configIDLE_SHOULD_YIELD		  			1
 #define configGENERATE_RUN_TIME_STATS 			0
-#define configUSE_MALLOC_FAILED_HOOK  			0
-#define configUSE_APPLICATION_TASK_TAG  1 // BF added
+#define configUSE_APPLICATION_TASK_TAG  1 // WB1FJ added
+#ifdef DEBUG
+#define configUSE_MALLOC_FAILED_HOOK  			1 //WB1FJ
+#define configCHECK_FOR_STACK_OVERFLOW 			1 // WB1FJ
+#else
+#define configUSE_MALLOC_FAILED_HOOK            0
+#define configCHECK_FOR_STACK_OVERFLOW          0
 
-#define configCHECK_FOR_STACK_OVERFLOW 			0
-
+#endif
 /* Co-routine definitions. */
 #define configUSE_CO_ROUTINES 					0
 #define configMAX_CO_ROUTINE_PRIORITIES 		( 2 )
