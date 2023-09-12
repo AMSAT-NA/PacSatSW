@@ -28,7 +28,7 @@
 #define WATCHDOG_ENABLE
 #   define SOFTWARE_TYPE "V"
 #endif
-#define VERSION "1h" /*Exactly 2 characters will show in the diagnostic downlink*/
+#define VERSION "1i" /*Exactly 2 characters will show in the diagnostic downlink*/
 #define PACSAT_FW_VERSION_STRING SOFTWARE_TYPE PACSAT_NUMBER "." VERSION
 
 #define PACSAT_MAX_MRAMS 4
@@ -123,6 +123,7 @@ void NullPrint(char *, ...);
 #define STATUS "STATUS" // destination for status frames
 #define BSTAT "BSTAT" // destination for broadcast status frames
 #define BBSTAT "BBSTAT" // destination for bbs status frames
+#define TIME "TIME-1" // destination for time frames
 
 /* Telemetry destination callsigns */
 #define TLMP1 "TLMP1" // destination for telemetry frames type 1

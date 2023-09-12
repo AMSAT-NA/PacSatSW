@@ -286,5 +286,13 @@ void tac_send_telemetry(telem_buffer_t *buffer) {
 
     }
     int rc = tx_send_ui_packet(BROADCAST_CALLSIGN, TLMP1, PID_NO_PROTOCOL, frame, len, BLOCK);
+
+    uint32_t t = getUnixTime();
+    uint8_t time_frame[10];
+    snprintf((char *)time_frame, 10, "%d",t);
+
+    len = strlen((char *)time_frame);
+    rc = tx_send_ui_packet(BROADCAST_CALLSIGN, TIME, PID_NO_PROTOCOL, time_frame, len, BLOCK);
+
 }
 

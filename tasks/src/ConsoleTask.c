@@ -1310,12 +1310,15 @@ void RealConsoleTask(void)
             uint32_t t = (uint32_t)strtol(afterCommand,&nextNum,0);
             printf("Setting unix time to: %d\n",t);
             setUnixTime(t);
-            printf("Setting RTC\n");
-            bool set = SetRtcTime31331(&t);
-            if (set)
-                printf("Setting RTC\n");
-            else
-                printf("Failed to set RTC\n");
+            //printf("Setting RTC\n");
+            if (RTCIsOk()) {
+                bool set = SetRtcTime31331(&t);
+                if (set) {
+                    printf("Setting RTC\n");
+                } else {
+                    printf("Failed to set RTC\n");
+                }
+            }
             break;
         }
 

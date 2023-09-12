@@ -26,6 +26,7 @@
 #include "inet.h"
 #include "ax5043_access.h"
 #include "Max31331Rtc.h"
+#include "ADS7828.h"
 
 #define command_print if(PrintCommandInfo)printf
 
@@ -301,11 +302,13 @@ bool OpsSWCommands(CommandAndArgs *comarg){
         uint32_t time = comarg->arguments[0] + (comarg->arguments[1] << 16);
         command_print("Set time to %d\n\r",time);
         setUnixTime(time);
-        bool set = SetRtcTime31331(&time);
-        if (set) {
-            command_print("Setting RTC\n");
-        } else {
-            command_print("Failed to set RTC\n");
+        if (RTCIsOk()) {
+            bool set = SetRtcTime31331(&time);
+            if (set) {
+                command_print("Setting RTC\n");
+            } else {
+                command_print("Failed to set RTC\n");
+            }
         }
         break;
     }
