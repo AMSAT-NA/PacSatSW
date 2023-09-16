@@ -27,6 +27,7 @@
 #include "ax5043_access.h"
 #include "Max31331Rtc.h"
 #include "ADS7828.h"
+#include "redposix.h"
 
 #define command_print if(PrintCommandInfo)printf
 
@@ -286,6 +287,27 @@ bool OpsSWCommands(CommandAndArgs *comarg){
         WriteMRAMBoolState(StatePbEnabled,turnOn);
         break;
     }
+    /* This command will wipe the file system but not reset the file numbers.  So a ground
+     * station will be able to continue receiving files without having to reset its local
+     * directory*/
+    case SWCmdOpsFormatFs: {
+        if (red_umount("/") == -1) {
+            debug_print("Unable to unmount filesystem: %s\n",
+                               red_strerror(red_errno));
+            return FALSE;
+        }
+        if (red_format("/") == -1) {
+            debug_print("Unable to format filesystem: %s\n",
+                   red_strerror(red_errno));
+            return FALSE;
+        }
+        if (red_mount("/") == -1) {
+            debug_print("Mount after format failed, filesystem broken: %s\n",
+                   red_strerror(red_errno));
+            return FALSE;
+        }
+        break;
+    }
     case SWCmdOpsEnableUplink: {
         bool turnOn;
         turnOn = (comarg->arguments[0] != 0);
@@ -531,4 +553,36 @@ uint8_t GetHWCmdCount(void){
 }
 uint8_t GetSWCmdCount(void){
     return SWCmdCount;
+}
+
+void test_auth() {
+    uint8_t uplink[18] = {0xc8,0x34,0x8a,0xc5,0x8f,0x6c,0x78,0x17,0x94,0x2b,0xc,0xd3,0x74,0x6d,0x53,0xab,0xa6,0x44};
+    int i;
+//    for (i=0; i<18;i++)
+//        uplink[i] = 0xAB;
+
+    uint32_t localSecureHash32[8],uplinkSecureHash32[8];
+    SHA(uplink, SW_COMMAND_SIZE, localSecureHash32);
+
+    uint8_t *bptr = (uint8_t *)&localSecureHash32[0];
+    int p;
+    for (p=0; p<32; p++)
+        printf("%02x ",*bptr++);
+    printf("\n");
+
+    uint8_t cypher[] = {
+                        0x52,0xfb,0x80,0xb4,0xad,0xaf,0x20,0x40,0xe5,0x58,0x97,0x1d,0xbf,0xe1,0x39,0x23,0xce,0x59,0x0,0xf1,0x54,0xdb,0xd4,0xfa,0x2e,0xb8,0xc7,0x6c,0x1e,0xd3,0x52,0x34
+    };
+    for(i=0;i<8;i++){
+        cypher[i] = ttohl(cypher[i]);
+            }
+    DeCipher32(cypher,(uint8_t *)uplinkSecureHash32);
+    for(i=0;i<8;i++){
+            uplinkSecureHash32[i] = ttohl(uplinkSecureHash32[i]);
+        }
+    bptr = (uint8_t *)&uplinkSecureHash32[0];
+    for (p=0; p<32; p++)
+            printf("%02x ",*bptr++);
+        printf("\n");
+
 }

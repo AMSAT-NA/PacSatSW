@@ -126,6 +126,7 @@ typedef enum {
 	,SWCmdOpsClearMinMax
 	,SWCmdOpsNoop
 	,SWCmdOpsEnablePb
+    ,SWCmdOpsFormatFs
 	,SWCmdOpsEnableUplink=12
 	,SWCmdOpsDeployAntennas   // Args = (bus, antennaNumber,time, override)
 	,SWCmdOpsSetTime // Args = (unix time)

@@ -10,6 +10,6 @@
 
 void RealConsoleTask(void);
 
-
+void test_auth();
 
 #endif /* TASKS_INC_CONSOLETASK_H_ */

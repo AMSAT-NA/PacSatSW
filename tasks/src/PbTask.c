@@ -862,7 +862,7 @@ int pb_handle_command(char *from_callsign, uint8_t *data, int len) {
         }
 
         // Special case - this needs to happen after the OK sent - and by this point the command is in host format
-        if ( sw_command->comArg.command == SWCmdOpsResetSpecified) {
+        if ( sw_command->comArg.command == SWCmdOpsResetSpecified ||  sw_command->comArg.command == SWCmdOpsFormatFs) {
             WaitSystemWithWatchdog(CENTISECONDS(10));
             ProcessorReset();
         }
