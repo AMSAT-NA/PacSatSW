@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "downlink.h"
+#include "keyfile.h"
 //#include "telemetryCollectionInterface.h"
 #include "MET.h"
 
@@ -83,7 +84,7 @@ typedef struct {
 
 
 typedef struct _authKey {
-    uint8_t key[16];
+    uint8_t key[AUTH_KEY_SIZE];
     uint32_t keyChecksum;
     uint32_t magic; //Make sure it was initialized
 } AuthKey_t;
