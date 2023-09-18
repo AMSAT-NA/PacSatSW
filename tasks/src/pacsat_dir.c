@@ -51,7 +51,7 @@ static uint8_t data_buffer[AX25_MAX_DATA_LEN]; /* Static buffer used to store fi
 int32_t dir_check_folder(char *path);
 void dir_delete_node(DIR_NODE *node);
 void insert_after(DIR_NODE *p, DIR_NODE *new_node);
-bool dir_fs_update_header(char *file_name_with_path, uint32_t file_id, uint32_t upload_time, uint16_t header_len);
+bool dir_fs_update_header(char *file_name_with_path, HEADER *pfh);
 bool dir_fs_save_int(int32_t fp, uint32_t value, uint32_t offset);
 bool dir_fs_save_short(int32_t fp, uint16_t value, uint32_t offset);
 
@@ -278,21 +278,14 @@ DIR_NODE * dir_add_pfh(char *file_name, HEADER *new_pfh) {
         /* store these values back in the header that the caller passed in */
         new_pfh->uploadTime = new_node->upload_time;
         new_pfh->fileId = new_node->file_id;
-        // TODO - store the filename in the header and save to disK??
-//        /* Regenerate the bytes and generate the checksums.  FileSize is body_offset + body_size */
-//        uint16_t body_offset = pfh_generate_header_bytes(new_pfh, new_pfh->fileSize - new_pfh->bodyOffset, pfh_byte_buffer);
-//        if (body_offset != new_node->body_offset) {
-//            debug_print("ERROR: Regenerated Header size is incorrect.  Could not update header.\n");
-//            dir_delete_node(new_node);
-//            return FALSE;
-//        }
+
         char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
         strlcpy(file_name_with_path, DIR_FOLDER, MAX_FILENAME_WITH_PATH_LEN);
         strlcat(file_name_with_path, new_node->filename, MAX_FILENAME_WITH_PATH_LEN);
 
         // Write the new file id, upload_time and recalc the checksum
-        bool rc = dir_fs_update_header(file_name_with_path, new_node->file_id, new_node->upload_time, new_node->body_offset);
-//        int32_t num = dir_fs_write_file_chunk(file_name_with_path, pfh_byte_buffer, body_offset, 0);
+//        bool rc = dir_fs_update_header(file_name_with_path, new_node->file_id, new_node->upload_time, new_node->body_offset);
+        bool rc = dir_fs_update_header(file_name_with_path, new_pfh);
         if (rc == FALSE) {
             // we could not save this
             debug_print("** Could not update the header for fh: %d to dir\n",new_node->file_id);
@@ -787,7 +780,8 @@ bool dir_fs_save_short(int32_t fp, uint16_t value, uint32_t offset) {
  *
  * Returns TRUE or FALSE if there is an error
  */
-bool dir_fs_update_header(char *file_name_with_path, uint32_t file_id, uint32_t upload_time, uint16_t body_offset) {
+//bool dir_fs_update_header(char *file_name_with_path, uint32_t file_id, uint32_t upload_time, uint16_t body_offset) {
+bool dir_fs_update_header(char *file_name_with_path, HEADER *pfh) {
     int32_t fp;
     int32_t rc;
 
@@ -796,15 +790,15 @@ bool dir_fs_update_header(char *file_name_with_path, uint32_t file_id, uint32_t 
         debug_print("Unable to open %s for writing: %s\n", file_name_with_path, red_strerror(red_errno));
         return FALSE;
     }
-    rc = dir_fs_save_int(fp, file_id, FILE_ID_BYTE_POS);
+    rc = dir_fs_save_int(fp, pfh->fileId, FILE_ID_BYTE_POS);
     if (rc == -1) {
         debug_print("Unable to save fileid to %s with data at offset %d: %s\n", file_name_with_path, FILE_ID_BYTE_POS, red_strerror(red_errno));
         rc = red_close(fp);
         return FALSE;
     }
-    rc = dir_fs_save_int(fp, upload_time, UPLOAD_TIME_BYTE_POS);
+    rc = dir_fs_save_int(fp, pfh->uploadTime, UPLOAD_TIME_BYTE_POS_EX_SOURCE_LEN + pfh->source_length);
     if (rc == -1) {
-        debug_print("Unable to save uploadtime to %s with data at offset %d: %s\n", file_name_with_path, UPLOAD_TIME_BYTE_POS, red_strerror(red_errno));
+        debug_print("Unable to save uploadtime to %s with data at offset %d: %s\n", file_name_with_path, UPLOAD_TIME_BYTE_POS_EX_SOURCE_LEN + pfh->source_length, red_strerror(red_errno));
         rc = red_close(fp);
         return FALSE;
     }
@@ -813,8 +807,8 @@ bool dir_fs_update_header(char *file_name_with_path, uint32_t file_id, uint32_t 
     uint16_t crc_result = 0;
 
     /* Read the header */
-    int32_t num = dir_fs_read_file_chunk(file_name_with_path, pfh_byte_buffer, body_offset, 0);
-    if (num != body_offset) {
+    int32_t num = dir_fs_read_file_chunk(file_name_with_path, pfh_byte_buffer, pfh->bodyOffset, 0);
+    if (num != pfh->bodyOffset) {
         debug_print("Can not read the correct length of header bytes from %s \n", file_name_with_path);
         rc = red_close(fp);
         return FALSE;
@@ -825,7 +819,7 @@ bool dir_fs_update_header(char *file_name_with_path, uint32_t file_id, uint32_t 
 
     int j;
     /* Then calculate the new one and save it back to MRAM */
-    for (j=0; j<body_offset; j++)
+    for (j=0; j<pfh->bodyOffset; j++)
         crc_result += pfh_byte_buffer[j] & 0xff;
     rc = dir_fs_save_short(fp, crc_result, HEADER_CHECKSUM_BYTE_POS);
     if (rc == -1) {

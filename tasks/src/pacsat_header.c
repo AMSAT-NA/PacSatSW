@@ -92,6 +92,7 @@ void pfh_new_header(HEADER  *hdr) {
 
     /* Extended */
     hdr->source[0]          = '\0';
+    hdr->source_length      = 0;
     hdr->uploader[0]        = '\0';
     hdr->uploadTime         = 0;
     hdr->downloadCount      = 0;
@@ -178,71 +179,92 @@ int pfh_extract_header( HEADER  *hdr, uint8_t *buffer, uint16_t nBytes, uint16_t
             bMore = 0;
             break;
         case FILE_ID:
+            if (length != 4) { debug_print ("PFH ERROR: File_id length %d\n", length); return FALSE; }
             hdr->fileId = *(uint32_t *)&buffer[i];
             hdr->fileId = ttohl(hdr->fileId);
             break;
         case FILE_NAME:
+            if (length != 8) { debug_print ("PFH ERROR: File_name length %d\n", length); return FALSE; }
             header_copy_to_str(&buffer[i], length, hdr->fileName, 8);
             break;
         case FILE_EXT:
+            if (length != 3) { debug_print ("PFH ERROR: File_ext length %d\n", length); return FALSE; }
             header_copy_to_str(&buffer[i], length, hdr->fileExt, 3);
             break;
         case FILE_SIZE:
+            if (length != 4) { debug_print ("PFH ERROR: File_size length %d\n", length); return FALSE; }
             hdr->fileSize = ttohl(*(uint32_t *)&buffer[i]);
             break;
         case CREATE_TIME:
+            if (length != 4) { debug_print ("PFH ERROR: create time length %d\n", length); return FALSE; }
             hdr->createTime = ttohl(*(uint32_t *)&buffer[i]);
             break;
         case LAST_MOD_TIME:
+            if (length != 4) { debug_print ("PFH ERROR: last mod time length %d\n", length); return FALSE; }
             hdr->modifiedTime = ttohl(*(uint32_t *)&buffer[i]);
             break;
         case SEU_FLAG:
+            if (length != 1) { debug_print ("PFH ERROR: SEU length %d\n", length); return FALSE; }
             hdr->SEUflag = buffer[i];
             break;
         case FILE_TYPE:
+            if (length != 1) { debug_print ("PFH ERROR: File_type length %d\n", length); return FALSE; }
             hdr->fileType = buffer[i];
             break;
         case BODY_CHECKSUM:
+            if (length != 2) { debug_print ("PFH ERROR: body cs length %d\n", length); return FALSE; }
             hdr->bodyCRC = ttohs(*(uint16_t *)&buffer[i]);
             break;
         case HEADER_CHECKSUM:
+            if (length != 2) { debug_print ("PFH ERROR: header cs length %d\n", length); return FALSE; }
             hdr->headerCRC = ttohs(*(uint16_t *)&buffer[i]);
             break;
         case BODY_OFFSET:
+            if (length != 2) { debug_print ("PFH ERROR: body off length %d\n", length); return FALSE; }
             hdr->bodyOffset = ttohs(*(uint16_t *)&buffer[i]);
             break;
         case SOURCE:
             header_copy_to_str(&buffer[i], length, hdr->source, 32);
+            hdr->source_length = length; /* Store the actual source length in case it was truncated. */
             break;
         case AX25_UPLOADER:
+            if (length != 6) { debug_print ("PFH ERROR: ax25 uploader length %d\n", length); return FALSE; }
             header_copy_to_str(&buffer[i], length, hdr->uploader, 6);
             break;
         case UPLOAD_TIME:
+            if (length != 4) { debug_print ("PFH ERROR: upload time length %d\n", length); return FALSE; }
             hdr->uploadTime = ttohl(*(uint32_t *)&buffer[i]);
             //ConvertTime(&hdr->uploadTime);
             break;
         case DOWNLOAD_COUNT:
+            if (length != 1) { debug_print ("PFH ERROR: download count length %d\n", length); return FALSE; }
             hdr->downloadCount = buffer[i];
             break;
         case DESTINATION:
             header_copy_to_str(&buffer[i], length, hdr->destination, 32);
             break;
         case AX25_DOWNLOADER:
+            if (length != 6) { debug_print ("PFH ERROR: ax25 downloader length %d\n", length); return FALSE; }
             header_copy_to_str(&buffer[i], length, hdr->downloader, 6);
             break;
         case DOWNLOAD_TIME:
+            if (length != 4) { debug_print ("PFH ERROR: download time length %d\n", length); return FALSE; }
             hdr->downloadTime = ttohl(*(uint32_t *)&buffer[i]);
             break;
         case EXPIRE_TIME:
+            if (length != 4) { debug_print ("PFH ERROR: expire time length %d\n", length); return FALSE; }
             hdr->expireTime = ttohl(*(uint32_t *)&buffer[i]);
             break;
         case PRIORITY:
+            if (length != 1) { debug_print ("PFH ERROR: priority length %d\n", length); return FALSE; }
             hdr->priority = buffer[i];
             break;
         case COMPRESSION_TYPE:
+            if (length != 1) { debug_print ("PFH ERROR: compression type length %d\n", length); return FALSE; }
             hdr->compression = buffer[i];
             break;
         case BBS_MSG_TYPE:
+            if (length != 1) { debug_print ("PFH ERROR: bbs msg type length %d\n", length); return FALSE; }
             hdr->BBSMessageType = buffer[i];
             break;
         case BULLETIN_ID_NUMBER:

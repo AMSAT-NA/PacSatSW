@@ -1242,7 +1242,7 @@ void RealConsoleTask(void)
                 printf("Usage: hxd <file name with path>\n");
                 break;
             }
-            char read_buffer[256];
+            char read_buffer[512];
             int32_t fp = red_open(srchStrng, RED_O_RDONLY);
             if (fp != -1) {
                 int32_t numOfBytesRead = red_read(fp, read_buffer, sizeof(read_buffer));

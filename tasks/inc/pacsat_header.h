@@ -78,7 +78,7 @@
 
 // These offsets are to the start of the field, i.e. they point to the ID number not the data.
 #define FILE_ID_BYTE_POS 2
-#define UPLOAD_TIME_BYTE_POS 87
+#define UPLOAD_TIME_BYTE_POS_EX_SOURCE_LEN 82
 #define FILE_SIZE_BYTE_POS 26
 #define BODY_OFFSET_BYTE_POS 65
 #define HEADER_CHECKSUM_BYTE_POS 60
@@ -101,6 +101,7 @@ typedef struct {
 
   /* Extended Header Information */
   char          source[33];          /* 0x10 */
+  char          source_length;       /* This is the actual length of the source field on disk, which may have been truncated when parsed */
   char          uploader[7];         /* 0x11 */
   uint32_t uploadTime;          /* 0x12 */   /* Note that this is a Mandatory item on all files */
   uint8_t downloadCount;       /* 0x13 */
