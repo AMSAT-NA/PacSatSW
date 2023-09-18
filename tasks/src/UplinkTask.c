@@ -76,6 +76,8 @@ static AX25_event_t ax25_event; /* Static storage for event */
 static AX25_event_t send_event_buffer;
 static Intertask_Message statusMsg; // Storage used to send messages to the telem and control task
 static const MRAMmap_t *LocalFlash = (MRAMmap_t *) 0; /* Used to index the MRAM static storage where the File Upload Table is stored */
+static HEADER ftl0_pfh_buffer; // Static allocation of a header to use when we need to load/save the header details
+static uint8_t ftl0_pfh_byte_buffer[MAX_BYTES_IN_PACSAT_FILE_HEADER]; /* Buffer for the bytes in a PFH when we decode a received file */
 
 #ifdef DEBUG
 /* This decodes the AX25 error numbers.  Only used for debug. */
@@ -1018,8 +1020,7 @@ int ftl0_process_data_cmd(ftl0_state_machine_t *state, uint8_t *data, int len) {
 
 
 int ftl0_process_data_end_cmd(ftl0_state_machine_t *state, uint8_t *data, int len) {
-    static HEADER ftl0_pfh_buffer; // Static allocation of a header to use when we need to load/save the header details
-    static uint8_t ftl0_pfh_byte_buffer[MAX_BYTES_IN_PACSAT_FILE_HEADER]; /* Buffer for the bytes in a PFH when we decode a received file */
+
     int ftl0_type = ftl0_parse_packet_type(data);
     if (ftl0_type != DATA_END) {
         /* We should never get this */

@@ -284,7 +284,6 @@ DIR_NODE * dir_add_pfh(char *file_name, HEADER *new_pfh) {
         strlcat(file_name_with_path, new_node->filename, MAX_FILENAME_WITH_PATH_LEN);
 
         // Write the new file id, upload_time and recalc the checksum
-//        bool rc = dir_fs_update_header(file_name_with_path, new_node->file_id, new_node->upload_time, new_node->body_offset);
         bool rc = dir_fs_update_header(file_name_with_path, new_pfh);
         if (rc == FALSE) {
             // we could not save this
@@ -464,9 +463,13 @@ int dir_load_header(char *file_name_with_path, uint8_t *byte_buffer, int buffer_
     }
     uint16_t size;
     bool crc_passed = FALSE;
-    pfh_extract_header(pfh, byte_buffer, buffer_len, &size, &crc_passed);
+    if (!pfh_extract_header(pfh, byte_buffer, buffer_len, &size, &crc_passed)) {
+        debug_print("PFH Extract FAILED\n");
+        return -1;
+    }
+
     if (!crc_passed) {
-        debug_print("CRC FAILED\n");
+        debug_print("PFH CRC FAILED\n");
         return -1;
     }
     return size;
