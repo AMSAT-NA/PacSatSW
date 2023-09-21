@@ -401,25 +401,23 @@ bool DecodeSoftwareCommand(SWCmdUplink *softwareCommand) {
 
     if(AuthenticateSoftwareCommand(softwareCommand)){
         command_print("\n\rCommand Authenticated!\n");
-    } else {
-        command_print("\n\rCommand does not authenticate\n");
-    }
 
-
-        softwareCommand->comArg.command = ttohs(softwareCommand->comArg.command);
         softwareCommand->comArg.arguments[0] = ttohs(softwareCommand->comArg.arguments[0]);
         softwareCommand->comArg.arguments[1] = ttohs(softwareCommand->comArg.arguments[1]);
         softwareCommand->comArg.arguments[2] = ttohs(softwareCommand->comArg.arguments[2]);
         softwareCommand->comArg.arguments[3] = ttohs(softwareCommand->comArg.arguments[3]);
 
         /*
-         * Here we have a command that was received on the uplink and ready to act on.  Also send
-         * it to the other processors
+         * Here we have a command that was received on the uplink and ready to act on.
          */
 
         bool rc = DispatchSoftwareCommand(softwareCommand,true);
 
         return rc;
+    } else {
+        command_print("\n\rCommand does not authenticate\n");
+    }
+    return FALSE;
 
 }
 
@@ -431,6 +429,16 @@ bool AuthenticateSoftwareCommand(SWCmdUplink *uplink){
                 (uint8_t *) uplink, SW_COMMAND_SIZE,
                 localSecureHash, sizeof(localSecureHash));
     shaOK = (memcmp(localSecureHash, uplink->AuthenticationVector, 32) == 0);
+    if (PrintCommandInfo) {
+        command_print("Local: ");
+        int i;
+        for (i=0; i<sizeof(localSecureHash);i++)
+            command_print("%x ", localSecureHash[i]);
+        command_print("\nUplink: ");
+        for (i=0; i<sizeof(uplink->AuthenticationVector);i++)
+            command_print("%x ", uplink->AuthenticationVector[i]);
+        command_print("\n");
+    }
     if(shaOK){
         uplink->comArg.command = ttohs(uplink->comArg.command); // We might have to look to determine if authenticated
         return CommandTimeOK(uplink);
