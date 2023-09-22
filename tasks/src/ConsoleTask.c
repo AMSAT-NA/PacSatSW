@@ -567,25 +567,25 @@ void RealConsoleTask(void)
             break;
         }
         case LoadKey:{
-            uint8_t key[16],i;
-            uint32_t magic = ENCRYPTION_KEY_MAGIC_VALUE,checksum=0;
-            static const MRAMmap_t *LocalFlash = 0;
+            uint8_t key[AUTH_KEY_SIZE],i;
+            uint32_t magic = ENCRYPTION_KEY_MAGIC_VALUE,checksum;
+            const MRAMmap_t *LocalFlash = 0;
             char *str = afterCommand;
             bool stat;
-            for(i=0;i<16;i++){
+            for(i=0;i<sizeof(key);i++){
                 char *next = strtok(str," ,\n");
                 str = NULL;
                 if (next != NULL){
                     key[i] = (uint8_t)strtol(next,0,16);
                     printf("%d=0x%x ",i,key[i]);
-                    checksum+=key[i];
                 } else {
                     printf("Not enough numbers...");
                     break;
                 }
             }
+            checksum = key_checksum(key);
             printf("\n");
-            if(i==16){
+            if(i==sizeof(key)){
                 printf("Writing key...");
                 stat = writeNV(key,sizeof(LocalFlash->AuthenticateKey.key),NVConfigData,(int)&LocalFlash->AuthenticateKey.key);
             } else {

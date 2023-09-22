@@ -5,11 +5,16 @@
  * on the main build system.
  */
 
+#include <stdint.h>
+
 #define ENCRYPTION_KEY_MAGIC_VALUE 0x71539172 /* Random value unlikely to be there by default */
 
-/*
- * This key is for "the LTMTest" satellite.
- */
+#define AUTH_KEY_SIZE 32
 
-#define DEFAULT_KEY {0x62,0x17,0xe2,0x14,0x1a,0x5d,0xa0,0xf2,0x05,0xc3,0x25,0xd7,0x59,0x91,0x49,0xbb};
+extern uint8_t hmac_sha_key[AUTH_KEY_SIZE];
+
+uint32_t key_checksum(uint8_t *key);
+
+void LoadMRAMKey(void);
+
 #endif // KEYFILE_H

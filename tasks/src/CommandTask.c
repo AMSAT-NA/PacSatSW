@@ -19,9 +19,8 @@
 #include "nonvolManagement.h"
 #include "UplinkCommands.h"
 #include "TMS570Hardware.h"
+#include "hmac_sha256.h"
 #include "ao_fec_rx.h"
-#include "aesdecipher.h"
-#include "shadigest.h"
 #include "canDriver.h"
 #include "inet.h"
 #include "ax5043_access.h"
@@ -88,7 +87,7 @@ void CommandTask(void *pvParameters)
     HWCmdCount = 0;
 
     InitInterTask(ToCommand, 10);
-    InitEncryption();
+    LoadMRAMKey();
     CommandTimeEnabled = ReadMRAMBoolState(StateCommandTimeCheck);
     debug_print("Waiting for command ...\n");
     while (1) {
@@ -424,39 +423,44 @@ bool DecodeSoftwareCommand(SWCmdUplink *softwareCommand) {
 
     if(AuthenticateSoftwareCommand(softwareCommand)){
         command_print("\n\rCommand Authenticated!\n");
-    } else {
-        command_print("\n\rCommand does not authenticate\n");
-    }
 
-
-        softwareCommand->comArg.command = ttohs(softwareCommand->comArg.command);
         softwareCommand->comArg.arguments[0] = ttohs(softwareCommand->comArg.arguments[0]);
         softwareCommand->comArg.arguments[1] = ttohs(softwareCommand->comArg.arguments[1]);
         softwareCommand->comArg.arguments[2] = ttohs(softwareCommand->comArg.arguments[2]);
         softwareCommand->comArg.arguments[3] = ttohs(softwareCommand->comArg.arguments[3]);
 
         /*
-         * Here we have a command that was received on the uplink and ready to act on.  Also send
-         * it to the other processors
+         * Here we have a command that was received on the uplink and ready to act on.
          */
 
         bool rc = DispatchSoftwareCommand(softwareCommand,true);
 
         return rc;
+    } else {
+        command_print("\n\rCommand does not authenticate\n");
+    }
+    return FALSE;
 
 }
 
-
 bool AuthenticateSoftwareCommand(SWCmdUplink *uplink){
-    uint32_t localSecureHash32[8],uplinkSecureHash32[8];
-    int i;
+    uint8_t localSecureHash[32];
     bool shaOK;
-    SHA((uint8_t *)uplink, SW_COMMAND_SIZE, localSecureHash32);
-    DeCipher32(&uplink->AuthenticationVector[0],(uint8_t *)uplinkSecureHash32);
-    for(i=0;i<8;i++){
-        uplinkSecureHash32[i] = ttohl(uplinkSecureHash32[i]);
+
+    hmac_sha256(hmac_sha_key, AUTH_KEY_SIZE,
+                (uint8_t *) uplink, SW_COMMAND_SIZE,
+                localSecureHash, sizeof(localSecureHash));
+    shaOK = (memcmp(localSecureHash, uplink->AuthenticationVector, 32) == 0);
+    if (PrintCommandInfo) {
+        command_print("Local: ");
+        int i;
+        for (i=0; i<sizeof(localSecureHash);i++)
+            command_print("%x ", localSecureHash[i]);
+        command_print("\nUplink: ");
+        for (i=0; i<sizeof(uplink->AuthenticationVector);i++)
+            command_print("%x ", uplink->AuthenticationVector[i]);
+        command_print("\n");
     }
-    shaOK = (memcmp(localSecureHash32,uplinkSecureHash32,32) == 0);
     if(shaOK){
         uplink->comArg.command = ttohs(uplink->comArg.command); // We might have to look to determine if authenticated
         return CommandTimeOK(uplink);
