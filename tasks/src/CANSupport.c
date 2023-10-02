@@ -42,7 +42,7 @@ portTASK_FUNCTION_PROTO(CANTask, pvParameters)
     /*
      * Set up the software watchdog for the CAN task
      */
-    vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)CANSupportWD );
+ /////  TODO - re-add the TASK name to watchdogSupport.h   vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)CANSupportWD );
     ReportToWatchdog(CurrentTaskWD);
 
     InitInterTask(ToCAN,20);
@@ -67,9 +67,9 @@ portTASK_FUNCTION_PROTO(CANTask, pvParameters)
         /*
          * empty the command queue... this acknowledges the request for more data
          */
-        ReportToWatchdog(CANSupportWD);
+////// TODO - Uncomment if task name re-added to watchdogSupport.h        ReportToWatchdog(CANSupportWD);
         status = WaitInterTask(ToCAN, WATCHDOG_SHORT_WAIT_TIME, &msg);
-        ReportToWatchdog(CANSupportWD);
+///////        ReportToWatchdog(CANSupportWD);
         if(!status){
             continue;
         }

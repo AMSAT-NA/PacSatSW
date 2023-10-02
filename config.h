@@ -19,7 +19,7 @@
 #define DEBUG
 
 #if defined(UNDEFINE_BEFORE_FLIGHT)
-//#define WATCHDOG_ENABLE
+#define WATCHDOG_ENABLE
 #define SOFTWARE_TYPE "X" // Always X if undefine_before_flight is on.  Do not change this one
 #elif defined(ENGINEERING_MODEL)
 #define WATCHDOG_ENABLE
@@ -28,7 +28,7 @@
 #define WATCHDOG_ENABLE
 #   define SOFTWARE_TYPE "V"
 #endif
-#define VERSION "1j" /*Exactly 2 characters will show in the diagnostic downlink*/
+#define VERSION "1k" /*Exactly 2 characters will show in the diagnostic downlink*/
 #define PACSAT_FW_VERSION_STRING SOFTWARE_TYPE PACSAT_NUMBER "." VERSION
 
 #define PACSAT_MAX_MRAMS 4

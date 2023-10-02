@@ -122,7 +122,6 @@ char *TaskNames[]={
                    "Uplink",
                    "PB",
                    "Command",
-                   "CAN Support",
                    "Idle",
                    "Interrupt",
                    "Console"

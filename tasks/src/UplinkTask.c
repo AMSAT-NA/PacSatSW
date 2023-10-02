@@ -112,7 +112,7 @@ char * ftl0_packet_type_names[] = {"DATA","DATA_END","LOGIN_RESP","UPLOAD_CMD","
 portTASK_FUNCTION_PROTO(UplinkTask, pvParameters)  {
 
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)UplinkTaskWD );
-    ResetAllWatchdogs();
+    ReportToWatchdog(UplinkTaskWD);
 //    debug_print("Initializing Uplink FTL0 Task\n");
 
     /* Setup a timer to send the status periodically */
@@ -132,6 +132,7 @@ portTASK_FUNCTION_PROTO(UplinkTask, pvParameters)  {
 
 
     while(1) {
+        ReportToWatchdog(UplinkTaskWD);
         BaseType_t xStatus = xQueueReceive( xUplinkEventQueue, &ax25_event, CENTISECONDS(1) );  // Wait to see if data available
         if( xStatus == pdPASS ) {
             if (ax25_event.channel >= NUM_OF_RX_CHANNELS) {
@@ -158,6 +159,7 @@ portTASK_FUNCTION_PROTO(UplinkTask, pvParameters)  {
                         }
                     }
                 } else {
+                    ReportToWatchdog(UplinkTaskWD);
                     ftl0_next_state_from_primitive(&ftl0_state_machine[ax25_event.channel], &ax25_event);
                 }
             }

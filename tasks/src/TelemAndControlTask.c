@@ -34,6 +34,7 @@
 #include "Max31725Temp.h"
 #include "ax5043_access.h"
 #include "ax5043-ax25.h"
+#include "inet.h"
 
 #include "downlink.h"
 #include "rt1ErrorsDownlink.h"
@@ -288,10 +289,15 @@ void tac_send_telemetry(telem_buffer_t *buffer) {
     int rc = tx_send_ui_packet(BROADCAST_CALLSIGN, TLMP1, PID_NO_PROTOCOL, frame, len, BLOCK);
 
     uint32_t t = getUnixTime();
-    uint8_t time_frame[10];
-    snprintf((char *)time_frame, 10, "%d",t);
+    //uint8_t time_frame[11];
+    //snprintf((char *)time_frame, 11, "%d",t);
+    //len = strlen((char *)time_frame);
 
-    len = strlen((char *)time_frame);
+    len = 4;
+    t = htotl(t);
+    uint8_t *time_frame;
+    time_frame = (uint8_t *)&t;
+
     rc = tx_send_ui_packet(BROADCAST_CALLSIGN, TIME, PID_NO_PROTOCOL, time_frame, len, BLOCK);
 
 }

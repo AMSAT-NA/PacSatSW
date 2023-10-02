@@ -611,7 +611,10 @@ void dir_maintenance() {
             // TODO - Check if there is an expiry date in the header
             p = p->next;
         }
+        ReportToWatchdog(CurrentTaskWD);
         vTaskDelay(CENTISECONDS(10)); // yield some time so that other things can do work
+        ReportToWatchdog(CurrentTaskWD);
+
     }
 }
 

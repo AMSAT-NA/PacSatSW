@@ -192,7 +192,12 @@ void DisplayTelemetry(uint32_t typeRequested){
                 getTaskName(localErrorCollection.taskNumber),
                 ErrorMessageString((ErrorType_t)localErrorCollection.errorCode));
 
-
+        printf("Watchdog Reporters Status\n");
+        printf("-------------------------\n");
+        int bit;
+        for (bit = 0; bit < 9; bit ++) {
+            printf("%20s = %d\n",TaskNames[bit+1], (localErrorCollection.wdReports>>bit) & 0x01);
+        }
 
         i = xPortGetFreeHeapSize();
         printf("Free heap size is %d\n\r", i);

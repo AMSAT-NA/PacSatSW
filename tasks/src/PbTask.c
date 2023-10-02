@@ -162,7 +162,8 @@ int pb_make_file_broadcast_packet(DIR_NODE *node, uint8_t *data_bytes, int numbe
  */
 portTASK_FUNCTION_PROTO(PbTask, pvParameters)  {
 
-    ResetAllWatchdogs();
+    vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)PBTaskWD );
+    ReportToWatchdog(PBTaskWD);
 //    debug_print("Initializing PB Task\n");
 
     /* Setup a timer to send the status periodically */
@@ -182,7 +183,7 @@ portTASK_FUNCTION_PROTO(PbTask, pvParameters)  {
 
     while(1) {
 
-        ReportToWatchdog(CurrentTaskWD);
+        ReportToWatchdog(PBTaskWD);
         BaseType_t xStatus = xQueueReceive( xPbPacketQueue, &pb_radio_buffer, 0 );  // Don't block, we have a delay after this
         if( xStatus == pdPASS ) {
             /* Data was successfully received from the queue */
@@ -193,10 +194,10 @@ portTASK_FUNCTION_PROTO(PbTask, pvParameters)  {
             decode_call(&pb_radio_buffer.bytes[0], to_callsign);
             pb_process_frame(from_callsign, to_callsign, pb_radio_buffer.bytes, pb_radio_buffer.len);
         }
-        ReportToWatchdog(CurrentTaskWD);
+        ReportToWatchdog(PBTaskWD);
         /* Yield some time so the OK or ERR is sent, or so that others may do some processing */
         vTaskDelay(CENTISECONDS(1));
-        ReportToWatchdog(CurrentTaskWD);
+        ReportToWatchdog(PBTaskWD);
 
         /* Now process the next station on the PB if there is one and take its action */
         if (!running_self_test)

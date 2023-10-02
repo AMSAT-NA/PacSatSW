@@ -48,7 +48,7 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)  {
 
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)TxTaskWD );
     InitInterTask(ToTxTask, 10);
-    ResetAllWatchdogs();
+
 //    printf("Initializing TX\n");
 
     /* This is defined in pacsat.h, declared here */

@@ -88,9 +88,11 @@ void CommandTask(void *pvParameters)
 
     InitInterTask(ToCommand, 10);
     LoadMRAMKey();
+    ReportToWatchdog(CommandWD);
     CommandTimeEnabled = ReadMRAMBoolState(StateCommandTimeCheck);
     debug_print("Waiting for command ...\n");
     while (1) {
+        ReportToWatchdog(CommandWD);
         taskYIELD();
         bool gotSomething;
         Intertask_Message msg;
