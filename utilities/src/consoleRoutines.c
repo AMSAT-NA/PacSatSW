@@ -164,8 +164,7 @@ void DisplayTelemetry(uint32_t typeRequested){
         printf("MRAM State Values:\n\r"
                 " CommandedSafeMode=%d,Autosafe=%d\n\r"
                 " CommandRcvd=%d,AllowAutoSafe=%d\n\r"
-                " AX25 9600=%d\n\r"
-                " PB Enabled=%d,FTL0 Enabled=%d\n\r",
+                " AX25 9600=%d,PB Enabled=%d,FTL0 Enabled=%d\n\r",
 
                 ReadMRAMBoolState(StateCommandedSafeMode),ReadMRAMBoolState(StateAutoSafe),
                 ReadMRAMBoolState(StateCommandReceived),ReadMRAMBoolState(StateAutoSafeAllow),
@@ -182,18 +181,17 @@ void DisplayTelemetry(uint32_t typeRequested){
         //        } else {
         //            printf("FALSE\n\r");
         //        }
-        printf("\n*************************************\n\n");
-        printf("\nIHU reset cause=0x%x,reset data=0x%x,IHUWdReport=0x%x,\n"
-                "LastTask=%s\n"
-                "Reason=%s\n",
+        printf("Errors:\n");
+        printf(" IHU reset cause=0x%x,reset data=0x%x,IHUWdReport=0x%x,\n"
+                " LastTask=%s\n"
+                " Reason=%s\n",
                 localErrorCollection.errorCode,
                 localErrorCollection.errorData,
                 localErrorCollection.wdReports,
                 getTaskName(localErrorCollection.taskNumber),
                 ErrorMessageString((ErrorType_t)localErrorCollection.errorCode));
 
-        printf("Watchdog Reporters Status\n");
-        printf("-------------------------\n");
+        printf("Watchdog Reporters Status:\n");
         int bit;
         for (bit = 0; bit < 9; bit ++) {
             printf("%20s = %d\n",TaskNames[bit+1], (localErrorCollection.wdReports>>bit) & 0x01);
