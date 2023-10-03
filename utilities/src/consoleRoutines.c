@@ -191,7 +191,7 @@ void DisplayTelemetry(uint32_t typeRequested){
                 getTaskName(localErrorCollection.taskNumber),
                 ErrorMessageString((ErrorType_t)localErrorCollection.errorCode));
 
-        printf("Watchdog Reporters Status:\n");
+        printf("Watchdog Reports in Errors.c:\n");
         int bit;
         for (bit = 0; bit < 9; bit ++) {
             printf("%20s = %d\n",TaskNames[bit+1], (localErrorCollection.wdReports>>bit) & 0x01);

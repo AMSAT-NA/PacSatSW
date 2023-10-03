@@ -161,6 +161,7 @@ portTASK_FUNCTION_PROTO(Ax25Task, pvParameters)  {
             decode_call(&ax25_radio_buffer.bytes[7], from_callsign);
             decode_call(&ax25_radio_buffer.bytes[0], to_callsign);
 
+//            print_packet(AX25_data_link_state_machine_t *dl_state_info, "AX25", ax25_packet_buffer+1, ax25_packet_buffer[0]);
             /* LM_DATA_Indicate - Frames of any type passed from the Link Multiplexer to the Data Link State Machine */
             ax25_process_frame(from_callsign, to_callsign, ax25_radio_buffer.channel);
 
@@ -396,7 +397,6 @@ void ax25_process_frame(char *from_callsign, char *to_callsign, rx_channel_t cha
  *
  */
 void ax25_send_response(rx_channel_t channel, ax25_frame_type_t frame_type, char *to_callsign, AX25_PACKET *response_packet, bool expedited) {
-    ReportToWatchdog(Ax25TaskWD);
     strlcpy(response_packet->to_callsign, to_callsign, MAX_CALLSIGN_LEN);
     strlcpy(response_packet->from_callsign, BBS_CALLSIGN, MAX_CALLSIGN_LEN);
 
@@ -411,9 +411,7 @@ void ax25_send_response(rx_channel_t channel, ax25_frame_type_t frame_type, char
         ReportError(TxPacketDropped, FALSE, CharString, (int)"TX Send Falure.  Packet Dropped."); // TX Send failure - packet dropped
         debug_print("ERR: Sending packet\n");
     }
-    ReportToWatchdog(Ax25TaskWD);
     taskYIELD();
-    ReportToWatchdog(Ax25TaskWD);
 }
 
 /**
@@ -423,7 +421,6 @@ void ax25_send_response(rx_channel_t channel, ax25_frame_type_t frame_type, char
  *
  */
 bool ax25_send_event(AX25_data_link_state_machine_t *state, AX25_primitive_t prim, AX25_PACKET *packet, ax25_error_t error_num) {
-    ReportToWatchdog(Ax25TaskWD);
     send_event_buffer.channel = state->channel;
     send_event_buffer.primitive = prim;
     send_event_buffer.error_num = error_num;
@@ -436,9 +433,7 @@ bool ax25_send_event(AX25_data_link_state_machine_t *state, AX25_primitive_t pri
         // TODO - we should log this error and downlink in telemetry
         return FALSE;
     }
-    ReportToWatchdog(Ax25TaskWD);
     taskYIELD();
-    ReportToWatchdog(Ax25TaskWD);
     return TRUE;
 }
 
@@ -449,7 +444,6 @@ bool ax25_send_event(AX25_data_link_state_machine_t *state, AX25_primitive_t pri
  *
  */
 bool ax25_send_lm_event(AX25_data_link_state_machine_t *state, AX25_primitive_t prim) {
-    ReportToWatchdog(Ax25TaskWD);
     lm_event.channel = state->channel;
     lm_event.primitive = prim;
     lm_event.error_num = NO_ERROR;
@@ -460,9 +454,7 @@ bool ax25_send_lm_event(AX25_data_link_state_machine_t *state, AX25_primitive_t 
         // TODO - we should log this error and downlink in telemetry
         return FALSE;
     }
-    ReportToWatchdog(Ax25TaskWD);
     taskYIELD();
-    ReportToWatchdog(Ax25TaskWD);
     return TRUE;
 }
 
@@ -471,7 +463,6 @@ bool ax25_send_lm_event(AX25_data_link_state_machine_t *state, AX25_primitive_t 
  */
 
 void ax25_next_state_from_packet(AX25_data_link_state_machine_t *state, AX25_PACKET *decoded_packet) {
-    ReportToWatchdog(Ax25TaskWD);
     trace_dl("AX25[%d] **STATE (Packet)** %s VA=%d VS=%d VR=%d RC=%d ack_pend=%d\n", state->channel, state_names[state->dl_state], state->VA, state->VS, state->VR, state->RC, state->achnowledge_pending);
     switch (state->dl_state) {
         case DISCONNECTED : {
@@ -504,7 +495,6 @@ void ax25_next_state_from_packet(AX25_data_link_state_machine_t *state, AX25_PAC
 }
 
 void ax25_next_state_from_primitive(AX25_data_link_state_machine_t *state, AX25_event_t *event) {
-    ReportToWatchdog(Ax25TaskWD);
     trace_dl("AX25[%d] **STATE (Prim)** %s VA=%d VS=%d VR=%d RC=%d ack_pend=%d\n", state->channel, state_names[state->dl_state], state->VA, state->VS, state->VR, state->RC, state->achnowledge_pending);
     switch (state->dl_state) {
         case DISCONNECTED : {
@@ -547,7 +537,6 @@ void ax25_next_state_from_primitive(AX25_data_link_state_machine_t *state, AX25_
  *
  */
 void ax25_state_disc_prim(AX25_data_link_state_machine_t *state, AX25_event_t *event) {
-    ReportToWatchdog(Ax25TaskWD);
     //trace_dl("AX25: STATE DISC (prim): ");
     switch (event->primitive) {
         case DL_DISCONNECT_Request : {
@@ -576,7 +565,6 @@ void ax25_state_disc_prim(AX25_data_link_state_machine_t *state, AX25_event_t *e
 }
 
 void ax25_state_disc_packet(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
-    ReportToWatchdog(Ax25TaskWD);
     //trace_dl("AX25: STATE DISC (frame): ");
     switch (packet->frame_type) {
         case TYPE_U_UA : {
@@ -643,7 +631,6 @@ void ax25_state_disc_packet(AX25_data_link_state_machine_t *state, AX25_PACKET *
  * Data Link WAIT CONNECTION State
  */
 void ax25_state_wait_conn_prim(AX25_data_link_state_machine_t *state, AX25_event_t *event) {
-    ReportToWatchdog(Ax25TaskWD);
     //trace_dl("AX25: STATE WAIT CONNECTION (prim): ");
     switch (event->primitive) {
         case DL_DISCONNECT_Request : {
@@ -732,7 +719,6 @@ void ax25_state_wait_conn_prim(AX25_data_link_state_machine_t *state, AX25_event
 }
 
 void ax25_state_wait_conn_packet(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
-    ReportToWatchdog(Ax25TaskWD);
    // trace_dl("AX25: STATE WAIT CONNECTION (frame): ");
     switch (packet->frame_type) {
         case TYPE_U_UI : {
@@ -815,7 +801,6 @@ void ax25_state_wait_conn_packet(AX25_data_link_state_machine_t *state, AX25_PAC
  * Data Link WAIT RELEASE State
  */
 void ax25_state_wait_release_prim(AX25_data_link_state_machine_t *state, AX25_event_t *event) {
-    ReportToWatchdog(Ax25TaskWD);
     //trace_dl("AX25: STATE WAIT RELEASE (prim): ");
     switch (event->primitive) {
         case DL_DISCONNECT_Request : {
@@ -851,7 +836,6 @@ void ax25_state_wait_release_prim(AX25_data_link_state_machine_t *state, AX25_ev
 }
 
 void ax25_state_wait_release_packet(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
-    ReportToWatchdog(Ax25TaskWD);
     //trace_dl("AX25: STATE WAIT RELEASE (frame): ");
     switch (packet->frame_type) {
         case TYPE_U_UA : {
@@ -944,7 +928,6 @@ void ax25_state_wait_release_packet(AX25_data_link_state_machine_t *state, AX25_
  * Data Link CONNECTED State
  */
 void ax25_state_connected_prim(AX25_data_link_state_machine_t *state, AX25_event_t *event) {
-    ReportToWatchdog(Ax25TaskWD);
     //trace_dl("AX25: STATE CONNECTED (prim): ");
     switch (event->primitive) {
         case DL_DISCONNECT_Request : {
@@ -1030,7 +1013,6 @@ void ax25_state_connected_prim(AX25_data_link_state_machine_t *state, AX25_event
 }
 
 void ax25_state_connected_packet(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
-    ReportToWatchdog(Ax25TaskWD);
     //trace_dl("AX25: STATE CONNECTED (frame): ");
     switch (packet->frame_type) {
         case TYPE_U_SABM : {
@@ -1160,7 +1142,6 @@ void ax25_state_connected_packet(AX25_data_link_state_machine_t *state, AX25_PAC
  * STATE TIMER RECOVERY
  */
 void ax25_state_timer_rec_prim(AX25_data_link_state_machine_t *state, AX25_event_t *event) {
-    ReportToWatchdog(Ax25TaskWD);
     //trace_dl("AX25: STATE TIMER REC (prim): ");
     switch (event->primitive) {
         case DL_DISCONNECT_Request : {
@@ -1254,7 +1235,6 @@ void ax25_state_timer_rec_prim(AX25_data_link_state_machine_t *state, AX25_event
 }
 
 void ax25_state_timer_rec_packet(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
-    ReportToWatchdog(Ax25TaskWD);
     //trace_dl("AX25: STATE TIMER REC (frame): ");
     switch (packet->frame_type) {
         case TYPE_U_UA : {
@@ -1421,7 +1401,6 @@ void ax25_state_timer_rec_packet(AX25_data_link_state_machine_t *state, AX25_PAC
  * Process RR or RNR frames that are received in the connected state
  */
 void connected_rframe_response(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
-    ReportToWatchdog(Ax25TaskWD);
     check_need_for_response(state, packet);
     if (VA_lte_NR_lte_VS(state, packet->NR)) {
         check_iframes_acknowledged(state, packet);
@@ -1435,7 +1414,6 @@ void connected_rframe_response(AX25_data_link_state_machine_t *state, AX25_PACKE
  * Process RR or RNR frames that are received in the timer recovery state
  */
 void timer_rec_rframe_response(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
-    ReportToWatchdog(Ax25TaskWD);
     check_need_for_response(state, packet);
     if (packet->command == AX25_RESPONSE && packet->PF == 1) {
         stop_timer(timerT1[state->channel]);
@@ -1481,7 +1459,6 @@ void timer_rec_rframe_response(AX25_data_link_state_machine_t *state, AX25_PACKE
  * is available to be transmitted and has been removed from the I-Frame queue
  */
 void iframe_pops_off_queue(AX25_data_link_state_machine_t *state, AX25_event_t *event) {
-    ReportToWatchdog(Ax25TaskWD);
 //    trace_dl("POP IFRAME Request\n");
 //            print_decoded_packet("I-frame pops off Queue: ",&(event->packet));
     if (state->peer_receiver_busy) {
@@ -1547,7 +1524,6 @@ void iframe_pops_off_queue(AX25_data_link_state_machine_t *state, AX25_event_t *
  *
  */
 void process_iframe(AX25_data_link_state_machine_t *state, AX25_PACKET *packet, AX25_data_link_state_t final_state) {
-    ReportToWatchdog(Ax25TaskWD);
 #ifdef TRACE_AX25
     print_decoded_packet("AX25: Received I-frame: ",packet);
 #endif
@@ -1641,7 +1617,6 @@ void process_iframe(AX25_data_link_state_machine_t *state, AX25_PACKET *packet, 
  * which is called from the Connected and Timer Recovery States
  */
 void send_rr_frame(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
-    ReportToWatchdog(Ax25TaskWD);
     state->response_packet = EMPTY_PACKET;
     state->response_packet.PF = 1;
     state->response_packet.command = AX25_RESPONSE;
@@ -1655,7 +1630,6 @@ void send_rr_frame(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
  * This sends an error to Layer 3, but it also sends a disconnected event when layer 3 is cleared.
  */
 void nr_error_recovery(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
-    ReportToWatchdog(Ax25TaskWD);
     ax25_send_event(state, DL_ERROR_Indicate, NULL, ERROR_J);
     establish_data_link(state);
     clear_layer_3_initiated(state);
@@ -1665,7 +1639,6 @@ void nr_error_recovery(AX25_data_link_state_machine_t *state, AX25_PACKET *packe
  * Clear the exception conditions in the state machine
  */
 void clear_exception_conditions(AX25_data_link_state_machine_t *state) {
-    ReportToWatchdog(Ax25TaskWD);
     state->peer_receiver_busy = false;
     state->own_receiver_busy = false;
     state->reject_exception = false;
@@ -1678,7 +1651,6 @@ void clear_exception_conditions(AX25_data_link_state_machine_t *state) {
  * This is called when a timer expires and we want to check that the other station is still there
  */
 void transmit_enquiry(AX25_data_link_state_machine_t *state) {
-    ReportToWatchdog(Ax25TaskWD);
     state->response_packet = EMPTY_PACKET;
     state->response_packet.PF = 1; /* This is the only time we send command R frames with P = 1 */
     state->response_packet.command = AX25_COMMAND;
@@ -1701,7 +1673,6 @@ void transmit_enquiry(AX25_data_link_state_machine_t *state) {
  * RR frame with NR set to VR and the F bit set to 0.
  */
 void enquiry_response(AX25_data_link_state_machine_t *state, AX25_PACKET *packet, int F) {
-    ReportToWatchdog(Ax25TaskWD);
     state->response_packet = EMPTY_PACKET; // zero out the packet
     state->response_packet.NR = state->VR;
     state->response_packet.command = AX25_RESPONSE;
@@ -1743,7 +1714,6 @@ void enquiry_response(AX25_data_link_state_machine_t *state, AX25_PACKET *packet
  *
  */
 void invoke_retransmission(AX25_data_link_state_machine_t *state, int NR) {
-    ReportToWatchdog(Ax25TaskWD);
     //backtrack.  Put all the frames on the queue again from NR.  Everything before is confirmed and VA already set to NR.
     //We need to change VS.  VS is the next frame we were going to send. So it now needs to equal NR, it must currently be in front
     trace_dl("BACKTRACK: VS: %d to NEW NR:%d\n",state->VS, NR);
@@ -1773,7 +1743,7 @@ void invoke_retransmission(AX25_data_link_state_machine_t *state, int NR) {
 #endif
           }
         //}
-          ReportToWatchdog(Ax25TaskWD);
+
     } while (vs != NR); // continue until we have pushed the requested NR
     // Now set VS to NR.  We are ready to send the rejected frames again.  We have rewound
     state->VS = NR;
@@ -1787,7 +1757,6 @@ void invoke_retransmission(AX25_data_link_state_machine_t *state, int NR) {
  *
  */
 void check_iframes_acknowledged(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
-    ReportToWatchdog(Ax25TaskWD);
     if (state->peer_receiver_busy) {
         state->VA = packet->NR;
         start_timer(timerT3[state->channel]);  // revised flow chart says STOP T3. But PSGS and direwold have Start T3 per the old flow chart.
@@ -1815,7 +1784,6 @@ void check_iframes_acknowledged(AX25_data_link_state_machine_t *state, AX25_PACK
 }
 
 void establish_data_link(AX25_data_link_state_machine_t *state) {
-    ReportToWatchdog(Ax25TaskWD);
     clear_exception_conditions(state);
     state->RC = 1;
     state->response_packet = EMPTY_PACKET;
@@ -1832,7 +1800,6 @@ void establish_data_link(AX25_data_link_state_machine_t *state) {
  * Discard the queue of future Iframes to send.  This typically happens if we reset the data link
  */
 void discard_iframe_queue(AX25_data_link_state_machine_t *state) {
-    ReportToWatchdog(Ax25TaskWD);
     BaseType_t xStatus = pdFAIL;
 
     xStatus = xQueueReset(xIFrameQueue[state->channel]);
@@ -1845,7 +1812,6 @@ void discard_iframe_queue(AX25_data_link_state_machine_t *state) {
 }
 
 void check_need_for_response(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
-    ReportToWatchdog(Ax25TaskWD);
     if (packet->command == AX25_COMMAND && packet->PF == 1) {
         enquiry_response(state, packet, 1);
     } else if (packet->command == AX25_RESPONSE && packet->PF == 1) {
@@ -1854,7 +1820,6 @@ void check_need_for_response(AX25_data_link_state_machine_t *state, AX25_PACKET 
 }
 
 void ui_check(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
-    ReportToWatchdog(Ax25TaskWD);
     if (packet->command == AX25_COMMAND) {
         if (packet->data_len < AX25_MAX_INFO_BYTES_LEN) {
             // DL_UINT_DATA_Indication
@@ -1913,7 +1878,6 @@ void ui_check(AX25_data_link_state_machine_t *state, AX25_PACKET *packet) {
  *
  */
 void select_t1_value(AX25_data_link_state_machine_t *state) {
-    ReportToWatchdog(Ax25TaskWD);
     if (state->RC == 0) {
         state->SRTInTicks = 7 * state->SRTInTicks/8 + AX25_TIMER_T1_PERIOD/8 - state->T1TimeWhenLastStoppedInTicks/8;
         state->T1VInTicks = state->SRTInTicks * 2;
@@ -1932,7 +1896,6 @@ void select_t1_value(AX25_data_link_state_machine_t *state) {
  * other end.
  */
 void clear_layer_3_initiated(AX25_data_link_state_machine_t *state) {
-    ReportToWatchdog(Ax25TaskWD);
     state->layer_3_initiated_the_request = false;
 }
 
@@ -1944,7 +1907,6 @@ void clear_layer_3_initiated(AX25_data_link_state_machine_t *state) {
  * Layer 3 will be sent a DL_CONNECT_Confirm when the UA frame is received.
  */
 void set_layer_3_initiated(AX25_data_link_state_machine_t *state) {
-    ReportToWatchdog(Ax25TaskWD);
     state->layer_3_initiated_the_request = true;
 }
 
