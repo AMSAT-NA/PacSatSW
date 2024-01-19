@@ -415,8 +415,8 @@ void ftl0_state_data_rx(ftl0_state_machine_t *state, AX25_event_t *event) {
                     trace_ftl0("FTL0[%d]: %s: UL_DATA_RX - DATA RECEIVED\n",state->channel, state->callsign);
                     int err = ftl0_process_data_cmd(state, event->packet.data, event->packet.data_len);
                     if (err != ER_NONE) {
-                        // send the error
-                        rc = ftl0_send_err(event->packet.from_callsign, event->channel, err);
+                        // send the error - per the FTL0 Spec, this should be a NAK not an ERROR.
+                        rc = ftl0_send_nak(event->packet.from_callsign, event->channel, err);
                         if (rc != TRUE) {
                             /* We likely could not send the error.  Something serious has gone wrong.
                              * But the best we can do is remove the station and return the error code. */
@@ -573,7 +573,8 @@ bool ftl0_add_request(char *from_callsign, rx_channel_t channel) {
     ftl0_state_machine[channel].channel = channel;
     ftl0_state_machine[channel].file_id = 0; // Set once the UPLD packet received
     ftl0_state_machine[channel].request_time = getUnixTime(); // for timeout
-    ftl0_state_machine[channel].file_id = 0; // Set when UPLD packet received
+    ftl0_state_machine[channel].offset = 0; // Set when UPLD packet received
+    ftl0_state_machine[channel].length = 0; // Set when UPLD packet received
 
     return TRUE;
 }
@@ -905,6 +906,9 @@ int ftl0_process_upload_cmd(ftl0_state_machine_t *state, uint8_t *data, int len)
                 if (state->length == off) { // we have the full file
                     trace_ftl0("FTL0[%d]: We already have file %04x at final offset %d -- ER FILE COMPLETE\n",state->channel, state->file_id, state->offset);
                     return ER_FILE_COMPLETE;
+                } else {
+                    debug_print("File is on disk but wrong length %s \n", file_name_with_path);
+                    return ER_NO_SUCH_FILE_NUMBER; // something is wrong with this file - tell ground station to ask for a new number
                 }
             }
         }
@@ -1016,6 +1020,7 @@ int ftl0_process_data_cmd(ftl0_state_machine_t *state, uint8_t *data, int len) {
     }
 
     state->offset += ftl0_length;
+    // TODO - if this is greater than state->length then there is an error
 
     return ER_NONE;
 }
@@ -1194,6 +1199,7 @@ bool ftl0_set_file_upload_record(InProcessFileUpload_t * file_upload_record) {
         if (first_empty_id == -1 && tmp_file_upload_record.file_id == 0) {
             /* This is an empty slot, store it here */
             first_empty_id = i;
+            break;
         } else {
             /* Slot is occupied, see if it is the oldest slot in case we need to replace it */
             if (tmp_file_upload_record.request_time < oldest_date) {
@@ -1365,7 +1371,7 @@ bool ftl0_clear_upload_table() {
 /**
  * ftl0_maintenance()
  * Remove expired entries from the file upload table and delete their tmp file on disk
- * Remove any orpaned tmp files on disk
+ * Remove any orphaned tmp files on disk
  *
  */
 void ftl0_maintenance() {

@@ -248,6 +248,7 @@ DIR_NODE * dir_add_pfh(char *file_name, HEADER *new_pfh) {
             if (p->upload_time == new_node->upload_time) {
                 debug_print("ERROR: Attempt to insert duplicate PFH: ");
                 //pfh_debug_print(mram_file);
+                // TODO - IMPORTANT - Don't we need to free the new_node??  Memory leak??
                 return NULL; // this is a duplicate
             } else if (p->upload_time < new_node->upload_time) {
                 insert_after(p, new_node);
@@ -576,6 +577,7 @@ DIR_NODE * dir_get_node_by_id(int file_id) {
     return NULL;
 }
 
+// TODO - this should do one file and return (remembering where it is) otherwise it will block the TELEM TASK when dir is large
 void dir_maintenance() {
     uint32_t now = getUnixTime();
 
