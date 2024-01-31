@@ -844,6 +844,32 @@ void rtiGetConfigValue(rti_config_reg_t *config_reg, config_value_type_t type)
 	}
 }
 
+/* USER CODE BEGIN (73) */
+/* USER CODE END */
+
+/** @fn void vPortPremptiveTick(void)
+*   @brief RTI1 Compare 0 Interrupt Handler
+*
+*   RTI1 Compare 0 interrupt handler 
+*
+*/
+#pragma CODE_STATE(vPortPremptiveTick, 32)
+#pragma INTERRUPT(vPortPremptiveTick, IRQ)
+
+/* SourceId : RTI_SourceId_022 */
+/* DesignId : RTI_DesignId_022 */
+/* Requirements : HL_SR95 */
+void vPortPremptiveTick(void)
+{
+/* USER CODE BEGIN (74) */
+/* USER CODE END */
+
+    rtiREG1->INTFLAG = 1U;
+    rtiNotification(rtiNOTIFICATION_COMPARE0);
+
+/* USER CODE BEGIN (75) */
+/* USER CODE END */
+}
 
 
 
