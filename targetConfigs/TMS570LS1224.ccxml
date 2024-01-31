@@ -17,7 +17,7 @@
                                 
                 <choice Name="Select by serial number" value="0">
                                         
-                    <property Type="stringfield" Value="HL512000" id="-- Enter the serial number"/>
+                    <property Type="stringfield" Value="L0000005" id="-- Enter the serial number"/>
                                     
                 </choice>
                             
