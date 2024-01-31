@@ -43,7 +43,6 @@
 
 
 /* USER CODE BEGIN (0) */
-void startup(void);
 /* USER CODE END */
 
 /* Include Files */
@@ -67,8 +66,6 @@ void startup(void);
 int main(void)
 {
 /* USER CODE BEGIN (3) */
-startup();
-
 /* USER CODE END */
 
     return 0;
