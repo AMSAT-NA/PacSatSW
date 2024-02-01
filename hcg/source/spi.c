@@ -620,6 +620,11 @@ void spiInit(void)
     spiREG5->GCR1 = (spiREG5->GCR1 & 0xFEFFFFFFU) | 0x01000000U;
 
 /* USER CODE BEGIN (3) */
+#if 0 /* Most of this code is moving to spi-replacements since it does not have enough USER CODE locations */
+#define MAX_SPI_DEVICES 5
+static uint16_t dummyBuffer[MAX_SPI_DEVICES][2];
+static inline void ForceDummy(unsigned int);
+
 /* USER CODE END */
 }
 
@@ -1267,6 +1272,13 @@ void mibspi1LowLevelInterrupt(void)
     uint32 vec = spiREG1->INTVECT1;
 
 /* USER CODE BEGIN (36) */
+    /*
+     * If one of the buffers is pointing to the dummy, or is null, we just want
+     * to continue to set the pointer back and rewrite or re-read the first
+     * dummy entry since that data is not important
+     */
+    ForceDummy(0);
+
 /* USER CODE END */
 
     switch(vec)
@@ -1369,6 +1381,13 @@ void mibspi1HighLevelInterrupt(void)
     uint32 vec = spiREG1->INTVECT0;
 
 /* USER CODE BEGIN (40) */
+    /*
+     * If one of the buffers is pointing to the dummy, we just want to
+     * continue to set the pointer back and rewrite or re-read the first
+     * entry since that data is not important
+     */
+    ForceDummy(0);
+
 /* USER CODE END */
 
     switch(vec)
@@ -1472,6 +1491,13 @@ void mibspi3LowLevelInterrupt(void)
     uint32 vec = spiREG3->INTVECT1;
 
 /* USER CODE BEGIN (52) */
+    /*
+     * If one of the buffers is pointing to the dummy, we just want to
+     * continue to set the pointer back and rewrite or re-read the first
+     * entry since that data is not important
+     */
+    ForceDummy(2);
+
 /* USER CODE END */
 
     switch(vec)
@@ -1575,6 +1601,7 @@ void mibspi3HighInterruptLevel(void)
     uint32 vec = spiREG3->INTVECT0;
 
 /* USER CODE BEGIN (56) */
+    ForceDummy(2);
 /* USER CODE END */
 
     switch(vec)
@@ -1652,7 +1679,25 @@ void mibspi3HighInterruptLevel(void)
     }
 
 /* USER CODE BEGIN (57) */
-/* USER CODE END */
+}
+static inline void ForceDummy(unsigned int SPIIndex){
+    /*
+     * If one of the buffers is pointing to the dummy, we just want to
+     * continue to set the pointer back and rewrite or re-read the first
+     * entry since that data is not important
+     */
+
+    if((g_spiPacket_t[SPIIndex].rxdata_ptr == &dummyBuffer[SPIIndex][1]) || (g_spiPacket_t[SPIIndex].rxdata_ptr == (void *)0)){
+        g_spiPacket_t[SPIIndex].rxdata_ptr = &dummyBuffer[SPIIndex][0];
+    }
+    if(g_spiPacket_t[SPIIndex].txdata_ptr == (void *)0) {
+        g_spiPacket_t[SPIIndex].txdata_ptr = &dummyBuffer[SPIIndex][0];
+        dummyBuffer[SPIIndex][0] = dummyBuffer[SPIIndex][1] = 0;
+    } else if((g_spiPacket_t[SPIIndex].txdata_ptr == &dummyBuffer[SPIIndex][1])){
+        g_spiPacket_t[SPIIndex].txdata_ptr = &dummyBuffer[SPIIndex][0];
+    }
+#endif
+    /* USER CODE END */
 }
 
 

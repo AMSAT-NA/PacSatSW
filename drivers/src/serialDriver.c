@@ -72,7 +72,6 @@
 #include "het.h"
 #include "rti.h"
 #include "sci.h"
-#include "HET_EMU_SCI.h"
 
 /* Golf Include */
 #include "hardwareConfig.h"
