@@ -56,7 +56,6 @@
 #include "spi.h"
 #include "rti.h"
 #include "i2c.h"
-#include "ecap.h"
 #include "sys_dma.h"
 
 /* USER CODE BEGIN (0) */
@@ -186,15 +185,6 @@ void spiEndNotification(spiBASE_t *spi)
 /* USER CODE BEGIN (50) */
 /* USER CODE END */
 
-#pragma WEAK(ecapNotification)
-void ecapNotification(ecapBASE_t *ecap,uint16 flags)
-{
-/*  enter user code between the USER CODE BEGIN and USER CODE END. */
-/* USER CODE BEGIN (51) */
-/* USER CODE END */
-}
-/* USER CODE BEGIN (52) */
-/* USER CODE END */
 
 /* USER CODE BEGIN (53) */
 /* USER CODE END */
