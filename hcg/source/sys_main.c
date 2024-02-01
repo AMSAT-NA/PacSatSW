@@ -66,6 +66,8 @@
 int main(void)
 {
 /* USER CODE BEGIN (3) */
+    void startup(void);
+    startup();
 /* USER CODE END */
 
     return 0;
