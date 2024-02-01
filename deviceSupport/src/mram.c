@@ -12,7 +12,6 @@
 #include "nonvol.h"
 #include "spiDriver.h"
 #include "errors.h"
-#include "CANSupport.h"
 #include "MET.h"
 #include "MRAMmap.h"
 #include "nonvolManagement.h"

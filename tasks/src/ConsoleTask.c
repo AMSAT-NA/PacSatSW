@@ -45,8 +45,6 @@
 #include "ADS7828.h"
 #include "MET.h"
 #include "nonvol.h"
-#include "canDriver.h"
-#include "CANSupport.h"
 #include "ax5043.h"
 #include "Max31725Temp.h"
 #include "Max31331Rtc.h"
@@ -796,19 +794,6 @@ void RealConsoleTask(void)
         case noticeUmb:
             //OverrideUmbilical(false);
             break;
-        case restartCAN:{
-            CANPacket_t readData;
-            int i;
-            CANRestart();
-            printf("All CAN buses restarted\n");
-            for(i=10;i<=12;i++){
-                printf("CAN1 read return:  Msg Box=%d, status=%d\n",i,
-                       CANReadMessage(CAN1,i,&readData));
-                printf("CAN2 read return:  Msg Box=%d, status=%d\n",i,
-                       CANReadMessage(CAN2,i,&readData));
-            }
-            break;
-        }
         case testLED:{
             GPIOSetOff(LED1);
             GPIOSetOff(LED2);
@@ -878,56 +863,6 @@ void RealConsoleTask(void)
         }
         case telem0:{
             DisplayTelemetry(0);
-            break;
-        }
-        case enbCanPrint:{
-            int canType = parseNumber(afterCommand);
-            switch(canType){
-            case 1:
-                CANPrintCoord = true; break;
-            case 2:
-                CANPrintTelemetry = true; break;
-            case 3:
-                CANPrintCommands = true; break;
-            case 4:
-                CANPrintCount = true; break;
-            case 5:
-                CANPrintAny = true; break;
-            case 6:
-                CANPrintErrors = true; break;
-            case 7:
-                CANPrintAny = true; break;
-            case 8:
-                CANPrintEttus = true; break;
-            default:{
-                printf("Specify 1=Coordinate, 2=telemetry, 3=Commands,\n");
-                printf("4=Poll and CAN Received packet count,5=All packets\n");
-                break;
-            }
-            }
-            break;
-        }
-
-        case dsbCanPrint:{
-            int canType = parseNumber(afterCommand);
-            switch(canType){
-            case 1:
-                CANPrintCoord = false; break;
-            case 2:
-                CANPrintTelemetry = false; break;
-            case 3:
-                CANPrintCommands = false; break;
-            case 4:
-                CANPrintCount = false; break;
-            case 5:
-                CANPrintAny = false; break;
-            case 6:
-                CANPrintErrors = false; break;
-            case 7:
-                CANPrintAny = false; break;
-            case 8:
-                CANPrintEttus = false; break;
-            }
             break;
         }
 

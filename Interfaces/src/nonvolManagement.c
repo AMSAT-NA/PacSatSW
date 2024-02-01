@@ -12,7 +12,6 @@
 #include "nonvolManagement.h"
 #include "nonvol.h"
 #include "spiDriver.h"
-#include "CANSupport.h"
 
 static const MRAMmap_t *ptr = (MRAMmap_t *) 0;
 

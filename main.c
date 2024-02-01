@@ -53,7 +53,6 @@
 #include "RTISetup.h"
 #include "nonvol.h"
 #include "canID.h"
-#include "CANSupport.h"
 #include "Max31725Temp.h"
 #include "GPIO9539.h"
 #include "errors.h"
@@ -153,10 +152,6 @@ void startup(void)
     /* Serial port and LEDs */
     hetREG1->DIR=0x00000017; //We want them to start out as output, I suppose.
     hetREG1->DOUT=0x00000017;
-
-    //Probably not used for pacsat
-    MyLocalCanID = RTIHU_Primary;
-    PartnerLocalCanID = RTIHU_Secondary;
 
     xTaskCreate(ConsoleTask, "Console", CONSOLE_STACK_SIZE,
                 NULL,CONSOLE_PRIORITY, NULL);

@@ -149,11 +149,6 @@ static void METupdate(xTimerHandle x) {
         if(TelemetryReady){//TelemCollect
             NotifyInterTaskFromISR(ToTelemetryAndControl,&telemMsg);
         }
-        Can2TimeoutTick(); // To determine if CAN2 partner is alive
-        // For doppler simulation test?
-        //freq = ReadMRAMTelemFreq();
-        //WriteMRAMTelemFreq(freq-266);
-
     }
     clockPhase++;  // It's ok if this wraps.  We only care about the bottom few bits
 }

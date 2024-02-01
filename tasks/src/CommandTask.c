@@ -21,7 +21,6 @@
 #include "TMS570Hardware.h"
 #include "hmac_sha256.h"
 #include "ao_fec_rx.h"
-#include "canDriver.h"
 #include "inet.h"
 #include "ax5043_access.h"
 #include "Max31331Rtc.h"
