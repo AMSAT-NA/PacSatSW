@@ -71,7 +71,6 @@ bool MRAMWake(int mramNum)
     return SPISendCommand(MRAM_Devices[mramNum], command.word, 1,
                           NULL, 0, NULL, 0);
 }
-
 uint8_t readMRAMStatus(int mramNum)
 {
     /*
@@ -84,9 +83,11 @@ uint8_t readMRAMStatus(int mramNum)
     if (mramNum >= PACSAT_MAX_MRAMS)
         return false;
     command.byte[0] = FRAM_OP_RDSR;
+
     SPISendCommand(MRAM_Devices[mramNum], command.word, 1, 0, 0, &data, 1);
     SPISendCommand(MRAM_Devices[mramNum], command.word, 1, 0, 0, &data, 1);
     return data;
+
 }
 
 bool writeEnableMRAM(int mramNum)

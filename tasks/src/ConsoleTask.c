@@ -345,7 +345,7 @@ void RealConsoleTask(void)
             SerialPutString(PRINTF_COM,"Pacsat",0);
         }
         receiveLine(PRINTF_COM, commandString, '>', DoEcho);
-        if (commandStrihng[0] == 0)
+        if (commandString[0] == 0)
             continue; /* Ignore blank lines */
         /*
          * Start of command parsing.  First search the array of command string for one that
