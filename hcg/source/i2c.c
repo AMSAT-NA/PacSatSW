@@ -123,12 +123,12 @@ void i2cInit(void)
                   | (uint32)(0U);     /* scl pin */
 
     /** - set i2c pins output direction */
-    i2cREG1->DIR  = (uint32)((uint32)0U << 1U)     /* sda pin */
-                  | (uint32)(0U);     /* scl pin */
+    i2cREG1->DIR  = (uint32)((uint32)1U << 1U)     /* sda pin */
+                  | (uint32)(1U);     /* scl pin */
 
     /** - set i2c pins open drain enable */
-    i2cREG1->PDR  = (uint32)((uint32)0U << 1U)     /* sda pin */
-                  | (uint32)(0U);     /* scl pin */
+    i2cREG1->PDR  = (uint32)((uint32)1U << 1U)     /* sda pin */
+                  | (uint32)(1U);     /* scl pin */
 
     /** - set i2c pins pullup/pulldown enable */
     i2cREG1->PDIS = (uint32)((uint32)0U << 1U)     /* sda pin */
@@ -140,18 +140,18 @@ void i2cInit(void)
 
     /** - set interrupt enable */
     i2cREG1->IMR  = (uint32)((uint32)0U << 6U)     /* Address as slave interrupt      */
-                  | (uint32)((uint32)0U << 5U)     /* Stop Condition detect interrupt */
-                  | (uint32)((uint32)0U << 4U)     /* Transmit data ready interrupt   */
-                  | (uint32)((uint32)0U << 3U)     /* Receive data ready interrupt    */
-                  | (uint32)((uint32)0U << 2U)     /* Register Access ready interrupt */
-                  | (uint32)((uint32)0U << 1U)     /* No Acknowledgement interrupt    */
-                  | (uint32)((uint32)0U);     /* Arbitration Lost interrupt      */
+                  | (uint32)((uint32)1U << 5U)     /* Stop Condition detect interrupt */
+                  | (uint32)((uint32)1U << 4U)     /* Transmit data ready interrupt   */
+                  | (uint32)((uint32)1U << 3U)     /* Receive data ready interrupt    */
+                  | (uint32)((uint32)1U << 2U)     /* Register Access ready interrupt */
+                  | (uint32)((uint32)1U << 1U)     /* No Acknowledgement interrupt    */
+                  | (uint32)((uint32)1U);     /* Arbitration Lost interrupt      */
 
     /** - i2c Out of reset */
     i2cREG1->MDR |= (uint32)I2C_RESET_OUT;
 
     /** - initialize global transfer variables */
-    g_i2cTransfer_t.mode   = (uint32)0U << 4U;
+    g_i2cTransfer_t.mode   = (uint32)1U << 4U;
     g_i2cTransfer_t.length = 0U;
 
 /* USER CODE BEGIN (4) */
