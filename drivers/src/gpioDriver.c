@@ -67,7 +67,7 @@ static const GPIOInfo LED1Info = {
                                   ,GPIO_OFF
                                   ,GPIO_OUT
                                   ,false,false // No interrupts
-                                  ,false,false  // Open collector, not tristate
+                                  ,false,false  // Not open collector, not tristate
 
 };
 static const GPIOInfo LED2Info = {
@@ -77,7 +77,17 @@ static const GPIOInfo LED2Info = {
                                   ,GPIO_OFF
                                   ,GPIO_OUT
                                   ,false,false // No interrupts
-                                  ,false,false  // Open collector, not tristate
+                                  ,false,false  // Not open collector, not tristate
+
+};
+static const GPIOInfo LED3Info = {
+                                  GPIOLed3Port
+                                  ,GPIOLed3Pin
+                                  ,1
+                                  ,GPIO_OFF
+                                  ,GPIO_OUT
+                                  ,false,false // No interrupts
+                                  ,false,false  // Not open collector, not tristate
 
 };
 
@@ -102,8 +112,8 @@ static const GPIOInfo CommandBitsInfo = {
 };
 
 static const GPIOInfo AX5043InterruptInfo = {
-                                             GPIO_DCTInterruptPort
-                                             ,GPIO_DCTInterruptPin
+                                             GPIO_Rx1DCTInterruptPort
+                                             ,GPIO_Rx1DCTInterruptPin
                                              ,1
                                              ,GPIO_UNUSED // Default off
                                              ,GPIO_IN
@@ -120,7 +130,7 @@ static const GPIOInfo AX5043InterruptInfo = {
 
 static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] =
 {
- &LED1Info,&LED2Info,&AX5043InterruptInfo,&CommandStrobeInfo,&CommandBitsInfo
+ &LED1Info,&LED2Info,&LED3Info,&AX5043InterruptInfo,&CommandStrobeInfo,&CommandBitsInfo
 };
 
 static int GPIOInterruptLastIndex = 0;

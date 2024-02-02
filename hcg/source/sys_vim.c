@@ -71,7 +71,7 @@ static const t_isrFuncPTR s_vim_init[128U] =
     &phantomInterrupt,
     &esmHighInterrupt,            /* Channel 0 */
     &phantomInterrupt,            /* Channel 1 */
-    &vPortPremptiveTick,            /* Channel 2 */
+    &vPortPreemptiveTick,            /* Channel 2 */
     &phantomInterrupt,            /* Channel 3 */
     &phantomInterrupt,            /* Channel 4 */
     &phantomInterrupt,            /* Channel 5 */
@@ -90,7 +90,7 @@ static const t_isrFuncPTR s_vim_init[128U] =
     &phantomInterrupt,            /* Channel 18 */
     &phantomInterrupt,            /* Channel 19 */
     &phantomInterrupt,            /* Channel 20 */
-    &phantomInterrupt,            /* Channel 21 */
+    &vPortYieldWithinAPI,            /* Channel 21 */
     &phantomInterrupt,            /* Channel 22 */
     &gioLowLevelInterrupt,            /* Channel 23 */
     &phantomInterrupt,            /* Channel 24 */

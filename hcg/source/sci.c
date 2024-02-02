@@ -810,6 +810,14 @@ void sciHighLevelInterrupt(void)
     uint32 vec = sciREG->INTVECT0;
 	uint8 byte;
 /* USER CODE BEGIN (28) */
+    void SerialRxCharacterInterrupt(sciBASE_t *sci,uint8_t byte);
+
+    if(vec==11){
+        byte = (uint8)(sciREG->RD & 0x000000FFU);
+        SerialRxCharacterInterrupt(sciREG,byte);
+        return;
+    }
+
 /* USER CODE END */
 
     switch (vec)

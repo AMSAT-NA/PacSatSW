@@ -19,7 +19,7 @@
 #define DEBUG
 
 #if defined(UNDEFINE_BEFORE_FLIGHT)
-#define WATCHDOG_ENABLE
+//#define WATCHDOG_ENABLE
 #define SOFTWARE_TYPE "X" // Always X if undefine_before_flight is on.  Do not change this one
 #elif defined(ENGINEERING_MODEL)
 #define WATCHDOG_ENABLE
@@ -34,7 +34,7 @@
 #define PACSAT_MAX_MRAMS 4
 
 ////////////////////////////////////////////This is I/O
-#define PRINTF_COM COM2
+#define PRINTF_COM COM1
 #define COM1_BAUD 38400
 #define COM2_BAUD 38400
 #ifdef DEBUG

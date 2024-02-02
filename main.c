@@ -59,6 +59,7 @@
 #include "nonvolManagement.h"
 #include "consoleRoutines.h"
 #include "redposix.h"
+#include "reg_sci.h"
 
 /* Only needed for test routines */
 #include "ax25_util.h"
@@ -115,6 +116,16 @@ void startup(void)
     sciInit();
     sciDisableNotification(sciREG,SCI_TX_INT | SCI_RX_INT); // No interrupts before we start the OS
     sciSetBaudrate(sciREG, COM2_BAUD);
+
+    ////TEMP
+    GPIOEzInit(LED1);
+    GPIOEzInit(LED2);
+    GPIOEzInit(LED3);
+    GPIOSetOn(LED1);
+    GPIOSetOn(LED2);
+    GPIOSetOn(LED3);
+    GPIOToggle(LED1);
+    sciSend(sciREG,38,"Starting a test on the SCI register\r\n");
     i2cInit();
     spiInit();
     adcInit();
@@ -146,12 +157,9 @@ void startup(void)
      */
 
     _enable_interrupt_();
-#ifdef HET
-    HetUARTSetBaudrate(hetRAM1,COM1_BAUD);
-#endif
     /* Serial port and LEDs */
-    hetREG1->DIR=0x00000017; //We want them to start out as output, I suppose.
-    hetREG1->DOUT=0x00000017;
+    //hetREG1->DIR=0x00000017; //We want them to start out as output, I suppose.
+    //hetREG1->DOUT=0x00000017;
 
     xTaskCreate(ConsoleTask, "Console", CONSOLE_STACK_SIZE,
                 NULL,CONSOLE_PRIORITY, NULL);
@@ -195,8 +203,11 @@ void ConsoleTask(void *pvParameters){
 
     // Initialize the SPI driver for our SPI devices
 
-    SPIInit(DCTDev0); // This is the receiver on VHF on the Pacsat Booster Board
-    SPIInit(DCTDev1); // This is the transmitter on UHF
+    SPIInit(Rx1DCTDev); // This is the receiver on VHF on the Pacsat Booster Board
+    SPIInit(Rx2DCTDev); // This is the receiver on VHF on the Pacsat Booster Board
+    SPIInit(Rx3DCTDev); // This is the receiver on VHF on the Pacsat Booster Board
+    SPIInit(Rx4DCTDev); // This is the receiver on VHF on the Pacsat Booster Board
+    SPIInit(TxDCTDev); // This is the transmitter on UHF
     SPIInit(MRAM0Dev);
     SPIInit(MRAM1Dev);
     SPIInit(MRAM2Dev);
@@ -204,7 +215,6 @@ void ConsoleTask(void *pvParameters){
     initMRAM();
     initMET();
     I2cInit(I2C1);
-    I2cInit(I2C2);
     GPIOEzInit(LED1);
     GPIOEzInit(LED2);
     GPIOInit(DCTInterrupt,ToRxTask,DCTInterruptMsg,None);
@@ -280,6 +290,7 @@ void ConsoleTask(void *pvParameters){
         debug_print("ERROR: Could not load the directory from MRAM\n");
         // TODO - bad or fatal - need to handle or log this error
     }
+#if 0
     xTaskCreate(CommandTask, "Command", COMMAND_STACK_SIZE,
                  NULL,COMMAND_PRIORITY, NULL);
     xTaskCreate(RxTask,"RxTask",RX_STACK_SIZE, NULL, RX_PRIORITY,NULL);
@@ -288,13 +299,13 @@ void ConsoleTask(void *pvParameters){
     xTaskCreate(UplinkTask,"UplinkTask",UPLINK_STACK_SIZE, NULL, UPLINK_PRIORITY,NULL);
     xTaskCreate(TxTask,"TxTask",RADIO_STACK_SIZE, NULL,TX_PRIORITY,NULL);
     xTaskCreate(TelemAndControlTask,"Telem and Control Task",TELEMETRY_STACK_SIZE, NULL,TELEMETRY_PRIORITY,NULL);
-
+#endif
     debug_print("Free heap size after tasks launched: %d\n",xPortGetFreeHeapSize());
 
     //AlertFlashingWait(CENTISECONDS(50),CENTISECONDS(10),CENTISECONDS(3));
     AllTasksStarted = true;
     StartStableCount();
-
+#if 0
     bool rtc = InitRtc31331();
     if (rtc == FALSE) {
         debug_print("*** NO RTC: SET THE UNIX TIME BEFORE UPLOADING ANY TEST FILES ***\n");
@@ -304,7 +315,7 @@ void ConsoleTask(void *pvParameters){
         rtc = GetRtcTime31331(&utime);
         setUnixTime(utime);
     }
-
+#endif
     // Now head off to do the real work of the console task
     RealConsoleTask();
 }

@@ -90,10 +90,10 @@ typedef enum systemInterrupt
 
 extern void esmHighInterrupt(void);
 extern void phantomInterrupt(void);
-extern void vPortPremptiveTick(void);
+extern void vPortPreemptiveTick(void);
 extern void gioHighLevelInterrupt(void);
 extern void mibspi1HighLevelInterrupt(void);
-extern void phantomInterrupt(void);
+extern void vPortYieldWithinAPI(void);
 extern void gioLowLevelInterrupt(void);
 extern void mibspi1LowLevelInterrupt(void);
 extern void mibspi3HighInterruptLevel(void);
