@@ -25,6 +25,7 @@
 #include "ax5043_access.h"
 #include "Max31331Rtc.h"
 #include "ADS7828.h"
+#include "I2cPoll.h"
 #include "redposix.h"
 
 #define command_print if(PrintCommandInfo)printf

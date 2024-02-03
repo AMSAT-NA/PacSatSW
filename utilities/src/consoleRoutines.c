@@ -18,6 +18,7 @@
 #include "LinearInterp.h"
 #include "inet.h"
 #include "adc.h"
+#include "I2cPoll.h"
 
 
 extern rt1Errors_t localErrorCollection;

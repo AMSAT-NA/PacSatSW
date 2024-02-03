@@ -38,6 +38,7 @@
 #include "TMS570Hardware.h"
 #include "spiDriver.h"
 #include "i2cDriver.h"
+#include "I2cPoll.h"
 #include "gpioDriver.h"
 #include "Max31331Rtc.h"
 #include "ConsoleTask.h"
