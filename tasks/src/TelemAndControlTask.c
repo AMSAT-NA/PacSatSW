@@ -231,7 +231,7 @@ void tac_collect_telemetry(telem_buffer_t *buffer) {
     buffer->rtHealth.common2.uplinkEnabled = ReadMRAMBoolState(StateUplinkEnabled);
 
     uint8_t temp8;
-    if(Get8BitTemp31725(&temp8)) {
+    if(Get8BitTemp31725(CpuTemp,&temp8)) {
         buffer->rtHealth.common.IHUTemp = temp8;
     } else {
         debug_print("TAC: ERROR I2C temp request failed\n");

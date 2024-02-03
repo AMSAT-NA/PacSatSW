@@ -33,9 +33,6 @@
 #define INTERNAL_REFERENCE_CONVERTER_ON  PD11
 #define ADC_OFF_INTERNAL_REF_ON PD10
 
-void I2CDevicePoll();
 void getADCchannels(int num, I2cBusNum port, uint8_t I2Caddress, uint16_t *storage);
-bool RTTempIsOk(void);
-bool RTCIsOk(void);
 
 #endif /* ADS7828_H_ */

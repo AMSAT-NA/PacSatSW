@@ -43,6 +43,7 @@
 #include "serialDriver.h"
 #include "TMS570Hardware.h"
 #include "ADS7828.h"
+#include "I2cPoll.h"
 #include "MET.h"
 #include "nonvol.h"
 #include "ax5043.h"
@@ -857,8 +858,8 @@ void RealConsoleTask(void)
         case getI2cState:{
 
             printf("I2c device state: (1 is ok)\n"
-                    "   PacSat Board Temp: %d    RTC: %d\n",
-                    RTTempIsOk(),RTCIsOk());
+                    "   PacSat CPU Temp: %d, Tx Temp: %d    RTC: %d\n",
+                    CpuTempIsOk(),TxTempIsOk(),RTCIsOk());
             break;
         }
         case telem0:{
@@ -928,12 +929,18 @@ void RealConsoleTask(void)
         }
         case getTemp:{
             uint8_t temp8;
-            if(Get8BitTemp31725(&temp8)){
-                printf("Pacsat board temp is ");
+            if(Get8BitTemp31725(CpuTemp,&temp8)){
+                printf("Cpu temp: ");
+                print8BitTemp(temp8);
+            } else {
+                printf("CPU Temp request failed\n");
+            }
+            if(Get8BitTemp31725(TxTemp,&temp8)){
+                printf("  Transmitter temp: ");
                 print8BitTemp(temp8);
                 printf("\n");
             } else {
-                printf("I2c temp request failed\n");
+                printf("\nTransmitter temp request failed\n");
             }
             break;
         }

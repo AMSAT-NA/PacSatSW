@@ -277,8 +277,7 @@ void ConsoleTask(void *pvParameters){
 #endif
 
 
-    //////////////////////////////////////// Deployables //////////////////////////////////////////////////
-
+#if 0
     /* Load the directory from MRAM and perform some integrity checks */
     int32_t ret = dir_check_folders();
     if (ret == -1) {
@@ -290,7 +289,7 @@ void ConsoleTask(void *pvParameters){
         debug_print("ERROR: Could not load the directory from MRAM\n");
         // TODO - bad or fatal - need to handle or log this error
     }
-#if 0
+
     xTaskCreate(CommandTask, "Command", COMMAND_STACK_SIZE,
                  NULL,COMMAND_PRIORITY, NULL);
     xTaskCreate(RxTask,"RxTask",RX_STACK_SIZE, NULL, RX_PRIORITY,NULL);
