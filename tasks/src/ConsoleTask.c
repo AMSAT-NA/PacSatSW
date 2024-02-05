@@ -946,9 +946,15 @@ void RealConsoleTask(void)
         }
 
         case getax5043:{
-            // TX on UHF (typically)
-            AX5043Device dev = TX_DEVICE;
-            printf("AX5043 dev %d TX:\n",dev);
+            uint8_t devb = parseNumber(afterCommand);
+            if(devb >= InvalidAX5043Device){
+                printf("Give a device number between 0 and 4\n");
+                break;
+            } else {
+                printf("Reading registers of AX5043 # %d\n");
+            }
+            AX5043Device dev = (AX5043Device)devb;
+            printf("AX5043 dev %d\n",dev);
             printf(" FIFOSTAT: %02x\n", ax5043ReadReg(dev, AX5043_FIFOSTAT));
             printf(" PWRMODE:: %02x\n", ax5043ReadReg(dev, AX5043_PWRMODE));
             printf(" XTALCAP: %d\n", ax5043ReadReg(dev, AX5043_XTALCAP));
@@ -971,9 +977,9 @@ void RealConsoleTask(void)
             printf(" TXPWRCOEFFB0: %x\n", ax5043ReadReg(dev, AX5043_TXPWRCOEFFB0));
             printf(" TXPWRCOEFFB1: %x\n", ax5043ReadReg(dev, AX5043_TXPWRCOEFFB1));
 
-            // RX on VHF (typically)
-            dev = RX0_DEVICE;
-            printf("\nAX5043 dev %d RX:\n",dev);
+            // Tx on VHF (typically)
+            dev = TX_DEVICE;
+            printf("\nAX5043 dev %d Tx:\n",dev);
             printf(" FIFOSTAT: %02x\n", ax5043ReadReg(dev, AX5043_FIFOSTAT));
             printf(" PWRMODE: %02x\n", ax5043ReadReg(dev, AX5043_PWRMODE));
             printf(" XTALCAP: %d\n", ax5043ReadReg(dev, AX5043_XTALCAP));

@@ -13,10 +13,13 @@
 #include <stdbool.h>
 #include "spiDriver.h"
 
-#define NUM_AX5043_SPI_DEVICES 2 // Increase this if Devices added to enum in spiDriver.h (and relevant pin config complete)
-typedef enum {AX5043Dev0 = 0,AX5043Dev1, InvalidAX5043Device} AX5043Device;
-#define TX_DEVICE AX5043Dev1
+#define NUM_AX5043_SPI_DEVICES 5 // Increase this if Devices added to enum in spiDriver.h (and relevant pin config complete)
+typedef enum {AX5043Dev0 = 0,AX5043Dev1,AX5043Dev2,AX5043Dev3,AX5043Dev4,InvalidAX5043Device} AX5043Device;
+#define TX_DEVICE AX5043Dev4
 #define RX0_DEVICE AX5043Dev0
+#define RX1_DEVICE AX5043Dev1
+#define RX2_DEVICE AX5043Dev2
+#define RX3_DEVICE AX5043Dev3
 
 bool IsRxing(AX5043Device device);
 void ax5043StartRx(AX5043Device device);
