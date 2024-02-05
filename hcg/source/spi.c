@@ -153,7 +153,7 @@ void spiInit(void)
     /** - enable interrupts */
     spiREG1->INT0 = (spiREG1->INT0 & 0xFFFF0000U)
                   | (uint32)((uint32)0U << 9U)  /* TXINT */
-                  | (uint32)((uint32)0U << 8U)  /* RXINT */
+                  | (uint32)((uint32)1U << 8U)  /* RXINT */
                   | (uint32)((uint32)0U << 6U)  /* OVRNINT */
                   | (uint32)((uint32)0U << 4U)  /* BITERR */
                   | (uint32)((uint32)0U << 3U)  /* DESYNC */
