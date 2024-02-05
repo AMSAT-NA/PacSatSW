@@ -84,21 +84,21 @@ SPIBusData bus1Data,bus2Data,bus3Data,bus4Data,bus5Data;
 #endif
 static SPIDevInfo SPIMram0Device={
                                  SPI_MRAM_Reg,
-                                 SPI_MRAM_Select_Port,
+                                 SPI_MRAM02_Select_Port,
                                  {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
                                  &bus1Data,
                                  SPI_MRAM0_Select_Pin //chipSelect
 };
 static SPIDevInfo SPIMram1Device={
                                  SPI_MRAM_Reg,
-                                 SPI_MRAM_Select_Port,
+                                 SPI_MRAM1_Select_Port,
                                  {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
                                  &bus1Data,
                                  SPI_MRAM1_Select_Pin //chipSelect
 };
 static SPIDevInfo SPIMram2Device={
                                  SPI_MRAM_Reg,
-                                 SPI_MRAM_Select_Port,
+                                 SPI_MRAM02_Select_Port,
                                  {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
                                  &bus1Data,
                                  SPI_MRAM2_Select_Pin //chipSelect

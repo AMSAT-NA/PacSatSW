@@ -138,12 +138,19 @@ void startup(void)
     gioSetDirection(gioPORTB,6);
     gioSetBit(gioPORTB,1,1);
     gioSetBit(gioPORTB,2,1);
-    gioSetDirection(spiPORT1,7); // Make chip select pins be output
-    gioSetDirection(spiPORT3,7); //
-    gioSetDirection(spiPORT5,7); //
+    //MRAM
+    gioSetDirection(spiPORT1,0); // Make chip select pins be output
+    gioSetDirection(spiPORT1,2); // Make chip select pins be output
+    gioSetDirection(spiPORT3,0); // Make chip select pins be output
+    gioSetDirection(spiPORT5,0); //
+    gioSetBit(spiPORT1,0,1);
+    gioSetBit(spiPORT1,2,1);  //Set chip selects high just in case
     gioSetBit(spiPORT3,0,1);
-    gioSetBit(spiPORT3,1,1);  //Set chip selects high just in case
-    gioSetBit(spiPORT3,2,1);
+    gioSetBit(spiPORT5,0,1);  //Set chip selects high just in case
+    //
+    // Need to do the 5043 bits too
+    //
+
     /*
      * RTI is used by FreeRTOS as its clock and also by the watchdog as its counter.
      * FreeRTOS uses counter 0, compare 0 for its interrupt.  Let's start the counter

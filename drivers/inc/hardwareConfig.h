@@ -62,11 +62,12 @@
 // SPI Definitions
 
 #define SPI_MRAM_Reg spiREG1
-#define SPI_MRAM_Select_Port spiPORT1 /*Gpio port for chip select on MRAM 0,1,2*/
-#define SPI_MRAM0_Select_Pin 0
-#define SPI_MRAM1_Select_Pin 1
-#define SPI_MRAM2_Select_Pin 2
+#define SPI_MRAM02_Select_Port spiPORT1 /*Gpio port for chip select on MRAM 0,2*/
+#define SPI_MRAM1_Select_Port spiPORT3
 #define SPI_MRAM3_Select_Port spiPORT5
+#define SPI_MRAM0_Select_Pin 0
+#define SPI_MRAM1_Select_Pin 0
+#define SPI_MRAM2_Select_Pin 2
 #define SPI_MRAM3_Select_Pin 0
 #define SPI_MRAM_Data_Format SPI_FMT_0
 
