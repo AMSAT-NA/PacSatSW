@@ -145,6 +145,7 @@ enum {
     ,getRSSI
     ,testRxFreq
     ,testPLLrange
+    ,testAX5043
     ,HelpAll
     ,HelpDevo
     ,HelpSetup
@@ -219,7 +220,8 @@ commandPairs setupCommands[] = {
 };
 commandPairs debugCommands[] = {
 
-                                {"test scrub","Run the memory scrub routine once",TestMemScrub}
+                                 {"test scrub","Run the memory scrub routine once",TestMemScrub}
+                                ,{"test ax","Read the revision and scratch registers",testAX5043}
                                 ,{"test pll", "test ax5043 PLL frequency range",testPLLrange}
                                 ,{"start rx","Start up the 5043 receiver",startRx}
                                 ,{"clear mram","Initializes MRAM state,WOD,Min/max but does not clear InOrbit--testing only",
@@ -944,7 +946,17 @@ void RealConsoleTask(void)
             }
             break;
         }
+        case testAX5043:{
+            int i;
+            for(i=0;i<=5;i++){
+                ax5043WriteReg((AX5043Device)i,AX5043_SCRATCH,i);
 
+                printf("AX5043 #%d: Revision=%d, scratch=%d\n",i,
+                       ax5043ReadReg((AX5043Device)i,AX5043_SILICONREVISION),
+                       ax5043ReadReg((AX5043Device)i,AX5043_SCRATCH));
+            }
+            break;
+        }
         case getax5043:{
             uint8_t devb = parseNumber(afterCommand);
             if(devb >= InvalidAX5043Device){
