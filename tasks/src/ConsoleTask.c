@@ -544,7 +544,7 @@ void RealConsoleTask(void)
             int number = parseNumber(afterCommand);
             DCTTxFreq -= number;
             printf("TxFreq=%d\n",DCTTxFreq);
-            quick_setfreq(AX5043Dev1, DCTTxFreq);
+            quick_setfreq(AX5043Dev4, DCTTxFreq);
             break;
         }
         case RaiseRxFreq:{
@@ -951,7 +951,7 @@ void RealConsoleTask(void)
             for(i=0;i<=5;i++){
                 ax5043WriteReg((AX5043Device)i,AX5043_SCRATCH,i);
 
-                printf("AX5043 #%d: Revision=%d, scratch=%d\n",i,
+                printf("AX5043 #%d: Revision=0x%x, scratch=%d\n",i,
                        ax5043ReadReg((AX5043Device)i,AX5043_SILICONREVISION),
                        ax5043ReadReg((AX5043Device)i,AX5043_SCRATCH));
             }

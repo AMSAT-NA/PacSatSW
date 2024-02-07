@@ -290,7 +290,8 @@
       <HDRHTU>
         <NAME>htu.h</NAME>
       </HDRHTU>
-      <SRCHET/>
+      <SRCHET>
+</SRCHET>
       <HET2ASMHDR>
         <NAME/>
       </HET2ASMHDR>
@@ -528,7 +529,7 @@
         <PATH>include\htu.h</PATH>
       </HDRHTU>
       <SRCHET>
-        <PATH/>
+        <PATH></PATH>
       </SRCHET>
     </FILENAMES>
   </HET>

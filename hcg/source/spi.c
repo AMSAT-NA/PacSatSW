@@ -282,9 +282,9 @@ void spiInit(void)
                   | (uint32)((uint32)0U << 21U)  /* wait on enable */
                   | (uint32)((uint32)0U << 20U)  /* shift direction */
                   | (uint32)((uint32)0U << 17U)  /* clock polarity */
-                  | (uint32)((uint32)0U << 16U)  /* clock phase */
+                  | (uint32)((uint32)1U << 16U)  /* clock phase */
                   | (uint32)((uint32)79U << 8U) /* baudrate prescale */
-                  | (uint32)((uint32)16U << 0U);  /* data word length */
+                  | (uint32)((uint32)8U << 0U);  /* data word length */
 
     /** - Data Format 1 */
     spiREG3->FMT1 = (uint32)((uint32)0U << 24U)  /* wdelay */
@@ -293,9 +293,9 @@ void spiInit(void)
                   | (uint32)((uint32)0U << 21U)  /* wait on enable */
                   | (uint32)((uint32)0U << 20U)  /* shift direction */
                   | (uint32)((uint32)0U << 17U)  /* clock polarity */
-                  | (uint32)((uint32)0U << 16U)  /* clock phase */
+                  | (uint32)((uint32)1U << 16U)  /* clock phase */
                   | (uint32)((uint32)79U << 8U) /* baudrate prescale */
-                  | (uint32)((uint32)16U << 0U);  /* data word length */
+                  | (uint32)((uint32)8U << 0U);  /* data word length */
 
     /** - Data Format 2 */
     spiREG3->FMT2 = (uint32)((uint32)0U << 24U)  /* wdelay */
@@ -335,7 +335,7 @@ void spiInit(void)
     /** - enable interrupts */
     spiREG3->INT0 = (spiREG3->INT0 & 0xFFFF0000U)
                   | (uint32)((uint32)0U << 9U)  /* TXINT */
-                  | (uint32)((uint32)0U << 8U)  /* RXINT */
+                  | (uint32)((uint32)1U << 8U)  /* RXINT */
                   | (uint32)((uint32)0U << 6U)  /* OVRNINT */
                   | (uint32)((uint32)0U << 4U)  /* BITERR */
                   | (uint32)((uint32)0U << 3U)  /* DESYNC */
@@ -353,8 +353,8 @@ void spiInit(void)
                     | (uint32)((uint32)1U << 4U)  /* SCS[4] */
                     | (uint32)((uint32)1U << 5U)  /* SCS[5] */
                     | (uint32)((uint32)0U << 8U)  /* ENA */
-                    | (uint32)((uint32)0U << 9U)  /* CLK */
-                    | (uint32)((uint32)0U << 10U)  /* SIMO */
+                    | (uint32)((uint32)1U << 9U)  /* CLK */
+                    | (uint32)((uint32)1U << 10U)  /* SIMO */
                     | (uint32)((uint32)0U << 11U); /* SOMI */
 
     /** - SPI3 Port direction */
