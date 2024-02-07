@@ -239,6 +239,9 @@ void gioInit(void)
                    | (uint32)((uint32)0U << 15U); /* Bit 15 */
 
 /* USER CODE BEGIN (4) */
+
+   // If a direction bit is set to 1, it it output (and input)
+
 /* USER CODE END */
 }
 

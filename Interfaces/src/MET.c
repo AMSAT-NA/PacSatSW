@@ -130,10 +130,18 @@ bool IsStabilizedAfterBoot(){
  */
 
 static void METupdate(xTimerHandle x) {
-
+#ifdef DEBUG
+    static int LEDnum=0;
+    static Gpio_Use led=LED1;
+    const Gpio_Use whichLED[]={LED1,LED2,LED3,NumberOfGPIOs};
+    GPIOToggle(led);
+    led = whichLED[++LEDnum];
+    if(led==NumberOfGPIOs){LEDnum=0;led=LED1;}
+#endif
     METcount++;
     timestampSeconds++;
     secondsInOrbit++;
+
     unixTime++; // TODO - this is a quick implementation before we have a real time clock
     TicksAtLastSecond = xTaskGetTickCount();
     if(METcount > MET_STABLE_TIME*2) {  // No longer a short boot.

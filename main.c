@@ -50,6 +50,7 @@
 #include "UplinkTask.h"
 #include "TelemAndControlTask.h"
 #include "pacsat_dir.h"
+#include "hardwareConfig.h"
 //#include "TelemetryRadio.h"
 #include "RTISetup.h"
 #include "nonvol.h"
@@ -135,21 +136,32 @@ void startup(void)
      * and drivers running.  Here, SPI chip select gios require their direction to be set and
      * raised to high (not selected)
      */
-    gioSetDirection(gioPORTB,6);
-    gioSetBit(gioPORTB,1,1);
-    gioSetBit(gioPORTB,2,1);
     //MRAM
-    gioSetDirection(spiPORT1,0); // Make chip select pins be output
-    gioSetDirection(spiPORT1,2); // Make chip select pins be output
-    gioSetDirection(spiPORT3,0); // Make chip select pins be output
-    gioSetDirection(spiPORT5,0); //
+
+    gioSetDirection(spiPORT1,1U<<0 || 1U<<2); // Make chip select pins be output
+    gioSetDirection(spiPORT3,1); // Make chip select pins be output
+    gioSetDirection(spiPORT5,1); //
     gioSetBit(spiPORT1,0,1);
     gioSetBit(spiPORT1,2,1);  //Set chip selects high just in case
     gioSetBit(spiPORT3,0,1);
     gioSetBit(spiPORT5,0,1);  //Set chip selects high just in case
     //
-    // Need to do the 5043 bits too
+    // Need to do the 5043 bits too.  Especially doing these here since we don't use
+    // HET2 and thus have no initHET routine from HCG.  Why does "set direction" what the entire
+    // register, while SetBit takes the bit number?
     //
+    gioSetDirection(SPI_DCT_Select_Port,
+        (1U<<SPI_Rx1DCT_Select_Pin)  |
+        (1U<<SPI_Rx2DCT_Select_Pin)  |
+        (1U<<SPI_Rx3DCT_Select_Pin)  |
+        (1U<<SPI_Rx4DCT_Select_Pin)  |
+        (1U<<SPI_TxDCT_Select_Pin));
+
+    gioSetBit(SPI_DCT_Select_Port,SPI_Rx1DCT_Select_Pin,1); // Make chip select pins be high
+    gioSetBit(SPI_DCT_Select_Port,SPI_Rx2DCT_Select_Pin,1); // Make chip select pins be high
+    gioSetBit(SPI_DCT_Select_Port,SPI_Rx3DCT_Select_Pin,1); // Make chip select pins be high
+    gioSetBit(SPI_DCT_Select_Port,SPI_Rx4DCT_Select_Pin,1); // Make chip select pins be high
+    gioSetBit(SPI_DCT_Select_Port,SPI_TxDCT_Select_Pin,1); // Make chip select pins be high
 
     /*
      * RTI is used by FreeRTOS as its clock and also by the watchdog as its counter.
