@@ -328,7 +328,7 @@ int getMRAMSize(int mramNum)
 
 }
 #ifdef UNDEFINE_BEFORE_FLIGHT
-static int findMRAMAddressSize(){
+static int findMRAMAddressSize(int mramNumber){
     /*
      * This routine calculates by writing values in weird places (see comments) whether we have a 2
      * byte address scheme or 3.  FOr the flight model, it will be 3 so we will skip this code.
@@ -336,6 +336,7 @@ static int findMRAMAddressSize(){
      * one of them is MRAM0.
      */
     ByteToWord mramAddr;
+    SPIDevice thisMRAM = (SPIDevice)mramNumber; //The numbers 0-3 happen to match the SPIDevice.
     uint8_t size=0;
     uint32_t value[2];
     mramAddr.word=0; //Set all 4 bytes to 0
@@ -343,7 +344,7 @@ static int findMRAMAddressSize(){
     mramAddr.byte[3] = 2;
     value[0] = 0x12345678;
     value[1] = 0xfedc;
-    SPISendCommand(MRAM0Dev, mramAddr.word, 4,
+    SPISendCommand(thisMRAM, mramAddr.word, 4,
                    value, 4,
                    0,0);
     /*
@@ -355,25 +356,32 @@ static int findMRAMAddressSize(){
     mramAddr.word = 0;
     value[0]=value[1]=0;
     mramAddr.byte[0] = FRAM_OP_READ;
-    SPISendCommand(MRAM0Dev, mramAddr.word, 4, NULL,0, &value[0], (uint16_t) 8);
+    SPISendCommand(thisMRAM, mramAddr.word, 4, NULL,0, &value[0], (uint16_t) 8);
 /////////////////////////////////////////////
     printf("Value = %x\n",value);
     if((value[0] & 0xffff)== 0x1234){
         // As we see above, only a 3-byte address will have this number in the least significant 2 bytes.
         // (Remember it is big endian)
         size = 3;
-        writeMRAMStatus(0,MRAM_STATUS_ADDR_3); // Remember the size in unused bits in the status register
+        writeMRAMStatus(mramNumber,MRAM_STATUS_ADDR_3); // Remember the size in unused bits in the status register
     }
     else {
         size = 2;
-        writeMRAMStatus(0,MRAM_STATUS_ADDR_2); // Remember the size in unused bits in the sr.
+        writeMRAMStatus(mramNumber,MRAM_STATUS_ADDR_2); // Remember the size in unused bits in the sr.
     }
     return size;
 }
 #endif
 int getMRAMAddressSize(){
 #ifdef UNDEFINE_BEFORE_FLIGHT
-    uint8_t stat = readMRAMStatus(0);
+    int i; // This is the MRAM we are using to find the addr size
+    uint8_t stat;
+    for(i=0;i<PACSAT_MAX_MRAMS;i++){
+        stat=readMRAMStatus(i);
+        if (stat != 0xff)break; //Find the first MRAM that works
+    }
+    if(i==PACSAT_MAX_MRAMS)return 0; //Did not find a good one
+    stat = readMRAMStatus(i);
     // If it has been initialized, the address size is in the status register
     // Otherwise, we have to figure out the address size and put it there.
     stat = stat & MRAM_STATUS_ADDR_MASK;
@@ -382,7 +390,7 @@ int getMRAMAddressSize(){
     } else if (stat == MRAM_STATUS_ADDR_3){
         return 3;
     } else {
-        return findMRAMAddressSize();
+        return findMRAMAddressSize(i);
     }
 #else
     return MRAMAddressBytes; // This will be a constant if UNDEFINE_BEFORE_FLIGHT is undefined

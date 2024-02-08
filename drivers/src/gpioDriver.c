@@ -344,9 +344,10 @@ void GPIOIntRoutine(Gpio_Use whichGPIO)
 ///////////////////////////////////////////
 
 void GPIOSetPinDirection(gioPORT_t *regPtr,int pinNum,bool IsOut){
-    static uint32_t portDirection[]={0,0,0,0,0};
+    static uint32_t portDirection[]={0,0,0,0,0,0,0};
     int portIndex;
-    portIndex = regPtr==hetPORT1?0:regPtr==hetPORT2?1:regPtr==gioPORTA?2:regPtr==spiPORT1?3:4;
+    portIndex = regPtr==hetPORT1?0:regPtr==hetPORT2?1:regPtr==gioPORTA?2:regPtr==spiPORT1?3:
+            regPtr==spiPORT3?4:regPtr==spiPORT5?5:6;
     portDirection[portIndex] |=
             ((IsOut) ? (1<<pinNum):0);
     regPtr->DIR = portDirection[portIndex];     // Set any pins that we know should be output to output
