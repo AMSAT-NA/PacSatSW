@@ -406,7 +406,7 @@ void spiInit(void)
                     | (uint32)((uint32)0U << 11U); /* SOMI */
 
     /* SPI3 set all pins to functional */
-    spiREG3->PC0  =   (uint32)((uint32)1U << 0U)  /* SCS[0] */
+    spiREG3->PC0  =   (uint32)((uint32)0U << 0U)  /* SCS[0] */
                     | (uint32)((uint32)1U << 1U)  /* SCS[1] */
                     | (uint32)((uint32)1U << 2U)  /* SCS[2] */
                     | (uint32)((uint32)1U << 3U)  /* SCS[3] */
@@ -597,7 +597,7 @@ void spiInit(void)
                     | (uint32)((uint32)0U << 27U); /* SOMI[3] */
 
     /* SPI5 set all pins to functional */
-    spiREG5->PC0  =   (uint32)((uint32)1U << 0U)  /* SCS[0] */
+    spiREG5->PC0  =   (uint32)((uint32)0U << 0U)  /* SCS[0] */
                     | (uint32)((uint32)1U << 1U)  /* SCS[1] */
                     | (uint32)((uint32)1U << 2U)  /* SCS[2] */
                     | (uint32)((uint32)1U << 3U)  /* SCS[3] */

@@ -340,6 +340,18 @@ void RealConsoleTask(void)
     bool DoEcho = true;
     DCTTxFreq = ReadMRAMTelemFreq();
     DCTRxFreq = ReadMRAMCommandFreq();
+    if((DCTTxFreq<999000) || (DCTTxFreq>600000000)){
+        DCTTxFreq = DCT_DEFAULT_TX_FREQ;
+    }
+    if((DCTRxFreq<999000) || (DCTRxFreq>600000000)){
+        DCTRxFreq = DCT_DEFAULT_RX_FREQ;
+    }
+    quick_setfreq(AX5043Dev0, DCTRxFreq);
+    quick_setfreq(AX5043Dev1, DCTRxFreq);
+    quick_setfreq(AX5043Dev2, DCTRxFreq);
+    quick_setfreq(AX5043Dev3, DCTRxFreq);
+    quick_setfreq(AX5043Dev4, DCTTxFreq);
+
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)ConsoleTsk); // For watchdog when it is called with "current task"
 
     while (true) {
@@ -962,8 +974,6 @@ void RealConsoleTask(void)
             if(devb >= InvalidAX5043Device){
                 printf("Give a device number between 0 and 4\n");
                 break;
-            } else {
-                printf("Reading registers of AX5043 # %d\n");
             }
             AX5043Device dev = (AX5043Device)devb;
             printf("AX5043 dev %d\n",dev);
