@@ -23,7 +23,7 @@
  * remove any code for 2-byte addresses.
  */
 #ifdef UNDEFINE_BEFORE_FLIGHT
-static uint32_t MRAMAddressBytes=3;
+static uint32_t MRAMAddressBytes=0;
 #else
 #define MRAMAddressBytes 3
 #endif
@@ -93,14 +93,21 @@ uint8_t readMRAMStatus(int mramNum)
 bool writeEnableMRAM(int mramNum)
 {
     ByteToWord command;
+    bool retVal;
+    uint8_t status;
 
     if (mramNum >= PACSAT_MAX_MRAMS)
         return false;
 
     command.byte[0] = FRAM_OP_WREN;
-    /* Write enable */
-    return SPISendCommand(MRAM_Devices[mramNum], command.word,
+    /* Allow writing to the status register */
+    retVal = SPISendCommand(MRAM_Devices[mramNum], command.word,
                           1, NULL, 0, NULL, 0);
+    status = MRAM_STATUS_ADDR_MASK & readMRAMStatus(mramNum);
+    status |= MRAM_STATUS_WEL;  // Pay attention to write enable bits
+    status &= ~MRAM_STATUS_WPROT; // Clear the write protect bits
+    writeMRAMStatus(mramNum,status);
+    return retVal;
 }
 
 void writeMRAMStatus(int mramNum, uint8_t status)
@@ -122,7 +129,7 @@ int getMRAMPartitionSize(int partition)
     if (partition < 0 || partition >= MAX_MRAM_PARTITIONS)
         return 0;
     if (!numberOfMRAMs) {
-        if (initMRAM() == 0)
+        if (initMRAM(true) == 0)
             return 0;
     }
     return mramPartitionSize[partition];
@@ -381,7 +388,6 @@ int getMRAMAddressSize(){
         if (stat != 0xff)break; //Find the first MRAM that works
     }
     if(i==PACSAT_MAX_MRAMS)return 0; //Did not find a good one
-    stat = readMRAMStatus(i);
     // If it has been initialized, the address size is in the status register
     // Otherwise, we have to figure out the address size and put it there.
     stat = stat & MRAM_STATUS_ADDR_MASK;
@@ -390,27 +396,32 @@ int getMRAMAddressSize(){
     } else if (stat == MRAM_STATUS_ADDR_3){
         return 3;
     } else {
+        writeEnableMRAM(i);
         return findMRAMAddressSize(i);
     }
 #else
     return MRAMAddressBytes; // This will be a constant if UNDEFINE_BEFORE_FLIGHT is undefined
 #endif
 }
-int initMRAM()
+int initMRAM(bool newDevice)
 {
     // Initialize status register to 0 so there are no memory banks write protected
     int i, size;
 
-    /* Already initialized. */
-    if (numberOfMRAMs)
-    return totalMRAMSize;
-    writeEnableMRAM(0);
+    /*
+     * Do we need to re-initialize?  newDevice means that we will recalculate the address size and
+     * length even if the numberOfMRAMs has been already written.  (This is for "init new device"
+     * for example.
+     */
+    if ((!newDevice) && (numberOfMRAMs!=0))
+        return totalMRAMSize;
 #ifdef UNDEFINE_BEFORE_FLIGHT
     MRAMAddressBytes = getMRAMAddressSize();
 #endif
     size=0;
     for (i=0; i<PACSAT_MAX_MRAMS; i++) {
-        size += MRAMSize[i] = getMRAMSize(MRAM_Devices[i]);
+
+        size += MRAMSize[i] = getMRAMSize(MRAM_Devices[i]); //GetMRAMSize also write enables them
         if (MRAMSize[i] != 0)
             numberOfMRAMs++;
     }

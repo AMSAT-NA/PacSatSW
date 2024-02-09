@@ -232,7 +232,7 @@ void ConsoleTask(void *pvParameters){
     SPIInit(MRAM1Dev);
     SPIInit(MRAM2Dev);
     SPIInit(MRAM3Dev);
-    initMRAM();
+    initMRAM(false);
     initMET();
     I2cInit(I2C1);
     GPIOEzInit(LED1);
@@ -297,7 +297,7 @@ void ConsoleTask(void *pvParameters){
 #endif
 
 
-#if 0
+#if 1
     /* Load the directory from MRAM and perform some integrity checks */
     int32_t ret = dir_check_folders();
     if (ret == -1) {

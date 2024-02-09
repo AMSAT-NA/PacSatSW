@@ -199,7 +199,7 @@ enum {
 
 
 commandPairs setupCommands[] = {
-                                {"init new proc","Init DCT stuff that will be set once for each unit",initSaved}
+                                {"init new proc","Init DCT and MRAM stuff that will be set once for each unit",initSaved}
                                 ,{"start tx tone", "Send a tone with 5043", toneTx}
                                 ,{"stop tx tone", "Stop sending the tone",noToneTx}
                                 ,{"raise tx freq","Raise the telem frequency by n Hz",RaiseTxFreq}
@@ -572,6 +572,13 @@ void RealConsoleTask(void)
             printf("RxFreq=%d\n",DCTRxFreq);
             quick_setfreq(AX5043Dev0, DCTRxFreq);
             break;
+        }
+        case initSaved:{
+            initMRAM(true); //Init this thing from scratch (address size, data size, partitions etc)
+            IHUInitSaved(); //Init stuff that we won't want to change on reboot
+            SetupMRAM();    //Init stuff that do change (epoch number etc)
+            break;
+
         }
         case SaveFreq:{
             printf("Saving Rx frequency %d and Tx frequency %d to MRAM\n",DCTRxFreq,DCTTxFreq);
