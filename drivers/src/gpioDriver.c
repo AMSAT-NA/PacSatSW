@@ -185,10 +185,11 @@ bool GPIOInit( Gpio_Use whichGpio,DestinationTask task, IntertaskMessageType msg
     // time one of them is specified.
 
     if(thisGPIO->GPIOPort ==0)return false; //Todo: Make sure we have all the GPIOs set up (now missing I2c reset)
-    portIndex = (thisGPIO->GPIOPort==gioPORTA)?0:(thisGPIO->GPIOPort==gioPORTB)?1:(thisGPIO->GPIOPort==hetPORT1)?2:
-            thisGPIO->GPIOPort==spiPORT1?3:4;
+   portIndex = (thisGPIO->GPIOPort==gioPORTA)?0:(thisGPIO->GPIOPort==gioPORTB)?1:
+           (thisGPIO->GPIOPort==hetPORT1)?2:(thisGPIO->GPIOPort==spiPORT1)?3:
+           (thisGPIO->GPIOPort==spiPORT5)?4:5;
 #ifdef UNDEFINE_BEFORE_FLIGHT
-    if(portIndex == 4)
+    if(portIndex == 5)
         return false; ///////////Need to add new ports above
     if(task!= NO_TASK){
         // If they are asking for an interrupt and either

@@ -134,6 +134,8 @@ enum {
     ,initSaved
     ,DisablePA
     ,EnablePA
+    ,DisableAx
+    ,EnableAx
     ,StartADC1
     ,StartADC2
     ,ReadADC1
@@ -405,6 +407,23 @@ void RealConsoleTask(void)
             printf("Unknown command\n");
             break;
         }
+        case DisablePA:{
+            GPIOSetOn(SSPAPower); //The switch is inverted
+            break;
+        }
+        case EnablePA:{
+            GPIOSetOff(SSPAPower);
+            break;
+        }
+        case DisableAx:{
+            GPIOSetOn(AX5043Power);
+            break;
+        }
+        case EnableAx:{
+            GPIOSetOff(AX5043Power);
+            break;
+        }
+
         case sizeMRAM:{
             int i;
             printf("MRAM Address Size=%d\n",getMRAMAddressSize());
@@ -490,7 +509,8 @@ void RealConsoleTask(void)
         case GetGpios:{
             int i;
             char *gpioNames[NumberOfGPIOs]={
-               "LED1","LED2","DCTInterrupt","CommandStrobe","CommandBits"
+               "LED1","LED2","LED3","DCTInterrupt","CommandStrobe","CommandBits",
+               "SSPAPower","AX5043Power"
             };
             for (i=0;i<NumberOfGPIOs;i++){
                 if(i%4 == 0){

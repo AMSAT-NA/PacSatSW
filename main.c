@@ -119,13 +119,16 @@ void startup(void)
     sciDisableNotification(sciREG,SCI_TX_INT | SCI_RX_INT); // No interrupts before we start the OS
     sciSetBaudrate(sciREG, COM2_BAUD);
 
-    ////TEMP
+    //GPIO Easy Inits can be done before the OS is started
     GPIOEzInit(LED1);
     GPIOEzInit(LED2);
     GPIOEzInit(LED3);
-    GPIOSetOn(LED1);
-    GPIOSetOn(LED2);
-    GPIOSetOn(LED3);
+    GPIOSetOff(LED1);
+    GPIOSetOff(LED2);
+    GPIOSetOff(LED3);
+    GPIOEzInit(SSPAPower);
+    GPIOEzInit(AX5043Power);
+
     GPIOToggle(LED1);
     sciSend(sciREG,38,"Starting a test on the SCI register\r\n");
     i2cInit();
@@ -235,8 +238,6 @@ void ConsoleTask(void *pvParameters){
     initMRAM(false);
     initMET();
     I2cInit(I2C1);
-    GPIOEzInit(LED1);
-    GPIOEzInit(LED2);
     GPIOInit(DCTInterrupt,ToRxTask,DCTInterruptMsg,None);
     /* Poll the I2C devices to see which are working.
      * This also calls the init routine for the temperature device */
