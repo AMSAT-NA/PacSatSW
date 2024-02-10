@@ -304,6 +304,8 @@ commandPairs commonCommands[] = {
                                  ,{"set mram sr","Set the MRAM status register",writeMRAMsr}
                                  ,{"set pa on","Turn on the RF power amp",EnablePA}
                                  ,{"set pa off","Turn off the RF power amp",DisablePA}
+                                 ,{"set ax on","Turn on the RF power amp",EnableAx}
+                                 ,{"set ax off","Turn off the RF power amp",DisableAx}
                                  ,{"start watchdog","Start the watchdog",startWD}
                                  ,{"preflight init","Initialize MRAM etc for flight",preflight}
                                  ,{"clear minmax","Clear the min, max, and CIU counts",clrMinMax}
