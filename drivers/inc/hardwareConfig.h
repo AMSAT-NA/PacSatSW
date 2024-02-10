@@ -25,6 +25,14 @@
 #define GPIO_UNUSED_OUT_PORT hetPORT1
 #define GPIO_UNUSED_OUT_PIN 18
 
+/*
+ * Power for SSPA and AX5043
+ */
+#define GPIOsspaPowerPort spiPORT5
+#define GPIOsspaPowerPin 11 /*This is SOMI[0]*/
+#define GPIOax5043PowerPort spiPORT5
+#define GPIOax5043PowerPin 10 /*This is SIMO[0]*/
+
 
 /*
  * Debug LEDs

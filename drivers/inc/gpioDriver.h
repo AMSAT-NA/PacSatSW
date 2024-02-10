@@ -14,7 +14,7 @@
 
 
 typedef enum gu {None=-1,
-	 LED1,LED2,LED3,DCTInterrupt,CommandStrobe,CommandBits,
+	 LED1,LED2,LED3,DCTInterrupt,CommandStrobe,CommandBits,SSPAPower,AX5043Power,
 	 NumberOfGPIOs
 } Gpio_Use;
 

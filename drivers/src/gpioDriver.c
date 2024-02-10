@@ -120,6 +120,26 @@ static const GPIOInfo AX5043InterruptInfo = {
                                              ,true,false //Interrupts one one edge only
                                              ,false,false // Not Open collector nor tristate
 };
+static const GPIOInfo SSPAPowerInfo = {
+                                  GPIOsspaPowerPort
+                                  ,GPIOsspaPowerPin
+                                  ,1
+                                  ,GPIO_ON
+                                  ,GPIO_OUT
+                                  ,false,false // No interrupts
+                                  ,false,false  // Not open collector, not tristate
+
+};
+static const GPIOInfo Ax5043PowerInfo = {
+                                  GPIOax5043PowerPort
+                                  ,GPIOax5043PowerPin
+                                  ,1
+                                  ,GPIO_OFF
+                                  ,GPIO_OUT
+                                  ,false,false // No interrupts
+                                  ,false,false  // Not open collector, not tristate
+
+};
 
 
 
@@ -130,7 +150,8 @@ static const GPIOInfo AX5043InterruptInfo = {
 
 static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] =
 {
- &LED1Info,&LED2Info,&LED3Info,&AX5043InterruptInfo,&CommandStrobeInfo,&CommandBitsInfo
+ &LED1Info,&LED2Info,&LED3Info,&AX5043InterruptInfo,&CommandStrobeInfo,&CommandBitsInfo,
+ &SSPAPowerInfo,&Ax5043PowerInfo
 };
 
 static int GPIOInterruptLastIndex = 0;
