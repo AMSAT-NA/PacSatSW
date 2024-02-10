@@ -238,7 +238,11 @@ void ConsoleTask(void *pvParameters){
     initMRAM(false);
     initMET();
     I2cInit(I2C1);
-    GPIOInit(DCTInterrupt,ToRxTask,DCTInterruptMsg,None);
+    GPIOInit(Rx0DCTInterrupt,ToRxTask,DCT0InterruptMsg,None);
+    GPIOInit(Rx1DCTInterrupt,ToRxTask,DCT1InterruptMsg,None);
+    GPIOInit(Rx2DCTInterrupt,ToRxTask,DCT2InterruptMsg,None);
+    GPIOInit(Rx3DCTInterrupt,ToRxTask,DCT3InterruptMsg,None);
+    GPIOInit(TxDCTInterrupt,ToRxTask,DCT4InterruptMsg,None);
     /* Poll the I2C devices to see which are working.
      * This also calls the init routine for the temperature device */
     I2CDevicePoll();

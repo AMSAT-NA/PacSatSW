@@ -101,7 +101,7 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
                 PAPowerFlagCnt++;
                 break;
 
-            case DCTInterruptMsg:
+            case DCT0InterruptMsg:
 
                 if ((ax5043ReadReg(device, AX5043_PWRMODE) & 0x0F) == AX5043_PWRSTATE_FULL_RX) {
 

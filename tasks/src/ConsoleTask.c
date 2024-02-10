@@ -509,7 +509,8 @@ void RealConsoleTask(void)
         case GetGpios:{
             int i;
             char *gpioNames[NumberOfGPIOs]={
-               "LED1","LED2","LED3","DCTInterrupt","CommandStrobe","CommandBits",
+               "LED1","LED2","LED3","Rx0Interrupt","Rx1Interrupt","Rx2Interrupt2","Rx3Interrupt"
+               ,"TxInterrupt4","CommandStrobe","CommandBits",
                "SSPAPower","AX5043Power"
             };
             for (i=0;i<NumberOfGPIOs;i++){

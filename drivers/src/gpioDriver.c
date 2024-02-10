@@ -111,9 +111,45 @@ static const GPIOInfo CommandBitsInfo = {
                                          ,false,false // Not Open collector nor tristate
 };
 
-static const GPIOInfo AX5043InterruptInfo = {
+static const GPIOInfo AX0InterruptInfo = {
                                              GPIO_Rx1DCTInterruptPort
                                              ,GPIO_Rx1DCTInterruptPin
+                                             ,1
+                                             ,GPIO_UNUSED // Default off
+                                             ,GPIO_IN
+                                             ,true,false //Interrupts one one edge only
+                                             ,false,false // Not Open collector nor tristate
+};
+static const GPIOInfo AX1InterruptInfo = {
+                                             GPIO_Rx2DCTInterruptPort
+                                             ,GPIO_Rx2DCTInterruptPin
+                                             ,1
+                                             ,GPIO_UNUSED // Default off
+                                             ,GPIO_IN
+                                             ,true,false //Interrupts one one edge only
+                                             ,false,false // Not Open collector nor tristate
+};
+static const GPIOInfo AX2InterruptInfo = {
+                                             GPIO_Rx3DCTInterruptPort
+                                             ,GPIO_Rx3DCTInterruptPin
+                                             ,1
+                                             ,GPIO_UNUSED // Default off
+                                             ,GPIO_IN
+                                             ,true,false //Interrupts one one edge only
+                                             ,false,false // Not Open collector nor tristate
+};
+static const GPIOInfo AX3InterruptInfo = {
+                                             GPIO_Rx4DCTInterruptPort
+                                             ,GPIO_Rx4DCTInterruptPin
+                                             ,1
+                                             ,GPIO_UNUSED // Default off
+                                             ,GPIO_IN
+                                             ,true,false //Interrupts one one edge only
+                                             ,false,false // Not Open collector nor tristate
+};
+static const GPIOInfo AX4InterruptInfo = {
+                                             GPIO_TxDCTInterruptPort
+                                             ,GPIO_TxDCTInterruptPin
                                              ,1
                                              ,GPIO_UNUSED // Default off
                                              ,GPIO_IN
@@ -150,8 +186,8 @@ static const GPIOInfo Ax5043PowerInfo = {
 
 static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] =
 {
- &LED1Info,&LED2Info,&LED3Info,&AX5043InterruptInfo,&CommandStrobeInfo,&CommandBitsInfo,
- &SSPAPowerInfo,&Ax5043PowerInfo
+ &LED1Info,&LED2Info,&LED3Info,&AX0InterruptInfo,&AX1InterruptInfo,&AX2InterruptInfo,&AX3InterruptInfo,
+ &AX4InterruptInfo,&CommandStrobeInfo,&CommandBitsInfo,&SSPAPowerInfo,&Ax5043PowerInfo
 };
 
 static int GPIOInterruptLastIndex = 0;
@@ -185,7 +221,7 @@ bool GPIOInit( Gpio_Use whichGpio,DestinationTask task, IntertaskMessageType msg
     // time one of them is specified.
 
     if(thisGPIO->GPIOPort ==0)return false; //Todo: Make sure we have all the GPIOs set up (now missing I2c reset)
-   portIndex = (thisGPIO->GPIOPort==gioPORTA)?0:(thisGPIO->GPIOPort==gioPORTB)?1:
+    portIndex = (thisGPIO->GPIOPort==gioPORTA)?0:(thisGPIO->GPIOPort==gioPORTB)?1:
            (thisGPIO->GPIOPort==hetPORT1)?2:(thisGPIO->GPIOPort==spiPORT1)?3:
            (thisGPIO->GPIOPort==spiPORT5)?4:5;
 #ifdef UNDEFINE_BEFORE_FLIGHT

@@ -50,7 +50,11 @@ typedef enum {
     /*
      * For messages to the radio task
      */
-    DCTInterruptMsg,
+    DCT0InterruptMsg,
+    DCT1InterruptMsg,
+    DCT2InterruptMsg,
+    DCT3InterruptMsg,
+    DCT4InterruptMsg,
     DCTPowerFlagMsg,
     PAPowerFlagMsg,
     DCTInitMessage,
