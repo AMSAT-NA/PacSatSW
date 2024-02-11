@@ -62,9 +62,9 @@ void receiveLine(COM_NUM ioCom, char *commandString, char prompt, bool echo) {
     int charNum = 0;
     const char deleteString[4] = { '\b', ' ', '\b', 0 }; // Back overwrite space, back
     int escSeq=0;
-//    if(!CheckMRAMVersionNumber()){
-//        printf("\n ***MRAM format has changed\n ***Command 'preflight init' or 'init mram' required!\n");
-//    }
+    if(!CheckMRAMVersionNumber()){
+        printf("\n ***MRAM format has changed\n ***Command 'preflight init' or 'init mram' or 'init new proc' required!\n");
+    }
     if (echo)
         printf("");
     SerialPutChar(ioCom, prompt, 0);

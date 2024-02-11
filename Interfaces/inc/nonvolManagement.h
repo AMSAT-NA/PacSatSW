@@ -81,8 +81,8 @@ uint32_t ReadMRAMDCTDriveLowPower(void);
 void WriteMRAMDCTDriveLowPower(uint32_t);
 uint32_t ReadMRAMTelemFreq(void);
 void WriteMRAMTelemFreq(uint32_t);
-uint32_t ReadMRAMCommandFreq(void);
-void WriteMRAMCommandFreq(uint32_t);
+uint32_t ReadMRAMReceiveFreq(uint8_t rxNumber);
+void WriteMRAMReceiveFreq(uint8_t rxNumber,uint32 freq);
 
 void WriteMRAMVersionNumber(void);
 bool CheckMRAMVersionNumber(void);

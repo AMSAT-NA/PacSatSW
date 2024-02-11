@@ -52,7 +52,7 @@ typedef struct {
 	/* Each entry has two because we want extra bits for checking */
 // These we don't want to change with each MRAM change.  They are generally set only once
 // for each processor.
-    uint32_t DCTRxFrequency[2];
+    uint32_t DCTRxFrequency[4][2];
     uint32_t DCTTxFrequency[2];
     uint32_t DCTDriveLowPower[2];
     uint32_t DCTDriveHighPower[2];
@@ -99,7 +99,7 @@ typedef struct _inProcessFileUpload {
 } InProcessFileUpload_t;
 
 
-#define MRAM_VERSION 5
+#define MRAM_VERSION 6
 
 /* Top level MRAM storage map */
 typedef struct {

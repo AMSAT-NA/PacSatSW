@@ -19,6 +19,7 @@
 #include "TelemetryRadio.h"
 #include "consoleRoutines.h"
 #include "ax5043.h"
+#include "ax5043_access.h"
 #include "system.h"
 #include "sys_core.h"
 #include "gio.h"
@@ -69,7 +70,7 @@ extern uint8_t SWCmdRing[SW_CMD_RING_SIZE],SWCmdIndex;
 
 
 static char commandString[COM_STRING_SIZE]; /* Must be long enough for worst case: Uploadtest20xxxxxx  which is 86 */
-static uint32_t DCTTxFreq,DCTRxFreq;
+static uint32_t DCTTxFreq,DCTRxFreq[4];
 
 
 extern bool InSafeMode,InScienceMode,InHealthMode;
@@ -126,6 +127,7 @@ enum {
     ,LowerTxFreq
     ,RaiseRxFreq
     ,LowerRxFreq
+    ,ReadFreqs
     ,SaveFreq
     ,LoadKey
     ,showDownlinkSize
@@ -152,7 +154,6 @@ enum {
     ,HelpDevo
     ,HelpSetup
     ,Help
-    ,Prime
     ,MRAMWrEn
     ,testAllMRAM
     ,sizeMRAM
@@ -209,6 +210,7 @@ commandPairs setupCommands[] = {
                                 ,{"raise rx freq","Raise the command frequency by n Hz",RaiseRxFreq}
                                 ,{"lower rx freq","Lower the command frequency by n Hz",LowerRxFreq}
                                 ,{"save freq","Save the current frequency in MRAM",SaveFreq}
+                                ,{"read freq","Read all the frequencies from MRAM",ReadFreqs}
                                 ,{"test freq", "xmit on receive frequency",testRxFreq}
                                 ,{"test internal wd","Force internal watchdog to reset CPU",internalWDTimeout}
                                 ,{"test external wd","Force external watchdog to reset CPU",externalWDTimeout}
@@ -236,7 +238,6 @@ commandPairs debugCommands[] = {
                                 ,{"get mram sr","Get the MRAM status register",readMRAMsr}
                                 ,{"get downlink size","Debug-get sizes of downlink payloads and frames",showDownlinkSize}
                                 ,{"get temp","Get RT-IHU board temperature",getTemp}
-                                ,{"prime","Do prime number benchmark",Prime}
                                 ,{"mram wren","Write enable MRAM",MRAMWrEn}
                                 ,{"mram wake","Send wake command to MRAM",mramAwake}
                                 ,{"mram sleep","Send sleep command to MRAM",mramSleep}
@@ -343,18 +344,21 @@ void RealConsoleTask(void)
     char * afterCommand;
     bool DoEcho = true;
     DCTTxFreq = ReadMRAMTelemFreq();
-    DCTRxFreq = ReadMRAMCommandFreq();
+    DCTRxFreq[0] = ReadMRAMReceiveFreq(0);
+    DCTRxFreq[1] = ReadMRAMReceiveFreq(1);
+    DCTRxFreq[2] = ReadMRAMReceiveFreq(2);
+    DCTRxFreq[3] = ReadMRAMReceiveFreq(3);
     if((DCTTxFreq<999000) || (DCTTxFreq>600000000)){
         DCTTxFreq = DCT_DEFAULT_TX_FREQ;
     }
-    if((DCTRxFreq<999000) || (DCTRxFreq>600000000)){
-        DCTRxFreq = DCT_DEFAULT_RX_FREQ;
+    if((DCTRxFreq[0]<999000) || (DCTRxFreq[0]>600000000)){
+        DCTRxFreq[0] = DCT_DEFAULT_RX_FREQ;
     }
-    quick_setfreq(AX5043Dev0, DCTRxFreq);
-    quick_setfreq(AX5043Dev1, DCTRxFreq);
-    quick_setfreq(AX5043Dev2, DCTRxFreq);
-    quick_setfreq(AX5043Dev3, DCTRxFreq);
-    quick_setfreq(AX5043Dev4, DCTTxFreq);
+    quick_setfreq(RX1_DEVICE, DCTRxFreq[0]);
+    quick_setfreq(RX2_DEVICE, DCTRxFreq[1]);
+    quick_setfreq(RX3_DEVICE, DCTRxFreq[2]);
+    quick_setfreq(RX4_DEVICE, DCTRxFreq[3]);
+    quick_setfreq(TX_DEVICE, DCTTxFreq);
 
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)ConsoleTsk); // For watchdog when it is called with "current task"
 
@@ -481,33 +485,7 @@ void RealConsoleTask(void)
             //printf("MRAM at address 0 and 1 are now now %d and %d\n",data[0],data[1]);
             break;
         }
-        case Prime:{
-            int n, i,flag, count=0, ms1,ms2;
-            int maxNumber = parseNumber(afterCommand);
-            if(maxNumber<2)maxNumber=2;
-            ms1=xTaskGetTickCount();
-            for(n=2;n<maxNumber;n++){
-                flag = 0; //Init to assume it is prime
-
-                for (i = 2; i <= n / 2; ++i) {
-
-                    // if n is divisible by i, then n is not prime
-                    // change flag to 1 for non-prime number
-                    if (n % i == 0) {
-                        flag = 1;
-                        break;
-                    }
-                }
-
-                // flag is 0 for prime numbers
-                if (flag == 0)
-                    count++;
-            }
-            ms2 = xTaskGetTickCount();
-            printf("There are %d primes less than %d; This took %d centiseconds\n",count,maxNumber,(ms2-ms1));
-            break;
-        }
-#if 1
+#ifdef DEBUG
         case GetGpios:{
             int i;
             char *gpioNames[NumberOfGPIOs]={
@@ -583,17 +561,44 @@ void RealConsoleTask(void)
             break;
         }
         case RaiseRxFreq:{
-            int number = parseNumber(afterCommand);
-            DCTRxFreq += number;
-            printf("RxFreq=%d\n",DCTRxFreq);
-            quick_setfreq(AX5043Dev0, DCTRxFreq);
+            const AX5043Device rxList[]={RX1_DEVICE,RX2_DEVICE,RX3_DEVICE,RX4_DEVICE};
+            uint16_t rxNumber = parseNumber(afterCommand);
+            int number = parseNextNumber();
+            if(rxNumber==0 || rxNumber > 4){
+                printf("Must specify receiver number between 1 and 4--ex: 'raise rx freq 2 500'\n");
+            }
+            DCTRxFreq[rxNumber-1] += number;
+            printf("RxFreq=%d\n",DCTRxFreq[rxNumber-1]);
+            quick_setfreq(rxList[rxNumber-1], DCTRxFreq[rxNumber-1]);
             break;
         }
         case LowerRxFreq:{
-            int number = parseNumber(afterCommand);
-            DCTRxFreq -= number;
-            printf("RxFreq=%d\n",DCTRxFreq);
-            quick_setfreq(AX5043Dev0, DCTRxFreq);
+            const AX5043Device rxList[]={RX1_DEVICE,RX2_DEVICE,RX3_DEVICE,RX4_DEVICE};
+            uint16_t rxNumber = parseNumber(afterCommand);
+            int number = parseNextNumber();
+            if(rxNumber==0 || rxNumber > 4){
+                printf("Must specify receiver number between 1 and 4--ex: 'raise rx freq 2 500'\n");
+            }
+            DCTRxFreq[rxNumber-1] -= number;
+            printf("RxFreq=%d\n",DCTRxFreq[rxNumber-1]);
+            quick_setfreq(rxList[rxNumber-1], DCTRxFreq[rxNumber-1]);
+            break;
+        }
+        case ReadFreqs:{
+            int i;
+            for(i=0;i<4;i++){
+                printf("Rx%d--MRAM: %d Memory: %d\n",i+1,ReadMRAMReceiveFreq(i),DCTRxFreq[i]);
+            }
+            printf("Tx Frequency--MRAM: %d, Memory: %d\n",ReadMRAMTelemFreq(),DCTTxFreq);
+            break;
+        }
+        case SaveFreq:{
+            uint8_t i;
+            printf("Saving Rx frequency %d and Tx frequency %d to MRAM\n",DCTRxFreq,DCTTxFreq);
+            WriteMRAMTelemFreq(DCTTxFreq);
+            for(i=0;i<4;i++){
+                WriteMRAMReceiveFreq(i,DCTRxFreq[i]);
+            }
             break;
         }
         case initSaved:{
@@ -601,15 +606,8 @@ void RealConsoleTask(void)
             IHUInitSaved(); //Init stuff that we won't want to change on reboot
             SetupMRAM();    //Init stuff that do change (epoch number etc)
             break;
-
         }
-        case SaveFreq:{
-            printf("Saving Rx frequency %d and Tx frequency %d to MRAM\n",DCTRxFreq,DCTTxFreq);
-            WriteMRAMTelemFreq(DCTTxFreq);
-            WriteMRAMCommandFreq(DCTRxFreq);
-            break;
-        }
-        case LoadKey:{
+       case LoadKey:{
             uint8_t key[AUTH_KEY_SIZE],i;
             uint32_t magic = ENCRYPTION_KEY_MAGIC_VALUE,checksum;
             const MRAMmap_t *LocalFlash = 0;

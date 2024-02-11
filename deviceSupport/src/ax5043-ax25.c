@@ -988,7 +988,7 @@ void start_ax25_rx(AX5043Device device, bool rate_9600) {
     uint32_t freq;
     int status = 0;
     bool band_vhf = FALSE;
-    freq = ReadMRAMCommandFreq();
+    freq = ReadMRAMReceiveFreq((uint8_t)device);
     if (freq < 150000000)
         band_vhf = TRUE;
     debug_print("Starting RX with AX5043Device %d, vhf=%d 9600bps=%d, freq=%d\n", device, band_vhf, rate_9600, freq);

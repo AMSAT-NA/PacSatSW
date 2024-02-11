@@ -244,9 +244,9 @@ void tac_collect_telemetry(telem_buffer_t *buffer) {
     buffer->rtHealth.common.TXPwrMode = ax5043ReadReg(TX_DEVICE, AX5043_PWRMODE);
 
     /* RX0 Telemetry */
-    uint8_t rssi0 = get_rssi(RX0_DEVICE);
+    uint8_t rssi0 = get_rssi(RX1_DEVICE);
     buffer->rtHealth.common.RX0RSSI = rssi0;
-    buffer->rtHealth.common.RX0PwrMode = ax5043ReadReg(RX0_DEVICE, AX5043_PWRMODE);
+    buffer->rtHealth.common.RX0PwrMode = ax5043ReadReg(RX1_DEVICE, AX5043_PWRMODE);
 
     // Errors
     buffer->rtHealth.primaryErrors = localErrorCollection;
