@@ -57,7 +57,7 @@ void pmmInit(void)
     /*Disable clocks to all logic domains*/
     pmmREG->PDCLKDISREG = 0xFU;
     /*Enable or disable clock to pmctrl_wakeup block and automatic clock wake up*/
-    pmmREG->GLOBALCTRL1 = (uint32)((uint32)0U << 8U) | (uint32)1U; /*from GUI*/
+    pmmREG->GLOBALCTRL1 = (uint32)((uint32)0U << 8U) | (uint32)0U; /*from GUI*/
     /*Power on the logic power domains*/
     pmmREG->LOGICPDPWRCTRL0 = PMM_LOGICPDPWRCTRL0_CONFIGVALUE;
     /*Power on the memory-only power domains*/
@@ -78,20 +78,15 @@ void pmmInit(void)
 	while((pmmREG->LOGICPDPWRSTAT[PMM_LOGICPD4] & PMM_LOGICPDPWRSTAT_LOGICPDPWRSTAT) != 0U)
     { 
     }/* Wait */  
-    /*wait till Logic Power Domain PD5 turns OFF*/
+    /*wait till Logic Power Domain PD5 turns ON*/
     /*SAFETYMCUSW 28 D MR:NA <APPROVED> "Wait for hardware status bit" */
-	while((pmmREG->LOGICPDPWRSTAT[PMM_LOGICPD5] & PMM_LOGICPDPWRSTAT_LOGICPDPWRSTAT) != 0U)
+	while((pmmREG->LOGICPDPWRSTAT[PMM_LOGICPD5] & PMM_LOGICPDPWRSTAT_DOMAINON) == 0U)
     { 
     }/* Wait */  
 
     /*wait till Memory Only Power Domain RAM_PD1 turns ON*/
     /*SAFETYMCUSW 28 D MR:NA <APPROVED> "Wait for hardware status bit" */
 	while((pmmREG->MEMPDPWRSTAT[PMM_MEMPD1] & PMM_MEMPDPWRSTAT_DOMAINON) == 0U)
-    { 
-    }/* Wait */  
-    /*wait till Memory Only Power Domain RAM_PD2 turns ON*/
-    /*SAFETYMCUSW 28 D MR:NA <APPROVED> "Wait for hardware status bit" */
-	while((pmmREG->MEMPDPWRSTAT[PMM_MEMPD2] & PMM_MEMPDPWRSTAT_DOMAINON) == 0U)
     { 
     }/* Wait */  
     if ((pmmREG->GLOBALCTRL1 & PMM_GLOBALCTRL1_AUTOCLKWAKEENA) == 0U)

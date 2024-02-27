@@ -9,29 +9,29 @@
 #include "Max31725Temp.h"
 #include "i2cDriver.h"
 static uint8_t buf[2],send;
-
-bool InitTemp31725(void){
+const uint32 tempAddr[]={PACBOARD_TX_TEMP_ADDRESS,PACBOARD_CPU_TEMP_ADDRESS};
+bool InitTemp31725(TempSensor sensor){
     buf[0] = MAX31725_REG_CONFIG;
     buf[1] = MAX31725_CONFIG_TIMEOUT;
-    return I2cSendCommand(PACBOARD_TEMP_PORT,PACBOARD_TEMP_ADDRESS,buf,2,0,0);
-    }
+    return I2cSendCommand(PACBOARD_TEMP_PORT,tempAddr[sensor],buf,2,0,0);
+    };
 
-bool GetConfig31725(uint8_t *cfg){
+bool GetConfig31725(TempSensor sensor,uint8_t *cfg){
     send = MAX31725_REG_CONFIG;
-    return I2cSendCommand(PACBOARD_TEMP_PORT,PACBOARD_TEMP_ADDRESS,&send,1,cfg,1);
+    return I2cSendCommand(PACBOARD_TEMP_PORT,tempAddr[sensor],&send,1,cfg,1);
 }
-bool GetTemp31725(int16_t *temp){
+bool GetTemp31725(TempSensor sensor,int16_t *temp){
     bool retval=true;
     int16_t localTemp;
     send = MAX31725_REG_TEMP;
-    retval = I2cSendCommand(PACBOARD_TEMP_PORT, PACBOARD_TEMP_ADDRESS, &send,1,&localTemp,2);
+    retval = I2cSendCommand(PACBOARD_TEMP_PORT, tempAddr[sensor], &send,1,&localTemp,2);
     *temp = localTemp >> 4; //Only 12 bits.
     return retval;
 }
-bool Get8BitTemp31725(uint8_t *temp8){
+bool Get8BitTemp31725(TempSensor sensor,uint8_t *temp8){
     int16_t temp;
     uint8_t utemp;
-    bool fract,stat = GetTemp31725(&temp);
+    bool fract,stat = GetTemp31725(sensor,&temp);
     if(!stat)temp = 0xFFFF;
     /*
      *   Here is where we turn the 12 bit temp into

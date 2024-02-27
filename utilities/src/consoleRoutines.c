@@ -18,6 +18,7 @@
 #include "LinearInterp.h"
 #include "inet.h"
 #include "adc.h"
+#include "I2cPoll.h"
 
 
 extern rt1Errors_t localErrorCollection;
@@ -61,9 +62,9 @@ void receiveLine(COM_NUM ioCom, char *commandString, char prompt, bool echo) {
     int charNum = 0;
     const char deleteString[4] = { '\b', ' ', '\b', 0 }; // Back overwrite space, back
     int escSeq=0;
-//    if(!CheckMRAMVersionNumber()){
-//        printf("\n ***MRAM format has changed\n ***Command 'preflight init' or 'init mram' required!\n");
-//    }
+    if(!CheckMRAMVersionNumber()){
+        printf("\n ***MRAM format has changed\n ***Command 'preflight init' or 'init mram' or 'init new proc' required!\n");
+    }
     if (echo)
         printf("");
     SerialPutChar(ioCom, prompt, 0);
@@ -158,8 +159,8 @@ void DisplayTelemetry(uint32_t typeRequested){
          */
         int i;
         printf("I2c device state:\n"
-                "    PacSat Board Temp: %d, RealTimeClock: %d\n",
-                RTTempIsOk(),RTCIsOk());
+                "    PacSat CPU Temp: %d, Transmitter Temp: %d, RealTimeClock: %d\n",
+                CpuTempIsOk(),TxTempIsOk(),RTCIsOk());
 
         printf("MRAM State Values:\n\r"
                 " CommandedSafeMode=%d,Autosafe=%d\n\r"

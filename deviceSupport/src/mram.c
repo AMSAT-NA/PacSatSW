@@ -12,7 +12,6 @@
 #include "nonvol.h"
 #include "spiDriver.h"
 #include "errors.h"
-#include "CANSupport.h"
 #include "MET.h"
 #include "MRAMmap.h"
 #include "nonvolManagement.h"
@@ -24,7 +23,7 @@
  * remove any code for 2-byte addresses.
  */
 #ifdef UNDEFINE_BEFORE_FLIGHT
-static uint32_t MRAMAddressBytes=3;
+static uint32_t MRAMAddressBytes=0;
 #else
 #define MRAMAddressBytes 3
 #endif
@@ -72,7 +71,6 @@ bool MRAMWake(int mramNum)
     return SPISendCommand(MRAM_Devices[mramNum], command.word, 1,
                           NULL, 0, NULL, 0);
 }
-
 uint8_t readMRAMStatus(int mramNum)
 {
     /*
@@ -85,22 +83,31 @@ uint8_t readMRAMStatus(int mramNum)
     if (mramNum >= PACSAT_MAX_MRAMS)
         return false;
     command.byte[0] = FRAM_OP_RDSR;
+
     SPISendCommand(MRAM_Devices[mramNum], command.word, 1, 0, 0, &data, 1);
     SPISendCommand(MRAM_Devices[mramNum], command.word, 1, 0, 0, &data, 1);
     return data;
+
 }
 
 bool writeEnableMRAM(int mramNum)
 {
     ByteToWord command;
+    bool retVal;
+    uint8_t status;
 
     if (mramNum >= PACSAT_MAX_MRAMS)
         return false;
 
     command.byte[0] = FRAM_OP_WREN;
-    /* Write enable */
-    return SPISendCommand(MRAM_Devices[mramNum], command.word,
+    /* Allow writing to the status register */
+    retVal = SPISendCommand(MRAM_Devices[mramNum], command.word,
                           1, NULL, 0, NULL, 0);
+    status = MRAM_STATUS_ADDR_MASK & readMRAMStatus(mramNum);
+    status |= MRAM_STATUS_WEL;  // Pay attention to write enable bits
+    status &= ~MRAM_STATUS_WPROT; // Clear the write protect bits
+    writeMRAMStatus(mramNum,status);
+    return retVal;
 }
 
 void writeMRAMStatus(int mramNum, uint8_t status)
@@ -122,7 +129,7 @@ int getMRAMPartitionSize(int partition)
     if (partition < 0 || partition >= MAX_MRAM_PARTITIONS)
         return 0;
     if (!numberOfMRAMs) {
-        if (initMRAM() == 0)
+        if (initMRAM(true) == 0)
             return 0;
     }
     return mramPartitionSize[partition];
@@ -328,7 +335,7 @@ int getMRAMSize(int mramNum)
 
 }
 #ifdef UNDEFINE_BEFORE_FLIGHT
-static int findMRAMAddressSize(){
+static int findMRAMAddressSize(int mramNumber){
     /*
      * This routine calculates by writing values in weird places (see comments) whether we have a 2
      * byte address scheme or 3.  FOr the flight model, it will be 3 so we will skip this code.
@@ -336,6 +343,7 @@ static int findMRAMAddressSize(){
      * one of them is MRAM0.
      */
     ByteToWord mramAddr;
+    SPIDevice thisMRAM = (SPIDevice)mramNumber; //The numbers 0-3 happen to match the SPIDevice.
     uint8_t size=0;
     uint32_t value[2];
     mramAddr.word=0; //Set all 4 bytes to 0
@@ -343,7 +351,7 @@ static int findMRAMAddressSize(){
     mramAddr.byte[3] = 2;
     value[0] = 0x12345678;
     value[1] = 0xfedc;
-    SPISendCommand(MRAM0Dev, mramAddr.word, 4,
+    SPISendCommand(thisMRAM, mramAddr.word, 4,
                    value, 4,
                    0,0);
     /*
@@ -355,25 +363,31 @@ static int findMRAMAddressSize(){
     mramAddr.word = 0;
     value[0]=value[1]=0;
     mramAddr.byte[0] = FRAM_OP_READ;
-    SPISendCommand(MRAM0Dev, mramAddr.word, 4, NULL,0, &value[0], (uint16_t) 8);
+    SPISendCommand(thisMRAM, mramAddr.word, 4, NULL,0, &value[0], (uint16_t) 8);
 /////////////////////////////////////////////
     printf("Value = %x\n",value);
     if((value[0] & 0xffff)== 0x1234){
         // As we see above, only a 3-byte address will have this number in the least significant 2 bytes.
         // (Remember it is big endian)
         size = 3;
-        writeMRAMStatus(0,MRAM_STATUS_ADDR_3); // Remember the size in unused bits in the status register
+        writeMRAMStatus(mramNumber,MRAM_STATUS_ADDR_3); // Remember the size in unused bits in the status register
     }
     else {
         size = 2;
-        writeMRAMStatus(0,MRAM_STATUS_ADDR_2); // Remember the size in unused bits in the sr.
+        writeMRAMStatus(mramNumber,MRAM_STATUS_ADDR_2); // Remember the size in unused bits in the sr.
     }
     return size;
 }
 #endif
 int getMRAMAddressSize(){
 #ifdef UNDEFINE_BEFORE_FLIGHT
-    uint8_t stat = readMRAMStatus(0);
+    int i; // This is the MRAM we are using to find the addr size
+    uint8_t stat;
+    for(i=0;i<PACSAT_MAX_MRAMS;i++){
+        stat=readMRAMStatus(i);
+        if (stat != 0xff)break; //Find the first MRAM that works
+    }
+    if(i==PACSAT_MAX_MRAMS)return 0; //Did not find a good one
     // If it has been initialized, the address size is in the status register
     // Otherwise, we have to figure out the address size and put it there.
     stat = stat & MRAM_STATUS_ADDR_MASK;
@@ -382,27 +396,32 @@ int getMRAMAddressSize(){
     } else if (stat == MRAM_STATUS_ADDR_3){
         return 3;
     } else {
-        return findMRAMAddressSize();
+        writeEnableMRAM(i);
+        return findMRAMAddressSize(i);
     }
 #else
     return MRAMAddressBytes; // This will be a constant if UNDEFINE_BEFORE_FLIGHT is undefined
 #endif
 }
-int initMRAM()
+int initMRAM(bool newDevice)
 {
     // Initialize status register to 0 so there are no memory banks write protected
     int i, size;
 
-    /* Already initialized. */
-    if (numberOfMRAMs)
-    return totalMRAMSize;
-    writeEnableMRAM(0);
+    /*
+     * Do we need to re-initialize?  newDevice means that we will recalculate the address size and
+     * length even if the numberOfMRAMs has been already written.  (This is for "init new device"
+     * for example.
+     */
+    if ((!newDevice) && (numberOfMRAMs!=0))
+        return totalMRAMSize;
 #ifdef UNDEFINE_BEFORE_FLIGHT
     MRAMAddressBytes = getMRAMAddressSize();
 #endif
     size=0;
     for (i=0; i<PACSAT_MAX_MRAMS; i++) {
-        size += MRAMSize[i] = getMRAMSize(MRAM_Devices[i]);
+
+        size += MRAMSize[i] = getMRAMSize(MRAM_Devices[i]); //GetMRAMSize also write enables them
         if (MRAMSize[i] != 0)
             numberOfMRAMs++;
     }

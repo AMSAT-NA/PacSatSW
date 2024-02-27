@@ -26,6 +26,7 @@
 /* HALCoGen Includes */
 #include "spi.h"
 #include "gio.h"
+#include "het.h"
 
 #define SPI_SELECT 0
 #define SPI_DESELECT 1
@@ -83,50 +84,77 @@ SPIBusData bus1Data,bus2Data,bus3Data,bus4Data,bus5Data;
 #endif
 static SPIDevInfo SPIMram0Device={
                                  SPI_MRAM_Reg,
-                                 SPI_MRAM_Select_Port,
+                                 SPI_MRAM02_Select_Port,
                                  {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
                                  &bus1Data,
                                  SPI_MRAM0_Select_Pin //chipSelect
 };
 static SPIDevInfo SPIMram1Device={
                                  SPI_MRAM_Reg,
-                                 SPI_MRAM_Select_Port,
+                                 SPI_MRAM1_Select_Port,
                                  {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
                                  &bus1Data,
                                  SPI_MRAM1_Select_Pin //chipSelect
 };
 static SPIDevInfo SPIMram2Device={
                                  SPI_MRAM_Reg,
-                                 SPI_MRAM_Select_Port,
+                                 SPI_MRAM02_Select_Port,
                                  {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
                                  &bus1Data,
                                  SPI_MRAM2_Select_Pin //chipSelect
 };
 static SPIDevInfo SPIMram3Device={
                                  SPI_MRAM_Reg,
-                                 SPI_MRAM_Select_Port,
+                                 SPI_MRAM3_Select_Port,
                                  {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
                                  &bus1Data,
                                  SPI_MRAM3_Select_Pin //chipSelect
 };
 
-static SPIDevInfo SPIDCT0Device={
+static SPIDevInfo SPIRx1DCTDevice={
                                 SPI_DCT_Reg,
                                 SPI_DCT_Select_Port,
                                 {
                                  .WDEL = false, .DFSEL = SPI_DCT_Data_Format
                                 },
                                 &bus3Data,
-                                SPI_DCT0_Select_Pin
+                                SPI_Rx1DCT_Select_Pin
 };
-static SPIDevInfo SPIDCT1Device={
+static SPIDevInfo SPIRx2DCTDevice={
                                 SPI_DCT_Reg,
                                 SPI_DCT_Select_Port,
                                 {
                                  .WDEL = false, .DFSEL = SPI_DCT_Data_Format
                                 },
                                 &bus3Data,
-                                SPI_DCT1_Select_Pin
+                                SPI_Rx2DCT_Select_Pin
+};
+static SPIDevInfo SPIRx3DCTDevice={
+                                SPI_DCT_Reg,
+                                SPI_DCT_Select_Port,
+                                {
+                                 .WDEL = false, .DFSEL = SPI_DCT_Data_Format
+                                },
+                                &bus3Data,
+                                SPI_Rx3DCT_Select_Pin
+};
+static SPIDevInfo SPIRx4DCTDevice={
+                                SPI_DCT_Reg,
+                                SPI_DCT_Select_Port,
+                                {
+                                 .WDEL = false, .DFSEL = SPI_DCT_Data_Format
+                                },
+                                &bus3Data,
+                                SPI_Rx4DCT_Select_Pin
+};
+static SPIDevInfo SPITxDCTDevice={
+                                SPI_DCT_Reg,
+                                SPI_DCT_Select_Port,
+                                {
+                                 .WDEL = false, .DFSEL = SPI_DCT_Data_Format
+                                },
+                                &bus3Data,
+                                SPI_TxDCT_Select_Pin
 };
 
 static const SPIDevInfo *SPIDevInfoStructures[] = {
@@ -134,8 +162,11 @@ static const SPIDevInfo *SPIDevInfoStructures[] = {
                                                    ,&SPIMram1Device
                                                    ,&SPIMram2Device
                                                    ,&SPIMram3Device
-                                                   ,&SPIDCT0Device
-                                                   ,&SPIDCT1Device
+                                                   ,&SPIRx1DCTDevice
+                                                   ,&SPIRx2DCTDevice
+                                                   ,&SPIRx3DCTDevice
+                                                   ,&SPIRx4DCTDevice
+                                                   ,&SPITxDCTDevice
 };
 
 /*

@@ -43,6 +43,8 @@
 #define MRAM_STATUS_ADDR_MASK 0x73
 #define MRAM_STATUS_ADDR_2 0x23
 #define MRAM_STATUS_ADDR_3 0x32
+#define MRAM_STATUS_WEL 0x2 /*Pay attention to write protect bits*/
+#define MRAM_STATUS_WPROT 0xC /*These bits clear to enable all banks in MRAM */
 
 /*
  * Size of partition 0.  This is the partition used by non-volatile
@@ -53,7 +55,7 @@
 #define MRAM_PARTITION_0_SIZE sizeof(MRAMmap_t)
 
 /* Initialize the MRAM system. */
-int initMRAM(void);
+int initMRAM(bool newDevice);
 
 /*
  * Address the MRAM data by partition.  The MRAM code makes all the

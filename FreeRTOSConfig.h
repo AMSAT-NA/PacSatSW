@@ -100,7 +100,8 @@
 #define configMAX_PRIORITIES		  			( 8 )
 #define configMINIMAL_STACK_SIZE	  			( ( unsigned short ) 128 )
 //#define configTOTAL_HEAP_SIZE		  			( ( size_t ) 32768 ) //Default
-#define configTOTAL_HEAP_SIZE                   ( ( size_t ) (2*65536 )) /*BF Changed*/
+//#define configTOTAL_HEAP_SIZE                   ( ( size_t ) (2*65536 )) /*BF Changed*/
+#define configTOTAL_HEAP_SIZE                   ( ( size_t ) (65536 + 20000)) /*N5BRG Changed 240116*/
 #define configMAX_TASK_NAME_LEN		  			( 16 )
 #define configIDLE_SHOULD_YIELD		  			1
 #define configGENERATE_RUN_TIME_STATS 			0

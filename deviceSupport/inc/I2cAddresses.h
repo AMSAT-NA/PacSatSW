@@ -12,7 +12,8 @@
 #define ICRTELEMETRY_H_
 #include <pacsat.h>
 
-#define PACBOARD_TEMP_ADDRESS (0x90 >> 1) /* 7-bit address mode */
+#define PACBOARD_CPU_TEMP_ADDRESS (0x92 >> 1) /* 7-bit address mode */
+#define PACBOARD_TX_TEMP_ADDRESS (0x90 >> 1) /* 7-bit address mode */
 #define PACBOARD_TEMP_PORT I2C1
 
 #define RTC_ADDRESS (0xD0 >> 1) /* 7-bit address mode */

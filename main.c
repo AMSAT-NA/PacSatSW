@@ -38,6 +38,7 @@
 #include "TMS570Hardware.h"
 #include "spiDriver.h"
 #include "i2cDriver.h"
+#include "I2cPoll.h"
 #include "gpioDriver.h"
 #include "Max31331Rtc.h"
 #include "ConsoleTask.h"
@@ -49,17 +50,18 @@
 #include "UplinkTask.h"
 #include "TelemAndControlTask.h"
 #include "pacsat_dir.h"
+#include "hardwareConfig.h"
 //#include "TelemetryRadio.h"
 #include "RTISetup.h"
 #include "nonvol.h"
 #include "canID.h"
-#include "CANSupport.h"
 #include "Max31725Temp.h"
 #include "GPIO9539.h"
 #include "errors.h"
 #include "nonvolManagement.h"
 #include "consoleRoutines.h"
 #include "redposix.h"
+#include "reg_sci.h"
 
 /* Only needed for test routines */
 #include "ax25_util.h"
@@ -116,6 +118,19 @@ void startup(void)
     sciInit();
     sciDisableNotification(sciREG,SCI_TX_INT | SCI_RX_INT); // No interrupts before we start the OS
     sciSetBaudrate(sciREG, COM2_BAUD);
+
+    //GPIO Easy Inits can be done before the OS is started
+    GPIOEzInit(LED1);
+    GPIOEzInit(LED2);
+    GPIOEzInit(LED3);
+    GPIOSetOff(LED1);
+    GPIOSetOff(LED2);
+    GPIOSetOff(LED3);
+    GPIOEzInit(SSPAPower);
+    GPIOEzInit(AX5043Power);
+
+    GPIOToggle(LED1);
+    sciSend(sciREG,38,"Starting a test on the SCI register\r\n");
     i2cInit();
     spiInit();
     adcInit();
@@ -124,15 +139,33 @@ void startup(void)
      * and drivers running.  Here, SPI chip select gios require their direction to be set and
      * raised to high (not selected)
      */
-    gioSetDirection(gioPORTB,6);
-    gioSetBit(gioPORTB,1,1);
-    gioSetBit(gioPORTB,2,1);
-    gioSetDirection(spiPORT1,7); // Make chip select pins be output
-    gioSetDirection(spiPORT3,7); //
-    gioSetDirection(spiPORT5,7); //
+    //MRAM
+
+    gioSetDirection(spiPORT1,1U<<0 || 1U<<2); // Make chip select pins be output
+    gioSetDirection(spiPORT3,1); // Make chip select pins be output
+    gioSetDirection(spiPORT5,1); //
+    gioSetBit(spiPORT1,0,1);
+    gioSetBit(spiPORT1,2,1);  //Set chip selects high just in case
     gioSetBit(spiPORT3,0,1);
-    gioSetBit(spiPORT3,1,1);  //Set chip selects high just in case
-    gioSetBit(spiPORT3,2,1);
+    gioSetBit(spiPORT5,0,1);  //Set chip selects high just in case
+    //
+    // Need to do the 5043 bits too.  Especially doing these here since we don't use
+    // HET2 and thus have no initHET routine from HCG.  Why does "set direction" what the entire
+    // register, while SetBit takes the bit number?
+    //
+    gioSetDirection(SPI_DCT_Select_Port,
+        (1U<<SPI_Rx1DCT_Select_Pin)  |
+        (1U<<SPI_Rx2DCT_Select_Pin)  |
+        (1U<<SPI_Rx3DCT_Select_Pin)  |
+        (1U<<SPI_Rx4DCT_Select_Pin)  |
+        (1U<<SPI_TxDCT_Select_Pin));
+
+    gioSetBit(SPI_DCT_Select_Port,SPI_Rx1DCT_Select_Pin,1); // Make chip select pins be high
+    gioSetBit(SPI_DCT_Select_Port,SPI_Rx2DCT_Select_Pin,1); // Make chip select pins be high
+    gioSetBit(SPI_DCT_Select_Port,SPI_Rx3DCT_Select_Pin,1); // Make chip select pins be high
+    gioSetBit(SPI_DCT_Select_Port,SPI_Rx4DCT_Select_Pin,1); // Make chip select pins be high
+    gioSetBit(SPI_DCT_Select_Port,SPI_TxDCT_Select_Pin,1); // Make chip select pins be high
+
     /*
      * RTI is used by FreeRTOS as its clock and also by the watchdog as its counter.
      * FreeRTOS uses counter 0, compare 0 for its interrupt.  Let's start the counter
@@ -147,16 +180,9 @@ void startup(void)
      */
 
     _enable_interrupt_();
-#ifdef HET
-    HetUARTSetBaudrate(hetRAM1,COM1_BAUD);
-#endif
     /* Serial port and LEDs */
-    hetREG1->DIR=0x00000017; //We want them to start out as output, I suppose.
-    hetREG1->DOUT=0x00000017;
-
-    //Probably not used for pacsat
-    MyLocalCanID = RTIHU_Primary;
-    PartnerLocalCanID = RTIHU_Secondary;
+    //hetREG1->DIR=0x00000017; //We want them to start out as output, I suppose.
+    //hetREG1->DOUT=0x00000017;
 
     xTaskCreate(ConsoleTask, "Console", CONSOLE_STACK_SIZE,
                 NULL,CONSOLE_PRIORITY, NULL);
@@ -200,24 +226,26 @@ void ConsoleTask(void *pvParameters){
 
     // Initialize the SPI driver for our SPI devices
 
-    SPIInit(DCTDev0); // This is the receiver on VHF on the Pacsat Booster Board
-    SPIInit(DCTDev1); // This is the transmitter on UHF
+    SPIInit(Rx1DCTDev); // This is the receiver on VHF on the Pacsat Booster Board
+    SPIInit(Rx2DCTDev); // This is the receiver on VHF on the Pacsat Booster Board
+    SPIInit(Rx3DCTDev); // This is the receiver on VHF on the Pacsat Booster Board
+    SPIInit(Rx4DCTDev); // This is the receiver on VHF on the Pacsat Booster Board
+    SPIInit(TxDCTDev); // This is the transmitter on UHF
     SPIInit(MRAM0Dev);
     SPIInit(MRAM1Dev);
     SPIInit(MRAM2Dev);
     SPIInit(MRAM3Dev);
-    initMRAM();
+    initMRAM(false);
     initMET();
     I2cInit(I2C1);
-    I2cInit(I2C2);
-    GPIOEzInit(LED1);
-    GPIOEzInit(LED2);
-    GPIOInit(DCTInterrupt,ToRxTask,DCTInterruptMsg,None);
+    GPIOInit(Rx0DCTInterrupt,ToRxTask,Rx0DCTInterruptMsg,None);
+    GPIOInit(Rx1DCTInterrupt,ToRxTask,Rx1DCTInterruptMsg,None);
+    GPIOInit(Rx2DCTInterrupt,ToRxTask,Rx2DCTInterruptMsg,None);
+    GPIOInit(Rx3DCTInterrupt,ToRxTask,Rx3DCTInterruptMsg,None);
+    GPIOInit(TxDCTInterrupt,ToTxTask,TxDCTInterruptMsg,None);
     /* Poll the I2C devices to see which are working.
      * This also calls the init routine for the temperature device */
     I2CDevicePoll();
-
-
 
     /*
      * The rest of the code in the Console task that is in this module is just testing devices.
@@ -272,8 +300,7 @@ void ConsoleTask(void *pvParameters){
 #endif
 
 
-    //////////////////////////////////////// Deployables //////////////////////////////////////////////////
-
+#if 1
     /* Load the directory from MRAM and perform some integrity checks */
     int32_t ret = dir_check_folders();
     if (ret == -1) {
@@ -285,6 +312,7 @@ void ConsoleTask(void *pvParameters){
         debug_print("ERROR: Could not load the directory from MRAM\n");
         // TODO - bad or fatal - need to handle or log this error
     }
+
     xTaskCreate(CommandTask, "Command", COMMAND_STACK_SIZE,
                  NULL,COMMAND_PRIORITY, NULL);
     xTaskCreate(RxTask,"RxTask",RX_STACK_SIZE, NULL, RX_PRIORITY,NULL);
@@ -293,13 +321,13 @@ void ConsoleTask(void *pvParameters){
     xTaskCreate(UplinkTask,"UplinkTask",UPLINK_STACK_SIZE, NULL, UPLINK_PRIORITY,NULL);
     xTaskCreate(TxTask,"TxTask",RADIO_STACK_SIZE, NULL,TX_PRIORITY,NULL);
     xTaskCreate(TelemAndControlTask,"Telem and Control Task",TELEMETRY_STACK_SIZE, NULL,TELEMETRY_PRIORITY,NULL);
-
+#endif
     debug_print("Free heap size after tasks launched: %d\n",xPortGetFreeHeapSize());
 
     //AlertFlashingWait(CENTISECONDS(50),CENTISECONDS(10),CENTISECONDS(3));
     AllTasksStarted = true;
     StartStableCount();
-
+#if 0
     bool rtc = InitRtc31331();
     if (rtc == FALSE) {
         debug_print("*** NO RTC: SET THE UNIX TIME BEFORE UPLOADING ANY TEST FILES ***\n");
@@ -309,7 +337,7 @@ void ConsoleTask(void *pvParameters){
         rtc = GetRtcTime31331(&utime);
         setUnixTime(utime);
     }
-
+#endif
     // Now head off to do the real work of the console task
     RealConsoleTask();
 }

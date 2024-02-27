@@ -15,7 +15,6 @@
 #include "nonvol.h"
 #include "spiDriver.h"
 #include "errors.h"
-#include "CANSupport.h"
 
 bool writeNV(void const * const data, uint32_t dataLength, NVType type,
 	     uint32_t nvAddress)

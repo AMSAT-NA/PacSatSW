@@ -75,7 +75,7 @@ static void* H(const void* x,
                const size_t ylen,
                void* out,
                const size_t outlen) {
-  void* result;
+  //void* result;
   size_t sz;
   Sha256Context ctx;
   SHA256_HASH hash;

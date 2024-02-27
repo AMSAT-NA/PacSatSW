@@ -12,7 +12,6 @@
 #include "nonvolManagement.h"
 #include "nonvol.h"
 #include "spiDriver.h"
-#include "CANSupport.h"
 
 static const MRAMmap_t *ptr = (MRAMmap_t *) 0;
 
@@ -309,12 +308,12 @@ uint32_t ReadMRAMTimeout(TimeoutType type){
     READ_UINT32(TimeoutTimes[type],0);
 }
 
-void WriteMRAMCommandFreq(uint32_t freq){
-    WRITE_UINT32(DCTRxFrequency,freq);
+void WriteMRAMReceiveFreq(uint8_t rxNum,uint32_t freq){
+    WRITE_UINT32(DCTRxFrequency[rxNum],freq);
  }
 
-uint32_t ReadMRAMCommandFreq(void){
-    READ_UINT32(DCTRxFrequency,DCT_DEFAULT_RX_FREQ);
+uint32_t ReadMRAMReceiveFreq(uint8_t rxNum){
+    READ_UINT32(DCTRxFrequency[rxNum],DCT_DEFAULT_RX_FREQ);
 }
 void WriteMRAMTelemFreq(uint32_t freq){
     WRITE_UINT32(DCTTxFrequency,freq);
@@ -442,7 +441,10 @@ void IHUInitSaved(void){
      * we don't want to change each time we do a preflight init.  This sets them to a default
      * value that has to be tweaked for each processor (or each DCT in this case)
      */
-    WriteMRAMCommandFreq(DCT_DEFAULT_RX_FREQ);
+    uint8_t i;
+    for(i=0;i<4;i++){
+        WriteMRAMReceiveFreq(i,DCT_DEFAULT_RX_FREQ);
+    }
     WriteMRAMTelemFreq(DCT_DEFAULT_TX_FREQ);
     WriteMRAMDCTDriveHighPower(DCT_DEFAULT_HIGH_POWER);
     WriteMRAMDCTDriveLowPower(DCT_DEFAULT_LOW_POWER);

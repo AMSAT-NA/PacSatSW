@@ -40,7 +40,7 @@ static bool Rxing[NUM_AX5043_SPI_DEVICES+4];
 static bool Txing[NUM_AX5043_SPI_DEVICES+4];
 
 /* This lookup table returns the SPIDevice id for a given AX5043Device id */
-static SPIDevice ax5043_spi_devices[] = {DCTDev0,DCTDev1};
+static SPIDevice ax5043_spi_devices[] = {Rx1DCTDev,Rx2DCTDev,Rx3DCTDev,Rx4DCTDev,TxDCTDev};
 
 bool IsRxing(AX5043Device device){
     return Rxing[device];

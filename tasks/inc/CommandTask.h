@@ -14,7 +14,6 @@ void CommandTask(void *pvParameters);
 
 #include <pacsat.h> /* Must precede stdio */
 #include "UplinkCommands.h"
-#include "canDriver.h"
 
 bool DecodeSoftwareCommand(SWCmdUplink *softwareCommand);
 bool CorrelateSync(uint32_t data);
@@ -29,7 +28,6 @@ void EnableCommandPrint(bool enable);
 
 void NoCommandTimeoutCallback(void);
 void NoTimedSWCommandTimeoutCallback(void);
-void incomingRFSoftwareCommand(CANPacket_t *packet);
 
 uint8_t GetHWCmdCount(void);
 uint8_t GetSWCmdCount(void);
