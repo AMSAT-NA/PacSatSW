@@ -1056,8 +1056,14 @@ void RealConsoleTask(void)
         }
 
         case getRSSI:{
-            int rssi = get_rssi(AX5043Dev0);
-            printf("RSSI is %d dBm\n",((int16_t)rssi) - 255);
+            uint8_t devb = parseNumber(afterCommand);
+            if(devb >= InvalidAX5043Device){
+                printf("Give a device number between 0 and 4\n");
+                break;
+            }
+            AX5043Device dev = (AX5043Device)devb;
+            int rssi = get_rssi(dev);
+            printf("AX5043 Dev: %d RSSI is %02x = %d dBm\n",dev,rssi,((int16_t)rssi) - 255);
             break;
         }
         case testRxFreq: {

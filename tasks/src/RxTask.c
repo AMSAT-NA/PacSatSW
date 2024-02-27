@@ -33,7 +33,7 @@ static uint8_t PAPowerFlagCnt=0,DCTPowerFlagCnt=0;
 static rx_radio_buffer_t rx_radio_buffer; // static buffer to store the channel and received bytes from the radio
 static rx_radio_buffer_t EMPTY_RADIO_BUFFER;
 //static uint8_t axradio_rxbuffer[AX25_PKT_BUFFER_LEN];  ******************** HERE WE ARE - REMOVING THIS
-static AX5043Device device = AX5043Dev0;
+static AX5043Device device = AX5043Dev3;
 extern bool monitorPackets;
 
 portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
@@ -91,6 +91,7 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
             }
 
         if (status==1) { // We received a message
+            debug_print("AX5043 Message %d\n",messageReceived.MsgType);
             switch(messageReceived.MsgType){
             case DCTPowerFlagMsg:
                 debug_print("AX5043 Power Interrupted\n");
@@ -101,7 +102,7 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
                 PAPowerFlagCnt++;
                 break;
 
-            case Rx0DCTInterruptMsg:
+            case Rx3DCTInterruptMsg:
 
                 if ((ax5043ReadReg(device, AX5043_PWRMODE) & 0x0F) == AX5043_PWRSTATE_FULL_RX) {
 

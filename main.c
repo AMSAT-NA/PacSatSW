@@ -247,8 +247,6 @@ void ConsoleTask(void *pvParameters){
      * This also calls the init routine for the temperature device */
     I2CDevicePoll();
 
-
-
     /*
      * The rest of the code in the Console task that is in this module is just testing devices.
      * This is likely to disappear after we are comfortable with the stability of everything.
