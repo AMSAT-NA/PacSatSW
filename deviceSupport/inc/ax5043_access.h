@@ -22,9 +22,9 @@ typedef enum {AX5043Dev0 = 0,AX5043Dev1,AX5043Dev2,AX5043Dev3,AX5043Dev4,Invalid
 #define RX4_DEVICE AX5043Dev3
 
 bool IsRxing(AX5043Device device);
-void ax5043StartRx(AX5043Device device);
+void ax5043StartRx(AX5043Device device, bool antenna_differential);
 void ax5043StopRx(AX5043Device device);
-void ax5043StartTx(AX5043Device device);
+void ax5043StartTx(AX5043Device device, bool antenna_differential);
 void ax5043StopTx(AX5043Device device);
 void ax5043PowerOn(AX5043Device device);
 void ax5043PowerOff(AX5043Device device);

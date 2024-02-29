@@ -98,7 +98,7 @@ static const int8_t  axradio_phy_rssireference = 57;// 0xF9 + 64;
  * FIRST ALL OF THE SETTINGS THAT ARE COMMON TO BOTH BANDS AND FOR RX AND TX
  * Set all of the base registers
  */
-static void ax5043_ax25_set_registers(AX5043Device device, bool band_vhf, bool rate_9600) {
+static void ax5043_ax25_set_registers(AX5043Device device, bool band_vhf, bool rate_9600, bool antenna_differential) {
 
     if (rate_9600) {
         /* NOTE that 0x07 GMSK does not work on receive.  Use GFSK 0x08 with BT = 0.5.  This works better than 0.3 for RX.
@@ -408,9 +408,11 @@ static void ax5043_ax25_set_registers(AX5043Device device, bool band_vhf, bool r
       ax5043WriteReg(device, AX5043_FSKDEV0                 ,0x8E);
   }
   /* Sets up ANTENNA, MODCFGA sets bit shape as well */
-  ax5043WriteReg(device, AX5043_MODCFGA                 ,0x05); // TX differential antenna
-  //ax5043WriteReg(device, AX5043_MODCFGA                 ,0x06); // TX Single ended through antenna
-
+  if (antenna_differential) {
+      ax5043WriteReg(device, AX5043_MODCFGA                 ,0x05); // TX differential antenna
+  } else {
+      ax5043WriteReg(device, AX5043_MODCFGA                 ,0x06); // TX Single ended through antenna
+  }
   /* TXRATE = BITRATE/Fxtal * 2^24 + 1/2
    * Where Fxtal = 16,000,000
    */
@@ -550,8 +552,8 @@ static void ax5043_ax25_set_registers(AX5043Device device, bool band_vhf, bool r
 
 }
 
-static void ax5043_ax25_init_registers(AX5043Device device, bool band_vhf, bool rate_9600) {
-    ax5043_ax25_set_registers(device, band_vhf, rate_9600);
+static void ax5043_ax25_init_registers(AX5043Device device, bool band_vhf, bool rate_9600, bool antenna_differential) {
+    ax5043_ax25_set_registers(device, band_vhf, rate_9600, antenna_differential);
 
 #ifdef LEGACY_GOLF
     uint8_t regValue;
@@ -731,7 +733,7 @@ uint8_t ax5043_receiver_on_continuous(AX5043Device device) {
  * If everything works it returns success - AXRADIO_ERR_NOERROR
  *
  */
-uint8_t axradio_init(AX5043Device device, bool band_vhf, int32_t freq, bool rate_9600) {
+uint8_t axradio_init(AX5043Device device, bool band_vhf, int32_t freq, bool rate_9600, bool antenna_differential) {
     //printf("Inside axradio_init_70cm\n");
 
     /* Store the current state and reset the radio.  This makes sure everything is
@@ -741,7 +743,7 @@ uint8_t axradio_init(AX5043Device device, bool band_vhf, int32_t freq, bool rate
     if (ax5043_reset(device)) // this also confirms that we can read/write to the chip
         return AXRADIO_ERR_NOCHIP;
 
-    ax5043_ax25_init_registers(device, band_vhf, rate_9600);
+    ax5043_ax25_init_registers(device, band_vhf, rate_9600, antenna_differential);
     ax5043_ax25_set_registers_tx(device, band_vhf, rate_9600);
 
     /* Setup for PLL ranging to make sure we can lock onto the requested frequency */
@@ -750,7 +752,7 @@ uint8_t axradio_init(AX5043Device device, bool band_vhf, int32_t freq, bool rate
 
     // range all channels
     ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_XTAL_ON);
-    ax5043WriteReg(device, AX5043_MODULATION              ,0x08); // GOLF uses 08.  It should not matter as just fopr ranging.  07 is FSK. 0A is AFSK.  0x04 is PSK
+    ax5043WriteReg(device, AX5043_MODULATION              ,0x08); // GOLF uses 08.  It should not matter as just for ranging.  07 is FSK. 0A is AFSK.  0x04 is PSK
     // The freq dev be set to zero values here to make ranging work better
     ax5043WriteReg(device, AX5043_FSKDEV2                 ,0x00);
     ax5043WriteReg(device, AX5043_FSKDEV1                 ,0x00);
@@ -849,7 +851,7 @@ uint8_t axradio_init(AX5043Device device, bool band_vhf, int32_t freq, bool rate
 #endif
 
     ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_POWERDOWN);
-    ax5043_ax25_init_registers(device, band_vhf, rate_9600);
+    ax5043_ax25_init_registers(device, band_vhf, rate_9600, antenna_differential);
     ax5043_ax25_set_registers_rx(device, band_vhf, rate_9600);  // TODO - G0KLA - why is this RX?  Both TX and RX ranging is run??
     ax5043WriteReg(device, AX5043_PLLRANGINGA, axradio_phy_chanpllrng[0] & 0x0F);
 
@@ -984,7 +986,7 @@ uint8_t axradio_get_pllvcoi(AX5043Device device)
 }
 
 
-void start_ax25_rx(AX5043Device device, bool rate_9600) {
+void start_ax25_rx(AX5043Device device, bool rate_9600, bool antenna_differential) {
     uint32_t freq;
     int status = 0;
     bool band_vhf = FALSE;
@@ -995,7 +997,7 @@ void start_ax25_rx(AX5043Device device, bool rate_9600) {
     //uint8_t retVal;
     ax5043WriteReg(device, AX5043_PINFUNCIRQ, 0x0); //disable IRQs
 //    debug_print("In start_rx, Setting freq to %d\n", freq); //DEBUG RBG
-    if ((status = axradio_init(device, band_vhf, freq, rate_9600)) != AXRADIO_ERR_NOERROR) {
+    if ((status = axradio_init(device, band_vhf, freq, rate_9600, antenna_differential)) != AXRADIO_ERR_NOERROR) {
         printf("ERROR: In start_rx, axradio_init returned: %d\n", status);
     }
 
@@ -1011,7 +1013,7 @@ void start_ax25_rx(AX5043Device device, bool rate_9600) {
 
 }
 
-void start_ax25_tx(AX5043Device device, bool rate_9600) {
+void start_ax25_tx(AX5043Device device, bool rate_9600, bool antenna_differential) {
     uint16_t irqreq;
     uint16_t irqs = 0;
     uint32_t freq;
@@ -1027,7 +1029,7 @@ void start_ax25_tx(AX5043Device device, bool rate_9600) {
   //printf("Disabling IRQs\n");
   ax5043WriteReg(device, AX5043_PINFUNCIRQ, 0x0); //disable IRQs
 //  debug_print("In start_tx, Setting freq to %d\n", freq); //DEBUG RBG
-  if ((status = axradio_init(device, band_vhf, freq, rate_9600)) != AXRADIO_ERR_NOERROR) {
+  if ((status = axradio_init(device, band_vhf, freq, rate_9600, antenna_differential)) != AXRADIO_ERR_NOERROR) {
       printf("ERROR: In start_tx, axradio_init_70cm returned: %d", status);
       // TODO - what do we do if this error is returned?  Wait and try again?  Same issue for RX
   }
@@ -1155,12 +1157,12 @@ void quick_setfreq(AX5043Device device, int32_t f) {
   ax5043WriteReg(device, AX5043_FREQA3, f1 >> 24);
 }
 
-void test_rx_freq(AX5043Device device, uint32_t freq) {
+void test_rx_freq(AX5043Device device, uint32_t freq, bool antenna_differential) {
     ax5043PowerOn(device);
 
      printf("Transmitting on receive freq: %d\n", freq);
 
-     uint8_t retVal = axradio_init(device, BAND_VHF, freq, RATE_9600);
+     uint8_t retVal = axradio_init(device, BAND_VHF, freq, RATE_9600, antenna_differential);
      printf("axradio_init: %d\n",retVal);
 
      retVal = mode_tx(device, BAND_VHF, RATE_9600);
@@ -1185,7 +1187,8 @@ void test_pll_2m_range(AX5043Device device, bool rate_9600) {
 
     for (i = 134000000; i < 159000000; i+= 1000000) {
       printf("\n\nFreq: %d\n", i);
-      uint8_t retVal = axradio_init(device, BAND_VHF, i, rate_9600);
+      // TODO - this changes the setup of the antenna.  Should reset the device after this test.
+      uint8_t retVal = axradio_init(device, BAND_VHF, i, rate_9600, true);
       printf("axradio_init: %d\n",retVal);
     }
 

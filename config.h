@@ -28,7 +28,7 @@
 #define WATCHDOG_ENABLE
 #   define SOFTWARE_TYPE "V"
 #endif
-#define VERSION "2a" /*Exactly 2 characters will show in the diagnostic downlink*/
+#define VERSION "2b" /*Exactly 2 characters will show in the diagnostic downlink*/
 #define PACSAT_FW_VERSION_STRING SOFTWARE_TYPE PACSAT_NUMBER "." VERSION
 
 #define PACSAT_MAX_MRAMS 4
@@ -130,7 +130,7 @@ void NullPrint(char *, ...);
 
 
 #define NUM_OF_TX_CHANNELS 1 // The number of transmitters we have
-#define NUM_OF_RX_CHANNELS 1 // The number of receivers we have - TODO this should tie to the Device numbers for AX5043s
+#define NUM_OF_RX_CHANNELS 4 // The number of receivers we have
 
 /* Radio Channels */
 typedef enum {

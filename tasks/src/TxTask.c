@@ -59,7 +59,7 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)  {
     }
 
     bool rate = ReadMRAMBoolState(StateAx25Rate9600);
-    ax5043StartTx(device);
+    ax5043StartTx(device, ANT_DIFFERENTIAL);
     radio_set_power(0x020); // minimum power to test
 
     /* Set Power state to FULL_TX */

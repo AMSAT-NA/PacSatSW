@@ -211,7 +211,7 @@ commandPairs setupCommands[] = {
                                 ,{"lower rx freq","Lower the command frequency by n Hz",LowerRxFreq}
                                 ,{"save freq","Save the current frequency in MRAM",SaveFreq}
                                 ,{"read freq","Read all the frequencies from MRAM",ReadFreqs}
-                                ,{"test freq", "xmit on receive frequency",testRxFreq}
+                                ,{"test freq", "xmit on receive frequency of specified device",testRxFreq}
                                 ,{"test internal wd","Force internal watchdog to reset CPU",internalWDTimeout}
                                 ,{"test external wd","Force external watchdog to reset CPU",externalWDTimeout}
                                 ,{"test leds","Flash the LEDs in order",testLED}
@@ -924,7 +924,7 @@ void RealConsoleTask(void)
         }
         }
         case startRx:{
-            ax5043StartRx(AX5043Dev0);
+            ax5043StartRx(AX5043Dev0, ANT_DIFFERENTIAL);
             break;
         }
 
@@ -1069,10 +1069,21 @@ void RealConsoleTask(void)
         case testRxFreq: {
              //This is so we can find what the receive frequency is on first build
             {
-                AX5043Device device = AX5043Dev0;
+                uint8_t devb = parseNumber(afterCommand);
+                if(devb >= InvalidAX5043Device){
+                    printf("Give a device number between 0 and 4\n");
+                    break;
+                }
+                AX5043Device device = (AX5043Device)devb;
                 uint32_t freq = 145835000;
 
-                test_rx_freq(device, freq);
+               if (device == AX5043Dev2) {
+                   printf("Testing TX for AX5043 Dev: %d with single ended antenna\n",device);
+                   test_rx_freq(device, freq, ANT_SINGLE_ENDED); // only AX5043Dev2 is single ended
+               } else {
+                   printf("Testing TX for AX5043 Dev: %d with differential antenna\n",device);
+                   test_rx_freq(device, freq, ANT_DIFFERENTIAL);
+               }
             }
             break;
         }
@@ -1329,22 +1340,35 @@ void RealConsoleTask(void)
         case setRate1200:{
             printf("Setting Radio to 1200bps.\n");
             WriteMRAMBoolState(StateAx25Rate9600, RATE_1200);
-            // TODO this should process all receive channels
+
             ax5043StopRx(AX5043Dev0);
-            ax5043StopTx(AX5043Dev1);
-            ax5043StartRx(AX5043Dev0);
-            ax5043StartTx(AX5043Dev1);
+            ax5043StopRx(AX5043Dev1);
+            ax5043StopRx(AX5043Dev2);
+            ax5043StopRx(AX5043Dev3);
+            ax5043StopTx(AX5043Dev4);
+
+            ax5043StartRx(AX5043Dev0, ANT_DIFFERENTIAL);
+            ax5043StartRx(AX5043Dev1, ANT_DIFFERENTIAL);
+            ax5043StartRx(AX5043Dev2, ANT_SINGLE_ENDED);
+            ax5043StartRx(AX5043Dev3, ANT_DIFFERENTIAL);
+            ax5043StartTx(AX5043Dev4, ANT_DIFFERENTIAL);
             break;
         }
 
         case setRate9600:{
             printf("Setting radio to 9600bps.\n");
             WriteMRAMBoolState(StateAx25Rate9600, RATE_9600);
-            // TODO this should process all receive channels
             ax5043StopRx(AX5043Dev0);
-            ax5043StopTx(AX5043Dev1);
-            ax5043StartRx(AX5043Dev0);
-            ax5043StartTx(AX5043Dev1);
+            ax5043StopRx(AX5043Dev1);
+            ax5043StopRx(AX5043Dev2);
+            ax5043StopRx(AX5043Dev3);
+            ax5043StopTx(AX5043Dev4);
+
+            ax5043StartRx(AX5043Dev0, ANT_DIFFERENTIAL);
+            ax5043StartRx(AX5043Dev1, ANT_DIFFERENTIAL);
+            ax5043StartRx(AX5043Dev2, ANT_SINGLE_ENDED);
+            ax5043StartRx(AX5043Dev3, ANT_DIFFERENTIAL);
+            ax5043StartTx(AX5043Dev4, ANT_DIFFERENTIAL);
             break;
         }
 

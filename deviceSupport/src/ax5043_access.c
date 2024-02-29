@@ -168,7 +168,7 @@ uint8_t ax5043_off(AX5043Device device) {
  * We also need another function to start the command receiver.
  *
  */
-void ax5043StartRx(AX5043Device device){
+void ax5043StartRx(AX5043Device device, bool antenna_differential){
     //printf("StartRx: Power=%d,Txing=%d,Rxing=%d\n",PowerOn,Txing,Rxing);
     ax5043StopTx(device);
     if(!PowerOn[device]){
@@ -178,7 +178,7 @@ void ax5043StartRx(AX5043Device device){
     if(!Rxing[device]){
 //        start_ax25_rx(device, RATE_1200);
         bool rate = ReadMRAMBoolState(StateAx25Rate9600);
-        start_ax25_rx(device, rate);
+        start_ax25_rx(device, rate, antenna_differential);
         Rxing[device]=true; Txing[device]=false;
     }
 }
@@ -190,7 +190,7 @@ void ax5043StopRx(AX5043Device device){
     }
 }
 
-void ax5043StartTx(AX5043Device device){
+void ax5043StartTx(AX5043Device device, bool antenna_differential){
     //printf("StartTx: Power=%d,Txing=%d,Rxing=%d\n",PowerOn,Txing,Rxing);
     if(Rxing[device]){
         ax5043StopRx(device);
@@ -201,7 +201,7 @@ void ax5043StartTx(AX5043Device device){
     }
 
     bool rate = ReadMRAMBoolState(StateAx25Rate9600);
-    start_ax25_tx(device, rate);
+    start_ax25_tx(device, rate, antenna_differential);
     Txing[device] = true; Rxing[device] = false;
 }
 void ax5043StopTx(AX5043Device device){

@@ -33,7 +33,7 @@ static uint8_t PAPowerFlagCnt=0,DCTPowerFlagCnt=0;
 static rx_radio_buffer_t rx_radio_buffer; // static buffer to store the channel and received bytes from the radio
 static rx_radio_buffer_t EMPTY_RADIO_BUFFER;
 //static uint8_t axradio_rxbuffer[AX25_PKT_BUFFER_LEN];  ******************** HERE WE ARE - REMOVING THIS
-static AX5043Device device = AX5043Dev3;
+static AX5043Device device = AX5043Dev0;
 extern bool monitorPackets;
 
 portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
@@ -71,7 +71,10 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
     }
 
     /* Initialize the Radio RX */
-    ax5043StartRx(device);
+    ax5043StartRx(AX5043Dev0, ANT_DIFFERENTIAL);
+    ax5043StartRx(AX5043Dev1, ANT_DIFFERENTIAL);
+    ax5043StartRx(AX5043Dev2, ANT_SINGLE_ENDED);
+    ax5043StartRx(AX5043Dev3,ANT_DIFFERENTIAL);
 
     while(1) {
         Intertask_Message messageReceived;
@@ -81,14 +84,26 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
         ReportToWatchdog(CurrentTaskWD);
         status = WaitInterTask(ToRxTask, CENTISECONDS(10), &messageReceived);  // This is triggered when there is RX data on the FIFO
         ReportToWatchdog(CurrentTaskWD);
-        rssi = get_rssi(device);
-        if (monitorPackets)
+
+        rssi = get_rssi(AX5043Dev2);  // TODO - DEBUG this device picked because it is receiving RSSI on blinky
+        if (monitorPackets) {
             if (rssi > 170) { // this magic value is supposed to be above the background noise, so we only see actual transmissions
+                rssi = get_rssi(AX5043Dev0);
                 int16_t dbm = rssi - 255;
-                debug_print("RSSI: %d dBm \n",dbm);
+                debug_print("RSSI-0: %d dBm ",dbm);
+                rssi = get_rssi(AX5043Dev1);
+                dbm = rssi - 255;
+                debug_print("RSSI-1: %d dBm ",dbm);
+                rssi = get_rssi(AX5043Dev2);
+                dbm = rssi - 255;
+                debug_print("RSSI-2: %d dBm ",dbm);
+                rssi = get_rssi(AX5043Dev3);
+                dbm = rssi - 255;
+                debug_print("RSSI-3: %d dBm \n",dbm);
 //                debug_print("FRMRX: %d   ",ax5043ReadReg(device, AX5043_FRAMING) & 0x80 ); // FRAMING Pkt start bit detected - will print 128
 //                debug_print("RADIO: %d ",ax5043ReadReg(device, AX5043_RADIOSTATE) & 0xF ); // Radio State bits 0-3
             }
+        }
 
         if (status==1) { // We received a message
             debug_print("AX5043 Message %d\n",messageReceived.MsgType);
@@ -102,11 +117,18 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
                 PAPowerFlagCnt++;
                 break;
 
+            case Rx0DCTInterruptMsg:
+                device = AX5043Dev0;
+            case Rx1DCTInterruptMsg:
+                device = AX5043Dev1;
+            case Rx2DCTInterruptMsg:
+                device = AX5043Dev2;
             case Rx3DCTInterruptMsg:
+                device = AX5043Dev3;
 
                 if ((ax5043ReadReg(device, AX5043_PWRMODE) & 0x0F) == AX5043_PWRSTATE_FULL_RX) {
 
-                    //debug_print("Interrupt while in FULL_RX mode\n");
+                    debug_print("Interrupt while in FULL_RX mode\n");
                     //printf("IRQREQUEST1: %02x\n", ax5043ReadReg(AX5043_IRQREQUEST1));
                     //printf("IRQREQUEST0: %02x\n", ax5043ReadReg(AX5043_IRQREQUEST0));
                     //printf("FIFOSTAT: %02x\n", ax5043ReadReg(AX5043_FIFOSTAT));
@@ -145,8 +167,8 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
                                 print_packet("RX", &rx_radio_buffer.bytes[0],rx_radio_buffer.len);
                             }
 
-                            // TODO - need to store the channel here - for now it is hard coded to channel A.  This should be passed by the interrupt.
-                            rx_radio_buffer.channel = Channel_A;
+                            // TODO - need to store the channel here - Should be just use device?
+                            rx_radio_buffer.channel = (rx_channel_t)device;
 
                             /* Add to the queue and wait for 10ms to see if space is available */
                             BaseType_t xStatus = xQueueSendToBack( xRxPacketQueue, &rx_radio_buffer, CENTISECONDS(1) );

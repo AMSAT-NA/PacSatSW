@@ -60,6 +60,8 @@
 #define RATE_1200 false
 #define BAND_VHF true
 #define BAND_UHF false
+#define ANT_DIFFERENTIAL true
+#define ANT_SINGLE_ENDED false
 
 #define AXRADIO_ERR_NOERROR                     0x00 //!< Operation successful
 #define AXRADIO_ERR_NOTSUPPORTED                0x01 //!< Operation not supported
@@ -474,12 +476,9 @@ struct axradio_address {
 
 static uint8_t axradio_setfreq(AX5043Device device, int32_t f);
 static uint8_t ax5043_reset(AX5043Device device);
-//uint8_t receive_packet_70cm(AX5043Device device);
-//uint8_t axradio_init_70cm(AX5043Device device, int32_t freq);
-//uint8_t mode_rx_70cm(AX5043Device device);
 void quick_setfreq(AX5043Device device, int32_t f);
-void start_ax25_rx(AX5043Device device, bool rate_9600);
-void start_ax25_tx(AX5043Device device, bool rate_9600);
+void start_ax25_rx(AX5043Device device, bool rate_9600, bool antenna_differential);
+void start_ax25_tx(AX5043Device device, bool rate_9600, bool antenna_differential);
 uint16_t fifo_free(AX5043Device device);
 void fifo_repeat_byte(AX5043Device device, uint8_t b, uint8_t count, uint8_t flags);
 void fifo_commit(AX5043Device device);
@@ -490,5 +489,5 @@ void fifo_repeat_byte(AX5043Device device, uint8_t b, uint8_t count, uint8_t fla
 void fifo_queue_buffer(AX5043Device device, uint8_t *buf, uint8_t len, uint8_t flags);
 uint16_t fifo_free(AX5043Device device);
 uint8_t get_rssi(AX5043Device device);
-void test_rx_freq(AX5043Device device, uint32_t freq);
+void test_rx_freq(AX5043Device device, uint32_t freq, bool antenna_differential);
 void test_pll_2m_range(AX5043Device device, bool rate_9600);
