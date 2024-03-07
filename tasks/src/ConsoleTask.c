@@ -352,7 +352,7 @@ void RealConsoleTask(void)
         DCTTxFreq = DCT_DEFAULT_TX_FREQ;
     }
     if((DCTRxFreq[0]<999000) || (DCTRxFreq[0]>600000000)){
-        DCTRxFreq[0] = DCT_DEFAULT_RX_FREQ;
+        DCTRxFreq[0] = DCT_DEFAULT_RX_FREQ[0];
     }
     quick_setfreq(RX1_DEVICE, DCTRxFreq[0]);
     quick_setfreq(RX2_DEVICE, DCTRxFreq[1]);

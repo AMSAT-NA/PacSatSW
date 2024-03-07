@@ -282,7 +282,8 @@ typedef enum {
  */
 #define AX5043_USES_TCXO // If this is not defined then we are using an XTAL
 #define DCT_DEFAULT_TX_FREQ 435760000 // Actual frequency.  Converted later to ax5043 register value
-#define DCT_DEFAULT_RX_FREQ 145835000 //436800000 // The Flight frequency will be in 2m. e.g. 145835000
+//#define DCT_DEFAULT_RX_FREQ 145835000 //436800000 // The Flight frequency will be in 2m. e.g. 145835000
+static uint32_t DCT_DEFAULT_RX_FREQ[4] = {145780000, 145810000,145840000,145870000};
 // For now, we want the output to be something like 100mW (20dBm) and 500mW (27dBm)
 // I believe this makes the DCT output be about -7dBM and +3dBM
 #define DCT_DEFAULT_LOW_POWER 261   // This seems about right for 20dBm

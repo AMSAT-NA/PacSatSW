@@ -313,7 +313,7 @@ void WriteMRAMReceiveFreq(uint8_t rxNum,uint32_t freq){
  }
 
 uint32_t ReadMRAMReceiveFreq(uint8_t rxNum){
-    READ_UINT32(DCTRxFrequency[rxNum],DCT_DEFAULT_RX_FREQ);
+    READ_UINT32(DCTRxFrequency[rxNum],DCT_DEFAULT_RX_FREQ[rxNum]);
 }
 void WriteMRAMTelemFreq(uint32_t freq){
     WRITE_UINT32(DCTTxFrequency,freq);
@@ -443,7 +443,7 @@ void IHUInitSaved(void){
      */
     uint8_t i;
     for(i=0;i<4;i++){
-        WriteMRAMReceiveFreq(i,DCT_DEFAULT_RX_FREQ);
+        WriteMRAMReceiveFreq(i,DCT_DEFAULT_RX_FREQ[i]);
     }
     WriteMRAMTelemFreq(DCT_DEFAULT_TX_FREQ);
     WriteMRAMDCTDriveHighPower(DCT_DEFAULT_HIGH_POWER);
