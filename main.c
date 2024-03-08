@@ -327,7 +327,7 @@ void ConsoleTask(void *pvParameters){
     //AlertFlashingWait(CENTISECONDS(50),CENTISECONDS(10),CENTISECONDS(3));
     AllTasksStarted = true;
     StartStableCount();
-#if 0
+
     bool rtc = InitRtc31331();
     if (rtc == FALSE) {
         debug_print("*** NO RTC: SET THE UNIX TIME BEFORE UPLOADING ANY TEST FILES ***\n");
@@ -337,7 +337,7 @@ void ConsoleTask(void *pvParameters){
         rtc = GetRtcTime31331(&utime);
         setUnixTime(utime);
     }
-#endif
+
     // Now head off to do the real work of the console task
     RealConsoleTask();
 }
