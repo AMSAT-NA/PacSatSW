@@ -338,11 +338,7 @@ bool tx_send_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint
  * bad data.  That seems to be safer than locking up the BBS with a bad packet in a loop.
  *
  */
-bool tx_send_packet(rx_channel_t channel, AX25_PACKET *packet, bool expedited, bool block) {
-    if (channel >= NUM_OF_TX_CHANNELS) {
-        debug_print("LOGIC ERROR: tx_send_packet() Invalid radio channel %d\n",channel);
-        return TRUE; // return true here as we do not want to repeat this bad packet.  Data is dropped
-    }
+bool tx_send_packet(AX25_PACKET *packet, bool expedited, bool block) {
     bool rc = tx_make_packet(packet, tmp_packet_buffer);
     if (rc == FALSE) {
         debug_print("LOGIC ERROR: Invalid packet. Packet not sent\n");

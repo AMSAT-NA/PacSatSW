@@ -86,7 +86,7 @@ typedef enum {
 
 
 typedef struct {
-    rx_channel_t channel;
+    rx_channel_t rx_channel;
     AX25_primitive_t primitive;
     AX25_PACKET packet; // This needs to be a copy to avoid the data being changed before it is processed
     ax25_error_t error_num;

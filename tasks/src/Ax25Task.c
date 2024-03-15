@@ -174,15 +174,15 @@ portTASK_FUNCTION_PROTO(Ax25Task, pvParameters)  {
         ReportToWatchdog(Ax25TaskWD);
         xStatus = xQueueReceive( xRxEventQueue, &ax25_received_event, CENTISECONDS(1) );  // Wait to see if data available
         if( xStatus == pdPASS ) {
-            if (ax25_received_event.channel >= NUM_OF_RX_CHANNELS) {
+            if (ax25_received_event.rx_channel >= NUM_OF_RX_CHANNELS) {
                 // something is seriously wrong.  Programming error.  Unlikely to occur in flight
-                debug_print("ERR: AX25 channel %d is invalid\n",ax25_received_event.channel);
+                debug_print("ERR: AX25 channel %d is invalid\n",ax25_received_event.rx_channel);
             } else {
                 if (ax25_received_event.primitive == LM_SEIZE_Request) {
-                    trace_dl("LM[%d]: SEIZE Requested\n",ax25_received_event.channel);
-                    seize_requested[ax25_received_event.channel] = TRUE;
+                    trace_dl("LM[%d]: SEIZE Requested\n",ax25_received_event.rx_channel);
+                    seize_requested[ax25_received_event.rx_channel] = TRUE;
                 } else {
-                    ax25_next_state_from_primitive(&data_link_state_machine[ax25_received_event.channel], &ax25_received_event);
+                    ax25_next_state_from_primitive(&data_link_state_machine[ax25_received_event.rx_channel], &ax25_received_event);
                 }
             }
         }
@@ -277,7 +277,7 @@ void ax25_t1_expired(TimerHandle_t xTimer) {
     uint32_t chan = (uint32_t)pvTimerGetTimerID( xTimer ); // timer id is treated as an integer and not as a pointer
     trace_dl("AX25[%d]: Timer T1 Expiry Int at %d\n", (rx_channel_t)chan, getSeconds());
     timer_event.primitive = DL_TIMER_T1_Expire;
-    timer_event.channel = (rx_channel_t)chan;
+    timer_event.rx_channel = (rx_channel_t)chan;
     BaseType_t xStatus = xQueueSendToBack( xRxEventQueue, &timer_event, 0 ); // Do not block as this is called from timer
     if( xStatus != pdPASS ) {
         debug_print("EVENT QUEUE FULL: Could not add T1 expire to Event Queue\n");
@@ -292,7 +292,7 @@ void ax25_t3_expired(TimerHandle_t xTimer) {
     trace_dl("AX25[%d]: Timeout... Timer T3 Expiry Int at %d\n", (rx_channel_t)chan, getSeconds());
 #endif
     timer_event.primitive = DL_TIMER_T3_Expire;
-    timer_event.channel = (rx_channel_t)chan;
+    timer_event.rx_channel = (rx_channel_t)chan;
     BaseType_t xStatus = xQueueSendToBack( xRxEventQueue, &timer_event, 0 ); // Do not block as this is called from timer
     if( xStatus != pdPASS ) {
         debug_print("EVENT QUEUE FULL: Could not add T3 expire to Event Queue\n");
@@ -402,10 +402,10 @@ void ax25_send_response(rx_channel_t channel, ax25_frame_type_t frame_type, char
 
     response_packet->frame_type = frame_type;
 #ifdef TRACE_AX25_DL
-    trace_dl("AX25[%d]: ",channel);
+    trace_dl("AX25[%d]: ",rx_channel);
     print_decoded_packet("Send ", response_packet);
 #endif
-    bool rc = tx_send_packet(channel, response_packet, expedited, BLOCK);
+    bool rc = tx_send_packet(response_packet, expedited, BLOCK);
     if (rc == FALSE) {
         /* log the error if this could not be queued. */
         ReportError(TxPacketDropped, FALSE, CharString, (int)"TX Send Falure.  Packet Dropped."); // TX Send failure - packet dropped
@@ -421,7 +421,7 @@ void ax25_send_response(rx_channel_t channel, ax25_frame_type_t frame_type, char
  *
  */
 bool ax25_send_event(AX25_data_link_state_machine_t *state, AX25_primitive_t prim, AX25_PACKET *packet, ax25_error_t error_num) {
-    send_event_buffer.channel = state->channel;
+    send_event_buffer.rx_channel = state->channel;
     send_event_buffer.primitive = prim;
     send_event_buffer.error_num = error_num;
     if (packet != NULL)
@@ -444,7 +444,7 @@ bool ax25_send_event(AX25_data_link_state_machine_t *state, AX25_primitive_t pri
  *
  */
 bool ax25_send_lm_event(AX25_data_link_state_machine_t *state, AX25_primitive_t prim) {
-    lm_event.channel = state->channel;
+    lm_event.rx_channel = state->channel;
     lm_event.primitive = prim;
     lm_event.error_num = NO_ERROR;
     BaseType_t xStatus = xQueueSendToBack( xRxEventQueue, &lm_event, CENTISECONDS(1) );
@@ -1486,10 +1486,10 @@ void iframe_pops_off_queue(AX25_data_link_state_machine_t *state, AX25_event_t *
         event->packet.NR = state->VR;
         event->packet.PF = 0;
 #ifdef TRACE_AX25_DL
-    trace_dl("AX25[%d]: ",state->channel);
+    trace_dl("AX25[%d]: ",state->rx_channel);
     print_decoded_packet("I-frame Send ", &event->packet);
 #endif
-        bool rc = tx_send_packet(event->channel, &event->packet, NOT_EXPEDITED, BLOCK);
+        bool rc = tx_send_packet(&event->packet, NOT_EXPEDITED, BLOCK);
         if (rc == FALSE) {
             debug_print("ERROR: Could not send I frame to TX queue. Pushing back on I-frame queue\n");
             // push iframe back on queue, wait 2/10 second for queue to become available if needed
@@ -1727,7 +1727,7 @@ void invoke_retransmission(AX25_data_link_state_machine_t *state, int NR) {
                 // Integrity check
                 trace_dl("ERROR: I_frames_sent corrupt? Wrong I frame being retransmitted VS: %d - NS:%d\n", state->VS, state->I_frames_sent[vs].NS);
           } else {
-            send_event_buffer.channel = state->channel;
+            send_event_buffer.rx_channel = state->channel;
             send_event_buffer.primitive = DL_DATA_Request;
             send_event_buffer.packet = state->I_frames_sent[vs];
             send_event_buffer.error_num = NO_ERROR;
@@ -1952,7 +1952,7 @@ bool test_ax25_retransmission() {
     dl.VR = 2;
 
     AX25_event_t send_event;
-    send_event.channel = dl.channel;
+    send_event.rx_channel = dl.channel;
     send_event.packet.frame_type = TYPE_I;
     send_event.packet.PF = 0;
     strlcpy(send_event.packet.to_callsign, "G0KLA", MAX_CALLSIGN_LEN);

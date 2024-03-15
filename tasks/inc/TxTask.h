@@ -30,7 +30,7 @@ typedef struct {
 
 void TxTask(void *pvParameters);
 bool tx_send_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t *bytes, int len, bool block);
-bool tx_send_packet(rx_channel_t channel, AX25_PACKET *packet, bool expedited, bool block);
+bool tx_send_packet(AX25_PACKET *packet, bool expedited, bool block);
 
 bool tx_test_make_packet();
 

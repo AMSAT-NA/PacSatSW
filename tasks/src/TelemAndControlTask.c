@@ -154,6 +154,8 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)  {
                 break;
 
             case TacSendRealtimeMsg:
+                /* For real time telemetry we collect it and send it at the same time */
+                tac_collect_telemetry(&telem_buffer);
                 tac_send_telemetry(&telem_buffer);
                 break;
             }

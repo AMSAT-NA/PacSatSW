@@ -140,6 +140,10 @@ typedef enum {
     Channel_D,
 } rx_channel_t;
 
+typedef enum {
+    TX_Channel_A,
+} tx_channel_t;
+
 // TODO - TX channels?  Do we add to above or have a seperate list.  Assumed to be only one but it could be configurable.
 
 

@@ -135,9 +135,9 @@ portTASK_FUNCTION_PROTO(UplinkTask, pvParameters)  {
         ReportToWatchdog(UplinkTaskWD);
         BaseType_t xStatus = xQueueReceive( xUplinkEventQueue, &ax25_event, CENTISECONDS(1) );  // Wait to see if data available
         if( xStatus == pdPASS ) {
-            if (ax25_event.channel >= NUM_OF_RX_CHANNELS) {
+            if (ax25_event.rx_channel >= NUM_OF_RX_CHANNELS) {
                 // something is seriously wrong.  Programming error.  Unlikely to occur in flight
-                debug_print("ERR: AX25 channel %d is invalid\n",ax25_event.channel);
+                debug_print("ERR: AX25 channel %d is invalid\n",ax25_event.rx_channel);
             } else {
 //                trace_ftl0("Received event: %d\n",ax25_event.primitive);
 
@@ -145,22 +145,22 @@ portTASK_FUNCTION_PROTO(UplinkTask, pvParameters)  {
                     // Most of these are just for debugging.  Typically another event is sent if an action is needed.
                     switch (ax25_event.error_num) {
                         case ERROR_F : {
-                            trace_ftl0("FTL0[%d]: DATA LINK RESET from AX25\n",ax25_event.channel);
+                            trace_ftl0("FTL0[%d]: DATA LINK RESET from AX25\n",ax25_event.rx_channel);
                             // We don't off load the callsign, we just reset the state machine
-                            ftl0_state_machine[ax25_event.channel].ul_state = UL_CMD_OK;
-                            ftl0_state_machine[ax25_event.channel].file_id = 0;
-                            ftl0_state_machine[ax25_event.channel].request_time = 0;
-                            ftl0_state_machine[ax25_event.channel].length = 0;
+                            ftl0_state_machine[ax25_event.rx_channel].ul_state = UL_CMD_OK;
+                            ftl0_state_machine[ax25_event.rx_channel].file_id = 0;
+                            ftl0_state_machine[ax25_event.rx_channel].request_time = 0;
+                            ftl0_state_machine[ax25_event.rx_channel].length = 0;
                             break;
                         }
                         default : {
-                            debug_print("FTL0[%d]: ERR from AX25: %s\n",ax25_event.channel, ax25_errors_strs[ax25_event.error_num]);
+                            debug_print("FTL0[%d]: ERR from AX25: %s\n",ax25_event.rx_channel, ax25_errors_strs[ax25_event.error_num]);
                             break;
                         }
                     }
                 } else {
                     ReportToWatchdog(UplinkTaskWD);
-                    ftl0_next_state_from_primitive(&ftl0_state_machine[ax25_event.channel], &ax25_event);
+                    ftl0_next_state_from_primitive(&ftl0_state_machine[ax25_event.rx_channel], &ax25_event);
                 }
             }
         }
@@ -238,18 +238,18 @@ void ftl0_state_uninit(ftl0_state_machine_t *state, AX25_event_t *event) {
         case DL_DISCONNECT_Indicate :
         case DL_DISCONNECT_Confirm : {
             trace_ftl0("Disconnected from Layer 2\n");
-            ftl0_remove_request(event->channel);
+            ftl0_remove_request(event->rx_channel);
             break;
         }
         /* We receive either a CONNECT Indicate or a CONNECT Confirm.  We only get the confirm if the Uplink initiated the request  */
         case DL_CONNECT_Indicate : {
             trace_ftl0("Connection from Layer 2\n");
-            ftl0_connection_received(event->packet.from_callsign, event->packet.to_callsign, event->channel);
+            ftl0_connection_received(event->packet.from_callsign, event->packet.to_callsign, event->rx_channel);
             break;
         }
         case DL_CONNECT_Confirm : {
             trace_ftl0("Connection from Layer 2 Confirmed\n");
-            ftl0_connection_received(event->packet.from_callsign, event->packet.to_callsign, event->channel);
+            ftl0_connection_received(event->packet.from_callsign, event->packet.to_callsign, event->rx_channel);
             break;
         }
         default : {
@@ -271,15 +271,15 @@ void ftl0_state_cmd_ok(ftl0_state_machine_t *state, AX25_event_t *event) {
         case DL_DISCONNECT_Indicate :
         case DL_DISCONNECT_Confirm : {
             trace_ftl0("Disconnected from Layer 2\n");
-            ftl0_remove_request(event->channel);
+            ftl0_remove_request(event->rx_channel);
             break;
         }
         case DL_CONNECT_Indicate :
         case DL_CONNECT_Confirm : {
             trace_ftl0("Connection from Layer 2\n");
             // Perhaps the other end missed the connection and was still trying.  Send the CMD OK message again.
-            ftl0_remove_request(event->channel); // remove them first
-            ftl0_connection_received(event->packet.from_callsign, event->packet.to_callsign, event->channel);
+            ftl0_remove_request(event->rx_channel); // remove them first
+            ftl0_connection_received(event->packet.from_callsign, event->packet.to_callsign, event->rx_channel);
             break;
         }
         case DL_DATA_Indicate : {
@@ -287,7 +287,7 @@ void ftl0_state_cmd_ok(ftl0_state_machine_t *state, AX25_event_t *event) {
             int rc;
             int ftl0_type = ftl0_parse_packet_type(event->packet.data);
             if (ftl0_type >= MAX_PACKET_ID) {
-                rc = ftl0_send_err(event->packet.from_callsign, event->channel, ER_ILL_FORMED_CMD);
+                rc = ftl0_send_err(event->packet.from_callsign, event->rx_channel, ER_ILL_FORMED_CMD);
                 if (rc != TRUE) {
                     /* We likely could not send the error.  Something serious has gone wrong.
                      * Not much we can do as we are going to offload the request anyway */
@@ -309,7 +309,7 @@ void ftl0_state_cmd_ok(ftl0_state_machine_t *state, AX25_event_t *event) {
                         // All is good
                     } else {
                         // send the error
-                        rc = ftl0_send_err(event->packet.from_callsign, event->channel, err);
+                        rc = ftl0_send_err(event->packet.from_callsign, event->rx_channel, err);
                         if (rc != TRUE) {
                             /* We likely could not send the error.  Something serious has gone wrong.
                              * But the best we can do is remove the station and return the error code. */
@@ -338,7 +338,7 @@ void ftl0_state_cmd_ok(ftl0_state_machine_t *state, AX25_event_t *event) {
         }
         default : {
             trace_ftl0(".. Unexpected packet or event, disconnect\n");
-            ftl0_disconnect(state->callsign, event->channel);
+            ftl0_disconnect(state->callsign, event->rx_channel);
             ftl0_remove_request(state->channel);
             break;
         }
@@ -391,7 +391,7 @@ void ftl0_state_data_rx(ftl0_state_machine_t *state, AX25_event_t *event) {
         case DL_DISCONNECT_Indicate :
         case DL_DISCONNECT_Confirm : {
             trace_ftl0("Disconnected from Layer 2\n");
-            ftl0_remove_request(event->channel);
+            ftl0_remove_request(event->rx_channel);
             break;
         }
         case DL_DATA_Indicate : {
@@ -399,7 +399,7 @@ void ftl0_state_data_rx(ftl0_state_machine_t *state, AX25_event_t *event) {
             int rc;
             int ftl0_type = ftl0_parse_packet_type(event->packet.data);
             if (ftl0_type >= MAX_PACKET_ID) {
-                rc = ftl0_send_err(event->packet.from_callsign, event->channel, ER_ILL_FORMED_CMD);
+                rc = ftl0_send_err(event->packet.from_callsign, event->rx_channel, ER_ILL_FORMED_CMD);
                 if (rc != TRUE) {
                     /* We likely could not send the error.  Something serious has gone wrong.
                      * Not much we can do as we are going to offload the request anyway */
@@ -416,7 +416,7 @@ void ftl0_state_data_rx(ftl0_state_machine_t *state, AX25_event_t *event) {
                     int err = ftl0_process_data_cmd(state, event->packet.data, event->packet.data_len);
                     if (err != ER_NONE) {
                         // send the error - per the FTL0 Spec, this should be a NAK not an ERROR.
-                        rc = ftl0_send_nak(event->packet.from_callsign, event->channel, err);
+                        rc = ftl0_send_nak(event->packet.from_callsign, event->rx_channel, err);
                         if (rc != TRUE) {
                             /* We likely could not send the error.  Something serious has gone wrong.
                              * But the best we can do is remove the station and return the error code. */
@@ -444,10 +444,10 @@ void ftl0_state_data_rx(ftl0_state_machine_t *state, AX25_event_t *event) {
                     int err = ftl0_process_data_end_cmd(state, event->packet.data, event->packet.data_len);
                     if (err != ER_NONE) {
                         //debug_print(" FTL0[%d] SENDING %s NAK for file %04x\n",state->channel, state->callsign, state->file_id);
-                        rc = ftl0_send_nak(event->packet.from_callsign, event->channel, err);
+                        rc = ftl0_send_nak(event->packet.from_callsign, event->rx_channel, err);
                     } else {
                         //debug_print(" FTL0[%d] SENDING %s ACK for file %04x\n",state->channel, state->callsign, state->file_id);
-                        rc = ftl0_send_ack(event->packet.from_callsign, event->channel);
+                        rc = ftl0_send_ack(event->packet.from_callsign, event->rx_channel);
                     }
                     if (!ftl0_remove_file_upload_record(state->file_id))  {
                         debug_print(" FTL0[%d] Could not remove upload record for %s file id %04x\n",state->channel, state->callsign, state->file_id);
@@ -470,7 +470,7 @@ void ftl0_state_data_rx(ftl0_state_machine_t *state, AX25_event_t *event) {
         }
         default : {
             trace_ftl0(".. Unexpected packet or event, disconnect\n");
-            ftl0_disconnect(state->callsign, event->channel);
+            ftl0_disconnect(state->callsign, event->rx_channel);
             ftl0_remove_request(state->channel);
             break;
         }
@@ -484,7 +484,7 @@ void ftl0_state_abort(ftl0_state_machine_t *state, AX25_event_t *event) {
         case DL_DISCONNECT_Indicate :
         case DL_DISCONNECT_Confirm : {
             trace_ftl0("Disconnected from Layer 2\n");
-            ftl0_remove_request(event->channel);
+            ftl0_remove_request(event->rx_channel);
             break;
         }
         case DL_DATA_Indicate : {
@@ -493,7 +493,7 @@ void ftl0_state_abort(ftl0_state_machine_t *state, AX25_event_t *event) {
         }
         default : {
             trace_ftl0(".. Unexpected packet or event, disconnect\n");
-            ftl0_disconnect(state->callsign, event->channel);
+            ftl0_disconnect(state->callsign, event->rx_channel);
             ftl0_remove_request(state->channel);
             break;
         }
@@ -506,7 +506,7 @@ void ftl0_state_abort(ftl0_state_machine_t *state, AX25_event_t *event) {
  *
  */
 bool ftl0_send_event(AX25_event_t *received_event, AX25_event_t *send_event) {
-    send_event->channel = received_event->channel;
+    send_event->rx_channel = received_event->rx_channel;
     send_event->primitive = DL_DATA_Request;
     send_event->packet.frame_type = TYPE_I;
     strlcpy(send_event->packet.to_callsign, received_event->packet.from_callsign, MAX_CALLSIGN_LEN);
@@ -514,10 +514,10 @@ bool ftl0_send_event(AX25_event_t *received_event, AX25_event_t *send_event) {
 
     if (send_event->primitive == DL_DATA_Request) {
         // Add data events directly to the iFrame Queue
-        BaseType_t xStatus = xQueueSendToBack( xIFrameQueue[received_event->channel], send_event, CENTISECONDS(1) );
+        BaseType_t xStatus = xQueueSendToBack( xIFrameQueue[received_event->rx_channel], send_event, CENTISECONDS(1) );
         if( xStatus != pdPASS ) {
             /* The send operation could not complete because the queue was full */
-            debug_print("I FRAME QUEUE FULL: Could not add to Event Queue for channel %d\n",received_event->channel);
+            debug_print("I FRAME QUEUE FULL: Could not add to Event Queue for channel %d\n",received_event->rx_channel);
             // TODO - we should log this error and downlink in telemetry
             return FALSE;
         }
@@ -530,7 +530,7 @@ bool ftl0_send_event(AX25_event_t *received_event, AX25_event_t *send_event) {
             // TODO - we should log this error and downlink in telemetry
             return FALSE;
         } else {
-            trace_ftl0("FTL0[%d]: Sending Event %d\n",send_event->channel, send_event->primitive);
+            trace_ftl0("FTL0[%d]: Sending Event %d\n",send_event->rx_channel, send_event->primitive);
         }
     }
     return TRUE;

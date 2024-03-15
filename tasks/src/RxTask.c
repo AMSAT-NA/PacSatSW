@@ -109,7 +109,7 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
 //        }
 
         if (status==1) { // We received a message
-            debug_print("AX5043 Message %d\n",messageReceived.MsgType);
+            //debug_print("AX5043 Message %d\n",messageReceived.MsgType);
             switch(messageReceived.MsgType){
             case DCTPowerFlagMsg:
                 debug_print("AX5043 Power Interrupted\n");
@@ -142,7 +142,8 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
 void process_fifo(AX5043Device device) {
     if ((ax5043ReadReg(device, AX5043_PWRMODE) & 0x0F) == AX5043_PWRSTATE_FULL_RX) {
 
-        debug_print("RX Device: %d Interrupt while in FULL_RX mode\n",device);
+        if (monitorPackets)
+            debug_print("RX Device: %d Interrupt while in FULL_RX mode\n",device);
         //printf("IRQREQUEST1: %02x\n", ax5043ReadReg(AX5043_IRQREQUEST1));
         //printf("IRQREQUEST0: %02x\n", ax5043ReadReg(AX5043_IRQREQUEST0));
         //printf("FIFOSTAT: %02x\n", ax5043ReadReg(AX5043_FIFOSTAT));
