@@ -174,15 +174,17 @@ void process_fifo(AX5043Device device) {
                     loc++;
                 }
                 if (monitorPackets) {
-                    int i;
-                    debug_print("RX Bytes: %d:",rx_radio_buffer.len);
-                    for (i=0; i< rx_radio_buffer.len; i++)
-                        debug_print("%0x ", rx_radio_buffer.bytes[i]);
-                    debug_print("\n");
-                    print_packet("RX", &rx_radio_buffer.bytes[0],rx_radio_buffer.len);
+//                    int i;
+//                    debug_print("RX Bytes: %d:",rx_radio_buffer.len);
+//                    for (i=0; i< rx_radio_buffer.len; i++)
+//                        debug_print("%0x ", rx_radio_buffer.bytes[i]);
+//                    debug_print("\n");
+                    char rx_str[10];
+                    snprintf(rx_str, sizeof(rx_str), "RX[%d]",device);
+                    print_packet(rx_str, &rx_radio_buffer.bytes[0],rx_radio_buffer.len);
                 }
 
-                // TODO - need to store the channel here - Should be just use device?
+                // Store the channel here - same as device id
                 rx_radio_buffer.channel = (rx_channel_t)device;
 
                 /* Add to the queue and wait for 10ms to see if space is available */

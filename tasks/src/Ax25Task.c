@@ -63,7 +63,7 @@
 #include "str_util.h"
 
 /* Forward functions */
-void ax25_process_frame(char *from_callsign, char *to_callsign, rx_channel_t channel);
+void ax25_process_lm_frame(rx_channel_t channel);
 void ax25_t1_expired(TimerHandle_t xTimer);
 void ax25_t3_expired(TimerHandle_t xTimer);
 void start_timer(TimerHandle_t timer);
@@ -155,16 +155,8 @@ portTASK_FUNCTION_PROTO(Ax25Task, pvParameters)  {
         BaseType_t xStatus = xQueueReceive( xRxPacketQueue, &ax25_radio_buffer, CENTISECONDS(1) );  // Wait to see if data available
         if( xStatus == pdPASS ) {
             /* Data was successfully received from the queue */
-            char from_callsign[MAX_CALLSIGN_LEN];
-            char to_callsign[MAX_CALLSIGN_LEN];
-
-            decode_call(&ax25_radio_buffer.bytes[7], from_callsign);
-            decode_call(&ax25_radio_buffer.bytes[0], to_callsign);
-
-//            print_packet(AX25_data_link_state_machine_t *dl_state_info, "AX25", ax25_packet_buffer+1, ax25_packet_buffer[0]);
             /* LM_DATA_Indicate - Frames of any type passed from the Link Multiplexer to the Data Link State Machine */
-            ax25_process_frame(from_callsign, to_callsign, ax25_radio_buffer.channel);
-
+            ax25_process_lm_frame(ax25_radio_buffer.channel);
         }
         ReportToWatchdog(Ax25TaskWD);
         /* Yield some time so any packets are sent, or so that others may do some processing */
@@ -342,7 +334,7 @@ void stop_timer(TimerHandle_t timer) {
 }
 
 /**
- * ax25_process_frame()
+ * ax25_process_lm_frame()
  *
  * Process an LM_DATA_indicate message, which is an AX25 frame received from the radios.
  * If the state machine for the given channel is inactive then we process the data.
@@ -351,10 +343,17 @@ void stop_timer(TimerHandle_t timer) {
  * stores a copy of the received packet in the state machine structure.
  *
  */
-void ax25_process_frame(char *from_callsign, char *to_callsign, rx_channel_t channel) {
-    if (strcasecmp(to_callsign, BBS_CALLSIGN) == 0) {
-        ax25_decode_packet(&ax25_radio_buffer.bytes[0], ax25_radio_buffer.len, &data_link_state_machine[channel].decoded_packet);
+void ax25_process_lm_frame(rx_channel_t channel) {
+    char *from_callsign;
+    char *to_callsign;
 
+//    decode_call(&ax25_radio_buffer.bytes[7], from_callsign);
+//    decode_call(&ax25_radio_buffer.bytes[0], to_callsign);
+    ax25_decode_packet(&ax25_radio_buffer.bytes[0], ax25_radio_buffer.len, &data_link_state_machine[channel].decoded_packet);
+    from_callsign = data_link_state_machine[channel].decoded_packet.from_callsign;
+    to_callsign = data_link_state_machine[channel].decoded_packet.to_callsign;
+
+    if (strcasecmp(to_callsign, BBS_CALLSIGN) == 0) {
         if (data_link_state_machine[channel].dl_state == DISCONNECTED) {
             strlcpy(data_link_state_machine[channel].callsign, from_callsign, MAX_CALLSIGN_LEN);
             data_link_state_machine[channel].channel = channel;
@@ -380,6 +379,20 @@ void ax25_process_frame(char *from_callsign, char *to_callsign, rx_channel_t cha
             /* The send operation could not complete because the queue was full */
             debug_print("AX25: PB QUEUE FULL: Could not add to Packet Queue\n");
             // TODO - we should log this error and downlink in telemetry
+        }
+    } else if (data_link_state_machine[channel].decoded_packet.via_callsign[0] != 0) {
+        /* Then we have a via callsign*/
+        if (data_link_state_machine[channel].decoded_packet.frame_type == TYPE_U_UI) {
+            //debug_print(".....UI VIA Digi \n");
+            ax25_radio_buffer.bytes[20] |= 0x80; // Set the repeated bit
+            BaseType_t xStatus = xQueueSendToBack( xTxPacketQueue, &ax25_radio_buffer, CENTISECONDS(1) );
+            ReportToWatchdog(CurrentTaskWD);
+
+            if( xStatus != pdPASS ) {
+                /* The send operation could not complete because the queue was full */
+                debug_print("TX QUEUE FULL: Could not add Digi UI frame to Packet Queue\n");
+                // TODO - we should log this error and downlink in telemetry
+            }
         }
     } else {
         /* Silently ignore this, probably noise that looks like a packet */

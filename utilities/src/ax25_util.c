@@ -39,7 +39,7 @@
  * The callsign is returned as a null terminated string in call
  * The encoded callsign is passed in buffer c
  * Final call is set to true if this is the last call, as per the AX25 spec.
- * The AX25 command/response bit is stored in command if it is set.  This is onlt
+ * The AX25 command/response bit is stored in command if it is set.  This is only
  * set for the destination callsign, if it is the last call in the list.
  */
 
@@ -156,11 +156,13 @@ uint8_t ax25_decode_packet(uint8_t *packet, int len, AX25_PACKET *decoded_packet
     int final_call = false;
     int destBit = false;
     int sourceBit = false;
+    int repeatedBit = false;
     int i;
     decoded_packet->pid = 0; // initialize to zero and set if the packet has a pid
     decoded_packet->NR = 0; // initialize to zero and set if the packet has NR
     decoded_packet->NS = 0; // initialize to zero and set if the packet has NS
     decoded_packet->PF = 0; // initialize to zero and set if the packet has PF
+    decoded_packet->via_callsign[0] = 0;
 
     decode_call_and_command(&packet[0], decoded_packet->to_callsign, &final_call, &destBit);
     decode_call_and_command(&packet[7], decoded_packet->from_callsign, &final_call, &sourceBit);
@@ -178,7 +180,7 @@ uint8_t ax25_decode_packet(uint8_t *packet, int len, AX25_PACKET *decoded_packet
 
     if (!final_call) {
         if (len < 23) return 0;
-        decode_call_and_command(&packet[14], decoded_packet->via_callsign, &final_call, &sourceBit);
+        decode_call_and_command(&packet[14], decoded_packet->via_callsign, &final_call, &repeatedBit);
         if (!final_call) {
             debug_print("ERR: ax25_decode_packet() Invalid packet. Only 1 via supported\n");
             return FALSE;
@@ -349,8 +351,12 @@ int print_decoded_packet(char *label, AX25_PACKET *decoded) {
         command = "Cmd";
     else
         command = "Res";
-    debug_print("%s- %s: %s>%s %s pid:%0x pf:%d ",label, frame_type_strings[decoded->frame_type],
-                decoded->from_callsign, decoded->to_callsign, command, decoded->pid, decoded->PF);
+    debug_print("%s- %s: %s>%s",label, frame_type_strings[decoded->frame_type],
+                decoded->from_callsign, decoded->to_callsign);
+    if (decoded->via_callsign[0] != 0) {
+        debug_print(",%s", decoded->via_callsign);
+    }
+    debug_print(" %s pid:%0x pf:%d ",command, decoded->pid, decoded->PF);
     if (decoded->frame_type == TYPE_I) {
         debug_print("nr:%d ns:%d ",decoded->NR, decoded->NS);
     } else if (decoded->frame_type == TYPE_S_RR || decoded->frame_type == TYPE_S_RNR
