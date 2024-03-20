@@ -33,6 +33,8 @@
 #define BITS_S_REJECT 0b1001
 #define BITS_S_SELECTIVE_REJECT 0b1101
 
+#define LAST_VIA_CALLSIGN_BYTE_POS 20
+
 typedef enum ax25_frame_type_e {
 
     TYPE_I = 0,   // Information

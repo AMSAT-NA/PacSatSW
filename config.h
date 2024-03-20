@@ -293,6 +293,8 @@ static uint32_t DCT_DEFAULT_RX_FREQ[4] = {145780000, 145810000,145840000,1458700
 #define DCT_DEFAULT_LOW_POWER 261   // This seems about right for 20dBm
 #define DCT_DEFAULT_HIGH_POWER 632 // TODO:  This should be defined so we get about 27dBm out of the PA.
 
+ static uint8_t DCT_DEFAULT_RX_MODE[4] = {0x15,0x15,0x15,0x15}; // default all channels to allow Digi, PB, Uplink
+
 /*
  * MET Constants.  The MET timer goes off every second.  Other time constants
  * mask a counter incremented every 1 second.

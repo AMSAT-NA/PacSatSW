@@ -44,7 +44,8 @@ enum _StateTypes {
     ,StateSafeRfPowerLevel=11
     ,StateExp1Disabled
     ,StateAx25Rate9600       // True if we are using 9600bps packet
-    ,StateSpare1, StateSpare2
+    ,StateDigiEnabled=14
+    ,StateSpare2
     ,MaxStates
 };
 
@@ -74,8 +75,15 @@ typedef struct {
 	uint16_t AutoSafeExit[2];
     uint32_t TimeoutTimes[MaxNumberOfTimeouts][2];
     uint32_t PostLVTimeout[2];
-    uint16_t  EclipseActionCommanded[2];
+    uint16_t EclipseActionCommanded[2];
     uint32_t HighestFileNumber[2];
+    /* RxChannelMode
+     * 8 bits for each channel
+     * Bit 0/1: 00 - No PB, 01 - PB supported, 10 - PB for Command stations only,
+     * Bits 2/3: 00 - No FTL0, 01 FTL0 supported, 10 FTL for Command stations only,
+     * Bits 4/5: 00 - no digi, 01 - via Digi Callsign, 10 - APRS Digi, 11 - Digi All
+     * Bits 6/7: Reserved */
+    uint32_t RxChannelMode[4][2];
     uint32_t SpareData[13];
     uint8_t  NonVolatileStates[MaxStates][2];
 

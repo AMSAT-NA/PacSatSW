@@ -165,14 +165,17 @@ void DisplayTelemetry(uint32_t typeRequested){
         printf("MRAM State Values:\n\r"
                 " CommandedSafeMode=%d,Autosafe=%d\n\r"
                 " CommandRcvd=%d,AllowAutoSafe=%d\n\r"
-                " AX25 9600=%d,PB Enabled=%d,FTL0 Enabled=%d\n\r",
+                " AX25 9600=%d,PB Enabled=%d,FTL0 Enabled=%d,Digi Enabled=%d\n\r",
 
                 ReadMRAMBoolState(StateCommandedSafeMode),ReadMRAMBoolState(StateAutoSafe),
                 ReadMRAMBoolState(StateCommandReceived),ReadMRAMBoolState(StateAutoSafeAllow),
                 ReadMRAMBoolState(StateAx25Rate9600),
-                ReadMRAMBoolState(StatePbEnabled),ReadMRAMBoolState(StateUplinkEnabled)
+                ReadMRAMBoolState(StatePbEnabled),ReadMRAMBoolState(StateUplinkEnabled),ReadMRAMBoolState(StateDigiEnabled)
         );
-        printf(" Uncommanded Seconds in Orbit=%d\n\r",
+        printf(" RX Modes:");
+        for (i=0;i<NUM_OF_RX_CHANNELS; i++)
+            printf(" [%d] %x",i, ReadMRAMReceiverMode(i));
+        printf("\n Uncommanded Seconds in Orbit=%d\n\r",
                 (unsigned int)ReadMRAMSecondsOnOrbit());
         // todo:  Have to put the on-orbit flag somewhere
         //        readNV(&onOrbit,sizeof(int),LocalEEPROMData,(int)&eepromMemMap->HaveWaitedInOrbit);

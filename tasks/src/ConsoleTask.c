@@ -184,6 +184,8 @@ enum {
     ,pbOpen
     ,uplinkShut
     ,uplinkOpen
+    ,digiShut
+    ,digiOpen
     ,mramHxd
     ,dirLoad
     ,dirClear
@@ -198,6 +200,7 @@ enum {
     ,getRtc
     ,setRtc
     ,regRtc
+    ,setDigi
 };
 
 
@@ -258,6 +261,7 @@ commandPairs debugCommands[] = {
                                 ,{"test retransmission","Test the AX25 I frame retransmission",testRetransmission}
                                 ,{"test upload table","Test the storage of Upload records in the MRAM table",testUploadTable}
                                 ,{"list upload table","List the Upload records in the MRAM table",listUploadTable}
+                                ,{"set digi","Set the digipeater mode",setDigi}
 #endif
                                 ,{"monitor on","Monitor sent and received packets",monitorOn}
                                 ,{"monitor off","Stop monitoring packets",monitorOff}
@@ -265,6 +269,8 @@ commandPairs debugCommands[] = {
                                 ,{"open pb","Open the PB for use",pbOpen}
                                 ,{"shut uplink","Shut the FTL0 Uplink",uplinkShut}
                                 ,{"open uplink","Open the FTL0 Uplink for use",uplinkOpen}
+                                 ,{"shut digi","Disable the Digipeater",digiShut}
+                                 ,{"open digi","Enable the Digipeater",digiOpen}
                                 ,{"hxd","Display Hex for file number",mramHxd}
                                 ,{"load dir","Load the directory from MRAM",dirLoad}
                                 ,{"clear dir","Clear the directory but leave the files in MRAM",dirClear}
@@ -1211,7 +1217,16 @@ void RealConsoleTask(void)
             printf("UPLINK OPEN\n");
             break;
         }
-
+        case digiShut:{
+            WriteMRAMBoolState(StateDigiEnabled,false);
+            printf("Digipeater Disabled\n");
+            break;
+        }
+        case digiOpen:{
+            WriteMRAMBoolState(StateDigiEnabled,true);
+            printf("Digipeater Enabled\n");
+            break;
+        }
         case mkdirFS: {
             int numSpace=0;
             char *srchStrng;

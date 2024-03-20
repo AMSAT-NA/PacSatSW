@@ -90,6 +90,9 @@ bool CheckMRAMVersionNumber(void);
 void WriteMRAMHighestFileNumber(uint32_t seconds);
 uint32_t ReadMRAMHighestFileNumber(void);
 
+void WriteMRAMReceiverMode(uint8_t rxNum,uint8_t val);
+uint8_t ReadMRAMReceiverMode(uint8_t rxNum);
+
 #define ReadMRAMSafeMode() ReadMRAMBoolState(StateSafeMode)
 #define WriteMRAMAutoSafe(value) WriteMRAMBoolState(StateAutoSafe,value)
 #define ReadMRAMAutoSafe() ReadMRAMBoolState(StateAutoSafe)

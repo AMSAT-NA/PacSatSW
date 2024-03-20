@@ -345,6 +345,25 @@ uint32_t ReadMRAMHighestFileNumber(void){
     READ_UINT32(HighestFileNumber,0); // default to zero if corrupt
 }
 
+void WriteMRAMReceiverMode(uint8_t rxNum,uint8_t val){
+    writeNV(&val, sizeof(uint8_t), NVConfigData,
+                (int) &(ptr->StatesInMRAM.RxChannelMode[rxNum][0]));
+    writeNV(&val, sizeof(uint8_t), NVConfigData,
+                (int) &(ptr->StatesInMRAM.RxChannelMode[rxNum][1]));
+ }
+
+uint8_t ReadMRAMReceiverMode(uint8_t rxNum){
+    uint8_t val1, val2;
+    readNV(&val1, sizeof(uint8_t), NVConfigData,
+            (int) &(ptr->StatesInMRAM.RxChannelMode[rxNum][0]));
+    readNV(&val2, sizeof(uint8_t), NVConfigData,
+            (int) &(ptr->StatesInMRAM.RxChannelMode[rxNum][1]));
+    if (val1 == val2)
+        return val1;
+    else
+        return DCT_DEFAULT_RX_MODE[rxNum];
+}
+
 /*
  * Those are all the read/write routines for the MRAM.  Below are the initialization routines
  */
@@ -375,6 +394,7 @@ void SetupMRAMStates() {
 
     WriteMRAMBoolState(StateUplinkEnabled,false);
     WriteMRAMBoolState(StateAx25Rate9600,false); // start this at 1200 bps, then it can be commanded higher
+    WriteMRAMBoolState(StateDigiEnabled,false);
     WriteMRAMWODFreq(DEFAULT_WOD_FREQUENCY);
     WriteMRAMWODSaved(DEFAULT_NUM_WOD_SAVED);
     WriteMRAMWODSciDownlinkIndex(0);
@@ -388,6 +408,10 @@ void SetupMRAMStates() {
     WriteMRAMExitAutosafe(DEFAULT_AUTOSAFE_OUTOF);
 
     WriteMRAMHighestFileNumber(0);  // Start the file system at file 1, so the highest file number is zero.  File Id 0 is reserved and sent when a station does not have a file to upload.
+    int i;
+    for(i=0;i<4;i++){
+        WriteMRAMReceiverMode(i, DCT_DEFAULT_RX_MODE[i]);
+    }
 
     /* These are like 'set internal schedule' but sets relative to startup, not to current time */
     WriteMRAMTimeout(NoCommandTimeout,NO_COMMAND_TIMEOUT);
