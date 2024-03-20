@@ -383,15 +383,17 @@ void ax25_process_lm_frame(rx_channel_t channel) {
     } else if (data_link_state_machine[channel].decoded_packet.via_callsign[0] != 0) {
         /* Then we have a via callsign*/
         if (data_link_state_machine[channel].decoded_packet.frame_type == TYPE_U_UI) {
-            //debug_print(".....UI VIA Digi \n");
-            ax25_radio_buffer.bytes[20] |= 0x80; // Set the repeated bit
-            BaseType_t xStatus = xQueueSendToBack( xTxPacketQueue, &ax25_radio_buffer, CENTISECONDS(1) );
-            ReportToWatchdog(CurrentTaskWD);
+            if (strcasecmp(data_link_state_machine[channel].decoded_packet.via_callsign, DIGI_CALLSIGN) == 0) {
+                //debug_print(".....UI VIA Digi \n");
+                ax25_radio_buffer.bytes[20] |= 0x80; // Set the repeated bit, which is the last bit of the third callsign ie bit 7 byte 21
+                BaseType_t xStatus = xQueueSendToBack( xTxPacketQueue, &ax25_radio_buffer, CENTISECONDS(1) );
+                ReportToWatchdog(CurrentTaskWD);
 
-            if( xStatus != pdPASS ) {
-                /* The send operation could not complete because the queue was full */
-                debug_print("TX QUEUE FULL: Could not add Digi UI frame to Packet Queue\n");
-                // TODO - we should log this error and downlink in telemetry
+                if( xStatus != pdPASS ) {
+                    /* The send operation could not complete because the queue was full */
+                    debug_print("TX QUEUE FULL: Could not add Digi UI frame to Packet Queue\n");
+                    // TODO - we should log this error and downlink in telemetry
+                }
             }
         }
     } else {
