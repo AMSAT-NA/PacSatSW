@@ -149,6 +149,10 @@ portTASK_FUNCTION_PROTO(Ax25Task, pvParameters)  {
         ReportToWatchdog(Ax25TaskWD);
     }
 
+    debug_print("AX.25 PB Call: %s",BROADCAST_CALLSIGN);
+    debug_print(" BBS Call: %s",BBS_CALLSIGN);
+    debug_print(" Digi Call: %s\n",DIGI_CALLSIGN);
+
     /* Task loop which runs forever */
     while(1) {
         ReportToWatchdog(Ax25TaskWD);
