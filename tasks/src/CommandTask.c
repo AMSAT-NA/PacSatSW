@@ -309,6 +309,18 @@ bool OpsSWCommands(CommandAndArgs *comarg){
         }
         break;
     }
+    case SWCmdOpsEnableDigi: {
+        bool turnOn;
+        turnOn = (comarg->arguments[0] != 0);
+        if(turnOn){
+            command_print("Enable Digi\n\r");
+
+        } else {
+            command_print("Disable Digi\n\r");
+        }
+        WriteMRAMBoolState(StateDigiEnabled,turnOn);
+        break;
+    }
     case SWCmdOpsEnableUplink: {
         bool turnOn;
         turnOn = (comarg->arguments[0] != 0);
@@ -351,17 +363,18 @@ bool OpsSWCommands(CommandAndArgs *comarg){
         break;
     }
     case SWCmdOpsDCTTxInhibit:
+        // TODO - not implemented
         if(comarg->arguments[0] != 0) { // True means to inhibit it
-            command_print("SW:Inhibit transmitting\n");
+            command_print("NOT IMPLEMENTED   SW:Inhibit transmitting\n");
         } else {
-            command_print("SW:Uninhibit transmitting\n");
+            command_print("NOT IMPLEMENTED   SW:Uninhibit transmitting\n");
         }
         break;
     case SWCmdOpsSelectDCTRFPower: {
         int myCpuIndex = 0;//ThisProcessorIsPrimary()?0:1;
         bool safePowerHigh = comarg->arguments[myCpuIndex]; // Arg 0 and 1 are for safe
         bool normalPowerHigh = comarg->arguments[myCpuIndex+2]; //Arg 2 and 3 are for normal
-        command_print("Select Power Level; for this DCT, safe=%s,normal=%s\n",safePowerHigh?"high":"low",
+        command_print("NOT IMPLEMENTED   Select Power Level; for this DCT, safe=%s,normal=%s\n",safePowerHigh?"high":"low",
                 normalPowerHigh?"high":"low");
         //SetSafeRfPowerLevel(safePowerHigh);
         //SetNormalRfPowerLevel(normalPowerHigh);
@@ -395,28 +408,11 @@ void EnableCommandTimeCheck(bool enable){
 }
 bool TlmSWCommands(CommandAndArgs *comarg){
     switch(comarg->command){
-    case SWCmdTlmWODSaveSize:
-        command_print("Change WOD size to %d\n\r",comarg->arguments[0]);
-        //ChangeWODSaved(comarg->arguments[0]);
-        break;
-
-    case SWCmdTlmLegacyGain:
-        command_print("Tlm legacy gain to %d\n\r",comarg->arguments[0]);
-        break;
-
-    case SWCmdTlmDCTDrivePwr:{
-        int myCpuIndex = 0;
-        uint16_t lowPower = comarg->arguments[myCpuIndex]; // Arg 0 and 1 are for low
-        uint16_t highPower = comarg->arguments[myCpuIndex+2]; //Arg 2 and 3 are for high
-        command_print("Drive power reg for this proc are Low: %d, high: %d\n",lowPower,highPower);
-        //SetDCTDriveValue(lowPower,highPower);
-        break;
-    }
 
     default:
         localErrorCollection.DCTCmdFailCommandCnt++;
         printf("Unknown Tlm Command\n\r");
-        return FALSE;
+        break;
     }
     return TRUE;
 }

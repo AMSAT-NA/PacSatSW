@@ -784,7 +784,7 @@ void RealConsoleTask(void)
             args[3] = parseNextNumber();
             printf("Set primary low power to %d, secondary low power to %d\n",args[0],args[1]);
             printf("Set primary high power to %d, secondary high power to %d\n",args[2],args[3]);
-            SimulateSwCommand(SWCmdNSTelemetry,SWCmdTlmDCTDrivePwr,args,4);
+            //SimulateSwCommand(SWCmdNSTelemetry,SWCmdTlmDCTDrivePwr,args,4);
             break;
         }
 

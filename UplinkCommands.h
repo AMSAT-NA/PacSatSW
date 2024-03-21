@@ -104,14 +104,11 @@ typedef enum {
 	,SWCmdNSExperiment3
 	,SWCmdNSExperiment4
 	,SWCmdNSCAN
-	,SWCmdNSRagnarok
 	,SWCmdNSInternal
 }SWCommandNameSpace;
 typedef enum {
      SWCmdIntReserved=0
     ,SWCmdIntSetEclipseState // Argument 1 for enter, 0 for exit
-    ,SWCmdIntEclipseInhibXpond
-    ,SWCmdIntEclipseInhib10GHz
     ,SWCmdIntEclipsesafeMode
     ,SWCmdIntEclipseInhibTx
     ,SWCmdIntAutosafeMode
@@ -126,31 +123,24 @@ typedef enum {
 	,SWCmdOpsClearMinMax
 	,SWCmdOpsNoop
 	,SWCmdOpsEnablePb
-    ,SWCmdOpsFormatFs
+    ,SWCmdOpsFormatFs = 9
+    ,SWCmdOpsEnableDigi
 	,SWCmdOpsEnableUplink=12
 	,SWCmdOpsDeployAntennas   // Args = (bus, antennaNumber,time, override)
 	,SWCmdOpsSetTime // Args = (unix time)
-	,SWCmdOpsSetGyroReg // Args = (reg number,value)
 	,SWCmdOpsEnableCommandTimeCheck //16
 	,SWCmdOpsSetAutosafeVoltages //17
 	,SWCmdOpsResetSpecified = 21 //Args = (LIHU, RTPrimary, RTSecondary), each one 1 or 0
 	,SWCmdOpsDCTTxInhibit // 22
-    ,SWCmdOpsSelectLegacyRFPower //23
-    ,SWCmdOpsSelectDCTRFPower // Args=(RTPrime Safe,RTSecond Safe, RTPrime Normal, RTSecond Normal) each one 1 (high) or 0 (low)
-    ,SWCmdOpsSetEclipseAction // Arg1 = one of EclipseActionNone, EANo10GHZ, EANoTransponder, EASafe, EANoXmit
+	,SWCmdOpsSelectDCTRFPower
     ,SWCmdOpsSpare
-    ,SWCmdOpsRequestControl // 27  Arg1: 0=RT-IHU, 1=LIHU
-    ,SWCmdOpsSetActiveRTIHU // 28  Arg1: 0=Primary, 1=Secondary
     ,SWCmdOpsNumberOfCommands
 }SWOpsCommands;
 const static uint8_t SWCmdOpsArgSize[SWCmdOpsNumberOfCommands]={0,0,0,1,0,0,0};
 
 typedef enum {
     SWCmdTlmReserved=0
-   ,SWCmdTlmLegacyGain //0 to 19 (in negative dB, 19 is default)
-   ,SWCmdTlmWODSaveSize
    ,SWCmdTlmFrequency
-   ,SWCmdTlmDCTDrivePwr //Args=(Primary high, secondary high, primary low, secondary low). 0=no change.  0xffff=default
    ,SWCmdTlmNumberOfCommands
 }SWTlmCommands;
 
@@ -161,7 +151,7 @@ typedef enum {
 	,SwCmdExp1NumberOfCommands
 }SWExp1Commands;
 
-const static uint8_t SWCmdTlmArgSize[SWCmdTlmNumberOfCommands]={0,1,1};
+const static uint8_t SWCmdTlmArgSize[SWCmdTlmNumberOfCommands]={0,1};
 
 #define SW_CMD_STRUCT_SIZE (sizeof(SWCmdUplink))
 #define SW_UPLINK_FEC_RATE 2  /*(Actually 1/2)*/
