@@ -28,16 +28,15 @@
 #include "FreeRTOS.h"
 #include "os_task.h"
 #include "ax25_util.h"
-#include "RxTask.h"
 #include "nonvolManagement.h"
 
 
 void radio_set_power(uint32_t regVal);
-bool tx_make_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t *bytes, int len, rx_radio_buffer_t *tx_radio_buffer);
-bool tx_make_packet(AX25_PACKET *packet, rx_radio_buffer_t *tx_radio_buffer);
+bool tx_make_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t *bytes, int len, uint8_t *raw_bytes);
+bool tx_make_packet(AX25_PACKET *packet, uint8_t *raw_bytes);
 
-static rx_radio_buffer_t tx_packet_buffer; /* Buffer used when data copied from tx queue */
-static rx_radio_buffer_t tmp_packet_buffer; /* Buffer used when constructing new packets. */
+static uint8_t tx_packet_buffer[AX25_PKT_BUFFER_LEN]; /* Buffer used when data copied from tx queue */
+static uint8_t tmp_packet_buffer[AX25_PKT_BUFFER_LEN]; /* Buffer used when constructing new packets. position 0 will hold the number of bytes */
 static AX5043Device device = TX_DEVICE;
 extern bool monitorPackets;
 
@@ -53,14 +52,14 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)  {
 //    printf("Initializing TX\n");
 
     /* This is defined in pacsat.h, declared here */
-    xTxPacketQueue = xQueueCreate( TX_PACKET_QUEUE_LEN, sizeof( rx_radio_buffer_t ) );
+    xTxPacketQueue = xQueueCreate( TX_PACKET_QUEUE_LEN, AX25_PKT_BUFFER_LEN * sizeof( uint8_t ) );
     if (xTxPacketQueue == NULL) {
         /* The queue could not be created.  This is fatal and should only happen in test if we are short of memory at startup */
         ReportError(RTOSfailure, TRUE, CharString, (int)"FATAL ERROR: Could not create TX Packet Queue");
     }
 
     bool rate = ReadMRAMBoolState(StateAx25Rate9600);
-    ax5043StartTx(device, ANT_DIFFERENTIAL);
+    ax5043StartTx(device);
     radio_set_power(0x020); // minimum power to test
 
     /* Set Power state to FULL_TX */
@@ -80,15 +79,15 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)  {
         ReportToWatchdog(CurrentTaskWD);
         if( xStatus == pdPASS ) {
             if (monitorPackets)
-                print_packet("TX", tx_packet_buffer.bytes, tx_packet_buffer.len);
+                print_packet("TX: ", &tx_packet_buffer[1], tx_packet_buffer[0]);
 
             /* Data was successfully received from the queue */
-            int numbytes = tx_packet_buffer.len;
+            int numbytes = tx_packet_buffer[0] - 1; // first byte holds number of bytes
             //        printf("FIFO_FREE 1: %d\n",fifo_free());
             ax5043WriteReg(device, AX5043_FIFOSTAT, 3); // clear FIFO data & flags
             fifo_repeat_byte(device, 0x7E, preamble_length, raw_no_crc_flag); // repeat the preamble bytes  ///  TODO - no preamble for back to back packets
             fifo_commit(device);
-            fifo_queue_buffer(device, tx_packet_buffer.bytes, numbytes, pktstart_flag|pktend_flag);
+            fifo_queue_buffer(device, tx_packet_buffer+1, numbytes, pktstart_flag|pktend_flag);
             //       printf("FIFO_FREE 2: %d\n",fifo_free());
             fifo_commit(device);
             //       printf("INFO: Waiting for transmission to complete\n");
@@ -125,27 +124,27 @@ void radio_set_power(uint32_t regVal) {
  * stored in the first byte, which will not be transmitted.
  *
  */
-bool tx_make_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t *bytes, int len, rx_radio_buffer_t *tx_radio_buffer) {
+bool tx_make_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t *bytes, int len, uint8_t *raw_bytes) {
     uint8_t packet_len;
-    uint8_t header_len = 16;
+    uint8_t header_len = 17;
     int i;
     unsigned char buf[7];
     int l = encode_call(to_callsign, buf, false, 0);
     if (l != true) return false;
     for (i=0; i<7; i++)
-        tx_radio_buffer->bytes[i] = buf[i];
+        raw_bytes[i+1] = buf[i];
     l = encode_call(from_callsign, buf, true, 0);
     if (l != true) return false;
     for (i=0; i<7; i++)
-        tx_radio_buffer->bytes[i+7] = buf[i];
-    tx_radio_buffer->bytes[14] = BITS_UI; // UI Frame control byte
-    tx_radio_buffer->bytes[15] = pid;
+        raw_bytes[i+8] = buf[i];
+    raw_bytes[15] = BITS_UI; // UI Frame control byte
+    raw_bytes[16] = pid;
 
     for (i=0; i< len; i++) {
-        tx_radio_buffer->bytes[i+header_len] = bytes[i];
+        raw_bytes[i+header_len] = bytes[i];
     }
     packet_len = len + header_len;
-    tx_radio_buffer->len = packet_len; /* Number of bytes */
+    raw_bytes[0] = packet_len; /* Number of bytes */
 
 //    if (true) {
 //        for (i=0; i< packet_len; i++) {
@@ -171,9 +170,9 @@ bool tx_make_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint
  * Returns true unless there is an error
  * TODO - this should be in ax25_util and be called encode_packet()
  */
-bool tx_make_packet(AX25_PACKET *packet, rx_radio_buffer_t *tx_radio_buffer) {
+bool tx_make_packet(AX25_PACKET *packet, uint8_t *raw_bytes) {
     uint8_t packet_len;
-    uint8_t header_len = 15; // Assumes no PID
+    uint8_t header_len = 16; // Assumes no PID
     int i;
     unsigned char buf[7];
 
@@ -181,7 +180,7 @@ bool tx_make_packet(AX25_PACKET *packet, rx_radio_buffer_t *tx_radio_buffer) {
     switch (packet->frame_type) {
         case TYPE_I : {
             packet->control = (packet->NR << 5) | (packet->PF << 4) | (packet->NS << 1) | 0b00;
-            header_len = 16; // make room for pid
+            header_len = 17; // make room for pid
             packet->pid = 0xF0;
             packet->command = AX25_COMMAND;
             break;
@@ -237,7 +236,7 @@ bool tx_make_packet(AX25_PACKET *packet, rx_radio_buffer_t *tx_radio_buffer) {
         }
         case TYPE_U_UI : {
             packet->control = (packet->PF << 4) | (BITS_UI);
-            header_len = 16; // room for pid, which has to be set in the packet already
+            header_len = 17; // room for pid, which has to be set in the packet already
             break;
         }
         case TYPE_U_XID : {
@@ -262,25 +261,25 @@ bool tx_make_packet(AX25_PACKET *packet, rx_radio_buffer_t *tx_radio_buffer) {
     int l = encode_call(packet->to_callsign, buf, false, command);
     if (l != true) return false;
     for (i=0; i<7; i++)
-        tx_radio_buffer->bytes[i] = buf[i];
+        raw_bytes[i+1] = buf[i];
     l = encode_call(packet->from_callsign, buf, true, command2);
     if (l != true) return false;
     for (i=0; i<7; i++)
-        tx_radio_buffer->bytes[i+7] = buf[i];
+        raw_bytes[i+8] = buf[i];
 
-    tx_radio_buffer->bytes[14] = packet->control;
+    raw_bytes[15] = packet->control;
 
     // If we have a pid then set it here
-    if (header_len == 16)
-        tx_radio_buffer->bytes[15] = packet->pid;
+    if (header_len == 17)
+        raw_bytes[16] = packet->pid;
 
     // If there are data bytes then add them here
     if (packet->data_len > 0)
     for (i=0; i< packet->data_len; i++) {
-        tx_radio_buffer->bytes[i+header_len] = packet->data[i];
+        raw_bytes[i+header_len] = packet->data[i];
     }
     packet_len = packet->data_len + header_len;
-    tx_radio_buffer->len = packet_len; /* Number of bytes */
+    raw_bytes[0] = packet_len; /* Number of bytes */
 
 //    if (true) {
 //        for (i=0; i< packet_len; i++) {
@@ -310,7 +309,7 @@ bool tx_make_packet(AX25_PACKET *packet, rx_radio_buffer_t *tx_radio_buffer) {
  */
 bool tx_send_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t *bytes, int len, bool block) {
     //uint8_t raw_bytes[AX25_PKT_BUFFER_LEN];
-    bool rc = tx_make_ui_packet(from_callsign, to_callsign, pid, bytes, len, &tmp_packet_buffer);
+    bool rc = tx_make_ui_packet(from_callsign, to_callsign, pid, bytes, len, tmp_packet_buffer);
     TickType_t xTicksToWait = 0;
     if (block)
         xTicksToWait = CENTISECONDS(1);
@@ -339,8 +338,12 @@ bool tx_send_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint
  * bad data.  That seems to be safer than locking up the BBS with a bad packet in a loop.
  *
  */
-bool tx_send_packet(AX25_PACKET *packet, bool expedited, bool block) {
-    bool rc = tx_make_packet(packet, &tmp_packet_buffer);
+bool tx_send_packet(rx_channel_t channel, AX25_PACKET *packet, bool expedited, bool block) {
+    if (channel >= NUM_OF_TX_CHANNELS) {
+        debug_print("LOGIC ERROR: tx_send_packet() Invalid radio channel %d\n",channel);
+        return TRUE; // return true here as we do not want to repeat this bad packet.  Data is dropped
+    }
+    bool rc = tx_make_packet(packet, tmp_packet_buffer);
     if (rc == FALSE) {
         debug_print("LOGIC ERROR: Invalid packet. Packet not sent\n");
         return TRUE; // return true here as we do not want to repeat this bad packet.  Data is dropped
@@ -376,7 +379,7 @@ bool tx_test_make_packet() {
     uint8_t pid = 0xbb;
     uint8_t bytes[] = {0,1,2,3,4,5,6,7,8,9};
     uint8_t len = 10;
-    rc = tx_make_ui_packet(from_callsign, to_callsign, pid, bytes, len, &tmp_packet_buffer);
+    rc = tx_make_ui_packet(from_callsign, to_callsign, pid, bytes, len, tmp_packet_buffer);
 
     BaseType_t xStatus = xQueueSendToBack( xTxPacketQueue, &tmp_packet_buffer, CENTISECONDS(1) );
     if( xStatus != pdPASS ) {
