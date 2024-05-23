@@ -131,12 +131,15 @@ bool IsStabilizedAfterBoot(){
 
 static void METupdate(xTimerHandle x) {
 #ifdef DEBUG
-    static int LEDnum=0;
-    static Gpio_Use led=LED1;
-    const Gpio_Use whichLED[]={LED1,LED2,LED3,NumberOfGPIOs};
-    GPIOToggle(led);
-    led = whichLED[++LEDnum];
-    if(led==NumberOfGPIOs){LEDnum=0;led=LED1;}
+    //static int LEDnum=0;
+    //static Gpio_Use led=LED1;
+    //const Gpio_Use whichLED[]={LED1,LED2,LED3,NumberOfGPIOs};
+    //GPIOToggle(led);
+    //Change to blink LED3 only   N5BRG 240516
+    //led = whichLED[++LEDnum];
+    //if(led==NumberOfGPIOs){LEDnum=0;led=LED1;}
+    GPIOToggle(LED3); //240521 N5BRG
+
 #endif
     METcount++;
     timestampSeconds++;
