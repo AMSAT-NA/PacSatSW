@@ -434,6 +434,7 @@ int initMRAM(bool newDevice)
     }
     if(!CheckMRAMVersionNumber()){
         printf("\n\n\n\n*****MRAM layout has changed.  You must issue clear mram******\n\n\n\n");
+        return -1;
     }
     return totalMRAMSize;
 }
