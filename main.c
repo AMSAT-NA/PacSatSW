@@ -135,6 +135,7 @@ void startup(void)
     GPIOToggle(LED1);
 #endif
     sciSend(sciREG,38,"Starting a test on the SCI register\r\n");
+
     i2cInit();
     spiInit();
     adcInit();
@@ -196,9 +197,14 @@ void startup(void)
      */
 
     _enable_interrupt_();
+#ifdef LAUNCHPAD_HARDWARE
+#ifdef HET
+    HetUARTSetBaudrate(hetRAM1,COM1_BAUD);
+#endif
     /* Serial port and LEDs */
-    //hetREG1->DIR=0x00000017; //We want them to start out as output, I suppose.
-    //hetREG1->DOUT=0x00000017;
+    hetREG1->DIR=0x00000017; //We want them to start out as output, I suppose.
+    hetREG1->DOUT=0x00000017;
+#endif
 
     xTaskCreate(ConsoleTask, "Console", CONSOLE_STACK_SIZE,
                 NULL,CONSOLE_PRIORITY, NULL);
@@ -232,19 +238,23 @@ void ConsoleTask(void *pvParameters){
     bool haveWaited,umbilicalAttached; //todo: Fix charger when we get that line in V1.2
     //GPIOInit(WatchdogFeed,NO_TASK,NO_MESSAGE,None);
     ResetAllWatchdogs(); // This is started before MET and other tasks so just reporting in does not help
-
+debug_print("Starting console task\n");
     /*
      * Now we have an OS going, so we call the init routines, which use OS structures like
      * semaphores and queues.
      */
+
     SerialInitPort(COM1,COM1_BAUD, 10,10);//Max of 38400 for the moment
     SerialInitPort(COM2,COM2_BAUD,10,10);
 
     // Initialize the SPI driver for our SPI devices
 
 #ifdef LAUNCHPAD_HARDWARE
-    SPIInit(TxDCTDev); // This is the transmitter on UHF
-    SPIInit(Rx1DCTDev); // This is the receiver on VHF on the Pacsat Booster Board
+//    SPIInit(TxDCTDev); // This is the transmitter on UHF
+//    SPIInit(Rx1DCTDev); // This is the receiver on VHF on the Pacsat Booster Board
+
+    SPIInit(DCTDev0); // This is the receiver on VHF on the Pacsat Booster Board
+    SPIInit(DCTDev1); // This is the transmitter on UHF
 #else
     SPIInit(Rx1DCTDev); // This is the receiver on VHF on the Pacsat Booster Board
     SPIInit(Rx2DCTDev); // This is the receiver on VHF on the Pacsat Booster Board
@@ -267,10 +277,14 @@ void ConsoleTask(void *pvParameters){
     }
     initMET();
     I2cInit(I2C1);
-#ifdef LAUNCHPAD_HARDWARE
 
-    GPIOInit(Rx0DCTInterrupt,ToRxTask,Rx0DCTInterruptMsg,None);
-    GPIOInit(TxDCTInterrupt,ToTxTask,TxDCTInterruptMsg,None);
+#ifdef LAUNCHPAD_HARDWARE
+    I2cInit(I2C2);
+    GPIOEzInit(LED1);
+    GPIOEzInit(LED2);
+    GPIOInit(DCTInterrupt,ToRxTask,Rx0DCTInterruptMsg,None);
+//    GPIOInit(Rx0DCTInterrupt,ToRxTask,Rx0DCTInterruptMsg,None);
+//    GPIOInit(TxDCTInterrupt,ToTxTask,TxDCTInterruptMsg,None);
 #else
     GPIOInit(Rx0DCTInterrupt,ToRxTask,Rx0DCTInterruptMsg,None);
     GPIOInit(Rx1DCTInterrupt,ToRxTask,Rx1DCTInterruptMsg,None);

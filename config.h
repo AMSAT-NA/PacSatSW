@@ -13,7 +13,6 @@
 #define GOLFCONFIG_H_
 
 #define LAUNCHPAD_HARDWARE
-//#define BLINKY_HARDWARE
 
 #define PACSAT_NUMBER "0" // This is PacSat.
 #define GOLF_ID (PACSAT_NUMBER[0] - '0') /*Must change if number greater than 9*/

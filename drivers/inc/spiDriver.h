@@ -12,8 +12,12 @@
 #include <pacsat.h>
 #include "stdint.h"
 /* If AX5043 devices added to this enum then updates need to be made to ax5043_access.h */
+#ifdef LAUNCHPAD_HARDWARE
+typedef enum {MRAM0Dev = 0, MRAM1Dev = 1, MRAM2Dev=2, MRAM3Dev=3, DCTDev0 = 4,DCTDev1, InvalidSPI} SPIDevice;
+#else
 typedef enum {MRAM0Dev = 0, MRAM1Dev = 1, MRAM2Dev=2, MRAM3Dev=3, Rx1DCTDev = 4,
                 Rx2DCTDev,Rx3DCTDev,Rx4DCTDev,TxDCTDev, InvalidSPI} SPIDevice;
+#endif
 #define NUMBER_OF_BUSES 3
 typedef union {
     uint8_t byte[4];
