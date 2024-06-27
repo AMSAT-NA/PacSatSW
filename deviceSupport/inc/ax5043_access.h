@@ -15,7 +15,11 @@
 
 #define NUM_AX5043_SPI_DEVICES 5 // Increase this if Devices added to enum in spiDriver.h (and relevant pin config complete)
 typedef enum {AX5043Dev0 = 0,AX5043Dev1,AX5043Dev2,AX5043Dev3,AX5043Dev4,InvalidAX5043Device} AX5043Device;
+#ifdef LAUNCHPAD_HARDWARE
+#define TX_DEVICE AX5043Dev1
+#else
 #define TX_DEVICE AX5043Dev4
+#endif
 #define RX1_DEVICE AX5043Dev0
 #define RX2_DEVICE AX5043Dev1
 #define RX3_DEVICE AX5043Dev2

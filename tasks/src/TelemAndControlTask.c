@@ -236,7 +236,7 @@ void tac_collect_telemetry(telem_buffer_t *buffer) {
     if(Get8BitTemp31725(CpuTemp,&temp8)) {
         buffer->rtHealth.common.IHUTemp = temp8;
     } else {
-        debug_print("TAC: ERROR I2C temp request failed\n");
+        //debug_print("TAC: ERROR I2C temp request failed\n");
     }
 
     /* TX Telemetry */

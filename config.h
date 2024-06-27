@@ -36,7 +36,11 @@
 #define PACSAT_MAX_MRAMS 4
 
 ////////////////////////////////////////////This is I/O
+#ifdef LAUNCHPAD_HARDWARE
+#define PRINTF_COM COM2
+#else
 #define PRINTF_COM COM1
+#endif
 #define COM1_BAUD 38400
 #define COM2_BAUD 38400
 #ifdef DEBUG

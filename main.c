@@ -364,12 +364,12 @@ debug_print("Starting console task\n");
 
     xTaskCreate(CommandTask, "Command", COMMAND_STACK_SIZE,
                  NULL,COMMAND_PRIORITY, NULL);
-//    xTaskCreate(RxTask,"RxTask",RX_STACK_SIZE, NULL, RX_PRIORITY,NULL);
-//    xTaskCreate(Ax25Task,"Ax25Task",AX25_STACK_SIZE, NULL, AX25_PRIORITY,NULL);
-//    xTaskCreate(PbTask,"PbTask",PB_STACK_SIZE, NULL, PB_PRIORITY,NULL);
-//    xTaskCreate(UplinkTask,"UplinkTask",UPLINK_STACK_SIZE, NULL, UPLINK_PRIORITY,NULL);
-//    xTaskCreate(TxTask,"TxTask",RADIO_STACK_SIZE, NULL,TX_PRIORITY,NULL);
-//    xTaskCreate(TelemAndControlTask,"Telem and Control Task",TELEMETRY_STACK_SIZE, NULL,TELEMETRY_PRIORITY,NULL);
+    xTaskCreate(RxTask,"RxTask",RX_STACK_SIZE, NULL, RX_PRIORITY,NULL);
+    xTaskCreate(Ax25Task,"Ax25Task",AX25_STACK_SIZE, NULL, AX25_PRIORITY,NULL);
+    xTaskCreate(PbTask,"PbTask",PB_STACK_SIZE, NULL, PB_PRIORITY,NULL);
+    xTaskCreate(UplinkTask,"UplinkTask",UPLINK_STACK_SIZE, NULL, UPLINK_PRIORITY,NULL);
+    xTaskCreate(TxTask,"TxTask",RADIO_STACK_SIZE, NULL,TX_PRIORITY,NULL);
+    xTaskCreate(TelemAndControlTask,"Telem and Control Task",TELEMETRY_STACK_SIZE, NULL,TELEMETRY_PRIORITY,NULL);
 #endif
     debug_print("Free heap size after tasks launched: %d\n",xPortGetFreeHeapSize());
 
