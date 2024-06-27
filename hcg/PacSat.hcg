@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <SETTINGS>
   <DEVICE>
-    <family>TMS570LS09x_07x</family>
-    <device>TMS570LS0714PGE</device>
-    <dilfile>PACSatBlinky.dil</dilfile>
+    <family>TMS570LS12x</family>
+    <device>TMS570LS1224PGE</device>
+    <dilfile>PacSat.dil</dilfile>
     <tools>ti</tools>
   </DEVICE>
   <VERSION>
@@ -12,20 +12,20 @@
   <HET1>
     <FILENAME>
       <HET1ASMHDR>
-        <NAME/>
+        <NAME>..\HET\HET_EMU_SCI.h</NAME>
       </HET1ASMHDR>
       <HET1ASMSRC>
-        <NAME/>
+        <NAME>..\HET\HET_EMU_SCI.c</NAME>
       </HET1ASMSRC>
     </FILENAME>
   </HET1>
   <HET2>
     <FILENAME>
       <HET2ASMHDR>
-        <NAME/>
+        <NAME>..\HET\HET_EMU_I2C.h</NAME>
       </HET2ASMHDR>
       <HET2ASMSRC>
-        <NAME/>
+        <NAME>..\HET\HET_EMU_I2C.c</NAME>
       </HET2ASMSRC>
     </FILENAME>
   </HET2>
@@ -259,7 +259,9 @@
       <HDRCAN>
         <NAME>can.h</NAME>
       </HDRCAN>
-      <SRCCAN/>
+      <SRCCAN>
+        <NAME>can.c</NAME>
+      </SRCCAN>
       <HDRADC_R>
         <NAME>reg_adc.h</NAME>
       </HDRADC_R>
@@ -270,10 +272,10 @@
         <NAME>adc.c</NAME>
       </SRCADC>
       <HET1ASMHDR>
-        <NAME/>
+        <NAME>..\HET\HET_EMU_SCI.h</NAME>
       </HET1ASMHDR>
       <HET1ASMSRC>
-        <NAME/>
+        <NAME>..\HET\HET_EMU_SCI.c</NAME>
       </HET1ASMSRC>
       <STDHDRHET>
         <NAME>std_nhet.h</NAME>
@@ -284,19 +286,20 @@
       <HDRHET>
         <NAME>het.h</NAME>
       </HDRHET>
+      <SRCHET>
+        <NAME>het.c</NAME>
+      </SRCHET>
       <HDRHTU_R>
         <NAME>reg_htu.h</NAME>
       </HDRHTU_R>
       <HDRHTU>
         <NAME>htu.h</NAME>
       </HDRHTU>
-      <SRCHET>
-</SRCHET>
       <HET2ASMHDR>
-        <NAME/>
+        <NAME>..\HET\HET_EMU_I2C.h</NAME>
       </HET2ASMHDR>
       <HET2ASMSRC>
-        <NAME/>
+        <NAME>..\HET\HET_EMU_I2C.c</NAME>
       </HET2ASMSRC>
       <HDRESM_R>
         <NAME>reg_esm.h</NAME>
@@ -322,21 +325,27 @@
       <HDRDCC>
         <NAME>dcc.h</NAME>
       </HDRDCC>
-      <SRCDCC/>
+      <SRCDCC>
+        <NAME>dcc.c</NAME>
+      </SRCDCC>
       <HDRCRC_R>
         <NAME>reg_crc.h</NAME>
       </HDRCRC_R>
       <HDRCRC>
         <NAME>crc.h</NAME>
       </HDRCRC>
-      <SRCCRC/>
+      <SRCCRC>
+        <NAME>crc.c</NAME>
+      </SRCCRC>
       <HDRETPWM_R>
         <NAME>reg_etpwm.h</NAME>
       </HDRETPWM_R>
       <HDRETPWM>
         <NAME>etpwm.h</NAME>
       </HDRETPWM>
-      <SRCETPWM/>
+      <SRCETPWM>
+        <NAME>etpwm.c</NAME>
+      </SRCETPWM>
       <HDRECAP_R>
         <NAME>reg_ecap.h</NAME>
       </HDRECAP_R>
@@ -344,16 +353,19 @@
         <NAME>ecap.h</NAME>
       </HDRECAP>
       <SRCECAP>
-</SRCECAP>
+        <NAME>ecap.c</NAME>
+      </SRCECAP>
       <HDREQEP_R>
         <NAME>reg_eqep.h</NAME>
       </HDREQEP_R>
       <HDREQEP>
         <NAME>eqep.h</NAME>
       </HDREQEP>
-      <SRCEQEP/>
+      <SRCEQEP>
+        <NAME>eqep.c</NAME>
+      </SRCEQEP>
       <HDR1FEE>
-        <NAME>Device_TMS570LS07.h</NAME>
+        <NAME>Device_TMS570LS12.h</NAME>
       </HDR1FEE>
       <HDR2FEE>
         <NAME>Device_header.h</NAME>
@@ -494,7 +506,7 @@
         <PATH>include\can.h</PATH>
       </HDRCAN>
       <SRCCAN>
-        <PATH/>
+        <PATH>source\can.c</PATH>
       </SRCCAN>
     </FILENAMES>
   </CAN>
@@ -513,6 +525,12 @@
   </ADC>
   <HET>
     <FILENAMES>
+      <HET1ASMHDR>
+        <PATH>include\HET_EMU_SCI.h</PATH>
+      </HET1ASMHDR>
+      <HET1ASMSRC>
+        <PATH>source\HET_EMU_SCI.c</PATH>
+      </HET1ASMSRC>
       <STDHDRHET>
         <PATH>include\std_nhet.h</PATH>
       </STDHDRHET>
@@ -522,15 +540,21 @@
       <HDRHET>
         <PATH>include\het.h</PATH>
       </HDRHET>
+      <SRCHET>
+        <PATH>source\het.c</PATH>
+      </SRCHET>
       <HDRHTU_R>
         <PATH>include\reg_htu.h</PATH>
       </HDRHTU_R>
       <HDRHTU>
         <PATH>include\htu.h</PATH>
       </HDRHTU>
-      <SRCHET>
-        <PATH></PATH>
-      </SRCHET>
+      <HET2ASMHDR>
+        <PATH>include\HET_EMU_I2C.h</PATH>
+      </HET2ASMHDR>
+      <HET2ASMSRC>
+        <PATH>source\HET_EMU_I2C.c</PATH>
+      </HET2ASMSRC>
     </FILENAMES>
   </HET>
   <ESM>
@@ -568,7 +592,7 @@
         <PATH>include\dcc.h</PATH>
       </HDRDCC>
       <SRCDCC>
-        <PATH/>
+        <PATH>source\dcc.c</PATH>
       </SRCDCC>
     </FILENAMES>
   </DCC>
@@ -581,7 +605,7 @@
         <PATH>include\crc.h</PATH>
       </HDRCRC>
       <SRCCRC>
-        <PATH/>
+        <PATH>source\crc.c</PATH>
       </SRCCRC>
     </FILENAMES>
   </CRC>
@@ -594,7 +618,7 @@
         <PATH>include\etpwm.h</PATH>
       </HDRETPWM>
       <SRCETPWM>
-        <PATH/>
+        <PATH>source\etpwm.c</PATH>
       </SRCETPWM>
     </FILENAMES>
   </ETPWM>
@@ -607,7 +631,7 @@
         <PATH>include\ecap.h</PATH>
       </HDRECAP>
       <SRCECAP>
-        <PATH></PATH>
+        <PATH>source\ecap.c</PATH>
       </SRCECAP>
     </FILENAMES>
   </ECAP>
@@ -620,14 +644,14 @@
         <PATH>include\eqep.h</PATH>
       </HDREQEP>
       <SRCEQEP>
-        <PATH/>
+        <PATH>source\eqep.c</PATH>
       </SRCEQEP>
     </FILENAMES>
   </EQEP>
   <FEE>
     <FILENAMES>
       <HDR1FEE>
-        <PATH>include\Device_TMS570LS07.h</PATH>
+        <PATH>include\Device_TMS570LS12.h</PATH>
       </HDR1FEE>
       <HDR2FEE>
         <PATH>include\Device_header.h</PATH>

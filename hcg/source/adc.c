@@ -94,7 +94,7 @@ void adcInit(void)
     *     - Enable/Disable channel id in conversion result
     *     - Enable/Disable continuous conversion
     */
-    adcREG1->GxMODECR[0U] = (uint32)ADC_12_BIT
+    adcREG1->GxMODECR[0U] = (uint32)ADC_8_BIT
                           | (uint32)0x00000000U
                           | (uint32)0x00000000U;
 
@@ -120,8 +120,8 @@ void adcInit(void)
     *     - Enable/Disable channel id in conversion result
     *     - Enable/Disable continuous conversion
     */
-    adcREG1->GxMODECR[1U] = (uint32)ADC_12_BIT
-                          | (uint32)0x00000000U
+    adcREG1->GxMODECR[1U] = (uint32)ADC_8_BIT
+                          | (uint32)0x00000020U
                           | (uint32)0x00000000U
                           | (uint32)0x00000000U;
 
@@ -147,8 +147,8 @@ void adcInit(void)
      *     - Enable/Disable channel id in conversion result
      *     - Enable/Disable continuous conversion
      */
-    adcREG1->GxMODECR[2U] = (uint32)ADC_12_BIT
-                          | (uint32)0x00000000U
+    adcREG1->GxMODECR[2U] = (uint32)ADC_8_BIT
+                          | (uint32)0x00000020U
                           | (uint32)0x00000000U
                           | (uint32)0x00000000U;
 
@@ -333,9 +333,9 @@ static const uint32 s_adcSelect[2U][3U] =
 /** - s_adcFiFoSize is used as constant table for channel selection */
 static const uint32 s_adcFiFoSize[2U][3U] =
 {
-    {16U,
-    16U,
-    16U},
+    {4U,
+    1U,
+    4U},
     {16U,
     16U,
     16U}

@@ -64,6 +64,7 @@
 
 #include "errata_SSWF021_45.h"
 /* USER CODE BEGIN (1) */
+#include "errors.h" /* Get the structure we save across resets */
 /* USER CODE END */
 
 
@@ -119,6 +120,18 @@ void _c_int00(void)
      * by its ECC logic for accesses to program flash or data RAM.
      */
     _coreEnableEventBusExport_();
+/* USER CODE BEGIN (9) */
+/* USER CODE END */
+
+    /* Enable response to ECC errors indicated by CPU for accesses to flash */
+    flashWREG->FEDACCTRL1 = 0x000A060AU;
+
+/* USER CODE BEGIN (10) */
+/* USER CODE END */
+
+    /* Enable CPU ECC checking for ATCM (flash accesses) */
+    _coreEnableFlashEcc_();
+	
 
 /* USER CODE BEGIN (11) */
 /* USER CODE END */
@@ -138,9 +151,10 @@ void _c_int00(void)
     if ((SYS_EXCEPTION & POWERON_RESET) != 0U)
     {		
 /* USER CODE BEGIN (12) */
+        SaveAcrossReset.fields.errorCode = PowerCycle;
 /* USER CODE END */
         /* Add condition to check whether PLL can be started successfully */
-        if (_errata_SSWF021_45_pll1(PLL_RETRIES) != 0U)
+        if (_errata_SSWF021_45_both_plls(PLL_RETRIES) != 0U)
         {
             /* Put system in a safe state */
 			handlePLLLockFail();
@@ -163,6 +177,7 @@ void _c_int00(void)
         Add user code here to handle oscillator failure */
 
 /* USER CODE BEGIN (16) */
+        SaveAcrossReset.fields.errorCode = OscFailure;
 /* USER CODE END */
     }
     /*SAFETYMCUSW 139 S MR:13.7 <APPROVED> "Hardware status bit read check" */
@@ -177,6 +192,7 @@ void _c_int00(void)
         {
             /* Add user code here to handle watchdog violation. */ 
 /* USER CODE BEGIN (17) */
+            SaveAcrossReset.fields.errorCode = IntWatchdog;
 /* USER CODE END */
 
             /* Clear the Watchdog reset flag in Exception Status register */ 
@@ -190,6 +206,7 @@ void _c_int00(void)
             /* Clear the ICEPICK reset flag in Exception Status register */ 
             SYS_EXCEPTION = ICEPICK_RESET;
 /* USER CODE BEGIN (19) */
+            SaveAcrossReset.fields.errorCode = DebugStartup;
 /* USER CODE END */
 		}
     }
@@ -201,13 +218,21 @@ void _c_int00(void)
         by toggling the "CPU RESET" bit of the CPU Reset Control Register. */
 
 /* USER CODE BEGIN (20) */
+        register uint32_t saveit0;
+        register uint32_t saveit1;
+        saveit0 = SaveAcrossReset.words[0];
+        saveit1 = SaveAcrossReset.words[1];
+         // Note that this looks like we don't need to save values here, but if we add CPU selftest
+        // it is important.
 /* USER CODE END */
 
         /* clear all reset status flags */
         SYS_EXCEPTION = CPU_RESET;
 
 /* USER CODE BEGIN (21) */
-/* USER CODE END */
+        SaveAcrossReset.words[0] = saveit0;
+        SaveAcrossReset.words[1] = saveit1;
+        /* USER CODE END */
 
     }
     /*SAFETYMCUSW 139 S MR:13.7 <APPROVED> "Hardware status bit read check" */
@@ -217,6 +242,15 @@ void _c_int00(void)
         Add user code to handle software reset. */
 		
 /* USER CODE BEGIN (22) */
+        /*
+         * Here this is a software-commanded reset.  It might come from an error having been
+         * found (ReportError with reboot=true), or it might have been commanded by the console
+         * or the ground.  We can tell because the errorCode is kept at 0 unless some error happens
+         * so set it to SoftwareReset if it was not set to anything else.
+         */
+        if(SaveAcrossReset.fields.errorCode == Unspecified){ // Had no other error code set
+            SaveAcrossReset.fields.errorCode = SoftwareReset; //So was probably commanded
+        }
 /* USER CODE END */
 	}
     else
@@ -225,7 +259,8 @@ void _c_int00(void)
         Add user code to handle external reset. */
 
 /* USER CODE BEGIN (23) */
-/* USER CODE END */
+        SaveAcrossReset.fields.errorCode = ExternalReset; // Just in case
+ /* USER CODE END */
 	}
 
     /* Check if there were ESM group3 errors during power-up.
@@ -239,6 +274,7 @@ void _c_int00(void)
     if ((esmREG->SR1[2]) != 0U)
     {
 /* USER CODE BEGIN (24) */
+        // Code below will cause external watchdog which power cycles.  Maybe that will help
 /* USER CODE END */
     /*SAFETYMCUSW 5 C MR:NA <APPROVED> "for(;;) can be removed by adding "# if 0" and "# endif" in the user codes above and below" */
     /*SAFETYMCUSW 26 S MR:NA <APPROVED> "for(;;) can be removed by adding "# if 0" and "# endif" in the user codes above and below" */
@@ -319,6 +355,10 @@ void _c_int00(void)
 /* USER CODE END */
 
 /* USER CODE BEGIN (31) */
+    register uint32_t saveit0;
+    register uint32_t saveit1;
+    saveit0 = SaveAcrossReset.words[0];
+    saveit1 = SaveAcrossReset.words[1];
 /* USER CODE END */
 
     /* Disable RAM ECC before doing PBIST for Main RAM */
@@ -329,7 +369,7 @@ void _c_int00(void)
      * The CPU RAM is a single-port memory. The actual "RAM Group" for all on-chip SRAMs is defined in the
      * device datasheet.
      */
-    pbistRun(0x00100020U, /* ESRAM Single Port PBIST */
+    pbistRun(0x00300020U, /* ESRAM Single Port PBIST */
              (uint32)PBIST_March13N_SP);
 
 /* USER CODE BEGIN (32) */
@@ -389,6 +429,8 @@ void _c_int00(void)
     _coreEnableRamEcc_();
 
 /* USER CODE BEGIN (39) */
+    SaveAcrossReset.words[0] = saveit0;
+    SaveAcrossReset.words[1] = saveit1;
 /* USER CODE END */
 
     /* Start PBIST on all dual-port memories */
@@ -429,6 +471,21 @@ void _c_int00(void)
 
 /* USER CODE BEGIN (41) */
 /* USER CODE END */
+
+    /* Test the CPU ECC mechanism for Flash accesses.
+     * The checkFlashECC function uses the flash interface module's diagnostic mode 7
+     * to create single-bit and double-bit errors in CPU accesses to the flash. A double-bit
+     * error on reading from flash causes a data abort exception.
+     * The data abort handler is written to look for deliberately caused exception and
+     * to return the code execution to the instruction following the one that was aborted.
+     *
+     */
+    checkFlashECC();
+    flashWREG->FDIAGCTRL = 0x000A0007U;                    /* disable flash diagnostic mode */
+
+/* USER CODE BEGIN (42) */
+/* USER CODE END */
+
 /* USER CODE BEGIN (43) */
 /* USER CODE END */
 
@@ -501,17 +558,17 @@ void _c_int00(void)
     /* NOTE : Please Refer DEVICE DATASHEET for the list of Supported Memories and their channel numbers.
               Memory Initialization is perfomed only on the user selected memories in HALCoGen's GUI SAFETY INIT tab.
      */
-    memoryInit( (uint32)((uint32)1U << 1U)    /* DMA RAM */
+    memoryInit( (uint32)((uint32)0U << 1U)    /* DMA RAM */
               | (uint32)((uint32)1U << 2U)    /* VIM RAM */
               | (uint32)((uint32)1U << 5U)    /* CAN1 RAM */
               | (uint32)((uint32)1U << 6U)    /* CAN2 RAM */
-              | (uint32)((uint32)1U << 10U)   /* CAN3 RAM */
+              | (uint32)((uint32)0U << 10U)   /* CAN3 RAM */
               | (uint32)((uint32)1U << 8U)    /* ADC1 RAM */
-              | (uint32)((uint32)1U << 14U)   /* ADC2 RAM */
+              | (uint32)((uint32)0U << 14U)   /* ADC2 RAM */
               | (uint32)((uint32)1U << 3U)    /* HET1 RAM */
-              | (uint32)((uint32)1U << 4U)    /* HTU1 RAM */
+              | (uint32)((uint32)0U << 4U)    /* HTU1 RAM */
               | (uint32)((uint32)1U << 15U)   /* HET2 RAM */
-              | (uint32)((uint32)1U << 16U)   /* HTU2 RAM */
+              | (uint32)((uint32)0U << 16U)   /* HTU2 RAM */
               );
 
     /* Disable parity */
@@ -527,30 +584,15 @@ void _c_int00(void)
      
     het1ParityCheck();
     
-/* USER CODE BEGIN (58) */
-/* USER CODE END */
-
-    htu1ParityCheck();
-    
 /* USER CODE BEGIN (59) */
 /* USER CODE END */
 
     het2ParityCheck();
     
-/* USER CODE BEGIN (60) */
-/* USER CODE END */
-
-    htu2ParityCheck();
-    
 /* USER CODE BEGIN (61) */
 /* USER CODE END */
 
     adc1ParityCheck();
-    
-/* USER CODE BEGIN (62) */
-/* USER CODE END */
-
-    adc2ParityCheck();
     
 /* USER CODE BEGIN (63) */
 /* USER CODE END */
@@ -562,21 +604,11 @@ void _c_int00(void)
 
     can2ParityCheck();
     
-/* USER CODE BEGIN (65) */
-/* USER CODE END */
-
-    can3ParityCheck();
-    
 /* USER CODE BEGIN (66) */
 /* USER CODE END */
 
     vimParityCheck();
     
-/* USER CODE BEGIN (67) */
-/* USER CODE END */
-
-    dmaParityCheck();
-
 
 /* USER CODE BEGIN (68) */
 /* USER CODE END */
@@ -627,6 +659,8 @@ void _c_int00(void)
     vimInit();    
 
 /* USER CODE BEGIN (74) */
+     saveit0 = SaveAcrossReset.words[0];
+     saveit1 = SaveAcrossReset.words[1];
 /* USER CODE END */
 
     /* Configure system response to error conditions signaled to the ESM group1 */
@@ -635,6 +669,8 @@ void _c_int00(void)
     /* initialize copy table */
     __TI_auto_init();
 /* USER CODE BEGIN (75) */
+    SaveAcrossReset.words[0] = saveit0;
+    SaveAcrossReset.words[1] = saveit1;
 /* USER CODE END */
     
     /* call the application */
