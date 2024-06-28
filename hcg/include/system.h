@@ -136,7 +136,7 @@ enum systemClockSource
 *
 *   PLL 2 clock source exported from HALCoGen GUI
 */
-#define PLL2_FREQ    160.00F
+#define PLL2_FREQ    0.0F
 
 /** @def GCLK_FREQ
 *   @brief GCLK domain frequency exported from HALCoGen GUI
@@ -171,21 +171,21 @@ enum systemClockSource
 *
 *   AVCLK2 Domain frequency exported from HALCoGen GUI
 */
-#define AVCLK2_FREQ  80.000F
+#define AVCLK2_FREQ  00.0F
 
 /** @def AVCLK3_FREQ
 *   @brief AVCLK3 Domain frequency exported from HALCoGen GUI
 *
 *   AVCLK3 Domain frequency exported from HALCoGen GUI
 */
-#define AVCLK3_FREQ  0.000F
+#define AVCLK3_FREQ  0.0F
 
 /** @def AVCLK4_FREQ
 *   @brief AVCLK4 Domain frequency exported from HALCoGen GUI
 *
 *   AVCLK4 Domain frequency exported from HALCoGen GUI
 */
-#define AVCLK4_FREQ  80.000F
+#define AVCLK4_FREQ  0.0F
 
 /** @def VCLK1_FREQ
 *   @brief VCLK1 Domain frequency exported from HALCoGen GUI
@@ -206,7 +206,7 @@ enum systemClockSource
 *
 *   VCLK3 Domain frequency exported from HALCoGen GUI
 */
-#define VCLK3_FREQ   80.000F
+#define VCLK3_FREQ   0.0F
 
 /** @def VCLK4_FREQ
 *   @brief VCLK4 Domain frequency exported from HALCoGen GUI
@@ -279,7 +279,6 @@ typedef struct system_config_reg
     uint32 CONFIG_ECPCNTL;
     uint32 CONFIG_DEVCR1;
     uint32 CONFIG_SYSECR;
-    uint32 CONFIG_PLLCTL3;
     uint32 CONFIG_STCCLKDIV;
     uint32 CONFIG_CLK2CNTL;
     uint32 CONFIG_VCLKACON1;
@@ -303,7 +302,7 @@ typedef struct system_config_reg
                                 | 0x00000008U \
                                 | 0x00000080U \
                                 | 0x00000000U \
-                                | 0x00000000U \
+                                | 0x00000040U \
                                 | 0x00000000U\
                                 | 0x4U )
                       
@@ -377,20 +376,8 @@ typedef struct system_config_reg
 #define SYS_DEVCR1_CONFIGVALUE      0xAU
                                     
 #define SYS_SYSECR_CONFIGVALUE      0x00004000U
-#define SYS2_PLLCTL3_CONFIGVALUE_1  ( (uint32)((uint32)(2U - 1U) << 29U)\
-                                    | (uint32)((uint32)0x1FU << 24U) \
-                                    | (uint32)((uint32)(6U - 1U)<< 16U) \
-                                    | (uint32)(0x7700U))
-                                    
-#define SYS2_PLLCTL3_CONFIGVALUE_2  (((SYS2_PLLCTL3_CONFIGVALUE_1) & 0xE0FFFFFFU) | (uint32)((uint32)(1U - 1U) << 24U))
 #define SYS2_STCCLKDIV_CONFIGVALUE  0U
-#define SYS2_CLK2CNTL_CONFIGVALUE   (1U | 0x00000100U)
-#define SYS2_VCLKACON1_CONFIGVALUE  ( (uint32)((uint32)1U << 24U) \
-                                    | (uint32)((uint32)1U << 20U) \
-                                    | (uint32)((uint32)SYS_VCLK << 16U)\
-                                    | (uint32)((uint32)1U << 8U)\
-                                    | (uint32)((uint32)1U << 4U) \
-                                    | (uint32)((uint32)SYS_VCLK << 0U) )
+#define SYS2_CLK2CNTL_CONFIGVALUE   ((uint32)(0x00000001U) | (uint32)((uint32)1U << 8U))
 #define SYS2_CLKSLIP_CONFIGVALUE    0x5U
 #define SYS2_EFC_CTLEN_CONFIGVALUE  0x5U
     
@@ -457,7 +444,7 @@ typedef struct tcmflash_config_reg
                                             | (uint32)((uint32)3U << 8U) \
                                             | (uint32)((uint32)3U << 6U) \
                                             | (uint32)((uint32)3U << 4U) \
-                                            | (uint32)((uint32)SYS_ACTIVE << 2U) \
+                                            | (uint32)((uint32)3U << 2U) \
                                             | (uint32)((uint32)SYS_ACTIVE << 0U) )
                           
 #define TCMFLASH_FPAC1_CONFIGVALUE          0x00C80001U
@@ -482,6 +469,7 @@ void periphInit(void);
 void mapClocks(void);
 void systemInit(void);
 void systemPowerDown(uint32 mode);
+
 
 /*Configuration registers
 * index 0: Even RAM

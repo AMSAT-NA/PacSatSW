@@ -51,10 +51,6 @@ extern "C" {
 #endif
 
 /* USER CODE BEGIN (1) */
-/* This is required for more than 1 N2HET program because somehow the twisty-turny include order
-   brings this in first and screws up a later definition
-*/
-#define HET_v2 1
 /* USER CODE END */
 
 #ifndef HET_v2
