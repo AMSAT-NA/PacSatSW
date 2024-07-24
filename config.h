@@ -9,33 +9,54 @@
  *
  */
 
-#ifndef GOLFCONFIG_H_
-#define GOLFCONFIG_H_
+#ifndef CONFIG_H_
+#define CONFIG_H_
 
+/* Set LAUNCHPAD_HARDWARE if this will run on the launchpad with the booster board rather than
+ * on blinky.  You must also copy in the hcg files from the PacSatHardware project.  See the
+ * instructions in the README file of PacSatHardware */
 //#define LAUNCHPAD_HARDWARE
 
-#define PACSAT_NUMBER "0" // This is PacSat.
-#define GOLF_ID (PACSAT_NUMBER[0] - '0') /*Must change if number greater than 9*/
+#define PACSAT_NUMBER "0" // This PacSat number is only used in the PACSAT_FW_VERSION_STRING below.
+
+/* Defining ENGINEERING_MODEL changes the version number below, but only if UNDEFINE_BEFORE_FLIGHT
+ * has been undefined */
 //#define ENGINEERING_MODEL
+
+/* UNDEFINE BEFORE FLIGHT is used to surround any test or temporary code that we never want to fly.  For
+ * example test routines or debug routines.  Use this for any code that is not needed and may contain bugs
+ * that could crash the
+ * spacecraft. */
 #define UNDEFINE_BEFORE_FLIGHT
-#define DEBUG
 
 #if defined(UNDEFINE_BEFORE_FLIGHT)
+/* DEBUG is mainly used to toggle the printing of debug statements to the console but it can also surround
+ * other code that is only used in debugging. */
+#define DEBUG
+
+/* Defining WATCHDOG_ENABLE turns on the watchdog.  A watchdog routine then runs to reset the hardware
+ * watchdog periodically.  It also waits for all of the tasks to confirm they are still running.  If any
+ * tasks fail to report then it does not reset the hardware watchdog and we are rebooted.   If you enable this
+ * and get resets in a loop then make sure all tasks are setup to report into the watchdog periodically. */
 //#define WATCHDOG_ENABLE
+
+/* */
 #define SOFTWARE_TYPE "X" // Always X if undefine_before_flight is on.  Do not change this one
 #elif defined(ENGINEERING_MODEL)
 #define WATCHDOG_ENABLE
 #    define SOFTWARE_TYPE "E"
-#else
+#else // UNDEFINE_BEFORE_FLIGHT
 #define WATCHDOG_ENABLE
 #   define SOFTWARE_TYPE "V"
-#endif
+#endif  // UNDEFINE_BEFORE_FLIGHT
+
 #define VERSION "2c" /*Exactly 2 characters will show in the diagnostic downlink*/
 #define PACSAT_FW_VERSION_STRING SOFTWARE_TYPE PACSAT_NUMBER "." VERSION
 
+/* This specifies how many MRAM chips there are */
 #define PACSAT_MAX_MRAMS 4
 
-////////////////////////////////////////////This is I/O
+/* Define the I/O for printing and connecting via the console */
 #ifdef LAUNCHPAD_HARDWARE
 #define PRINTF_COM COM2
 #else
@@ -47,9 +68,8 @@
 #define DEBUG_PRINT
 #endif
 
-// This is for Golf-Tee when this IHU is a backup
-#define THIS_IHU_IS_DEFAULT
-
+/* Debug print is automatically enabled above when DEBUG is defined.  This is where we setup what debug_print
+ * means when DEBUG is on or off */
 #ifdef DEBUG_PRINT
 #define debug_print printf
 #else
@@ -57,6 +77,8 @@ void NullPrint(char *, ...);
 #define debug_print NullPrint
 #endif
 
+/* If TRACE_PB is defined then we print debug statements throughout the Pacsat Broadcast task.  This is verbose
+ * and only useful for debugging errors. Turn off when debugging is complete */
 //#define TRACE_PB
 #ifdef TRACE_PB
 #define trace_pb printf
@@ -65,7 +87,8 @@ void NullPrint(char *, ...);
 #define trace_pb NullPrint
 #endif
 
-
+/* If TRACE_AX25_DL is defined then we print debug statements throughout the AX25 Data Link state machine.
+ * This is verbose and only useful for debugging errors. Turn off when debugging is complete */
 //#define TRACE_AX25_DL
 #ifdef TRACE_AX25_DL
 #define trace_dl printf
@@ -74,6 +97,8 @@ void NullPrint(char *, ...);
 #define trace_dl NullPrint
 #endif
 
+/* If TRACE_FTL0 is defined then we print debug statements throughout the Pacsat Uplink task.  This is verbose
+ * and only useful for debugging errors. Turn off when debugging is complete */
 //#define TRACE_FTL0
 #ifdef TRACE_FTL0
 #define trace_ftl0 printf
@@ -83,7 +108,8 @@ void NullPrint(char *, ...);
 #endif
 
 /*
- * Lots of time definitions
+ * Lots of time definitions.  These are put into RTOS time "speak" and can then be used in wait calls and
+ * timers.
  */
 
 #define CENTISECONDS(HowMany) ((portTickType)((HowMany)*(10/portTICK_RATE_MS))) /* A Centisecond is 10 milliseconds */
@@ -101,27 +127,30 @@ void NullPrint(char *, ...);
 #define COORD_STATUS_TIMER SECONDS(5)
 #define RETRY_TIMEOUT CENTISECONDS(50) /* If something feils we want to retry in 1/2 second*/
 #define ANTENNA_DEPLOY_WAIT_TIME SECONDS(5)  /* Burn wires run for 5 seconds */
+
 /*
  * For authenticated software commands the command will include a timestamp.  The timestamp is intended to
  * be the LAST SATELLITE TIME that the command will be accepted.  But we don't want it to be forever, so
  * MAX_AHEAD is the maximum number of seconds ahead of the satellite time that will be accepted.  MAX_BEFORE
  * is the maximum number of seconds behind the satellite time accepted.
  */
-
 #define SECONDS_AUTHENTICATION_MAX_BEHIND 0
 #define SECONDS_AUTHENTICATION_MAX_AHEAD 300
 
 /*
- * PACSAT Constants
+ * PACSAT Constants - these are configuration values for Pacsat
  */
+
 /* If you wish to transmit beyond the test bench then these need to be updated with a valid callsign
  * In theory we could put these in MRAM and have a command to set them, but the Flight Unit should probably
  * have these stored permanently in flash */
-#define BBS_CALLSIGN "VE2TCP-12"
-#define BROADCAST_CALLSIGN "VE2TCP-11"
-#define DIGI_CALLSIGN "VE2TCP-1"
+#define BBS_CALLSIGN "PACSAT-12"
+#define BROADCAST_CALLSIGN "PACSAT-11"
+#define DIGI_CALLSIGN "PACSAT-1"
 
-/* PB Destination callsigns.  Listed here so all callsigns are in the same place */
+/* PB Destination callsigns.  Listed here so all callsigns are in the same place.
+ * These are used as the destination callsign for various UI packets.  The ground station
+ * uses these to determine the type of packet that is received */
 #define PBLIST "PBLIST" // destination for PB Status when open
 #define PBFULL "PBFULL" // destination for PB status when list is full
 #define PBSHUT "PBSHUT" // destination for PB status when it is closed
@@ -131,9 +160,11 @@ void NullPrint(char *, ...);
 #define BBSTAT "BBSTAT" // destination for bbs status frames
 #define TIME "TIME-1" // destination for time frames
 
-/* Telemetry destination callsigns */
+/* Telemetry destination callsigns.  Note that the callsign can be updated to TLMPx where
+ * x is a telemetry frame type. */
 #define TLMP1 "TLMP1" // destination for telemetry frames type 1
 
+/* Here we define the number of transmitters and receivers. */
 #ifdef LAUNCHPAD_HARDWARE
 #define NUM_OF_TX_CHANNELS 1 // The number of transmitters we have
 #define NUM_OF_RX_CHANNELS 1 // The number of receivers we have
@@ -335,8 +366,8 @@ static uint32_t DCT_DEFAULT_RX_FREQ[4] = {145780000, 145810000,145840000,1458700
 #define SW_COMMAND_TIME_TIMEOUT (3600*24*2) /*If no commands for this long (2 days) after enabling time check, disable it*/
 #define NO_COMMAND_TIMEOUT (3600*24*14) /* If no commands for 2 weeks, do something */
 #define MAX_DIAG_AGE 900 /* Don't mark diag telemetry from other IHUs invalid for 15 minutes */
-
 #endif
+
 #define RESETS_BEFORE_POWER_CYCLE 5 /* How many "short" resets before we power cycle? */
 #define DEFAULT_WOD_FREQUENCY 15 /* How many telemetry collections before we do a WOD save */
 #define DEFAULT_NUM_WOD_SAVED 150 /* This is what we think the "ideal" size is based on simulations */
@@ -362,4 +393,4 @@ static uint32_t DCT_DEFAULT_RX_FREQ[4] = {145780000, 145810000,145840000,1458700
  */
 #define SOLAR_VOLTS_IN_SUN_MIN 125
 
-#endif /* GOLFCONFIG_H_ */
+#endif /* CONFIG_H_ */
