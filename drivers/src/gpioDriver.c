@@ -58,7 +58,71 @@ static bool GPIOUsable[NumberOfGPIOs];
  * Each structure below defines one of the GPIOs in use.
  */
 
+#ifdef LAUNCHPAD_HARDWARE
 
+static const GPIOInfo LED1Info = {
+                                  GPIOLed1Port//GPIOLed3Port,
+                                  ,GPIOLed1Pin
+                                  ,1
+                                  ,GPIO_OFF
+                                  ,GPIO_OUT
+                                  ,false,false // No interrupts
+                                  ,false,false  // Open collector, not tristate
+
+};
+static const GPIOInfo LED2Info = {
+                                  GPIOLed2Port
+                                  ,GPIOLed2Pin
+                                  ,1
+                                  ,GPIO_OFF
+                                  ,GPIO_OUT
+                                  ,false,false // No interrupts
+                                  ,false,false  // Open collector, not tristate
+
+};
+
+
+static const GPIOInfo CommandStrobeInfo = {
+                                           GPIOCommandStrobePort
+                                           ,GPIOCommandStrobePin
+                                           ,1
+                                           ,GPIO_UNUSED // Default off
+                                           ,GPIO_IN
+                                           ,true,false // Interrupts on one edge only
+                                           ,false,false // Not Open collector nor tristate
+};
+static const GPIOInfo CommandBitsInfo = {
+                                         GPIOCommandBit0Port
+                                         ,GPIOCommandBit0Pin
+                                         ,2 //Read 2 bits at a time
+                                         ,GPIO_UNUSED // Default off
+                                         ,GPIO_IN
+                                         ,false,false // No interrupts
+                                         ,false,false // Not Open collector nor tristate
+};
+
+static const GPIOInfo AX5043InterruptInfo = {
+                                             GPIO_DCTInterruptPort
+                                             ,GPIO_DCTInterruptPin
+                                             ,1
+                                             ,GPIO_UNUSED // Default off
+                                             ,GPIO_IN
+                                             ,true,false //Interrupts one one edge only
+                                             ,false,false // Not Open collector nor tristate
+};
+
+
+
+/*
+ * Use this array to index to the correct GPIOInfoStructure based on the GPIO
+ * enum index.
+ */
+
+static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] =
+{
+ &LED1Info,&LED2Info,&AX5043InterruptInfo,&CommandStrobeInfo,&CommandBitsInfo
+};
+#else
 
 static const GPIOInfo LED1Info = {
                                   GPIOLed1Port//GPIOLed3Port,
@@ -189,6 +253,8 @@ static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] =
  &LED1Info,&LED2Info,&LED3Info,&AX0InterruptInfo,&AX1InterruptInfo,&AX2InterruptInfo,&AX3InterruptInfo,
  &AX4InterruptInfo,&CommandStrobeInfo,&CommandBitsInfo,&SSPAPowerInfo,&Ax5043PowerInfo
 };
+
+#endif
 
 static int GPIOInterruptLastIndex = 0;
 static Gpio_Use GPIOInterruptList[NumberOfGPIOs]={None}; /*List of GPIOs that support interrupts*/

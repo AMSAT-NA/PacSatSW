@@ -73,12 +73,16 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
     }
 
     /* Initialize the Radio RX */
+#ifdef LAUNCHPAD_HARDWARE
+    ax5043StartRx(AX5043Dev0, ANT_SINGLE_ENDED);
+#else
     ax5043StartRx(AX5043Dev0, ANT_DIFFERENTIAL);
     ax5043StartRx(AX5043Dev1, ANT_DIFFERENTIAL);
     ax5043StartRx(AX5043Dev2, ANT_SINGLE_ENDED);
     ax5043StartRx(AX5043Dev3,ANT_DIFFERENTIAL);
-    //Turn on the LED2 if off for Rx    N5BRG   240519
+//Turn on the LED2 if off for Rx    N5BRG   240519
     GPIOSetOff(LED2);
+#endif
     while(1) {
         Intertask_Message messageReceived;
         int status = 0;

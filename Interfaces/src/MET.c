@@ -130,6 +130,7 @@ bool IsStabilizedAfterBoot(){
  */
 
 static void METupdate(xTimerHandle x) {
+#ifndef LAUNCHPAD_HARDWARE
 #ifdef DEBUG
     //static int LEDnum=0;
     //static Gpio_Use led=LED1;
@@ -140,6 +141,7 @@ static void METupdate(xTimerHandle x) {
     //if(led==NumberOfGPIOs){LEDnum=0;led=LED1;}
     GPIOToggle(LED3); //240521 N5BRG
 
+#endif
 #endif
     METcount++;
     timestampSeconds++;

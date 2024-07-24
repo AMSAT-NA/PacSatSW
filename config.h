@@ -12,6 +12,8 @@
 #ifndef GOLFCONFIG_H_
 #define GOLFCONFIG_H_
 
+//#define LAUNCHPAD_HARDWARE
+
 #define PACSAT_NUMBER "0" // This is PacSat.
 #define GOLF_ID (PACSAT_NUMBER[0] - '0') /*Must change if number greater than 9*/
 //#define ENGINEERING_MODEL
@@ -34,7 +36,11 @@
 #define PACSAT_MAX_MRAMS 4
 
 ////////////////////////////////////////////This is I/O
+#ifdef LAUNCHPAD_HARDWARE
+#define PRINTF_COM COM2
+#else
 #define PRINTF_COM COM1
+#endif
 #define COM1_BAUD 38400
 #define COM2_BAUD 38400
 #ifdef DEBUG
@@ -128,10 +134,13 @@ void NullPrint(char *, ...);
 /* Telemetry destination callsigns */
 #define TLMP1 "TLMP1" // destination for telemetry frames type 1
 
-
+#ifdef LAUNCHPAD_HARDWARE
+#define NUM_OF_TX_CHANNELS 1 // The number of transmitters we have
+#define NUM_OF_RX_CHANNELS 1 // The number of receivers we have
+#else
 #define NUM_OF_TX_CHANNELS 1 // The number of transmitters we have
 #define NUM_OF_RX_CHANNELS 4 // The number of receivers we have
-
+#endif
 /* Radio Channels */
 typedef enum {
     Channel_A,

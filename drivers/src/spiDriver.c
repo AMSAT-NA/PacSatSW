@@ -82,6 +82,66 @@ SPIBusData bus1Data,bus2Data,bus3Data,bus4Data,bus5Data;
 #if PACSAT_MAX_MRAMS != 4
 #error Work required here
 #endif
+
+#ifdef LAUNCHPAD_HARDWARE
+static SPIDevInfo SPIMram0Device={
+                                 SPI_MRAM_Reg,
+                                 SPI_MRAM_Select_Port,
+                                 {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
+                                 &bus1Data,
+                                 SPI_MRAM0_Select_Pin //chipSelect
+};
+static SPIDevInfo SPIMram1Device={
+                                 SPI_MRAM_Reg,
+                                 SPI_MRAM_Select_Port,
+                                 {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
+                                 &bus1Data,
+                                 SPI_MRAM1_Select_Pin //chipSelect
+};
+static SPIDevInfo SPIMram2Device={
+                                 SPI_MRAM_Reg,
+                                 SPI_MRAM_Select_Port,
+                                 {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
+                                 &bus1Data,
+                                 SPI_MRAM2_Select_Pin //chipSelect
+};
+static SPIDevInfo SPIMram3Device={
+                                 SPI_MRAM_Reg,
+                                 SPI_MRAM_Select_Port,
+                                 {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
+                                 &bus1Data,
+                                 SPI_MRAM3_Select_Pin //chipSelect
+};
+
+static SPIDevInfo SPIDCT0Device={
+                                SPI_DCT_Reg,
+                                SPI_DCT_Select_Port,
+                                {
+                                 .WDEL = false, .DFSEL = SPI_DCT_Data_Format
+                                },
+                                &bus3Data,
+                                SPI_DCT0_Select_Pin
+};
+static SPIDevInfo SPIDCT1Device={
+                                SPI_DCT_Reg,
+                                SPI_DCT_Select_Port,
+                                {
+                                 .WDEL = false, .DFSEL = SPI_DCT_Data_Format
+                                },
+                                &bus3Data,
+                                SPI_DCT1_Select_Pin
+};
+
+static const SPIDevInfo *SPIDevInfoStructures[] = {
+                                                    &SPIMram0Device
+                                                   ,&SPIMram1Device
+                                                   ,&SPIMram2Device
+                                                   ,&SPIMram3Device
+                                                   ,&SPIDCT0Device
+                                                   ,&SPIDCT1Device
+};
+
+#else
 static SPIDevInfo SPIMram0Device={
                                  SPI_MRAM_Reg,
                                  SPI_MRAM02_Select_Port,
@@ -168,6 +228,8 @@ static const SPIDevInfo *SPIDevInfoStructures[] = {
                                                    ,&SPIRx4DCTDevice
                                                    ,&SPITxDCTDevice
 };
+
+#endif
 
 /*
  * Key to structures.

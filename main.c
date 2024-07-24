@@ -120,6 +120,9 @@ void startup(void)
     sciSetBaudrate(sciREG, COM2_BAUD);
 
     //GPIO Easy Inits can be done before the OS is started
+#ifdef LAUNCHPAD_HARDWARE
+
+#else
     GPIOEzInit(LED1);
     GPIOEzInit(LED2);
     GPIOEzInit(LED3);
@@ -130,7 +133,9 @@ void startup(void)
     GPIOEzInit(AX5043Power);
 
     GPIOToggle(LED1);
+#endif
     sciSend(sciREG,38,"Starting a test on the SCI register\r\n");
+
     i2cInit();
     spiInit();
     adcInit();
@@ -140,7 +145,19 @@ void startup(void)
      * raised to high (not selected)
      */
     //MRAM
+#ifdef LAUNCHPAD_HARDWARE
+    gioSetDirection(gioPORTB,6);
+    gioSetBit(gioPORTB,1,1);
+    gioSetBit(gioPORTB,2,1);
+    gioSetDirection(spiPORT1,7); // Make chip select pins be output
+    gioSetDirection(spiPORT3,7); //
+    gioSetDirection(spiPORT5,7); //
+    gioSetBit(spiPORT3,0,1);
 
+    gioSetBit(spiPORT3,1,1);  //Set chip selects high just in case
+    gioSetBit(spiPORT3,2,1);
+
+#else
     gioSetDirection(spiPORT1,1U<<0 || 1U<<2); // Make chip select pins be output
     gioSetDirection(spiPORT3,1); // Make chip select pins be output
     gioSetDirection(spiPORT5,1); //
@@ -165,7 +182,7 @@ void startup(void)
     gioSetBit(SPI_DCT_Select_Port,SPI_Rx3DCT_Select_Pin,1); // Make chip select pins be high
     gioSetBit(SPI_DCT_Select_Port,SPI_Rx4DCT_Select_Pin,1); // Make chip select pins be high
     gioSetBit(SPI_DCT_Select_Port,SPI_TxDCT_Select_Pin,1); // Make chip select pins be high
-
+#endif
     /*
      * RTI is used by FreeRTOS as its clock and also by the watchdog as its counter.
      * FreeRTOS uses counter 0, compare 0 for its interrupt.  Let's start the counter
@@ -180,9 +197,14 @@ void startup(void)
      */
 
     _enable_interrupt_();
+#ifdef LAUNCHPAD_HARDWARE
+#ifdef HET
+    HetUARTSetBaudrate(hetRAM1,COM1_BAUD);
+#endif
     /* Serial port and LEDs */
-    //hetREG1->DIR=0x00000017; //We want them to start out as output, I suppose.
-    //hetREG1->DOUT=0x00000017;
+    hetREG1->DIR=0x00000017; //We want them to start out as output, I suppose.
+    hetREG1->DOUT=0x00000017;
+#endif
 
     xTaskCreate(ConsoleTask, "Console", CONSOLE_STACK_SIZE,
                 NULL,CONSOLE_PRIORITY, NULL);
@@ -216,33 +238,60 @@ void ConsoleTask(void *pvParameters){
     bool haveWaited,umbilicalAttached; //todo: Fix charger when we get that line in V1.2
     //GPIOInit(WatchdogFeed,NO_TASK,NO_MESSAGE,None);
     ResetAllWatchdogs(); // This is started before MET and other tasks so just reporting in does not help
-
+debug_print("Starting console task\n");
     /*
      * Now we have an OS going, so we call the init routines, which use OS structures like
      * semaphores and queues.
      */
+
     SerialInitPort(COM1,COM1_BAUD, 10,10);//Max of 38400 for the moment
     SerialInitPort(COM2,COM2_BAUD,10,10);
 
     // Initialize the SPI driver for our SPI devices
 
+#ifdef LAUNCHPAD_HARDWARE
+//    SPIInit(TxDCTDev); // This is the transmitter on UHF
+//    SPIInit(Rx1DCTDev); // This is the receiver on VHF on the Pacsat Booster Board
+
+    SPIInit(DCTDev0); // This is the receiver on VHF on the Pacsat Booster Board
+    SPIInit(DCTDev1); // This is the transmitter on UHF
+#else
     SPIInit(Rx1DCTDev); // This is the receiver on VHF on the Pacsat Booster Board
     SPIInit(Rx2DCTDev); // This is the receiver on VHF on the Pacsat Booster Board
     SPIInit(Rx3DCTDev); // This is the receiver on VHF on the Pacsat Booster Board
     SPIInit(Rx4DCTDev); // This is the receiver on VHF on the Pacsat Booster Board
     SPIInit(TxDCTDev); // This is the transmitter on UHF
+#endif
     SPIInit(MRAM0Dev);
     SPIInit(MRAM1Dev);
     SPIInit(MRAM2Dev);
     SPIInit(MRAM3Dev);
-    initMRAM(false);
+    if (initMRAM(false) == -1) {
+        debug_print("MRAM NOT SETUP - Full re-init\n");
+        initMRAM(true); //Init this thing from scratch (address size, data size, partitions etc)
+        IHUInitSaved(); //Init stuff that we won't want to change on reboot
+        SetupMRAM();    //Init stuff that do change (epoch number etc)
+#ifdef DEBUG
+        WriteMRAMBoolState(StateInOrbit,true); // Don't get confused by in orbit state!
+#endif
+    }
     initMET();
     I2cInit(I2C1);
+
+#ifdef LAUNCHPAD_HARDWARE
+    I2cInit(I2C2);
+    GPIOEzInit(LED1);
+    GPIOEzInit(LED2);
+    GPIOInit(DCTInterrupt,ToRxTask,Rx0DCTInterruptMsg,None);
+//    GPIOInit(Rx0DCTInterrupt,ToRxTask,Rx0DCTInterruptMsg,None);
+//    GPIOInit(TxDCTInterrupt,ToTxTask,TxDCTInterruptMsg,None);
+#else
     GPIOInit(Rx0DCTInterrupt,ToRxTask,Rx0DCTInterruptMsg,None);
     GPIOInit(Rx1DCTInterrupt,ToRxTask,Rx1DCTInterruptMsg,None);
     GPIOInit(Rx2DCTInterrupt,ToRxTask,Rx2DCTInterruptMsg,None);
     GPIOInit(Rx3DCTInterrupt,ToRxTask,Rx3DCTInterruptMsg,None);
     GPIOInit(TxDCTInterrupt,ToTxTask,TxDCTInterruptMsg,None);
+#endif
     /* Poll the I2C devices to see which are working.
      * This also calls the init routine for the temperature device */
     I2CDevicePoll();

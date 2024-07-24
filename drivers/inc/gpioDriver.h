@@ -12,12 +12,19 @@
 #include "config.h"
 #include "interTaskNotify.h"
 
+#ifdef LAUNCHPAD_HARDWARE
+typedef enum gu {None=-1,
+    LED1,LED2,DCTInterrupt,CommandStrobe,CommandBits,
+    NumberOfGPIOs
+} Gpio_Use;
 
+#else
 typedef enum gu {None=-1,
 	 LED1,LED2,LED3,Rx0DCTInterrupt,Rx1DCTInterrupt,Rx2DCTInterrupt,Rx3DCTInterrupt,TxDCTInterrupt,
 	 CommandStrobe,CommandBits,SSPAPower,AX5043Power,
 	 NumberOfGPIOs
 } Gpio_Use;
+#endif
 
 #define GPIO_UNUSED false
 #define GPIO_OFF false
