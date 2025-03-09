@@ -90,6 +90,8 @@ void CommandTask(void *pvParameters)
     LoadMRAMKey();
     ReportToWatchdog(CommandWD);
     CommandTimeEnabled = ReadMRAMBoolState(StateCommandTimeCheck);
+    /* Wait for the rest of the satellite to come up */
+    vTaskDelay(1);
     debug_print("Waiting for command ...\n");
     while (1) {
         ReportToWatchdog(CommandWD);

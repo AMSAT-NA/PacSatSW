@@ -104,8 +104,6 @@ enum {
     ,healthMode
     ,inhibitTx
     ,getState
-    ,toneTx
-    ,noToneTx
     ,testLED
     ,restartCAN
     ,doClearMRAM
@@ -153,6 +151,7 @@ enum {
     ,HelpAll
     ,HelpDevo
     ,HelpSetup
+    ,HelpPacsat
     ,Help
     ,MRAMWrEn
     ,testAllMRAM
@@ -203,11 +202,9 @@ enum {
     ,setDigi
 };
 
-
+/* These commands should only be required to setup a new board and configure it. */
 commandPairs setupCommands[] = {
                                 {"init new proc","Init DCT and MRAM stuff that will be set once for each unit",initSaved}
-                                ,{"start tx tone", "Send a tone with 5043", toneTx}
-                                ,{"stop tx tone", "Stop sending the tone",noToneTx}
                                 ,{"raise tx freq","Raise the telem frequency by n Hz",RaiseTxFreq}
                                 ,{"lower tx freq","Lower the telem frequency by n Hz",LowerTxFreq}
                                 ,{"raise rx freq","Raise the command frequency by n Hz",RaiseRxFreq}
@@ -218,29 +215,48 @@ commandPairs setupCommands[] = {
                                 ,{"test internal wd","Force internal watchdog to reset CPU",internalWDTimeout}
                                 ,{"test external wd","Force external watchdog to reset CPU",externalWDTimeout}
                                 ,{"test leds","Flash the LEDs in order",testLED}
-                                ,{"test adc1","Read group 1 of ADC",StartADC1}
-                                ,{"test adc2","Read group 2 of ADC",StartADC2}
+                                // ADCs not implemented on the test blinky board?
+                                //                                ,{"test adc1","Read group 1 of ADC",StartADC1}
+                                //                                ,{"test adc2","Read group 2 of ADC",StartADC2}
                                 ,{"test mram","Write and read mram with n blocksize (4,8,16,32,64,128)",testAllMRAM}
-                                ,{"get mram size","Get the total size of all MRAMs",sizeMRAM}
                                 ,{"load key","Load an authorization key for uplink commands",LoadKey}
 
 };
-commandPairs debugCommands[] = {
 
-                                 {"test scrub","Run the memory scrub routine once",TestMemScrub}
+/* These commands are used to operate the PB and the FTL0 system through the console */
+commandPairs pacsatCommands[] = {
+                                 {"monitor on","Monitor sent and received packets",monitorOn}
+                                 ,{"monitor off","Stop monitoring packets",monitorOff}
+                                 ,{"shut pb","Shut the PB",pbShut}
+                                 ,{"open pb","Open the PB for use",pbOpen}
+                                 ,{"shut uplink","Shut the FTL0 Uplink",uplinkShut}
+                                 ,{"open uplink","Open the FTL0 Uplink for use",uplinkOpen}
+                                 ,{"shut digi","Disable the Digipeater",digiShut}
+                                 ,{"open digi","Enable the Digipeater",digiOpen}
+                                 ,{"send pb status","Immediately transmit the status of the PB",testPbStatus}
+                                 ,{"hxd","Display Hex for file number",mramHxd}
+                                 ,{"load dir","Load the directory from MRAM",dirLoad}
+                                 ,{"clear dir","Clear the directory but leave the files in MRAM",dirClear}
+                                 ,{"list dir","List the Pacsat Directory.",listDir}
+                                 ,{"next filenumber","Show the next file number that the Dir will assign to an uploaded file",getNextFileNumber}
+                                 ,{"reset filenumber","Reset the next Dir file number to zero.",resetNextFileNumber}
+};
+
+/* These commands should only be required when writing the software.  They should not be required for setting up new boards,
+ * configuring the flight unit or an other task performed once the software is complete. */
+commandPairs debugCommands[] = {
+                                {"test scrub","Run the memory scrub routine once",TestMemScrub}
                                 ,{"test ax","Read the revision and scratch registers",testAX5043}
                                 ,{"test pll", "test ax5043 PLL frequency range",testPLLrange}
                                 ,{"start rx","Start up the 5043 receiver",startRx}
                                 ,{"clear mram","Initializes MRAM state,WOD,Min/max but does not clear InOrbit--testing only",
                                   doClearMRAM}
-                                ,{"reset ihu","Reset this processor",reset}
-                                ,{"reset both","Reset both primary and secondary processor",resetBoth}
-                                ,{"reset can","Reset the CAN devices",restartCAN}
+                                //,{"reset both","Reset both primary and secondary processor",resetBoth}
+           //                     ,{"reset can","Reset the CAN devices",restartCAN}
                                 ,{"poll i2c","Poll to see which I2c devices are there",pollI2c}
                                 ,{"inhibit tx","Simulate FCC command to turn off tx",inhibitTx}
                                 ,{"get mram sr","Get the MRAM status register",readMRAMsr}
                                 ,{"get downlink size","Debug-get sizes of downlink payloads and frames",showDownlinkSize}
-                                ,{"get temp","Get RT-IHU board temperature",getTemp}
                                 ,{"mram wren","Write enable MRAM",MRAMWrEn}
                                 ,{"mram wake","Send wake command to MRAM",mramAwake}
                                 ,{"mram sleep","Send sleep command to MRAM",mramSleep}
@@ -249,7 +265,6 @@ commandPairs debugCommands[] = {
                                 ,{"test callsigns","Test the AX25 callsign routines",testCallsigns}
                                 ,{"test tx","Test the Pacsat TX Packet routines",testTx}
                                 ,{"test pb ok","Test the Pacsat Broadcast by sending OK packet",testPbOk}
-                                ,{"send pb status","Send PB status",testPbStatus}
                                 ,{"test pb list","Test the PB List add and remove functions",testPbList}
                                 ,{"clear pb list","Clear the PB List add remove all stations",testPbClearList}
                                 ,{"test pfh","Test the Pacsat File Header Routines",testPfh}
@@ -263,37 +278,26 @@ commandPairs debugCommands[] = {
                                 ,{"list upload table","List the Upload records in the MRAM table",listUploadTable}
                                 ,{"set digi","Set the digipeater mode",setDigi}
 #endif
-                                ,{"monitor on","Monitor sent and received packets",monitorOn}
-                                ,{"monitor off","Stop monitoring packets",monitorOff}
-                                ,{"shut pb","Shut the PB",pbShut}
-                                ,{"open pb","Open the PB for use",pbOpen}
-                                ,{"shut uplink","Shut the FTL0 Uplink",uplinkShut}
-                                ,{"open uplink","Open the FTL0 Uplink for use",uplinkOpen}
-                                 ,{"shut digi","Disable the Digipeater",digiShut}
-                                 ,{"open digi","Enable the Digipeater",digiOpen}
-                                ,{"hxd","Display Hex for file number",mramHxd}
-                                ,{"load dir","Load the directory from MRAM",dirLoad}
-                                ,{"clear dir","Clear the directory but leave the files in MRAM",dirClear}
-                                ,{"list dir","List the Pacsat Directory.",listDir}
-                                ,{"get next filenumber","Show the next file number that the Dir will assign to an uploaded file",getNextFileNumber}
-                                ,{"reset next filenumber","Reset the next Dir file number to zero.",resetNextFileNumber}
-                                ,{"heap free","Show free bytes in the heap.",heapFree}
-                                ,{"get unix time","Get the number of seconds since the Unix epoch",getUnxTime}
-                                ,{"set unix time","Set the Real Time Clock and update the IHU Unix time",setUnxTime}
-                                ,{"set rate 1200","Set the radio to 1200 bps AFSK packets",setRate1200}
-                                ,{"set rate 9600","Set the radio to 9600 bps GMSK packets",setRate9600}
-                                ,{"get rtc","Get the status and time from the Real Time Clock",getRtc}
-                                ,{"set rtc","Set the Real Time Clock and update the IHU Unix time",setRtc}
-                                ,{"get regrtc","Read the specified register in the rtc",regRtc}
 
 };
 commandPairs commonCommands[] = {
-                                 {"get i2c","What I2c devices are working?",getI2cState}
+                                 {"reset ihu","Reset this processor",reset}
                                  ,{"get time","Display reset number and seconds",time}
                                  ,{"get status","Get some general status info",telem0}
                                  ,{"get rssi","Get the current RSSI reading from the AX5043 Rx",getRSSI}
+                                 ,{"get temp","Get RT-IHU board temperature",getTemp}
                                  ,{"get state","Mainly for debug: Get the current state of the downlink state machine",getState}
                                  ,{"get version","Get the software version number and build time",version}
+                                 ,{"get mram size","Get the total size of all MRAMs",sizeMRAM}
+                                 ,{"get i2c","What I2c devices are working?",getI2cState}
+                                 ,{"heap free","Show free bytes in the heap.",heapFree}
+                                 ,{"get unix time","Get the number of seconds since the Unix epoch",getUnxTime}
+                                 ,{"set unix time","Set the Real Time Clock and update the IHU Unix time",setUnxTime}
+                                 ,{"set rate 1200","Set the radio to 1200 bps AFSK packets",setRate1200}
+                                 ,{"set rate 9600","Set the radio to 9600 bps GMSK packets",setRate9600}
+                                 ,{"get rtc","Get the status and time from the Real Time Clock",getRtc}
+                                 ,{"set rtc","Set the Real Time Clock and update the IHU Unix time",setRtc}
+                                 ,{"get regrtc","Read the specified register in the rtc",regRtc}
                                  ,{"mount fs","Mount the filesystem",MountFS}
                                  ,{"unmount fs","unmount the filesystem",UnMountFS}
                                  ,{"format fs","Format the filesystem",FormatFS}
@@ -301,31 +305,32 @@ commandPairs commonCommands[] = {
                                  ,{"rm","Remove a file from the filesystem",RmFS}
                                  ,{"mkdir","Make a directory in the filesystem",mkdirFS}
                                  ,{"rmdir","Remove a directory from the filesystem",rmdirFS}
-                                 ,{"get rf power","Print the RF power settings",GetRfPower}
+                                 //,{"get rf power","Print the RF power settings",GetRfPower}
                                  ,{"get commands","Get a list the last 4 s/w commands",GetCommands}
                                  ,{"get gpios","Display the values of all GPIOS",GetGpios}
                                  ,{"get ax","Get ax5043 status",getax5043}
-                                 ,{"health mode","Set health mode",healthMode}
-                                 ,{"set dct drive power","Set drive power for high and low power",SetDCTDrivePower}
-                                 ,{"select dct power","Set rf power used in safe or normal modes",SelectRFPowerLevels}
+                                 //,{"health mode","Set health mode",healthMode}
+                                 //,{"set dct drive power","Set drive power for high and low power",SetDCTDrivePower}
+                                 //,{"select dct power","Set rf power used in safe or normal modes",SelectRFPowerLevels}
                                  ,{"set mram sr","Set the MRAM status register",writeMRAMsr}
                                  ,{"set pa on","Turn on the RF power amp",EnablePA}
                                  ,{"set pa off","Turn off the RF power amp",DisablePA}
-                                 ,{"set ax on","Turn on the RF power amp",EnableAx}
-                                 ,{"set ax off","Turn off the RF power amp",DisableAx}
+                                 //,{"set ax on","Turn on the RF power amp",EnableAx}
+                                 //,{"set ax off","Turn off the RF power amp",DisableAx}
                                  ,{"start watchdog","Start the watchdog",startWD}
                                  ,{"preflight init","Initialize MRAM etc for flight",preflight}
-                                 ,{"clear minmax","Clear the min, max, and CIU counts",clrMinMax}
-                                 ,{"drop bus","Assert a fail briefly so the bus switches drop out",dropBus}
-                                 ,{"ignore umbilical","Allow radios to go on with umbilical connected",ignoreUmb}
-                                 ,{"heed umbilical","Reverse effects of ignore umbilical",noticeUmb}
-                                 ,{"enable canprint","Debug can--number follows",enbCanPrint}
-                                 ,{"disable canprint","Debug can--number follows",dsbCanPrint}
+                                // ,{"clear minmax","Clear the min, max, and CIU counts",clrMinMax}
+                                // ,{"drop bus","Assert a fail briefly so the bus switches drop out",dropBus}
+                                // ,{"ignore umbilical","Allow radios to go on with umbilical connected",ignoreUmb}
+                                // ,{"heed umbilical","Reverse effects of ignore umbilical",noticeUmb}
+       //                          ,{"enable canprint","Debug can--number follows",enbCanPrint}
+       //                          ,{"disable canprint","Debug can--number follows",dsbCanPrint}
                                  ,{"enable comprint","Show uplink commands",EnableComPr}
                                  ,{"disable comprint","Turn off uplink command print",DisableComPr}
                                  ,{"helpall","List all commands",HelpAll}
                                  ,{"helpdevo","List commands for software devlopers",HelpDevo}
                                  ,{"helpsetup","List commands for setting up new board",HelpSetup}
+                                 ,{"helppacsat","List commands for controlling the PB and Uploads (FTL0)",HelpPacsat}
                                  ,{"help","List common commands",Help}
                                  ,{"","",0}
 };
@@ -346,6 +351,7 @@ void RealConsoleTask(void)
     /* Block for 500ms. */
     int numberOfCommonCommands = sizeof(commonCommands)/sizeof(commandPairs);
     int numberOfSetupCommands = sizeof(setupCommands)/sizeof(commandPairs);
+    int numberOfPacsatCommands = sizeof(pacsatCommands)/sizeof(commandPairs);
     int numberOfDebugCommands = sizeof(debugCommands)/sizeof(commandPairs);
     char * afterCommand;
     bool DoEcho = true;
@@ -410,6 +416,16 @@ void RealConsoleTask(void)
                 }
             }
         };
+        if(index==0){
+            for (commandNumber = 0; commandNumber < numberOfPacsatCommands; commandNumber++) {
+                /* If a command is found at the start of the type commands, leave the loop */
+                if (strstr(commandString, pacsatCommands[commandNumber].typedCommand) == commandString){
+                    index = pacsatCommands[commandNumber].indexVal;
+                    afterCommand = commandString + strlen(pacsatCommands[commandNumber].typedCommand);
+                    break;
+                }
+            }
+        };
         /*
          * Here is the main command dispatch based on which command number was found above.
          */
@@ -458,10 +474,10 @@ void RealConsoleTask(void)
                 }
             }
 
- //           printf("Size of MRAM0 is %dKB\n",getMRAMSize(0)/1024);
- //           printf("Size of MRAM1 is %dKB\n",getMRAMSize(1)/1024);
- //           printf("Size of MRAM2 is %dKB\n",getMRAMSize(MRAM2Dev)/1024);
- //           printf("Size of MRAM3 is %dKB\n",getMRAMSize(MRAM3Dev)/1024);
+            //           printf("Size of MRAM0 is %dKB\n",getMRAMSize(0)/1024);
+            //           printf("Size of MRAM1 is %dKB\n",getMRAMSize(1)/1024);
+            //           printf("Size of MRAM2 is %dKB\n",getMRAMSize(MRAM2Dev)/1024);
+            //           printf("Size of MRAM3 is %dKB\n",getMRAMSize(MRAM3Dev)/1024);
             break;
         }
         case regRtc:{
@@ -470,10 +486,10 @@ void RealConsoleTask(void)
             //uint8_t data[8];
             uint8_t data;
             status = I2cSendCommand(MAX31331_PORT,MAX31331_ADDR,&readReg,1,&data,1);
- //           printf("Status=%d,reg values from %d are: %x %x %x %x %x %x %x %x\n",
- //                   status,readReg,data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7]);
+            //           printf("Status=%d,reg values from %d are: %x %x %x %x %x %x %x %x\n",
+            //                   status,readReg,data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7]);
             printf("Status=%d,reg %d value: 0x%x\n",
-                    status,readReg,data);
+                   status,readReg,data);
             break;
         }
         case testAllMRAM:{
@@ -494,7 +510,7 @@ void RealConsoleTask(void)
 
             stat = writeEnableMRAM(num);
             printf("stat for MRAM %d is %d; sr is %x\n", num, stat,
-		   readMRAMStatus(num));
+                   readMRAMStatus(num));
             //readNV(data,8,NVConfigData,0);
             //printf("MRAM at address 0 and 1 are now now %d and %d\n",data[0],data[1]);
             break;
@@ -503,9 +519,9 @@ void RealConsoleTask(void)
         case GetGpios:{
             int i;
             char *gpioNames[NumberOfGPIOs]={
-               "LED1","LED2","LED3","Rx0Interrupt","Rx1Interrupt","Rx2Interrupt2","Rx3Interrupt"
-               ,"TxInterrupt4","CommandStrobe","CommandBits",
-               "SSPAPower","AX5043Power"
+                                            "LED1","LED2","LED3","Rx0Interrupt","Rx1Interrupt","Rx2Interrupt2","Rx3Interrupt"
+                                            ,"TxInterrupt4","CommandStrobe","CommandBits",
+                                            "SSPAPower","AX5043Power"
             };
             for (i=0;i<NumberOfGPIOs;i++){
                 if(i%4 == 0){
@@ -517,7 +533,7 @@ void RealConsoleTask(void)
             break;
         }
 #endif
-         case GetCommands: {
+        case GetCommands: {
             extern uint8_t SWCmdRing[SW_CMD_RING_SIZE];
             int i=0;
             printf("Commands received since reset: Hw=%d,Sw=%d\n\r",GetHWCmdCount(),GetSWCmdCount());
@@ -535,28 +551,28 @@ void RealConsoleTask(void)
             break;
         }
         case StartADC1:{
-            adcData_t data;
-            adcStartConversion(adcREG1,adcGROUP1);
-            vTaskDelay(SECONDS(1));
-            adcGetData(adcREG1,adcGROUP1,&data);
-            printf("Group 1 id=%d,value=%d\n",data.id,data.value);
+            //            adcData_t data;
+            //            adcStartConversion(adcREG1,adcGROUP1);
+            //            vTaskDelay(SECONDS(1));
+            //            adcGetData(adcREG1,adcGROUP1,&data);
+            //            printf("Group 1 id=%d,value=%d\n",data.id,data.value);
             break;
         }
         case StartADC2:{
-            adcData_t data[4];
-            int i=0;
-            adcResetFiFo(adcREG1,adcGROUP2);
-            adcStartConversion(adcREG1,adcGROUP2);
-            while(adcIsConversionComplete(adcREG1,adcGROUP2)==0){
-                i++;
-                vTaskDelay(1);
-            }
-            adcStopConversion(adcREG1,adcGROUP2);
-            adcGetData(adcREG1,adcGROUP2,data);
-            printf("Delay=%d\n",i);
-            for(i=0;i<4;i++){
-                printf("Group 2.%d id=%d,value=%d\n",i,data[i].id,data[i].value);
-            }
+            //            adcData_t data[4];
+            //            int i=0;
+            //            adcResetFiFo(adcREG1,adcGROUP2);
+            //            adcStartConversion(adcREG1,adcGROUP2);
+            //            while(adcIsConversionComplete(adcREG1,adcGROUP2)==0){
+            //                i++;
+            //                vTaskDelay(1);
+            //            }
+            //            adcStopConversion(adcREG1,adcGROUP2);
+            //            adcGetData(adcREG1,adcGROUP2,data);
+            //            printf("Delay=%d\n",i);
+            //            for(i=0;i<4;i++){
+            //                printf("Group 2.%d id=%d,value=%d\n",i,data[i].id,data[i].value);
+            //            }
             break;
 
         }
@@ -608,7 +624,7 @@ void RealConsoleTask(void)
         }
         case SaveFreq:{
             uint8_t i;
-            printf("Saving Rx frequency %d and Tx frequency %d to MRAM\n",DCTRxFreq,DCTTxFreq);
+            printf("Saving Rx frequencies and Tx frequency %d to MRAM\n",DCTRxFreq,DCTTxFreq);
             WriteMRAMTelemFreq(DCTTxFreq);
             for(i=0;i<4;i++){
                 WriteMRAMReceiveFreq(i,DCTRxFreq[i]);
@@ -621,7 +637,7 @@ void RealConsoleTask(void)
             SetupMRAM();    //Init stuff that do change (epoch number etc)
             break;
         }
-       case LoadKey:{
+        case LoadKey:{
             uint8_t key[AUTH_KEY_SIZE],i;
             uint32_t magic = ENCRYPTION_KEY_MAGIC_VALUE,checksum;
             const MRAMmap_t *LocalFlash = 0;
@@ -649,7 +665,7 @@ void RealConsoleTask(void)
             if(stat){
                 printf("Writing checksum=%x...",checksum);
                 stat = writeNV(&checksum,sizeof(LocalFlash->AuthenticateKey.keyChecksum),NVConfigData,
-                              (int)&LocalFlash->AuthenticateKey.keyChecksum);
+                               (int)&LocalFlash->AuthenticateKey.keyChecksum);
             }
             if(stat){
                 printf("Writing valid\n");
@@ -808,28 +824,28 @@ void RealConsoleTask(void)
                     "      Payload Only,   Current Filler   Current Size\n");
 
             printf("RT1        %03d           \n",
-                    //"RT2        %03d          \n",
-                    //sizeof(realTimeFrame_t),
-                    sizeof(realTimeFrame_t));
-//                    sizeof(realTimeMinFrame_t)-memberSize(realTimeMinFrame_t,filler),memberSize(realTimeMinFrame_t,filler),sizeof(realTimeMinFrame_t),
-//                    sizeof(realTimeMaxFrame_t)-memberSize(realTimeMaxFrame_t,filler),memberSize(realTimeMaxFrame_t,filler),sizeof(realTimeMaxFrame_t));
+                   //"RT2        %03d          \n",
+                   //sizeof(realTimeFrame_t),
+                   sizeof(realTimeFrame_t));
+            //                    sizeof(realTimeMinFrame_t)-memberSize(realTimeMinFrame_t,filler),memberSize(realTimeMinFrame_t,filler),sizeof(realTimeMinFrame_t),
+            //                    sizeof(realTimeMaxFrame_t)-memberSize(realTimeMaxFrame_t,filler),memberSize(realTimeMaxFrame_t,filler),sizeof(realTimeMaxFrame_t));
 
             printf("AllWOD1    %03d       \n",
-                    sizeof(allWOD1Frame_t)
-//                    sizeof(allWOD1Frame_t)-memberSize(allWOD1Frame_t,filler),memberSize(allWOD1Frame_t,filler),sizeof(allWOD1Frame_t),
-//                    sizeof(allWOD2Frame_t)-memberSize(allWOD2Frame_t,filler),memberSize(allWOD2Frame_t,filler),sizeof(allWOD2Frame_t),
-//                    sizeof(allWOD3Frame_t)-memberSize(allWOD3Frame_t,filler),memberSize(allWOD3Frame_t,filler),sizeof(allWOD3Frame_t)
+                   sizeof(allWOD1Frame_t)
+                   //                    sizeof(allWOD1Frame_t)-memberSize(allWOD1Frame_t,filler),memberSize(allWOD1Frame_t,filler),sizeof(allWOD1Frame_t),
+                   //                    sizeof(allWOD2Frame_t)-memberSize(allWOD2Frame_t,filler),memberSize(allWOD2Frame_t,filler),sizeof(allWOD2Frame_t),
+                   //                    sizeof(allWOD3Frame_t)-memberSize(allWOD3Frame_t,filler),memberSize(allWOD3Frame_t,filler),sizeof(allWOD3Frame_t)
             );
             printf("SafeData1  %03d       \n"
                     "SafeWOD    %03d      \n"
                     ,sizeof(safeData1Frame_t)
                     ,sizeof(safeWODFrame_t)
-//                    ,sizeof(safeData1Frame_t)-memberSize(safeData1Frame_t,filler),memberSize(safeData1Frame_t,filler),sizeof(safeData1Frame_t)
-//                    ,sizeof(safeWODFrame_t)-memberSize(safeWODFrame_t,filler),memberSize(safeWODFrame_t,filler),sizeof(safeWODFrame_t)
+                    //                    ,sizeof(safeData1Frame_t)-memberSize(safeData1Frame_t,filler),memberSize(safeData1Frame_t,filler),sizeof(safeData1Frame_t)
+                    //                    ,sizeof(safeWODFrame_t)-memberSize(safeWODFrame_t,filler),memberSize(safeWODFrame_t,filler),sizeof(safeWODFrame_t)
             );
 
-             break;
-         }
+            break;
+        }
         case mramSleep:{
             int num = parseNumber(afterCommand);
             MRAMSleep(num);
@@ -923,20 +939,6 @@ void RealConsoleTask(void)
             break;
         }
 
-        case noToneTx:{
-            printf("NOT IMPLEMENMTED\n");
-//            printf("Turning off tone; telemetry enabled\n");
-//            AudioSetMixerSource(MixerSilence);
-            break;
-        case toneTx: {
-            printf("NOT IMPLEMENMTED\n");
-//            printf("Sending a tone\n");
-//            AudioSetMixerSource(MixerSilence);  //Stop everything
-//            AudioSetMixerSource(MixerTone);
-//            ax5043StartTx(DCTDev0);
-            break;
-        }
-        }
         case startRx:{
             ax5043StartRx(AX5043Dev0, ANT_DIFFERENTIAL);
             break;
@@ -974,8 +976,8 @@ void RealConsoleTask(void)
             break;
         }
         case resetBoth:{
-            uint16_t args[]={0,1,1};
-            SimulateSwCommand(SWCmdNSSpaceCraftOps,SWCmdOpsResetSpecified,args,3);
+            //            uint16_t args[]={0,1,1};
+            //            SimulateSwCommand(SWCmdNSSpaceCraftOps,SWCmdOpsResetSpecified,args,3);
             break;
         }
         case reset:{
@@ -1027,14 +1029,14 @@ void RealConsoleTask(void)
             printf(" PLLVCOI: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLVCOI));
             printf(" PLLRANGINGA: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLRANGINGA));
             printf(" PLLVCODIV: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLVCODIV));
-//            printf(" FREQ: %x", ax5043ReadReg(dev, AX5043_FREQA0));
-//            printf(" %x", ax5043ReadReg(dev, AX5043_FREQA1));
-//            printf(" %x", ax5043ReadReg(dev, AX5043_FREQA2));
-//            printf(" %x\n", ax5043ReadReg(dev, AX5043_FREQA3));
+            //            printf(" FREQ: %x", ax5043ReadReg(dev, AX5043_FREQA0));
+            //            printf(" %x", ax5043ReadReg(dev, AX5043_FREQA1));
+            //            printf(" %x", ax5043ReadReg(dev, AX5043_FREQA2));
+            //            printf(" %x\n", ax5043ReadReg(dev, AX5043_FREQA3));
             uint32_t val = ax5043ReadReg(dev, AX5043_FREQA0)
-        + (ax5043ReadReg(dev, AX5043_FREQA1) << 8)
-        + (ax5043ReadReg(dev, AX5043_FREQA2) << 16)
-        + (ax5043ReadReg(dev, AX5043_FREQA3) << 24);
+                        + (ax5043ReadReg(dev, AX5043_FREQA1) << 8)
+                        + (ax5043ReadReg(dev, AX5043_FREQA2) << 16)
+                        + (ax5043ReadReg(dev, AX5043_FREQA3) << 24);
             uint32_t freq = axradio_conv_freq_tohz(val);
             printf(" FREQ %d Hz\n", freq);
             printf(" MODULATION: %x\n", ax5043ReadReg(dev, AX5043_MODULATION));
@@ -1052,14 +1054,14 @@ void RealConsoleTask(void)
             printf(" PLLVCOI: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLVCOI));
             printf(" PLLRANGINGA: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLRANGINGA));
             printf(" PLLVCODIV: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLVCODIV));
-//            printf(" FREQ: %x", ax5043ReadReg(dev, AX5043_FREQA0));
-//            printf(" %x", ax5043ReadReg(dev, AX5043_FREQA1));
-//            printf(" %x", ax5043ReadReg(dev, AX5043_FREQA2));
-//            printf(" %x\n", ax5043ReadReg(dev, AX5043_FREQA3));
+            //            printf(" FREQ: %x", ax5043ReadReg(dev, AX5043_FREQA0));
+            //            printf(" %x", ax5043ReadReg(dev, AX5043_FREQA1));
+            //            printf(" %x", ax5043ReadReg(dev, AX5043_FREQA2));
+            //            printf(" %x\n", ax5043ReadReg(dev, AX5043_FREQA3));
             val = ax5043ReadReg(dev, AX5043_FREQA0)
-        + (ax5043ReadReg(dev, AX5043_FREQA1) << 8)
-        + (ax5043ReadReg(dev, AX5043_FREQA2) << 16)
-        + (ax5043ReadReg(dev, AX5043_FREQA3) << 24);
+                        + (ax5043ReadReg(dev, AX5043_FREQA1) << 8)
+                        + (ax5043ReadReg(dev, AX5043_FREQA2) << 16)
+                        + (ax5043ReadReg(dev, AX5043_FREQA3) << 24);
             freq = axradio_conv_freq_tohz(val);
             printf(" FREQ %d Hz\n", freq);
             printf(" MODULATION: %x\n", ax5043ReadReg(dev, AX5043_MODULATION));
@@ -1081,7 +1083,7 @@ void RealConsoleTask(void)
             break;
         }
         case testRxFreq: {
-             //This is so we can find what the receive frequency is on first build
+            //This is so we can find what the receive frequency is on first build
             {
                 uint8_t devb = parseNumber(afterCommand);
                 if(devb >= InvalidAX5043Device){
@@ -1091,13 +1093,13 @@ void RealConsoleTask(void)
                 AX5043Device device = (AX5043Device)devb;
                 uint32_t freq = 145835000;
 
-               if (device == AX5043Dev2) {
-                   printf("Testing TX for AX5043 Dev: %d with single ended antenna\n",device);
-                   test_rx_freq(device, freq, ANT_SINGLE_ENDED); // only AX5043Dev2 is single ended
-               } else {
-                   printf("Testing TX for AX5043 Dev: %d with differential antenna\n",device);
-                   test_rx_freq(device, freq, ANT_DIFFERENTIAL);
-               }
+                if (device == AX5043Dev2) {
+                    printf("Testing TX for AX5043 Dev: %d with single ended antenna\n",device);
+                    test_rx_freq(device, freq, ANT_SINGLE_ENDED); // only AX5043Dev2 is single ended
+                } else {
+                    printf("Testing TX for AX5043 Dev: %d with differential antenna\n",device);
+                    test_rx_freq(device, freq, ANT_DIFFERENTIAL);
+                }
             }
             break;
         }
@@ -1375,6 +1377,7 @@ void RealConsoleTask(void)
             ax5043StartRx(AX5043Dev2, ANT_SINGLE_ENDED);
             ax5043StartRx(AX5043Dev3, ANT_DIFFERENTIAL);
             ax5043StartTx(AX5043Dev4, ANT_DIFFERENTIAL);
+            printf("RESET the IHU to complete the change ..\n");
             break;
         }
 
@@ -1392,6 +1395,7 @@ void RealConsoleTask(void)
             ax5043StartRx(AX5043Dev2, ANT_SINGLE_ENDED);
             ax5043StartRx(AX5043Dev3, ANT_DIFFERENTIAL);
             ax5043StartTx(AX5043Dev4, ANT_DIFFERENTIAL);
+            printf("RESET the IHU to complete the change...\n");
             break;
         }
 
@@ -1401,11 +1405,11 @@ void RealConsoleTask(void)
             uint32_t time;
             rc = GetRtcTime31331(&time);
             if (rc == FALSE)
-                 printf(" Error, time unavailable\n");
-             else {
-                 printf("Time: %d vs IHU Unix time %d\n",time, getUnixTime());
-             }
-             break;
+                printf(" Error, time unavailable\n");
+            else {
+                printf("Time: %d vs IHU Unix time %d\n",time, getUnixTime());
+            }
+            break;
         }
 
         case HelpAll:{
@@ -1418,8 +1422,13 @@ void RealConsoleTask(void)
             } else {
                 printf("\n***LIST OF ALL COMMANDS CONTAINING %s:\n\n",srchStrng);
             }
+            printf("COMMON COMMANDS:\n");
             printHelp(srchStrng,commonCommands,numberOfCommonCommands);
+            printf("PACSAT PB and Upload COMMANDS:\n");
+            printHelp(srchStrng,pacsatCommands,numberOfPacsatCommands);
+            printf("\nSETUP COMMANDS:\n");
             printHelp(srchStrng,setupCommands,numberOfSetupCommands);
+            printf("\nDEBUG COMMANDS:\n");
             printHelp(srchStrng,debugCommands,numberOfDebugCommands);
             break;
         }
@@ -1447,6 +1456,19 @@ void RealConsoleTask(void)
                 printf("\n***LIST OF NEW BOARD SETUP/TEST COMMANDS CONTAINING %s:\n\n",srchStrng);
             }
             printHelp(srchStrng,setupCommands,numberOfSetupCommands);
+            break;
+        }
+        case HelpPacsat:{
+            int numSpace=0;
+            char *srchStrng;
+            while(afterCommand[numSpace] == ' ') numSpace++;
+            srchStrng = &afterCommand[numSpace];
+            if(strlen(srchStrng)== 0){
+                printf("\n***LIST OF PACSAT PB and BBS COMMANDS:\n\n");
+            } else {
+                printf("\n***LIST OF PACSAT PB and BBS COMMANDS CONTAINING %s:\n\n",srchStrng);
+            }
+            printHelp(srchStrng,pacsatCommands,numberOfPacsatCommands);
             break;
         }
         case Help: {

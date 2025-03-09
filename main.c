@@ -85,7 +85,7 @@ QueueHandle_t xTxPacketQueue; /* RTOS Queue for packets sent to the TX */
 QueueHandle_t xIFrameQueue[NUM_OF_RX_CHANNELS]; /* RTOS Queues for Data IFrames sent from Uplink to AX25 Data Link */
 bool rate_9600; /* The rate for the AX25 link.  Loaded from MRAM.  */
 bool CANPrintTelemetry,CANPrintCoord,CANPrintCommands,CANPrintAny,CANPrintCount,CANPrintErrors,CANPrintEttus,
-    monitorPackets;
+monitorPackets;
 
 
 
@@ -171,11 +171,11 @@ void startup(void)
     // register, while SetBit takes the bit number?
     //
     gioSetDirection(SPI_DCT_Select_Port,
-        (1U<<SPI_Rx1DCT_Select_Pin)  |
-        (1U<<SPI_Rx2DCT_Select_Pin)  |
-        (1U<<SPI_Rx3DCT_Select_Pin)  |
-        (1U<<SPI_Rx4DCT_Select_Pin)  |
-        (1U<<SPI_TxDCT_Select_Pin));
+                    (1U<<SPI_Rx1DCT_Select_Pin)  |
+                    (1U<<SPI_Rx2DCT_Select_Pin)  |
+                    (1U<<SPI_Rx3DCT_Select_Pin)  |
+                    (1U<<SPI_Rx4DCT_Select_Pin)  |
+                    (1U<<SPI_TxDCT_Select_Pin));
 
     gioSetBit(SPI_DCT_Select_Port,SPI_Rx1DCT_Select_Pin,1); // Make chip select pins be high
     gioSetBit(SPI_DCT_Select_Port,SPI_Rx2DCT_Select_Pin,1); // Make chip select pins be high
@@ -216,14 +216,14 @@ void startup(void)
 #endif
 
     /*
-      * Here is the end of the first part of initialization.  Now we get the OS
-      * running.  We will be creating a single task right now, and we will then
-      * start the OS.  When that task runs, it will create the other required tasks, use the clock
-      * to wait in orbit after first release from the LV, and open antennas as required.
-      *
-      * This scheme allows us to be sure that the tasks have pre-conditions met (like having
-      * other tasks running or otherwise requiring the OS) for their initialization.
-      */
+     * Here is the end of the first part of initialization.  Now we get the OS
+     * running.  We will be creating a single task right now, and we will then
+     * start the OS.  When that task runs, it will create the other required tasks, use the clock
+     * to wait in orbit after first release from the LV, and open antennas as required.
+     *
+     * This scheme allows us to be sure that the tasks have pre-conditions met (like having
+     * other tasks running or otherwise requiring the OS) for their initialization.
+     */
 
 
 
@@ -238,7 +238,7 @@ void ConsoleTask(void *pvParameters){
     bool haveWaited,umbilicalAttached; //todo: Fix charger when we get that line in V1.2
     //GPIOInit(WatchdogFeed,NO_TASK,NO_MESSAGE,None);
     ResetAllWatchdogs(); // This is started before MET and other tasks so just reporting in does not help
-debug_print("Starting console task\n");
+    debug_print("Starting console task\n");
     /*
      * Now we have an OS going, so we call the init routines, which use OS structures like
      * semaphores and queues.
@@ -250,8 +250,8 @@ debug_print("Starting console task\n");
     // Initialize the SPI driver for our SPI devices
 
 #ifdef LAUNCHPAD_HARDWARE
-//    SPIInit(TxDCTDev); // This is the transmitter on UHF
-//    SPIInit(Rx1DCTDev); // This is the receiver on VHF on the Pacsat Booster Board
+    //    SPIInit(TxDCTDev); // This is the transmitter on UHF
+    //    SPIInit(Rx1DCTDev); // This is the receiver on VHF on the Pacsat Booster Board
 
     SPIInit(DCTDev0); // This is the receiver on VHF on the Pacsat Booster Board
     SPIInit(DCTDev1); // This is the transmitter on UHF
@@ -283,8 +283,8 @@ debug_print("Starting console task\n");
     GPIOEzInit(LED1);
     GPIOEzInit(LED2);
     GPIOInit(DCTInterrupt,ToRxTask,Rx0DCTInterruptMsg,None);
-//    GPIOInit(Rx0DCTInterrupt,ToRxTask,Rx0DCTInterruptMsg,None);
-//    GPIOInit(TxDCTInterrupt,ToTxTask,TxDCTInterruptMsg,None);
+    //    GPIOInit(Rx0DCTInterrupt,ToRxTask,Rx0DCTInterruptMsg,None);
+    //    GPIOInit(TxDCTInterrupt,ToTxTask,TxDCTInterruptMsg,None);
 #else
     GPIOInit(Rx0DCTInterrupt,ToRxTask,Rx0DCTInterruptMsg,None);
     GPIOInit(Rx1DCTInterrupt,ToRxTask,Rx1DCTInterruptMsg,None);
@@ -305,19 +305,19 @@ debug_print("Starting console task\n");
     printID();
 
     if (red_init() == -1) {
-	printf("Unable to initialize filesystem: %s\n",
-	       red_strerror(red_errno));
+        printf("Unable to initialize filesystem: %s\n",
+               red_strerror(red_errno));
     } else {
         if (red_mount("/") == -1) {
             if (red_errno == RED_EIO) {
                 printf("Filesystem mount failed due to corruption, reformatting\n");
-                    if (red_format("/") == -1) {
-                        printf("Unable to format filesystem: %s\n",
-                               red_strerror(red_errno));
-                    } if (red_mount("/") == -1) {
-                        printf("Mount after format failed, filesystem broken: %s\n",
-                               red_strerror(red_errno));
-                    }
+                if (red_format("/") == -1) {
+                    printf("Unable to format filesystem: %s\n",
+                           red_strerror(red_errno));
+                } if (red_mount("/") == -1) {
+                    printf("Mount after format failed, filesystem broken: %s\n",
+                           red_strerror(red_errno));
+                }
             } else {
                 printf("Unable to mount filesystem: %s\n",
                        red_strerror(red_errno));
@@ -363,7 +363,7 @@ debug_print("Starting console task\n");
     }
 
     xTaskCreate(CommandTask, "Command", COMMAND_STACK_SIZE,
-                 NULL,COMMAND_PRIORITY, NULL);
+                NULL,COMMAND_PRIORITY, NULL);
     xTaskCreate(RxTask,"RxTask",RX_STACK_SIZE, NULL, RX_PRIORITY,NULL);
     xTaskCreate(Ax25Task,"Ax25Task",AX25_STACK_SIZE, NULL, AX25_PRIORITY,NULL);
     xTaskCreate(PbTask,"PbTask",PB_STACK_SIZE, NULL, PB_PRIORITY,NULL);
@@ -379,9 +379,9 @@ debug_print("Starting console task\n");
 
     bool rtc = InitRtc31331();
     if (rtc == FALSE) {
-        debug_print("*** NO RTC: SET THE UNIX TIME BEFORE UPLOADING ANY TEST FILES ***\n");
+        debug_print("*** NO 31331 RTC: SET THE UNIX TIME BEFORE UPLOADING ANY TEST FILES ***\n");
     } else {
-        debug_print("RTC Initialized\n");
+        debug_print("31331 RTC detected\n");
         uint32_t utime = 0;
         rtc = GetRtcTime31331(&utime);
         setUnixTime(utime);
