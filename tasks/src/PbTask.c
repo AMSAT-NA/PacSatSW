@@ -46,6 +46,9 @@ to one of the following callsigns: PBLIST, PBFULL, PBSHUT, PBSTAT
 * PBSHUT - If the broadcast protocol is not available then this callsign is used
 * PBSTAT - TBD
 
+NOTE that the actual timer event to send the status is handled in the TelemAndControlTask,
+which handles all periodic processing of this type.
+
 A DIR or FILE request is sent from a ground station to the BROADCAST callsign of the
 spacecraft with a PID 0xBD for a dir request  or 0xBB for a file reqest.
 
@@ -133,7 +136,6 @@ static uint8_t current_station_on_pb = 0; /* This keeps track of which station w
 /* Local Function prototypes */
 int pb_send_ok(char *from_callsign);
 int pb_send_err(char *from_callsign, int err);
-void pb_status_callback();
 void pb_make_list_str(char *buffer, int len);
 void pb_debug_print_list();
 void pb_debug_print_list_item(int i);
@@ -166,20 +168,7 @@ portTASK_FUNCTION_PROTO(PbTask, pvParameters)  {
     ReportToWatchdog(PBTaskWD);
 //    debug_print("Initializing PB Task\n");
 
-    /* Setup a timer to send the status periodically */
-    xTimerHandle pbStatusTimerHandle;
     volatile portBASE_TYPE timerStatus;
-    int pvtPbStatusTimerID = 0; // timer id
-
-    /* create a RTOS software timer - TODO period should be in MRAM and changeable from the ground using xTimerChangePeriod() */
-    pbStatusTimerHandle = xTimerCreate( "PB STATUS", SECONDS(30), TRUE, &pvtPbStatusTimerID, pb_status_callback); // auto reload timer
-    /* start the timer */
-    timerStatus = xTimerStart(pbStatusTimerHandle, 0); // Block time of zero as this can not block
-    if (timerStatus != pdPASS) {
-        debug_print("ERROR: Failed in init PB Status Timer\n");
-// TODO =>        ReportError(RTOSfailure, FALSE, ReturnAddr, (int) PbTask); /* failed to create the RTOS timer */
-        // TODO - it's possible this might fail.  Somehow we should recover from that.
-    }
 
     while(1) {
 
@@ -250,18 +239,6 @@ int pb_send_err(char *from_callsign, int err) {
     rc = tx_send_ui_packet(BROADCAST_CALLSIGN, from_callsign, PID_FILE, (uint8_t *)buffer, len, BLOCK);
 
     return rc;
-}
-
-/**
- * pb_status_callback()
- *
- * This is called from a timer whenever the status of the PB should be sent.  The actual status is assembled and
- * sent to the TX by the Telemetry and Control task
- *
- */
-void pb_status_callback() {
-    statusMsg.MsgType = TacSendPbStatus;
-    NotifyInterTaskFromISR(ToTelemetryAndControl,&statusMsg);
 }
 
 /**

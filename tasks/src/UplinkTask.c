@@ -38,7 +38,6 @@
 #include "str_util.h"
 
 /* Forward functions */
-void ftl0_status_callback();
 void ftl0_next_state_from_primitive(ftl0_state_machine_t *state, AX25_event_t *event);
 void ftl0_state_uninit(ftl0_state_machine_t *state, AX25_event_t *event);
 void ftl0_state_cmd_wait(ftl0_state_machine_t *state, AX25_event_t *event);
@@ -115,21 +114,6 @@ portTASK_FUNCTION_PROTO(UplinkTask, pvParameters)  {
     ReportToWatchdog(UplinkTaskWD);
 //    debug_print("Initializing Uplink FTL0 Task\n");
 
-    /* Setup a timer to send the status periodically */
-    xTimerHandle uplinkStatusTimerHandle;
-    volatile portBASE_TYPE timerStatus;
-    int pvtUplinkStatusTimerID = 0; // timer id
-
-    /* create a RTOS software timer - TODO period should be in MRAM and changeable from the ground using xTimerChangePeriod() */
-    uplinkStatusTimerHandle = xTimerCreate( "UPLINK STATUS", SECONDS(40), TRUE, &pvtUplinkStatusTimerID, ftl0_status_callback); // auto reload timer
-    /* start the timer */
-    timerStatus = xTimerStart(uplinkStatusTimerHandle, 0); // Block time of zero as this can not block
-    if (timerStatus != pdPASS) {
-        debug_print("ERROR: Failed in init PB Status Timer\n");
-// TODO =>        ReportError(RTOSfailure, FALSE, ReturnAddr, (int) PbTask); /* failed to create the RTOS timer */
-        // TODO - it's possible this might fail.  Somehow we should recover from that.
-    }
-
 
     while(1) {
         ReportToWatchdog(UplinkTaskWD);
@@ -166,18 +150,6 @@ portTASK_FUNCTION_PROTO(UplinkTask, pvParameters)  {
         }
 
     }
-}
-
-/**
- * ftl0_status_callback()
- *
- * This is called from a timer whenever the status of the Uplink should be sent.  The actual status is assembled and
- * sent to the TX by the Telemetry and Control task
- *
- */
-void ftl0_status_callback() {
-    statusMsg.MsgType = TacSendUplinkStatus;
-    NotifyInterTaskFromISR(ToTelemetryAndControl,&statusMsg);
 }
 
 

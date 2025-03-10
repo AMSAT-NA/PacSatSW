@@ -57,7 +57,8 @@
 #include "FreeRTOS.h"
 #include "os_task.h"
 #include "nonvolManagement.h"
-
+#include "ax5043_access.h"
+#include "ax5043-ax25.h"
 #include "RxTask.h"
 #include "ax25_util.h"
 #include "str_util.h"
@@ -238,13 +239,15 @@ void ax25_send_status() {
     } else  {
 
         char buffer[25];
-        uint8_t len = 6 + NUM_OF_RX_CHANNELS; // Open ABCD.   - we do not send the string termination chat or it is transmitted too
+        uint8_t len = 6 + NUM_OF_RX_CHANNELS; // Open ABCD.   - we do not send the string termination char or it is transmitted too
         int channels_available = NUM_OF_RX_CHANNELS;
         strlcpy(buffer,"Open ", sizeof(buffer));
 
         int i;
         for (i=0; i < NUM_OF_RX_CHANNELS; i++) {
-            if (data_link_state_machine[i].dl_state == DISCONNECTED) {
+            int powerMode = ax5043ReadReg((AX5043Device)i, AX5043_PWRMODE);
+            /* if Power Mode != 9 then RX is not on or working */
+            if (powerMode == AX5043_PWRSTATE_FULL_RX && data_link_state_machine[i].dl_state == DISCONNECTED) {
                 strlcat(buffer, rx_channel_names[i], sizeof(buffer));
             } else {
                 channels_available--;

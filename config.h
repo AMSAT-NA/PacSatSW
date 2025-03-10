@@ -38,7 +38,7 @@
  * watchdog periodically.  It also waits for all of the tasks to confirm they are still running.  If any
  * tasks fail to report then it does not reset the hardware watchdog and we are rebooted.   If you enable this
  * and get resets in a loop then make sure all tasks are setup to report into the watchdog periodically. */
-//#define WATCHDOG_ENABLE
+#define WATCHDOG_ENABLE
 
 /* */
 #define SOFTWARE_TYPE "X" // Always X if undefine_before_flight is on.  Do not change this one
@@ -199,6 +199,9 @@ typedef enum {
 #define MAX_FILENAME_WITH_PATH_LEN 25 /* Max length of a filename with its path.  This requires a shallow dir structure. */
 #define MAX_BYTES_IN_PACSAT_FILE_HEADER 1024 /* This sets the size of buffers that are used to generate PFH bytes or load from disk. */
 #define MAX_FILESIZE 512 * 1024 /* Any file over this size will be rejected as having no room.  This is really just to confirm that the upload size is not corrupt */
+
+#define PB_TIMER_SEND_STATUS_PERIOD SECONDS(30) //SECONDS(30)
+#define UPLINK_TIMER_SEND_STATUS_PERIOD SECONDS(40) //SECONDS(30)
 
 #define PB_MAX_PERIOD_FOR_CLIENTS_IN_SECONDS 600  // TODO - Should be in MRAM and commandable.  10 mins
 #define MAX_PKTS_IN_TX_PKT_QUEUE_FOR_TNC_TO_BE_BUSY 2 // TODO - Should be in MRAM and commandable. 2

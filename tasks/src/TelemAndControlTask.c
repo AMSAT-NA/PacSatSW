@@ -50,6 +50,8 @@ realTimeFrame_t realtimeFrame;
 
 
 /* Forward declarations */
+void tac_pb_status_callback();
+void tac_ftl0_status_callback();
 void tac_telem_timer_callback();
 void tac_maintenance_timer_callback();
 void tac_collect_telemetry(telem_buffer_t *buffer);
@@ -58,8 +60,13 @@ void tac_send_telemetry(telem_buffer_t *buffer);
 
 
 /* Local variables */
-static xTimerHandle timerTelemSend;
-static xTimerHandle timerMaintenance;
+static xTimerHandle timerTelemSend; /* timer to send the telemetry periodically */
+static xTimerHandle timerMaintenance; /* timer to perform maintenance periodically */
+static xTimerHandle timerPbStatus; /* timer to send the PB status periodically */
+int pvtPbStatusTimerID = 0; // pb timer id
+static xTimerHandle timerUplinkStatus;
+int pvtUplinkStatusTimerID = 0; // uplink timer id
+
 static Intertask_Message statusMsg; // Storage used to send messages to the Telemetry and Control task
 
 
@@ -84,20 +91,39 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)  {
     ResetAllWatchdogs();
 //    debug_print("Initializing Telem and Control Task\n");
 
+
+    /* Setup a timer to send the PB status periodically */
+    /* create a RTOS software timer - TODO period should be in MRAM and changeable from the ground using xTimerChangePeriod() */
+    timerPbStatus = xTimerCreate( "PB STATUS", PB_TIMER_SEND_STATUS_PERIOD, TRUE, &pvtPbStatusTimerID, tac_pb_status_callback); // auto reload timer
+    portBASE_TYPE timerStatus = xTimerStart(timerPbStatus, 0); // Block time of zero as this can not block
+    if (timerStatus != pdPASS) {
+        ReportError(RTOSfailure, FALSE, CharString, (int)"ERROR: Failed in starting PB Status Timer"); /* failed to start the RTOS timer */
+        // TODO - it's possible this might fail.  Somehow we should recover from that.
+    }
+
+    /* Setup a timer to send the uplink status periodically */
+     /* create a RTOS software timer - TODO period should be in MRAM and changeable from the ground using xTimerChangePeriod() */
+     timerUplinkStatus = xTimerCreate( "UPLINK STATUS", UPLINK_TIMER_SEND_STATUS_PERIOD, TRUE, &pvtUplinkStatusTimerID, tac_ftl0_status_callback); // auto reload timer
+     timerStatus = xTimerStart(timerUplinkStatus, 0); // Block time of zero as this can not block
+     if (timerStatus != pdPASS) {
+         ReportError(RTOSfailure, FALSE, CharString, (int)"ERROR: Failed in starting Uplink Status Timer"); /* failed to start the RTOS timer */
+         debug_print("ERROR: Failed in init PB Status Timer\n");
+         // TODO - it's possible this might fail.  Somehow we should recover from that.
+     }
+
     /* Create a periodic timer to send telemetry */
     timerTelemSend = xTimerCreate( "TelemSend", TAC_TIMER_SEND_TELEMETRY_PERIOD, TRUE, (void *)0, tac_telem_timer_callback);
-    portBASE_TYPE timerStatus = xTimerStart(timerTelemSend, 0); // Block time of zero as this can not block
+    timerStatus = xTimerStart(timerTelemSend, 0); // Block time of zero as this can not block
     if (timerStatus != pdPASS) {
         ReportError(RTOSfailure, FALSE, CharString, (int)"ERROR: Failed in starting Telem Timer"); /* failed to start the RTOS timer */
     }
 
     /* Create a periodic timer for maintenance */
     timerMaintenance = xTimerCreate( "Maintenance", TAC_TIMER_MAINTENANCE_PERIOD, TRUE, (void *)0, tac_maintenance_timer_callback);
-    portBASE_TYPE timerStatus2 = xTimerStart(timerMaintenance, 0); // Block time of zero as this can not block
-    if (timerStatus2 != pdPASS) {
+    timerStatus = xTimerStart(timerMaintenance, 0); // Block time of zero as this can not block
+    if (timerStatus != pdPASS) {
         ReportError(RTOSfailure, FALSE, CharString, (int)"ERROR: Failed in starting Maintenance Timer"); /* failed to start the RTOS timer */
     }
-
 
     /* After a short delay for things to settle, send the status to indicate we have rebooted */
     vTaskDelay(WATCHDOG_SHORT_WAIT_TIME);
@@ -161,6 +187,31 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)  {
             }
         }
     }
+}
+
+
+/**
+ * tac_pb_status_callback()
+ *
+ * This is called from a timer whenever the status of the PB should be sent.  The actual status is assembled and
+ * sent to the TX by the Telemetry and Control task
+ *
+ */
+void tac_pb_status_callback() {
+    statusMsg.MsgType = TacSendPbStatus;
+    NotifyInterTaskFromISR(ToTelemetryAndControl,&statusMsg);
+}
+
+/**
+ * tac_ftl0_status_callback()
+ *
+ * This is called from a timer whenever the status of the Uplink should be sent.  The actual status is assembled and
+ * sent to the TX by the Telemetry and Control task
+ *
+ */
+void tac_ftl0_status_callback() {
+    statusMsg.MsgType = TacSendUplinkStatus;
+    NotifyInterTaskFromISR(ToTelemetryAndControl,&statusMsg);
 }
 
 /**
