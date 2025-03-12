@@ -101,7 +101,7 @@ static uint8_t data_buffer[AX25_MAX_DATA_LEN]; /* Static buffer used to store fi
 static rx_radio_buffer_t pb_radio_buffer; /* Static buffer used to store packet as it is assembled and before copy to TX queue */
 //static uint8_t pb_packet_buffer[AX25_PKT_BUFFER_LEN];
 static char pb_status_buffer[135]; // 10 callsigns * 13 bytes + 4 + nul
-static Intertask_Message statusMsg; // Storage used to send messages to the Telemetry and Control task
+//static Intertask_Message statusMsg; // Storage used to send messages to the Telemetry and Control task
 
 bool running_self_test = FALSE;
 

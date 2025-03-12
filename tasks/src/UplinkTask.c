@@ -73,7 +73,7 @@ bool ftl0_clear_upload_table();
 static ftl0_state_machine_t ftl0_state_machine[NUM_OF_RX_CHANNELS];
 static AX25_event_t ax25_event; /* Static storage for event */
 static AX25_event_t send_event_buffer;
-static Intertask_Message statusMsg; // Storage used to send messages to the telem and control task
+//static Intertask_Message statusMsg; // Storage used to send messages to the telem and control task
 static const MRAMmap_t *LocalFlash = (MRAMmap_t *) 0; /* Used to index the MRAM static storage where the File Upload Table is stored */
 static HEADER ftl0_pfh_buffer; // Static allocation of a header to use when we need to load/save the header details
 static uint8_t ftl0_pfh_byte_buffer[MAX_BYTES_IN_PACSAT_FILE_HEADER]; /* Buffer for the bytes in a PFH when we decode a received file */
@@ -828,7 +828,7 @@ int ftl0_process_upload_cmd(ftl0_state_machine_t *state, uint8_t *data, int len)
 
         /* Initialize the empty file */
         char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
-        dir_get_tmp_file_path_from_file_id(state->file_id, file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
+        dir_get_upload_file_path_from_file_id(state->file_id, file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
         int32_t fp = red_open(file_name_with_path, RED_O_CREAT | RED_O_WRONLY);
         if (fp == -1) {
             debug_print("Unable to open %s for writing: %s\n", file_name_with_path, red_strerror(red_errno));
@@ -860,7 +860,7 @@ int ftl0_process_upload_cmd(ftl0_state_machine_t *state, uint8_t *data, int len)
         // So If we get a continue request and the offset is at the end of the file and the file is on the disk, then we send
         // ER_FILE_COMPLETE.
         char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
-        dir_get_file_path_from_file_id(state->file_id, file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
+        dir_get_file_path_from_file_id(state->file_id, DIR_FOLDER, file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
         trace_ftl0("FTL0[%d]: Checking if file: %s already uploaded\n",state->channel, file_name_with_path);
 
         int32_t fp = red_open(file_name_with_path, RED_O_RDONLY);
@@ -906,7 +906,7 @@ int ftl0_process_upload_cmd(ftl0_state_machine_t *state, uint8_t *data, int len)
             }
         }
 
-        dir_get_tmp_file_path_from_file_id(state->file_id, file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
+        dir_get_upload_file_path_from_file_id(state->file_id, file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
         trace_ftl0("FTL0[%d]: Checking continue file: %s\n",state->channel, file_name_with_path);
 
         fp = red_open(file_name_with_path, RED_O_RDONLY);
@@ -983,7 +983,7 @@ int ftl0_process_data_cmd(ftl0_state_machine_t *state, uint8_t *data, int len) {
     unsigned char * data_bytes = (unsigned char *)data + 2; /* Point to the data just past the header */
 
     char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
-    dir_get_tmp_file_path_from_file_id(state->file_id, file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
+    dir_get_upload_file_path_from_file_id(state->file_id, file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
 
     int32_t rc = dir_fs_write_file_chunk(file_name_with_path, data_bytes, ftl0_length, state->offset);
     if (rc == -1) {
@@ -1012,7 +1012,7 @@ int ftl0_process_data_end_cmd(ftl0_state_machine_t *state, uint8_t *data, int le
     }
 
     char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
-    dir_get_tmp_file_path_from_file_id(state->file_id, file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
+    dir_get_upload_file_path_from_file_id(state->file_id, file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
 
     /* We can't call dir_load_pacsat_file() here because we want to check the tmp file first, then
      * add the file after we rename it. So we validate it. */
@@ -1054,7 +1054,7 @@ int ftl0_process_data_end_cmd(ftl0_state_machine_t *state, uint8_t *data, int le
            is sent.
      */
     char new_file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
-    dir_get_file_path_from_file_id(state->file_id, new_file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
+    dir_get_file_path_from_file_id(state->file_id, DIR_FOLDER, new_file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
 
     rc = red_link(file_name_with_path, new_file_name_with_path);
     if (rc == -1) {
@@ -1372,7 +1372,7 @@ void ftl0_maintenance() {
                 if (ftl0_mram_set_file_upload_record(i, &blank_file_upload_record)) {
                     // Remove the tmp file
                     char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
-                    dir_get_tmp_file_path_from_file_id(rec.file_id, file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
+                    dir_get_upload_file_path_from_file_id(rec.file_id, file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
                     int32_t fp = red_unlink(file_name_with_path);
                     if (fp == -1) {
                         debug_print("Unable to remove tmp file: %s : %s\n", file_name_with_path, red_strerror(red_errno));
@@ -1409,7 +1409,7 @@ void ftl0_maintenance() {
             if(!ftl0_get_file_upload_record(id, &rec)) {
                 // Remove the tmp file
                 char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
-                dir_get_tmp_file_path_from_file_id(id, file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
+                dir_get_upload_file_path_from_file_id(id, file_name_with_path, MAX_FILENAME_WITH_PATH_LEN);
                 int32_t fp = red_unlink(file_name_with_path);
                 if (fp == -1) {
                     debug_print("Unable to remove orphaned tmp file: %s : %s\n", file_name_with_path, red_strerror(red_errno));

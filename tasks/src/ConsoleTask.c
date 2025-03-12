@@ -11,6 +11,7 @@
 #include <pacsat.h>
 #include "stdarg.h"
 #include "stdlib.h"
+#include <ctype.h>
 #include "nonvolManagement.h"
 #include "sys_common.h"
 #include "serialDriver.h"
@@ -172,6 +173,7 @@ enum {
     ,testDecode
     ,makePfhFiles
     ,testDir
+    ,testInternalFile
     ,sendUplinkStatus
     ,testRetransmission
     ,testUploadTable
@@ -272,6 +274,7 @@ commandPairs debugCommands[] = {
                                 ,{"test decode","Test decode of AX25 packets",testDecode}
                                 ,{"make psf","Make a set of test Pacsat Files in MRAM",makePfhFiles}
                                 ,{"test dir","Test the Pacsat Directory.  The command 'make psf' must already have been run",testDir}
+                                ,{"test internal file","Provide filename and a string of test to make an internal file and add it to the directory",testInternalFile}
                                 ,{"send uplink status","Send Uplink status",sendUplinkStatus}
                                 ,{"test retransmission","Test the AX25 I frame retransmission",testRetransmission}
                                 ,{"test upload table","Test the storage of Upload records in the MRAM table",testUploadTable}
@@ -1174,6 +1177,10 @@ void RealConsoleTask(void)
             bool rc = test_pacsat_dir();
             break;
         }
+        case testInternalFile:{
+            bool rc = test_pfh_make_internal_file("//testfile");
+            break;
+        }
         case testDecode:{
             bool rc = test_ax25_util_decode_packet();
             break;
@@ -1272,7 +1279,6 @@ void RealConsoleTask(void)
             break;
         }
 
-
         case mramHxd: {
             int numSpace=0;
             char *srchStrng;
@@ -1290,10 +1296,26 @@ void RealConsoleTask(void)
                 if (numOfBytesRead == -1) {
                     printf("Unable to read file: %s\n", red_strerror(red_errno));
                 } else {
-                    int q;
-                    for (q=0; q< numOfBytesRead; q++) {
-                        printf("%02x ", read_buffer[q]);
-                        if (q != 0 && q % 20 == 0 ) printf("\n");
+                    int q=0,n=0;
+                    while ( q*20 < numOfBytesRead) {
+                        for (n=0; n < 20; n++) {
+                            if ((q*20 + n) < numOfBytesRead)
+                                printf("%02x ", read_buffer[q*20+n]);
+                            else
+                                printf("   ");
+                        }
+                        printf("|");
+                        for (n=0; n < 20; n++) {
+                            if ((q*20 + n) < numOfBytesRead) {
+                                if (isprint(read_buffer[q*20+n]))
+                                    printf("%c", (char *)read_buffer[q*20+n]);
+                                else
+                                    printf(".");
+                            }
+                        }
+                        q++;
+                        printf("\n");
+
                     }
                 }
 

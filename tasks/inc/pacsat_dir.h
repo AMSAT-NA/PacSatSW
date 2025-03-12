@@ -32,9 +32,10 @@ typedef struct dir_node {
 } DIR_NODE;
 
 uint32_t dir_next_file_number();
+bool dir_load_pacsat_file(char *file_name);
 DIR_NODE * dir_add_pfh(char *file_path, HEADER *new_pfh);
-void dir_get_tmp_file_path_from_file_id(uint32_t file_id, char *file_path, int max_length);
-void dir_get_file_path_from_file_id(uint32_t file_id, char *file_path, int max_length);
+void dir_get_upload_file_path_from_file_id(uint32_t file_id, char *file_path, int max_length);
+void dir_get_file_path_from_file_id(uint32_t file_id, char *dir_name, char *file_path, int max_len);
 void dir_get_filename_from_file_id(uint32_t file_id, char *file_name, int max_len);
 uint32_t dir_get_file_id_from_filename(char *file_name);
 int32_t dir_check_folders();
@@ -48,6 +49,7 @@ int32_t dir_fs_get_file_size(char *file_name_with_path);
 DIR_NODE * dir_get_pfh_by_date(DIR_DATE_PAIR pair, DIR_NODE *p );
 DIR_NODE * dir_get_node_by_id(int file_id);
 void dir_maintenance();
+void dir_file_queue_check(uint32_t now, char * folder, uint8_t file_type, char * destination);
 void dir_debug_print(DIR_NODE *p);
 
 /* Test functions */

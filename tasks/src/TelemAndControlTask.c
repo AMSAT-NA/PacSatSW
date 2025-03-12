@@ -147,6 +147,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)  {
     while(1) {
         Intertask_Message messageReceived;
         int status;
+        uint32_t now = 0;
         ReportToWatchdog(CurrentTaskWD);
         status = WaitInterTask(ToTelemetryAndControl, WATCHDOG_SHORT_WAIT_TIME, &messageReceived);
         ReportToWatchdog(CurrentTaskWD);
@@ -157,7 +158,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)  {
             //            if(waiting != 0){
             //                debug_print("MessagesWaiting=%d\n",WaitingInterTask(ToTelemetryAndControl));
             //            }
-            switch(messageReceived.MsgType){
+            switch(messageReceived.MsgType) {
             case TacSendPbStatus:
                 //debug_print("Telem & Control: Send the PB Status\n");
                 pb_send_status();
@@ -173,6 +174,9 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)  {
                 dir_maintenance();
                 //debug_print("TAC: Running FTL0 Maintenance\n");
                 ftl0_maintenance();
+                debug_print("TAC: Checking File Queues\n");
+//                now = getUnixTime(); // Get the time in seconds since the unix epoch
+//                dir_file_queue_check(now, WOD_FOLDER, PFH_TYPE_WL, "WOD");
                 break;
 
             case TacCollectMsg:

@@ -15,6 +15,7 @@
 
 static const MRAMmap_t *ptr = (MRAMmap_t *) 0;
 
+/* These are all the read/write routines for the MRAM. */
 
 void EncodeUint32(uint32_t number,uint32_t *data){
     data[0] = number;
@@ -365,7 +366,7 @@ uint8_t ReadMRAMReceiverMode(uint8_t rxNum){
 }
 
 /*
- * Those are all the read/write routines for the MRAM.  Below are the initialization routines
+ *  Below are the initialization routines for MRAM
  */
 
 void SetupMRAMStates() {
