@@ -528,14 +528,14 @@ int pfh_save_pacsatfile(unsigned char * header, int header_len, char *filename, 
     /* Save the header bytes */
     int32_t rc = dir_fs_write_file_chunk(filename, header, header_len, 0);
     if (rc == -1) {
-        debug_print("pfh:File I/O error writing chunk: %s\n", filename);
+        debug_print("pfh_save_pacsatfile:File I/O error writing chunk: %s\n", filename);
         return EXIT_FAILURE; // This is most likely caused by running out of file ids or space
     }
 
     /* Add the file contents */
     int32_t fp = red_open(body_filename, RED_O_RDONLY);
     if (fp == -1) {
-        debug_print("Unable to open %s for reading: %s\n", body_filename, red_strerror(red_errno));
+        debug_print("pfh_save_pacsatfile: Unable to open %s for reading: %s\n", body_filename, red_strerror(red_errno));
         return EXIT_FAILURE;
     }
     uint8_t read_buffer[255];
@@ -545,7 +545,7 @@ int pfh_save_pacsatfile(unsigned char * header, int header_len, char *filename, 
     while (bytes_written < file_size && loop_limit-- > 0) {
         int32_t numOfBytesRead = red_read(fp, read_buffer, sizeof(read_buffer));
         if (numOfBytesRead == -1) {
-            debug_print("Unable to read %s: %s\n", body_filename, red_strerror(red_errno));
+            debug_print("pfh_save_pacsatfile: Unable to read %s: %s\n", body_filename, red_strerror(red_errno));
             // remove partial file
             fp = red_unlink(filename); // try to unlink and ignore error if we can not
             return EXIT_FAILURE;
@@ -553,7 +553,7 @@ int pfh_save_pacsatfile(unsigned char * header, int header_len, char *filename, 
 
         rc = dir_fs_write_file_chunk(filename, read_buffer, numOfBytesRead, header_len + bytes_written);
         if (rc == -1) {
-            debug_print("pfh:File I/O error writing chunk: %s\n", filename);
+            debug_print("pfh_save_pacsatfile:File I/O error writing chunk: %s\n", filename);
             // remove partial file
             fp = red_unlink(filename); // try to unlink and ignore error if we can not
             return EXIT_FAILURE; // This is most likely caused by running out of file ids or space
@@ -696,7 +696,7 @@ int pfh_make_internal_file(HEADER *pfh, char *dir_folder, char *body_filename, u
 
     int32_t fp = red_open(body_filename, RED_O_RDONLY);
     if (fp == -1) {
-        debug_print("Unable to open %s for reading: %s\n", body_filename, red_strerror(red_errno));
+        debug_print("pfh_make_internal_file: Unable to open %s for reading: %s\n", body_filename, red_strerror(red_errno));
         return EXIT_FAILURE;
     }
 
@@ -707,7 +707,7 @@ int pfh_make_internal_file(HEADER *pfh, char *dir_folder, char *body_filename, u
     while (body_size < file_size) {
         int32_t numOfBytesRead = red_read(fp, read_buffer, sizeof(read_buffer));
         if (numOfBytesRead == -1) {
-            debug_print("Unable to read %s: %s\n", body_filename, red_strerror(red_errno));
+            debug_print("pfh_make_internal_file: Unable to read %s: %s\n", body_filename, red_strerror(red_errno));
             break;
         }
         if (numOfBytesRead == 0)
@@ -721,7 +721,7 @@ int pfh_make_internal_file(HEADER *pfh, char *dir_folder, char *body_filename, u
 
     rc = red_close(fp);
     if (rc != 0) {
-        printf("Unable to close %s: %s\n", body_filename, red_strerror(red_errno));
+        printf("pfh_make_internal_file: Unable to close %s: %s\n", body_filename, red_strerror(red_errno));
     }
 
     pfh->bodyCRC = body_checksum;
@@ -1120,7 +1120,10 @@ header items as specified below.\n";
  *
  */
 int test_pfh_make_internal_file(char * filename) {
-    char *msg = "Test of the internal file system.  This file should be added to the directory.";
+    char *msg = "This is a test of the internal file system.  This file was created internally\
+            by PACSAT and added automatically to the directory.  This mechansim will be used\
+            for WOD, Log and Experiment files.\n\n\
+            This file ends here with the word END";
     int rc = dir_fs_write_file_chunk(filename, (uint8_t *)msg, strlen(msg), 0);
     if (rc == -1) {  debug_print("PFH: Test Write file data for internal file test - FAILED\n"); return FALSE; }
 
@@ -1163,6 +1166,8 @@ int test_pfh_make_internal_file(char * filename) {
         rc = red_unlink(psf_name_with_path); // remove this in case it was partially written, ignore any error
         return FALSE;
     }
+
+    printf("##### TEST MAKE INTERNAL FILE: success\n");
 
     return TRUE;
 }

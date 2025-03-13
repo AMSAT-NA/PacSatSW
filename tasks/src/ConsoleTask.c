@@ -17,7 +17,7 @@
 #include "serialDriver.h"
 #include "UplinkCommands.h"
 #include "CommandTask.h"
-#include "TelemetryRadio.h"
+#include "TelemAndControlTask.h"
 #include "consoleRoutines.h"
 #include "ax5043.h"
 #include "ax5043_access.h"
@@ -174,6 +174,7 @@ enum {
     ,makePfhFiles
     ,testDir
     ,testInternalFile
+    ,makeWodFile
     ,sendUplinkStatus
     ,testRetransmission
     ,testUploadTable
@@ -274,7 +275,8 @@ commandPairs debugCommands[] = {
                                 ,{"test decode","Test decode of AX25 packets",testDecode}
                                 ,{"make psf","Make a set of test Pacsat Files in MRAM",makePfhFiles}
                                 ,{"test dir","Test the Pacsat Directory.  The command 'make psf' must already have been run",testDir}
-                                ,{"test internal file","Provide filename and a string of test to make an internal file and add it to the directory",testInternalFile}
+                                ,{"test internal file","Generate a test internal file and add it to the directory",testInternalFile}
+                                ,{"test wod file","Generate a test wod file and add it to the file queue",makeWodFile}
                                 ,{"send uplink status","Send Uplink status",sendUplinkStatus}
                                 ,{"test retransmission","Test the AX25 I frame retransmission",testRetransmission}
                                 ,{"test upload table","Test the storage of Upload records in the MRAM table",testUploadTable}
@@ -1179,6 +1181,10 @@ void RealConsoleTask(void)
         }
         case testInternalFile:{
             bool rc = test_pfh_make_internal_file("//testfile");
+            break;
+        }
+        case makeWodFile:{
+            bool rc = tac_test_wod_file();
             break;
         }
         case testDecode:{

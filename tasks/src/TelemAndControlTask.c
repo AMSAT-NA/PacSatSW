@@ -35,6 +35,7 @@
 #include "ax5043_access.h"
 #include "ax5043-ax25.h"
 #include "inet.h"
+#include "str_util.h"
 
 #include "downlink.h"
 #include "rt1ErrorsDownlink.h"
@@ -56,8 +57,9 @@ void tac_telem_timer_callback();
 void tac_maintenance_timer_callback();
 void tac_collect_telemetry(telem_buffer_t *buffer);
 void tac_send_telemetry(telem_buffer_t *buffer);
-
-
+void tac_send_time();
+void tac_store_wod();
+void tac_roll_wod_file();
 
 /* Local variables */
 static xTimerHandle timerTelemSend; /* timer to send the telemetry periodically */
@@ -66,6 +68,8 @@ static xTimerHandle timerPbStatus; /* timer to send the PB status periodically *
 int pvtPbStatusTimerID = 0; // pb timer id
 static xTimerHandle timerUplinkStatus;
 int pvtUplinkStatusTimerID = 0; // uplink timer id
+char wod_file_name[MAX_FILENAME_WITH_PATH_LEN];
+int wod_file_length = 0;
 
 static Intertask_Message statusMsg; // Storage used to send messages to the Telemetry and Control task
 
@@ -174,9 +178,9 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)  {
                 dir_maintenance();
                 //debug_print("TAC: Running FTL0 Maintenance\n");
                 ftl0_maintenance();
-                debug_print("TAC: Checking File Queues\n");
-//                now = getUnixTime(); // Get the time in seconds since the unix epoch
-//                dir_file_queue_check(now, WOD_FOLDER, PFH_TYPE_WL, "WOD");
+                //debug_print("TAC: Checking File Queues\n");
+                now = getUnixTime(); // Get the time in seconds since the unix epoch
+                dir_file_queue_check(now, WOD_FOLDER, PFH_TYPE_WL, "WOD");
                 break;
 
             case TacCollectMsg:
@@ -187,6 +191,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)  {
                 /* For real time telemetry we collect it and send it at the same time */
                 tac_collect_telemetry(&telem_buffer);
                 tac_send_telemetry(&telem_buffer);
+                tac_send_time();
                 break;
             }
         }
@@ -238,11 +243,8 @@ void tac_maintenance_timer_callback() {
     NotifyInterTaskFromISR(ToTelemetryAndControl,&statusMsg);
 }
 
-
 void tac_collect_telemetry(telem_buffer_t *buffer) {
     //debug_print("Telem & Control: Collect RT telem\n");
-
-
     if(!IsStabilizedAfterBoot()) return;
 
     logicalTime_t time;
@@ -316,7 +318,6 @@ void tac_collect_telemetry(telem_buffer_t *buffer) {
  * Send telemetry that we have collected over the last period.
  * Realtime telemetry is sent in a UI frame.  The frame type depends on the mode and the
  * sequence
- * WOD telemetry is saved to a file
  *
  * The telemetry to send is determined by the mode that we are in.
  *
@@ -347,18 +348,84 @@ void tac_send_telemetry(telem_buffer_t *buffer) {
 
     }
     int rc = tx_send_ui_packet(BROADCAST_CALLSIGN, TLMP1, PID_NO_PROTOCOL, frame, len, BLOCK);
+}
 
+void tac_send_time() {
     uint32_t t = getUnixTime();
     //uint8_t time_frame[11];
     //snprintf((char *)time_frame, 11, "%d",t);
     //len = strlen((char *)time_frame);
 
-    len = 4;
+    int len = 4;
     t = htotl(t);
     uint8_t *time_frame;
     time_frame = (uint8_t *)&t;
 
-    rc = tx_send_ui_packet(BROADCAST_CALLSIGN, TIME, PID_NO_PROTOCOL, time_frame, len, BLOCK);
+    int rc = tx_send_ui_packet(BROADCAST_CALLSIGN, TIME, PID_NO_PROTOCOL, time_frame, len, BLOCK);
 
 }
 
+/**
+ * Store one line of telemetry data into the WOD file
+ */
+void tac_store_wod() {
+    telem_buffer_t *buffer = &telem_buffer;
+    if(!IsStabilizedAfterBoot()) return;
+
+    if (strlen(wod_file_name) == 0) {
+        /* Make a new wod file name and start the file */
+        char file_name[MAX_FILENAME_WITH_PATH_LEN];
+        strlcpy(file_name, "wod", sizeof(file_name));
+        strlcat(file_name, "20250311", sizeof(file_name));
+
+        strlcpy(wod_file_name, WOD_FOLDER, sizeof(wod_file_name));
+        strlcat(wod_file_name, file_name, sizeof(wod_file_name));
+    }
+
+    int len = 0;
+    uint8_t *frame;
+    /* TODO - Use a Type 1 frame - but this should be the WOD layout */
+    realtimeFrame.header = buffer->header;
+    realtimeFrame.rtHealth = buffer->rtHealth;
+    len = sizeof(realtimeFrame);
+
+    frame = (uint8_t *)&realtimeFrame;
+
+    /* Write bytes to the file */
+    int rc = dir_fs_write_file_chunk(wod_file_name, frame, len, wod_file_length);
+    if (rc == -1) {
+        debug_print("tax:File I/O error writing WOD chunk: %s\n", wod_file_name);
+        // TODO - It is unclear what to do here.  We should realu look at the error code and decide,  Do we remove problem file?
+        // fp = red_unlink(wod_file_name); // try to unlink and ignore error if we can not
+        return; // This is most likely caused by running out of file ids or space
+    } else {
+        wod_file_length = wod_file_length + len;
+    }
+
+}
+
+/**
+ * Rename the WOD file so it will be processed in the file queue.  Reset the WOD
+ * file name so a new one is assigned next time we write data.
+ */
+void tac_roll_wod_file() {
+    wod_file_name[0] = 0; // clear the file name
+    wod_file_length = 0;
+}
+
+#ifdef DEBUG
+
+/**
+ * TEST ROUTINES FOLLOW
+ *
+ */
+
+int tac_test_wod_file() {
+    tac_store_wod();
+    tac_roll_wod_file();
+    printf("##### TEST MAKE WOD FILE: success\n");
+
+    return EXIT_SUCCESS;
+}
+
+#endif

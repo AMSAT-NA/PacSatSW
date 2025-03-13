@@ -382,7 +382,7 @@ bool dir_load_pacsat_file(char *file_name) {
 //    debug_print("Loading: %d from addr: %d \n", mram_file->file_id, mram_file->address);
 
     char file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
-    snprintf(file_name_with_path, MAX_FILENAME_WITH_PATH_LEN, "//%s",file_name);
+    //snprintf(file_name_with_path, MAX_FILENAME_WITH_PATH_LEN, "//%s",file_name);
 
     strlcpy(file_name_with_path, DIR_FOLDER, sizeof(file_name_with_path));
     strlcat(file_name_with_path, file_name, sizeof(file_name_with_path));
@@ -623,6 +623,22 @@ void dir_maintenance() {
     }
 }
 
+/**
+ * dir_file_queue_check()
+ *
+ * Check a folder to see if it contains any files.  If it does, each file is added to the directory.
+ * If a file can not be added, then we have two choices:
+ * 1. Skip it and try again later - error not related to the file itself.  e.g. the file system is full
+ * 2. Delete it as it can never be added - file error.  It is corrupt, or can not be processed.
+ *
+ * We use the following file names in this:
+ * de->d_name: is the name of the file in the folder without the path.  This becomes the user_file_name in
+ *  the header
+ * file_name: This is the path to the file in the folder.
+ * psf_name: This is the name of the file in the dir with the path e.g. //dir/0034
+ * file_to_load: This is the name of the file in the dir without the path e,g, 0034
+ *
+ */
 void dir_file_queue_check(uint32_t now, char * folder, uint8_t file_type, char * destination) {
     debug_print("Checking for files in queue: %s\n",folder);
     REDDIR *pDir;
@@ -636,12 +652,11 @@ void dir_file_queue_check(uint32_t now, char * folder, uint8_t file_type, char *
     red_errno = 0; /* Set error to zero so we can distinguish between a real error and the end of the DIR */
 
     char file_name[MAX_FILENAME_WITH_PATH_LEN];
-    char user_file_name[MAX_FILENAME_WITH_PATH_LEN];
+//    char user_file_name[MAX_FILENAME_WITH_PATH_LEN];
     char psf_name[MAX_FILENAME_WITH_PATH_LEN];
-    for (de = red_readdir(pDir); de != NULL; red_readdir(pDir)) {
-        strlcpy(user_file_name, de->d_name, sizeof(user_file_name));
+    for (de = red_readdir(pDir); de != NULL; de = red_readdir(pDir)) {
         strlcpy(file_name, folder, sizeof(file_name));
-        strlcat(file_name, "/", sizeof(file_name));
+//         strlcat(file_name, "/", sizeof(file_name));
         strlcat(file_name, de->d_name, sizeof(file_name));
         if (!RED_S_ISDIR(de->d_stat.st_mode)) {
             if (str_ends_with(de->d_name, PSF_FILE_TMP)) {
@@ -678,7 +693,7 @@ void dir_file_queue_check(uint32_t now, char * folder, uint8_t file_type, char *
                 // NOTE - update file size here
             }
             HEADER pfh;
-            int ret = pfh_make_internal_header(&pfh, now, file_type, id, "", BBS_CALLSIGN, destination, de->d_name, user_file_name,
+            int ret = pfh_make_internal_header(&pfh, now, file_type, id, "", BBS_CALLSIGN, destination, de->d_name, de->d_name,
                     create_time, 0, compression_type);
             if (ret == EXIT_FAILURE)
                 continue;
@@ -690,7 +705,7 @@ void dir_file_queue_check(uint32_t now, char * folder, uint8_t file_type, char *
             int rc;
             rc = pfh_make_internal_file(&pfh, DIR_FOLDER, file_name, file_size);
             if (rc != EXIT_SUCCESS) {
-                printf("** Failed to make pacsat file %s\n", file_name);
+                printf("** Failed to make pacsat file %s from file %s\n", psf_name, file_name);
                 rc = red_unlink(psf_name); // remove this in case it was partially written, ignore any error
                 if (rc == -1) {
                     debug_print("Unable to remove file: %s : %s\n", psf_name, red_strerror(red_errno));
@@ -698,20 +713,21 @@ void dir_file_queue_check(uint32_t now, char * folder, uint8_t file_type, char *
                 continue;
             }
 
-            rc = dir_load_pacsat_file(psf_name);
-            if (rc != EXIT_SUCCESS) {
-                debug_print("May need to remove potentially corrupt file from queue: %s\n", file_name);
+            char file_to_load[MAX_FILENAME_WITH_PATH_LEN];
+            dir_get_filename_from_file_id(id, file_to_load, MAX_FILENAME_WITH_PATH_LEN);
+            rc = dir_load_pacsat_file(file_to_load);
+            if (rc != TRUE) {
+                debug_print("Removing potentially corrupt file from queue to prevent multiple adds: %s\n", file_name);
+                rc = red_unlink(psf_name); // remove this in case it was partially written, ignore any error
                 continue;
             }
-            rc = red_unlink(psf_name); // remove this in case it was partially written, ignore any error
+
+            rc = red_unlink(file_name); // remove the file now that it is processed
             if (rc == -1) {
-                debug_print("Unable to remove file: %s : %s\n", psf_name, red_strerror(red_errno));
+                //TODO - this is a critical error as we will keep adding it and fill the file system
+                debug_print("Unable to remove file: %s : %s\n", file_name, red_strerror(red_errno));
             }
         }
-    }
-    if (red_errno != 0) {
-        debug_print("*** Error reading directory: %s\n", red_strerror(red_errno));
-
     }
     int32_t rc2 = red_closedir(pDir);
     if (rc2 != 0) {
@@ -998,10 +1014,11 @@ int test_pacsat_dir() {
     debug_print("TEST DIR LOAD\n");
     dir_load();
     dir_debug_print(dir_head);
-    if (dir_head->file_id != 1) { printf("** Error creating file 1\n"); return EXIT_FAILURE; }
-    if (dir_head->next->file_id != 2) { printf("** Error creating file 2\n"); return EXIT_FAILURE; }
-    if (dir_tail->file_id != 4) { printf("** Error creating file 4\n"); return EXIT_FAILURE; }
+    if (dir_head->file_id != 1) { printf("** Error creating file 1\n"); return FALSE; }
+    if (dir_head->next->file_id != 2) { printf("** Error creating file 2\n"); return FALSE; }
+    if (dir_tail->file_id != 4) { printf("** Error creating file 4\n"); return FALSE; }
 
+    //TODO this test needs to be fixed
 #ifdef REFACTOR
     debug_print("DELETE HEAD\n");
     dir_delete_node(dir_head);
