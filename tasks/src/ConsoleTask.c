@@ -202,7 +202,6 @@ enum {
     ,getRtc
     ,setRtc
     ,regRtc
-    ,setDigi
 };
 
 /* These commands should only be required to setup a new board and configure it. */
@@ -243,6 +242,7 @@ commandPairs pacsatCommands[] = {
                                  ,{"list dir","List the Pacsat Directory.",listDir}
                                  ,{"next filenumber","Show the next file number that the Dir will assign to an uploaded file",getNextFileNumber}
                                  ,{"reset filenumber","Reset the next Dir file number to zero.",resetNextFileNumber}
+                                 ,{"list upload table","List the Upload records in the MRAM table",listUploadTable}
 };
 
 /* These commands should only be required when writing the software.  They should not be required for setting up new boards,
@@ -280,8 +280,6 @@ commandPairs debugCommands[] = {
                                 ,{"send uplink status","Send Uplink status",sendUplinkStatus}
                                 ,{"test retransmission","Test the AX25 I frame retransmission",testRetransmission}
                                 ,{"test upload table","Test the storage of Upload records in the MRAM table",testUploadTable}
-                                ,{"list upload table","List the Upload records in the MRAM table",listUploadTable}
-                                ,{"set digi","Set the digipeater mode",setDigi}
 #endif
 
 };

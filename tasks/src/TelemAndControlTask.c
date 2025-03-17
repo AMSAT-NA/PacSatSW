@@ -244,19 +244,20 @@ void tac_maintenance_timer_callback() {
 }
 
 void tac_collect_telemetry(telem_buffer_t *buffer) {
-    //debug_print("Telem & Control: Collect RT telem\n");
     if(!IsStabilizedAfterBoot()) return;
 
     logicalTime_t time;
     getTimestamp(&time);
-    buffer->header.uptime = time.METcount;
-    buffer->header.resetCnt = time.IHUresetCnt;
+    buffer->header.uptime = htotl(time.METcount);
+    buffer->header.resetCnt = htots(time.IHUresetCnt);
     buffer->header.protocolVersion = 0;
     buffer->header.versionMajor = DownlinkVersionMajor;
     buffer->header.versionMinor = DownlinkVersionMinor;
     buffer->header.inScienceMode = 0;
-    buffer->header.inHealthMode = 0;
+    buffer->header.inHealthMode = 1;
     buffer->header.inSafeMode = 0;
+
+   // debug_print("Telem & Control: Collect RT telem at: %d/%d\n",time.IHUresetCnt, time.METcount);
 
     /**
      * Initial telemetry for the protoype booster board:
@@ -278,15 +279,19 @@ void tac_collect_telemetry(telem_buffer_t *buffer) {
     if (rc != 0) {
         printf("TAC: Unable to check disk space with statvfs: %s\n", red_strerror(red_errno));
     } else {
-        //printf("Free blocks: %d of %d.  Free Bytes: %d\n",redstatfs.f_bfree, redstatfs.f_blocks, redstatfs.f_frsize * redstatfs.f_bfree);
+        //printf("Free blocks: %d of %d.  Files: %d\n",redstatfs.f_bfree, redstatfs.f_blocks, redstatfs.f_files - redstatfs.f_ffree);
         //printf("Available File Ids: %d of %d.  \n",redstatfs.f_ffree, redstatfs.f_files);
-        buffer->rtHealth.common.FSAvailable = redstatfs.f_bfree;
-        buffer->rtHealth.common.FSTotalFiles = redstatfs.f_files - redstatfs.f_ffree;
+        buffer->rtHealth.common.FSAvailable = htotl(redstatfs.f_bfree); // blocks free
+        buffer->rtHealth.common.FSTotalFiles = htots((uint16)(redstatfs.f_files - redstatfs.f_ffree));
     }
-    buffer->rtHealth.common.UploadQueueBytes = (uint16_t)ftl0_get_space_reserved_by_upload_table();
+    short upload_kb = (uint16_t)(ftl0_get_space_reserved_by_upload_table()/1024);
+    buffer->rtHealth.common.UploadQueueBytes = htots(upload_kb); // in kilobytes
+    //debug_print("UploadBytes: %d",upload_kb);
     buffer->rtHealth.common.UploadQueueFiles = ftl0_get_num_of_files_in_upload_table();
 
-    buffer->rtHealth.common2.pbEnabled = ReadMRAMBoolState(StatePbEnabled);
+    bool pb_state = ReadMRAMBoolState(StatePbEnabled);
+    //debug_print("PB: %d\n", pb_state);
+    buffer->rtHealth.common2.pbEnabled = pb_state;
     buffer->rtHealth.common2.uplinkEnabled = ReadMRAMBoolState(StateUplinkEnabled);
 
     uint8_t temp8;
@@ -307,7 +312,7 @@ void tac_collect_telemetry(telem_buffer_t *buffer) {
     buffer->rtHealth.common.RX0RSSI = rssi0;
     buffer->rtHealth.common.RX0PwrMode = ax5043ReadReg(RX1_DEVICE, AX5043_PWRMODE);
 
-    // Errors
+    // Errors   TODO - make sure that when these are written in error handling they were converted from host to little endian
     buffer->rtHealth.primaryErrors = localErrorCollection;
 
     // TODO - calculate min max and store in MRAM
@@ -333,21 +338,22 @@ void tac_send_telemetry(telem_buffer_t *buffer) {
         realtimeFrame.rtHealth = buffer->rtHealth;
         len = sizeof(realtimeFrame);
 
+        debug_print("Telem & Control: Send SAFE telem at: %d/%d\n", ttohs(realtimeFrame.header.resetCnt), htotl(realtimeFrame.header.uptime));
+
         frame = (uint8_t *)&realtimeFrame;
-//        debug_print("Sending Type 1 Frame %d:%d\n",realtimeFrame.header.resetCnt, realtimeFrame.header.uptime);
+        //debug_print("Sending Type 1 Frame %d:%d\n",realtimeFrame.header.resetCnt, realtimeFrame.header.uptime);
 //        debug_print("Bytes sent:");
 //        int i=0;
 //        for (i=0; i<11; i++) {
 //            debug_print("%0x ",frame[i]);
 //        }
 //        debug_print("\n");
+        if (len == 0 || len > AX25_MAX_INFO_BYTES_LEN) {
+            debug_print("ERROR: Telemetry frame length of %d is not valid.  Frame not sent\n",len);
+            return;
+        }
+        int rc = tx_send_ui_packet(BROADCAST_CALLSIGN, TLMP1, PID_NO_PROTOCOL, frame, len, BLOCK);
     }
-    if (len == 0 || len > AX25_MAX_INFO_BYTES_LEN) {
-        debug_print("ERROR: Telemetry frame length of %d is not valid.  Frame not sent\n",len);
-        return;
-
-    }
-    int rc = tx_send_ui_packet(BROADCAST_CALLSIGN, TLMP1, PID_NO_PROTOCOL, frame, len, BLOCK);
 }
 
 void tac_send_time() {

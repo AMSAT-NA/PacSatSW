@@ -487,7 +487,7 @@ int dir_load_header(char *file_name_with_path, uint8_t *byte_buffer, int buffer_
  * Returns ERR_NONE if everything is good.  Otherwise it returns an FTL0 error number.
  *
  */
-int dir_validate_file(HEADER *pfh, char *file_name_with_path) {
+int dir_validate_file(HEADER *pfh, char *file_name_with_path, WdReporters_t reporter) {
     //debug_print("DIR: Checking data in file: %s\n",file_name_with_path);
 
     /* Now check the body */
@@ -510,8 +510,11 @@ int dir_validate_file(HEADER *pfh, char *file_name_with_path) {
         if (num_of_bytes_read < AX25_MAX_DATA_LEN)
             finished = true;
         offset += num_of_bytes_read;
+        //debug_print("%d\n",offset);
+        ReportToWatchdog(reporter);
     }
 
+    debug_print("File check loop done\n");
     if (pfh->bodyCRC != body_checksum) {
         debug_print("** Body check failed for %s\n",file_name_with_path);
         return ER_BODY_CHECK;
@@ -698,7 +701,7 @@ void dir_file_queue_check(uint32_t now, char * folder, uint8_t file_type, char *
             if (ret == EXIT_FAILURE)
                 continue;
 
-            pfh_debug_print(&pfh);
+            //pfh_debug_print(&pfh);
             dir_get_file_path_from_file_id(id, DIR_FOLDER, psf_name, sizeof(psf_name));
             debug_print("Trying to create file %s in queue: %s from file %s\n",psf_name, folder,file_name);
 

@@ -97,6 +97,7 @@ typedef struct __attribute__((__packed__)){
 #define TOTAL_FRAME_SIZE 648 /* This will add some zeros to fill the frame to this size after the payloads*/
 #define CODE_WORDS_PER_FRAME 3 /* Every 223 bytes takes one code word */
 #define MAX_PAYLOADS_PER_FRAME 9 /*Does not include CRC; includes header and filler*/
+
 typedef struct __attribute__((__packed__)) { //Frame type 1
 	header_t header;
 	realTimePayload_t rtHealth;

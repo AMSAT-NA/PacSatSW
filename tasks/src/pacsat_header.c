@@ -726,7 +726,7 @@ int pfh_make_internal_file(HEADER *pfh, char *dir_folder, char *body_filename, u
 
     pfh->bodyCRC = body_checksum;
 
-    debug_print("Body size: %d Body CRC %02x\n",body_size, body_checksum);
+    //debug_print("Body size: %d Body CRC %02x\n",body_size, body_checksum);
 
     /* Build Pacsat File Header */
     uint8_t buffer[MAX_PFH_LENGTH];

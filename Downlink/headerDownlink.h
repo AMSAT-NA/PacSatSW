@@ -11,9 +11,15 @@ typedef struct  __attribute__((__packed__)) _header_t {
     uint8_t protocolVersion;       //Offset=48
     uint8_t versionMajor;       //Offset=56
     uint8_t versionMinor;       //Offset=64
-    unsigned int pad17:5;       //Offset=72
-    unsigned int inScienceMode:1;       //Offset=77
-    unsigned int inHealthMode:1;       //Offset=78
+//    unsigned int pad17:5;       //Offset=72
+//    unsigned int inScienceMode:1;       //Offset=77
+//    unsigned int inHealthMode:1;       //Offset=78
+//    unsigned int inSafeMode:1;       //Offset=79
+
     unsigned int inSafeMode:1;       //Offset=79
+    unsigned int inHealthMode:1;       //Offset=78
+    unsigned int inScienceMode:1;       //Offset=77
+    unsigned int pad17:5;       //Offset=72
+
 } header_t; // Total Size=80 bits or 10 bytes with 0 left over
 #endif

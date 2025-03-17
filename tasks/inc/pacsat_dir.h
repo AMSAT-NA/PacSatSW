@@ -42,7 +42,7 @@ int32_t dir_check_folders();
 void dir_free();
 int dir_load();
 int dir_load_header(char *file_name_with_path, uint8_t *byte_buffer, int buffer_len, HEADER *pfh);
-int dir_validate_file(HEADER *pfh, char *filename);
+int dir_validate_file(HEADER *pfh, char *file_name_with_path, WdReporters_t reporter);
 int32_t dir_fs_write_file_chunk(char *file_name_with_path, uint8_t *data, uint32_t length, uint32_t offset);
 int32_t dir_fs_read_file_chunk(char *file_name_with_path, uint8_t *read_buffer, uint32_t length, uint32_t offset);
 int32_t dir_fs_get_file_size(char *file_name_with_path);
