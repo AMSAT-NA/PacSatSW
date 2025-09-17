@@ -28,10 +28,6 @@
 #include "gio.h"
 #include "het.h"
 
-#define SPI_SELECT 0
-#define SPI_DESELECT 1
-
-
 typedef enum {
     DoneState,
     SendCommandState,
@@ -53,16 +49,15 @@ typedef struct _BusData {
     SPIState State;
     bool biDirectional;
     bool busInitted;
-}SPIBusData;
+} SPIBusData;
 
 // Per device read-only info
 
 typedef struct _SPIDevInfo {
     spiBASE_t *thisBus;
-    gioPORT_t *thisCsPort;
+    Gpio_Use selGPIO;
     spiDAT1_t thisDat1;
     SPIBusData *thisBusData;
-    uint16_t chipSelectLine;
 } SPIDevInfo;
 
 
@@ -85,148 +80,110 @@ SPIBusData bus1Data,bus2Data,bus3Data,bus4Data,bus5Data;
 
 #ifdef LAUNCHPAD_HARDWARE
 static SPIDevInfo SPIMram0Device={
-                                 SPI_MRAM_Reg,
-                                 SPI_MRAM_Select_Port,
-                                 {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
-                                 &bus1Data,
-                                 SPI_MRAM0_Select_Pin //chipSelect
+    .thisBus     = SPI_MRAM_Reg,
+    .selGPIO     = MRAM0_Sel,
+    .thisDat1    = {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
+    .thisBusData = &bus1Data,
 };
+
 static SPIDevInfo SPIMram1Device={
-                                 SPI_MRAM_Reg,
-                                 SPI_MRAM_Select_Port,
-                                 {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
-                                 &bus1Data,
-                                 SPI_MRAM1_Select_Pin //chipSelect
+    .thisBus     = SPI_MRAM_Reg,
+    .selGPIO     = MRAM1_Sel,
+    .thisDat1    = {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
+    .thisBusData = &bus1Data,
 };
 static SPIDevInfo SPIMram2Device={
-                                 SPI_MRAM_Reg,
-                                 SPI_MRAM_Select_Port,
-                                 {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
-                                 &bus1Data,
-                                 SPI_MRAM2_Select_Pin //chipSelect
+    .thisBus     = SPI_MRAM_Reg,
+    .selGPIO     = MRAM2_Sel,
+    .thisDat1    = {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
+    .thisBusData = &bus1Data,
 };
 static SPIDevInfo SPIMram3Device={
-                                 SPI_MRAM_Reg,
-                                 SPI_MRAM_Select_Port,
-                                 {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
-                                 &bus1Data,
-                                 SPI_MRAM3_Select_Pin //chipSelect
+    .thisBus     = SPI_MRAM_Reg,
+    .selGPIO     = MRAM3_Sel,
+    .thisDat1    = {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
+    .thisBusData = &bus1Data,
 };
 
 static SPIDevInfo SPIAX50430Device={
-                                SPI_AX5043_Reg,
-                                SPI_AX5043_Select_Port,
-                                {
-                                 .WDEL = false, .DFSEL = SPI_AX5043_Data_Format
-                                },
-                                &bus3Data,
-                                SPI_AX50430_Select_Pin
+    .thisBus     = SPI_AX5043_Reg,
+    .selGPIO     = AX5043_Sel0,
+    .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
+    .thisBusData = &bus3Data,
 };
 static SPIDevInfo SPIAX50431Device={
-                                SPI_AX5043_Reg,
-                                SPI_AX5043_Select_Port,
-                                {
-                                 .WDEL = false, .DFSEL = SPI_AX5043_Data_Format
-                                },
-                                &bus3Data,
-                                SPI_AX50431_Select_Pin
+    .thisBus     = SPI_AX5043_Reg,
+    .selGPIO     = AX5043_Sel1,
+    .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
+    .thisBusData = &bus3Data,
 };
 
 static const SPIDevInfo *SPIDevInfoStructures[] = {
-                                                    &SPIMram0Device
-                                                   ,&SPIMram1Device
-                                                   ,&SPIMram2Device
-                                                   ,&SPIMram3Device
-                                                   ,&SPIAX50430Device
-                                                   ,&SPIAX50431Device
+    &SPIMram0Device, &SPIMram1Device, &SPIMram2Device, &SPIMram3Device,
+    &SPIAX50430Device, &SPIAX50431Device
 };
 
 #else
 static SPIDevInfo SPIMram0Device={
-                                 SPI_MRAM_Reg,
-                                 SPI_MRAM0_Select_Port,
-                                 {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
-                                 &bus1Data,
-                                 SPI_MRAM0_Select_Pin //chipSelect
+    .thisBus     = SPI_MRAM_Reg,
+    .selGPIO     = MRAM0_Sel,
+    .thisDat1    = {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
+    .thisBusData = &bus1Data,
 };
 static SPIDevInfo SPIMram1Device={
-                                 SPI_MRAM_Reg,
-                                 SPI_MRAM1_Select_Port,
-                                 {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
-                                 &bus1Data,
-                                 SPI_MRAM1_Select_Pin //chipSelect
+    .thisBus     = SPI_MRAM_Reg,
+    .selGPIO     = MRAM1_Sel,
+    .thisDat1    = {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
+    .thisBusData = &bus1Data,
 };
 static SPIDevInfo SPIMram2Device={
-                                 SPI_MRAM_Reg,
-                                 SPI_MRAM2_Select_Port,
-                                 {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
-                                 &bus1Data,
-                                 SPI_MRAM2_Select_Pin //chipSelect
+    .thisBus     = SPI_MRAM_Reg,
+    .selGPIO     = MRAM2_Sel,
+    .thisDat1    = {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
+    .thisBusData = &bus1Data,
 };
 static SPIDevInfo SPIMram3Device={
-                                 SPI_MRAM_Reg,
-                                 SPI_MRAM3_Select_Port,
-                                 {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
-                                 &bus1Data,
-                                 SPI_MRAM3_Select_Pin //chipSelect
+    .thisBus     = SPI_MRAM_Reg,
+    .selGPIO     = MRAM3_Sel,
+    .thisDat1    = {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
+    .thisBusData = &bus1Data,
 };
 
 static SPIDevInfo SPIRx1AX5043Device={
-                                SPI_AX5043_Reg,
-                                SPI_Rx1AX5043_Select_Port,
-                                {
-                                 .WDEL = false, .DFSEL = SPI_AX5043_Data_Format
-                                },
-                                &bus3Data,
-                                SPI_Rx1AX5043_Select_Pin
+    .thisBus     = SPI_AX5043_Reg,
+    .selGPIO     = AX5043_Rx1_Sel,
+    .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
+    .thisBusData = &bus3Data,
 };
 static SPIDevInfo SPIRx2AX5043Device={
-                                SPI_AX5043_Reg,
-                                SPI_Rx2AX5043_Select_Port,
-                                {
-                                 .WDEL = false, .DFSEL = SPI_AX5043_Data_Format
-                                },
-                                &bus3Data,
-                                SPI_Rx2AX5043_Select_Pin
+    .thisBus     = SPI_AX5043_Reg,
+    .selGPIO     = AX5043_Rx2_Sel,
+    .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
+    .thisBusData = &bus3Data,
 };
 static SPIDevInfo SPIRx3AX5043Device={
-                                SPI_AX5043_Reg,
-                                SPI_Rx3AX5043_Select_Port,
-                                {
-                                 .WDEL = false, .DFSEL = SPI_AX5043_Data_Format
-                                },
-                                &bus3Data,
-                                SPI_Rx3AX5043_Select_Pin
+    .thisBus     = SPI_AX5043_Reg,
+    .selGPIO     = AX5043_Rx3_Sel,
+    .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
+    .thisBusData = &bus3Data,
 };
 static SPIDevInfo SPIRx4AX5043Device={
-                                SPI_AX5043_Reg,
-                                SPI_Rx4AX5043_Select_Port,
-                                {
-                                 .WDEL = false, .DFSEL = SPI_AX5043_Data_Format
-                                },
-                                &bus3Data,
-                                SPI_Rx4AX5043_Select_Pin
+    .thisBus     = SPI_AX5043_Reg,
+    .selGPIO     = AX5043_Rx4_Sel,
+    .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
+    .thisBusData = &bus3Data,
 };
 static SPIDevInfo SPITxAX5043Device={
-                                SPI_AX5043_Reg,
-                                SPI_TxAX5043_Select_Port,
-                                {
-                                 .WDEL = false, .DFSEL = SPI_AX5043_Data_Format
-                                },
-                                &bus3Data,
-                                SPI_TxAX5043_Select_Pin
+    .thisBus     = SPI_AX5043_Reg,
+    .selGPIO     = AX5043_Tx_Sel,
+    .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
+    .thisBusData = &bus3Data,
 };
 
 static const SPIDevInfo *SPIDevInfoStructures[] = {
-                                                    &SPIMram0Device
-                                                   ,&SPIMram1Device
-                                                   ,&SPIMram2Device
-                                                   ,&SPIMram3Device
-                                                   ,&SPIRx1AX5043Device
-                                                   ,&SPIRx2AX5043Device
-                                                   ,&SPIRx3AX5043Device
-                                                   ,&SPIRx4AX5043Device
-                                                   ,&SPITxAX5043Device
+    &SPIMram0Device, &SPIMram1Device, &SPIMram2Device, &SPIMram3Device,
+    &SPIRx1AX5043Device, &SPIRx2AX5043Device, &SPIRx3AX5043Device, &SPIRx4AX5043Device,
+    &SPITxAX5043Device
 };
 
 #endif
@@ -269,8 +226,8 @@ void SPIInit(SPIDevice thisDeviceNumber) {
     const SPIDevInfo *thisDevInfo = SPIDevInfoStructures[thisDeviceNumber];
     SPIBusData *thisBusData = thisDevInfo->thisBusData;
     // Here is the only thing we need to do with the device itself
-    GPIOSetPinDirection(thisDevInfo->thisCsPort,thisDevInfo->chipSelectLine,true); // Define this "GPIO" as output
-    gioSetBit(thisDevInfo->thisCsPort, thisDevInfo->chipSelectLine,1); // Make sure it is set high initially
+    GPIOSetPinDirection(thisDevInfo->selGPIO, true); // Define this "GPIO" as output
+    GPIOSetOn(thisDevInfo->selGPIO); // Make sure it is set high initially
 
     if(!SPIIsInitted){
         /*
@@ -373,19 +330,22 @@ bool SPISendCommand(SPIDevice device, uint32_t command,uint8_t comLength, void *
 {
     return SPISendCommandInternal(device,command,comLength,sndBuffer,sndLength,rcvBuffer,rcvLength,false);
 }
-static void CompleteIO(SPIBusData *thisBusData, const SPIDevInfo *thisDevInfo){
-    gioSetBit(thisDevInfo->thisCsPort,thisDevInfo->chipSelectLine,SPI_DESELECT);
+static void CompleteIO(SPIBusData *thisBusData, const SPIDevInfo *thisDevInfo)
+{
+    GPIOSetOn(thisDevInfo->selGPIO);
 }
-static bool StartIO(SPIBusData *thisBusData, const SPIDevInfo *thisDevInfo){
+static bool StartIO(SPIBusData *thisBusData, const SPIDevInfo *thisDevInfo)
+{
     /*
      * Turn on (low) the select line for whichever device is chosen
      */
 
-    gioSetBit(thisDevInfo->thisCsPort,thisDevInfo->chipSelectLine,SPI_SELECT);
-/*
- * Now we start the I/O in the first state that exists.  The interrupt routines take care of switching
- * states from then on.
- */
+    GPIOSetOff(thisDevInfo->selGPIO);
+
+    /*
+     * Now we start the I/O in the first state that exists.  The
+     * interrupt routines take care of switching states from then on.
+     */
     if(thisBusData->CmdBytes != 0){
         //Initialize the state machine
         thisBusData->State = SendCommandState;

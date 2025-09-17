@@ -691,15 +691,14 @@ bool GPIOInit(Gpio_Use whichGpio, DestinationTask task, IntertaskMessageType msg
         ) return false; // No can do.
     }
 #endif
-    GPIOSetPinDirection(thisGPIO->GPIOPort,
-			thisGPIO->PinNum,
-			thisGPIO->DirectionIsOut);
-    if(thisGPIO->DirectionIsOut){
+    GPIOSetPinDirection(whichGpio, thisGPIO->DirectionIsOut);
+
+    if (thisGPIO->DirectionIsOut) {
 
         /*
-         * Here if this is an "out" GPIO, we set the initial state, including open collector-ness
+         * Here if this is an "out" GPIO, we set the initial state,
+         * including open collector-ness
          */
-
 
         uint16_t pinNum = thisGPIO->PinNum;
         gioPORT_t *thisPort = thisGPIO->GPIOPort;
@@ -830,14 +829,16 @@ void gioNotification(gioPORT_t *port, uint32 bit)
 void GPIOIntRoutine(Gpio_Use whichGPIO)
 {
     /*
-     * Interrupt handler.  Clear the pending bit, and then, if requested read 1 or 2 extra
-     * GPIOs.  Finally send the message requested in the init.  Note that reading a GPIO can
-     * be done from an interrupt routine.  Care must be taken not to mess with GPIORead to prevent
-     * this.
+     * Interrupt handler.  Clear the pending bit, and then, if
+     * requested read 1 or 2 extra GPIOs.  Finally send the message
+     * requested in the init.  Note that reading a GPIO can be done
+     * from an interrupt routine.  Care must be taken not to mess with
+     * GPIORead to prevent this.
      */
     Intertask_Message message;
+
     message.MsgType = GPIOMessage[whichGPIO];
-    if(GPIOAuxGPIO1[whichGPIO] != None){
+    if (GPIOAuxGPIO1[whichGPIO] != None) {
         message.argument = GPIORead(GPIOAuxGPIO1[whichGPIO]);
     }
     NotifyInterTaskFromISR(GPIOMessageDestination[whichGPIO],&message);
@@ -845,13 +846,13 @@ void GPIOIntRoutine(Gpio_Use whichGPIO)
     //EndInterruptRoutine();
 }
 
-///////////////////////////////////////////
-//This is used for both HETUART and GPIO///
-///////////////////////////////////////////
-
-void GPIOSetPinDirection(gioPORT_t *regPtr,int pinNum,bool IsOut){
+void GPIOSetPinDirection(Gpio_Use gpioNum ,bool IsOut)
+{
     static uint32_t portDirection[]={0,0,0,0,0,0,0};
+    gioPORT_t *regPtr = GPIOInfoStructures[gpioNum]->GPIOPort;
+    int pinNum = GPIOInfoStructures[gpioNum]->PinNum;
     int portIndex;
+
     portIndex = regPtr==hetPORT1?0:regPtr==hetPORT2?1:regPtr==gioPORTA?2:regPtr==spiPORT1?3:
             regPtr==spiPORT3?4:regPtr==spiPORT5?5:6;
     portDirection[portIndex] |=
@@ -860,11 +861,13 @@ void GPIOSetPinDirection(gioPORT_t *regPtr,int pinNum,bool IsOut){
     regPtr->PULDIS |= portDirection[portIndex]; // All the output pins should have pull disabled
 }
 
-void GPIOSetTristate(Gpio_Use gpioNum){
+void GPIOSetTristate(Gpio_Use gpioNum)
+{
     const GPIOInfo *thisGPIO = GPIOInfoStructures[gpioNum];
     gioPORT_t *thisPort = thisGPIO->GPIOPort;
     int pinNum = thisGPIO->PinNum;
-    if(thisGPIO->DirectionIsOut){
+
+    if (thisGPIO->DirectionIsOut) {
         thisPort->PDR |= 1 << pinNum;  //Tri-state the pin if the output register is high
         thisPort->DSET = 1 << pinNum;  //Set the output register high
         GPIOUsable[gpioNum] = false;
@@ -876,12 +879,14 @@ void GPIOSetPushPull(Gpio_Use gpioNum){
     gioPORT_t *thisPort = thisGPIO->GPIOPort;
     int pinNum = thisGPIO->PinNum;
     uint32_t mask = 0xFFFFFFFF;
-    if(thisGPIO->InitialStateOn){
+
+    if (thisGPIO->InitialStateOn) {
         thisPort->DSET = 1 << pinNum;
     } else {
         thisPort->DCLR = 1 << pinNum;  //Set the output register low
     }
-    if(thisGPIO->OpenCollector){
+
+    if (thisGPIO->OpenCollector) {
         thisPort->PDR |= 1 << pinNum;  // Enable Open drain (same as tristate except it is marked usable)
     } else {
         mask = 0xFFFFFFFF ^ (1<<pinNum); // Set the bit we care about to 0; all the rest to 1

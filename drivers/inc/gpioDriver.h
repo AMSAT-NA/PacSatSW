@@ -65,7 +65,7 @@ void GPIOSetOn(Gpio_Use whichGpio);
 void GPIOSetOff(Gpio_Use whichGpio);
 void GPIOToggle(Gpio_Use whichGpio);
 uint16_t GPIORead(Gpio_Use whichGpio);
-void GPIOSetPinDirection(gioPORT_t *regPtr,int pinNum,bool IsOut);
+void GPIOSetPinDirection(Gpio_Use whichGpio ,bool IsOut);
 void GPIOSetTristate(Gpio_Use gpioNum);
 void GPIOSetPushPull(Gpio_Use gpioNum);
 
