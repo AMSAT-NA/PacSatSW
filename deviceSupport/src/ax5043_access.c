@@ -41,9 +41,9 @@ static bool Txing[NUM_AX5043_SPI_DEVICES+4];
 
 /* This lookup table returns the SPIDevice id for a given AX5043Device id */
 #ifdef LAUNCHPAD_HARDWARE
-static SPIDevice ax5043_spi_devices[] = {DCTDev0,DCTDev1};
+static SPIDevice ax5043_spi_devices[] = {AX5043Dev0,AX5043Dev1};
 #else
-static SPIDevice ax5043_spi_devices[] = {Rx1DCTDev,Rx2DCTDev,Rx3DCTDev,Rx4DCTDev,TxDCTDev};
+static SPIDevice ax5043_spi_devices[] = {Rx1AX5043Dev,Rx2AX5043Dev,Rx3AX5043Dev,Rx4AX5043Dev,TxAX5043Dev};
 #endif
 
 bool IsRxing(AX5043Device device){
@@ -138,13 +138,13 @@ bool ax5043SetClockout(AX5043Device device){
 
 void ax5043PowerOn(AX5043Device device){
     // Later boards are active high
-    //GPIOSetOn(DCTPower);
+    //GPIOSetOn(AX5043Power);
     PowerOn[device]=true;
     vTaskDelay(CENTISECONDS(1)); // Don't try to mess with it for a bit
 }
 void ax5043PowerOff(AX5043Device device){
     //GPIOSetOff(PAPower);  // Make sure the PA is off if we are turning off the 5043.
-    //GPIOSetOff(DCTPower);
+    //GPIOSetOff(AX5043Power);
     PowerOn[device] = Rxing[device] = Txing[device] = false;
 }
 

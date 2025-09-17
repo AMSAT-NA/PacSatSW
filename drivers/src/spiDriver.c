@@ -113,23 +113,23 @@ static SPIDevInfo SPIMram3Device={
                                  SPI_MRAM3_Select_Pin //chipSelect
 };
 
-static SPIDevInfo SPIDCT0Device={
-                                SPI_DCT_Reg,
-                                SPI_DCT_Select_Port,
+static SPIDevInfo SPIAX50430Device={
+                                SPI_AX5043_Reg,
+                                SPI_AX5043_Select_Port,
                                 {
-                                 .WDEL = false, .DFSEL = SPI_DCT_Data_Format
+                                 .WDEL = false, .DFSEL = SPI_AX5043_Data_Format
                                 },
                                 &bus3Data,
-                                SPI_DCT0_Select_Pin
+                                SPI_AX50430_Select_Pin
 };
-static SPIDevInfo SPIDCT1Device={
-                                SPI_DCT_Reg,
-                                SPI_DCT_Select_Port,
+static SPIDevInfo SPIAX50431Device={
+                                SPI_AX5043_Reg,
+                                SPI_AX5043_Select_Port,
                                 {
-                                 .WDEL = false, .DFSEL = SPI_DCT_Data_Format
+                                 .WDEL = false, .DFSEL = SPI_AX5043_Data_Format
                                 },
                                 &bus3Data,
-                                SPI_DCT1_Select_Pin
+                                SPI_AX50431_Select_Pin
 };
 
 static const SPIDevInfo *SPIDevInfoStructures[] = {
@@ -137,8 +137,8 @@ static const SPIDevInfo *SPIDevInfoStructures[] = {
                                                    ,&SPIMram1Device
                                                    ,&SPIMram2Device
                                                    ,&SPIMram3Device
-                                                   ,&SPIDCT0Device
-                                                   ,&SPIDCT1Device
+                                                   ,&SPIAX50430Device
+                                                   ,&SPIAX50431Device
 };
 
 #else
@@ -171,50 +171,50 @@ static SPIDevInfo SPIMram3Device={
                                  SPI_MRAM3_Select_Pin //chipSelect
 };
 
-static SPIDevInfo SPIRx1DCTDevice={
-                                SPI_DCT_Reg,
-                                SPI_Rx1DCT_Select_Port,
+static SPIDevInfo SPIRx1AX5043Device={
+                                SPI_AX5043_Reg,
+                                SPI_Rx1AX5043_Select_Port,
                                 {
-                                 .WDEL = false, .DFSEL = SPI_DCT_Data_Format
+                                 .WDEL = false, .DFSEL = SPI_AX5043_Data_Format
                                 },
                                 &bus3Data,
-                                SPI_Rx1DCT_Select_Pin
+                                SPI_Rx1AX5043_Select_Pin
 };
-static SPIDevInfo SPIRx2DCTDevice={
-                                SPI_DCT_Reg,
-                                SPI_Rx2DCT_Select_Port,
+static SPIDevInfo SPIRx2AX5043Device={
+                                SPI_AX5043_Reg,
+                                SPI_Rx2AX5043_Select_Port,
                                 {
-                                 .WDEL = false, .DFSEL = SPI_DCT_Data_Format
+                                 .WDEL = false, .DFSEL = SPI_AX5043_Data_Format
                                 },
                                 &bus3Data,
-                                SPI_Rx2DCT_Select_Pin
+                                SPI_Rx2AX5043_Select_Pin
 };
-static SPIDevInfo SPIRx3DCTDevice={
-                                SPI_DCT_Reg,
-                                SPI_Rx3DCT_Select_Port,
+static SPIDevInfo SPIRx3AX5043Device={
+                                SPI_AX5043_Reg,
+                                SPI_Rx3AX5043_Select_Port,
                                 {
-                                 .WDEL = false, .DFSEL = SPI_DCT_Data_Format
+                                 .WDEL = false, .DFSEL = SPI_AX5043_Data_Format
                                 },
                                 &bus3Data,
-                                SPI_Rx3DCT_Select_Pin
+                                SPI_Rx3AX5043_Select_Pin
 };
-static SPIDevInfo SPIRx4DCTDevice={
-                                SPI_DCT_Reg,
-                                SPI_Rx4DCT_Select_Port,
+static SPIDevInfo SPIRx4AX5043Device={
+                                SPI_AX5043_Reg,
+                                SPI_Rx4AX5043_Select_Port,
                                 {
-                                 .WDEL = false, .DFSEL = SPI_DCT_Data_Format
+                                 .WDEL = false, .DFSEL = SPI_AX5043_Data_Format
                                 },
                                 &bus3Data,
-                                SPI_Rx4DCT_Select_Pin
+                                SPI_Rx4AX5043_Select_Pin
 };
-static SPIDevInfo SPITxDCTDevice={
-                                SPI_DCT_Reg,
-                                SPI_TxDCT_Select_Port,
+static SPIDevInfo SPITxAX5043Device={
+                                SPI_AX5043_Reg,
+                                SPI_TxAX5043_Select_Port,
                                 {
-                                 .WDEL = false, .DFSEL = SPI_DCT_Data_Format
+                                 .WDEL = false, .DFSEL = SPI_AX5043_Data_Format
                                 },
                                 &bus3Data,
-                                SPI_TxDCT_Select_Pin
+                                SPI_TxAX5043_Select_Pin
 };
 
 static const SPIDevInfo *SPIDevInfoStructures[] = {
@@ -222,11 +222,11 @@ static const SPIDevInfo *SPIDevInfoStructures[] = {
                                                    ,&SPIMram1Device
                                                    ,&SPIMram2Device
                                                    ,&SPIMram3Device
-                                                   ,&SPIRx1DCTDevice
-                                                   ,&SPIRx2DCTDevice
-                                                   ,&SPIRx3DCTDevice
-                                                   ,&SPIRx4DCTDevice
-                                                   ,&SPITxDCTDevice
+                                                   ,&SPIRx1AX5043Device
+                                                   ,&SPIRx2AX5043Device
+                                                   ,&SPIRx3AX5043Device
+                                                   ,&SPIRx4AX5043Device
+                                                   ,&SPITxAX5043Device
 };
 
 #endif

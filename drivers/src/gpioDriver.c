@@ -41,15 +41,14 @@ void GPIOIntRoutine(Gpio_Use whichGPIO);
 typedef struct _GPIOInfo {
     gioPORT_t *GPIOPort;
     uint16_t PinNum;
-    uint16_t NumBits;
-    bool initialstateOn;
+    bool InitialStateOn;
     bool DirectionIsOut;
     bool CanInterrupt;
     bool InterruptBothEdges;
     bool OpenCollector;
-    bool initialStateTristate;
-
+    bool InitialStateTristate;
 } GPIOInfo;
+
 #define EXTI_None 0xff
 
 static bool GPIOUsable[NumberOfGPIOs];
@@ -61,57 +60,114 @@ static bool GPIOUsable[NumberOfGPIOs];
 #ifdef LAUNCHPAD_HARDWARE
 
 static const GPIOInfo LED1Info = {
-                                  GPIOLed1Port//GPIOLed3Port,
-                                  ,GPIOLed1Pin
-                                  ,1
-                                  ,GPIO_OFF
-                                  ,GPIO_OUT
-                                  ,false,false // No interrupts
-                                  ,false,false  // Open collector, not tristate
-
+    .GPIOPort             = GPIOLed1Port,
+    .PinNum               = GPIOLed1Pin,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
 };
+
 static const GPIOInfo LED2Info = {
-                                  GPIOLed2Port
-                                  ,GPIOLed2Pin
-                                  ,1
-                                  ,GPIO_OFF
-                                  ,GPIO_OUT
-                                  ,false,false // No interrupts
-                                  ,false,false  // Open collector, not tristate
-
+    .GPIOPort             = GPIOLed2Port,
+    .PinNum               = GPIOLed2Pin,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false 
 };
 
-
-static const GPIOInfo CommandStrobeInfo = {
-                                           GPIOCommandStrobePort
-                                           ,GPIOCommandStrobePin
-                                           ,1
-                                           ,GPIO_UNUSED // Default off
-                                           ,GPIO_IN
-                                           ,true,false // Interrupts on one edge only
-                                           ,false,false // Not Open collector nor tristate
-};
-static const GPIOInfo CommandBitsInfo = {
-                                         GPIOCommandBit0Port
-                                         ,GPIOCommandBit0Pin
-                                         ,2 //Read 2 bits at a time
-                                         ,GPIO_UNUSED // Default off
-                                         ,GPIO_IN
-                                         ,false,false // No interrupts
-                                         ,false,false // Not Open collector nor tristate
+static const GPIOInfo AX5043_0_InterruptInfo = {
+    .GPIOPort             = GPIO_AX5043_0_InterruptPort,
+    .PinNum               = GPIO_AX5043_0_InterruptPin,
+    .InitialStateOn       = GPIO_UNUSED,
+    .DirectionIsOut       = GPIO_IN,
+    .CanInterrupt         = true,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
 };
 
-static const GPIOInfo AX5043InterruptInfo = {
-                                             GPIO_DCTInterruptPort
-                                             ,GPIO_DCTInterruptPin
-                                             ,1
-                                             ,GPIO_UNUSED // Default off
-                                             ,GPIO_IN
-                                             ,true,false //Interrupts one one edge only
-                                             ,false,false // Not Open collector nor tristate
+static const GPIOInfo AX5043_1_InterruptInfo = {
+    .GPIOPort             = GPIO_AX5043_1_InterruptPort,
+    .PinNum               = GPIO_AX5043_1_InterruptPin,
+    .InitialStateOn       = GPIO_UNUSED,
+    .DirectionIsOut       = GPIO_IN,
+    .CanInterrupt         = true,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
 };
 
+static const GPIOInfo AX5043_0_Select0 = {
+    .GPIOPort             = GPIO_AX5043_0_InterruptPort,
+    .PinNum               = GPIO_AX5043_0_InterruptPin,
+    .InitialStateOn       = GPIO_UNUSED,
+    .DirectionIsOut       = GPIO_IN,
+    .CanInterrupt         = true,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
+};
 
+static const GPIOInfo AX5043_1_Select = {
+    .GPIOPort             = GPIO_AX5043_1_InterruptPort,
+    .PinNum               = GPIO_AX5043_1_InterruptPin,
+    .InitialStateOn       = GPIO_UNUSED,
+    .DirectionIsOut       = GPIO_IN,
+    .CanInterrupt         = true,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
+};
+
+static const GPIOInfo MRAM0_Selector = {
+    .GPIOPort             = SPI_MRAM0_Select_Port,
+    .PinNum               = SPI_MRAM0_Select_Pin,
+    .InitialStateOn       = GPIO_ON,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
+};
+
+static const GPIOInfo MRAM1_Selector = {
+    .GPIOPort             = SPI_MRAM1_Select_Port,
+    .PinNum               = SPI_MRAM1_Select_Pin,
+    .InitialStateOn       = GPIO_ON,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
+};
+
+static const GPIOInfo MRAM2_Selector = {
+    .GPIOPort             = SPI_MRAM2_Select_Port,
+    .PinNum               = SPI_MRAM2_Select_Pin,
+    .InitialStateOn       = GPIO_ON,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
+};
+
+static const GPIOInfo MRAM3_Selector = {
+    .GPIOPort             = SPI_MRAM3_Select_Port,
+    .PinNum               = SPI_MRAM3_Select_Pin,
+    .InitialStateOn       = GPIO_ON,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
+};
 
 /*
  * Use this array to index to the correct GPIOInfoStructure based on the GPIO
@@ -120,128 +176,221 @@ static const GPIOInfo AX5043InterruptInfo = {
 
 static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] =
 {
- &LED1Info,&LED2Info,&AX5043InterruptInfo,&CommandStrobeInfo,&CommandBitsInfo
+    &LED1Info, &LED2Info,
+    &AX5043_0_InterruptInfo, &AX5043_1_InterruptInfo,
+    &AX5043_0_Select, &AX5043_1_Select,
+    &MRAM0_Selector, &MRAM1_Selector, &MRAM2_Selector, &MRAM3_Selector,
 };
+
 #elif defined(BLINKY_HARDWARE)
 
 static const GPIOInfo LED1Info = {
-                                  GPIOLed1Port//GPIOLed3Port,
-                                  ,GPIOLed1Pin
-                                  ,1
-                                  ,GPIO_OFF
-                                  ,GPIO_OUT
-                                  ,false,false // No interrupts
-                                  ,false,false  // Not open collector, not tristate
-
+    .GPIOPort             = GPIOLed1Port,
+    .PinNum               = GPIOLed1Pin,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false 
 };
+
 static const GPIOInfo LED2Info = {
-                                  GPIOLed2Port
-                                  ,GPIOLed2Pin
-                                  ,1
-                                  ,GPIO_OFF
-                                  ,GPIO_OUT
-                                  ,false,false // No interrupts
-                                  ,false,false  // Not open collector, not tristate
-
+    .GPIOPort             = GPIOLed2Port,
+    .PinNum               = GPIOLed2Pin,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false 
 };
+
 static const GPIOInfo LED3Info = {
-                                  GPIOLed3Port
-                                  ,GPIOLed3Pin
-                                  ,1
-                                  ,GPIO_OFF
-                                  ,GPIO_OUT
-                                  ,false,false // No interrupts
-                                  ,false,false  // Not open collector, not tristate
-
+    .GPIOPort             = GPIOLed3Port,
+    .PinNum               = GPIOLed3Pin,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false 
 };
 
+static const GPIOInfo AX5043_Rx1_InterruptInfo = {
+    .GPIOPort             = GPIO_Rx1AX5043InterruptPort,
+    .PinNum               = GPIO_Rx1AX5043InterruptPin,
+    .InitialStateOn       = GPIO_UNUSED,
+    .DirectionIsOut       = GPIO_IN,
+    .CanInterrupt         = true,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
+};
+static const GPIOInfo AX5043_Rx2_InterruptInfo = {
+    .GPIOPort             = GPIO_Rx2AX5043InterruptPort,
+    .PinNum               = GPIO_Rx2AX5043InterruptPin,
+    .InitialStateOn       = GPIO_UNUSED,
+    .DirectionIsOut       = GPIO_IN,
+    .CanInterrupt         = true,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
+};
 
-static const GPIOInfo CommandStrobeInfo = {
-                                           GPIOCommandStrobePort
-                                           ,GPIOCommandStrobePin
-                                           ,1
-                                           ,GPIO_UNUSED // Default off
-                                           ,GPIO_IN
-                                           ,true,false // Interrupts on one edge only
-                                           ,false,false // Not Open collector nor tristate
-};
-static const GPIOInfo CommandBitsInfo = {
-                                         GPIOCommandBit0Port
-                                         ,GPIOCommandBit0Pin
-                                         ,2 //Read 2 bits at a time
-                                         ,GPIO_UNUSED // Default off
-                                         ,GPIO_IN
-                                         ,false,false // No interrupts
-                                         ,false,false // Not Open collector nor tristate
+static const GPIOInfo AX5043_Rx3_InterruptInfo = {
+    .GPIOPort             = GPIO_Rx3AX5043InterruptPort,
+    .PinNum               = GPIO_Rx3AX5043InterruptPin,
+    .InitialStateOn       = GPIO_UNUSED,
+    .DirectionIsOut       = GPIO_IN,
+    .CanInterrupt         = true,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
 };
 
-static const GPIOInfo AX0InterruptInfo = {
-                                             GPIO_Rx1DCTInterruptPort
-                                             ,GPIO_Rx1DCTInterruptPin
-                                             ,1
-                                             ,GPIO_UNUSED // Default off
-                                             ,GPIO_IN
-                                             ,true,false //Interrupts one one edge only
-                                             ,false,false // Not Open collector nor tristate
+static const GPIOInfo AX5043_Rx4_InterruptInfo = {
+    .GPIOPort             = GPIO_Rx4AX5043InterruptPort,
+    .PinNum               = GPIO_Rx4AX5043InterruptPin,
+    .InitialStateOn       = GPIO_UNUSED,
+    .DirectionIsOut       = GPIO_IN,
+    .CanInterrupt         = true,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
 };
-static const GPIOInfo AX1InterruptInfo = {
-                                             GPIO_Rx2DCTInterruptPort
-                                             ,GPIO_Rx2DCTInterruptPin
-                                             ,1
-                                             ,GPIO_UNUSED // Default off
-                                             ,GPIO_IN
-                                             ,true,false //Interrupts one one edge only
-                                             ,false,false // Not Open collector nor tristate
+
+static const GPIOInfo AX5043_Tx_InterruptInfo = {
+    .GPIOPort             = GPIO_TxAX5043InterruptPort,
+    .PinNum               = GPIO_TxAX5043InterruptPin,
+    .InitialStateOn       = GPIO_UNUSED,
+    .DirectionIsOut       = GPIO_IN,
+    .CanInterrupt         = true,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
 };
-static const GPIOInfo AX2InterruptInfo = {
-                                             GPIO_Rx3DCTInterruptPort
-                                             ,GPIO_Rx3DCTInterruptPin
-                                             ,1
-                                             ,GPIO_UNUSED // Default off
-                                             ,GPIO_IN
-                                             ,true,false //Interrupts one one edge only
-                                             ,false,false // Not Open collector nor tristate
+
+static const GPIOInfo AX5043_Rx1_Selector = {
+    .GPIOPort             = SPI_Rx1AX5043_Select_Port,
+    .PinNum               = SPI_Rx1AX5043_Select_Pin,
+    .InitialStateOn       = GPIO_ON,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
 };
-static const GPIOInfo AX3InterruptInfo = {
-                                             GPIO_Rx4DCTInterruptPort
-                                             ,GPIO_Rx4DCTInterruptPin
-                                             ,1
-                                             ,GPIO_UNUSED // Default off
-                                             ,GPIO_IN
-                                             ,true,false //Interrupts one one edge only
-                                             ,false,false // Not Open collector nor tristate
+
+static const GPIOInfo AX5043_Rx2_Selector = {
+    .GPIOPort             = SPI_Rx2AX5043_Select_Port,
+    .PinNum               = SPI_Rx2AX5043_Select_Pin,
+    .InitialStateOn       = GPIO_ON,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
 };
-static const GPIOInfo AX4InterruptInfo = {
-                                             GPIO_TxDCTInterruptPort
-                                             ,GPIO_TxDCTInterruptPin
-                                             ,1
-                                             ,GPIO_UNUSED // Default off
-                                             ,GPIO_IN
-                                             ,true,false //Interrupts one one edge only
-                                             ,false,false // Not Open collector nor tristate
+
+static const GPIOInfo AX5043_Rx3_Selector = {
+    .GPIOPort             = SPI_Rx3AX5043_Select_Port,
+    .PinNum               = SPI_Rx3AX5043_Select_Pin,
+    .InitialStateOn       = GPIO_ON,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
 };
+
+static const GPIOInfo AX5043_Rx4_Selector = {
+    .GPIOPort             = SPI_Rx4AX5043_Select_Port,
+    .PinNum               = SPI_Rx4AX5043_Select_Pin,
+    .InitialStateOn       = GPIO_ON,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
+};
+
+static const GPIOInfo AX5043_Tx_Selector = {
+    .GPIOPort             = SPI_TxAX5043_Select_Port,
+    .PinNum               = SPI_TxAX5043_Select_Pin,
+    .InitialStateOn       = GPIO_ON,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
+};
+
+static const GPIOInfo MRAM0_Selector = {
+    .GPIOPort             = SPI_MRAM0_Select_Port,
+    .PinNum               = SPI_MRAM0_Select_Pin,
+    .InitialStateOn       = GPIO_ON,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
+};
+
+static const GPIOInfo MRAM1_Selector = {
+    .GPIOPort             = SPI_MRAM1_Select_Port,
+    .PinNum               = SPI_MRAM1_Select_Pin,
+    .InitialStateOn       = GPIO_ON,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
+};
+
+static const GPIOInfo MRAM2_Selector = {
+    .GPIOPort             = SPI_MRAM2_Select_Port,
+    .PinNum               = SPI_MRAM2_Select_Pin,
+    .InitialStateOn       = GPIO_ON,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
+};
+
+static const GPIOInfo MRAM3_Selector = {
+    .GPIOPort             = SPI_MRAM3_Select_Port,
+    .PinNum               = SPI_MRAM3_Select_Pin,
+    .InitialStateOn       = GPIO_ON,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
+};
+
 static const GPIOInfo SSPAPowerInfo = {
-                                  GPIOsspaPowerPort
-                                  ,GPIOsspaPowerPin
-                                  ,1
-                                  ,GPIO_ON
-                                  ,GPIO_OUT
-                                  ,false,false // No interrupts
-                                  ,false,false  // Not open collector, not tristate
-
+    .GPIOPort             = GPIOsspaPowerPort,
+    .PinNum               = GPIOsspaPowerPin,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false 
 };
+
 static const GPIOInfo Ax5043PowerInfo = {
-                                  GPIOax5043PowerPort
-                                  ,GPIOax5043PowerPin
-                                  ,1
-                                  ,GPIO_OFF
-                                  ,GPIO_OUT
-                                  ,false,false // No interrupts
-                                  ,false,false  // Not open collector, not tristate
-
+    .GPIOPort             = GPIOax5043PowerPort,
+    .PinNum               = GPIOax5043PowerPin,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false 
 };
-
-
 
 /*
  * Use this array to index to the correct GPIOInfoStructure based on the GPIO
@@ -250,110 +399,227 @@ static const GPIOInfo Ax5043PowerInfo = {
 
 static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] =
 {
- &LED1Info,&LED2Info,&LED3Info,&AX0InterruptInfo,&AX1InterruptInfo,&AX2InterruptInfo,&AX3InterruptInfo,
- &AX4InterruptInfo,&CommandStrobeInfo,&CommandBitsInfo,&SSPAPowerInfo,&Ax5043PowerInfo
+    &LED1Info, &LED2Info, &LED3Info,
+    &AX5043_Rx1_InterruptInfo, &AX5043_Rx2_InterruptInfo, &AX5043_Rx3_InterruptInfo,
+    &AX5043_Rx4_InterruptInfo, &AX5043_Tx_InterruptInfo,
+    &AX5043_Rx1_Selector, &AX5043_Rx2_Selector, &AX5043_Rx3_Selector,
+    &AX5043_Rx4_Selector, &AX5043_Tx_Selector,
+    &MRAM0_Selector, &MRAM1_Selector, &MRAM2_Selector, &MRAM3_Selector,
+    &SSPAPowerInfo, &Ax5043PowerInfo
 };
 
 #else
 
 static const GPIOInfo LED1Info = {
-                                  GPIOLed1Port//GPIOLed3Port,
-                                  ,GPIOLed1Pin
-                                  ,1
-                                  ,GPIO_OFF
-                                  ,GPIO_OUT
-                                  ,false,false // No interrupts
-                                  ,false,false  // Not open collector, not tristate
-
+    .GPIOPort             = GPIOLed1Port,
+    .PinNum               = GPIOLed1Pin,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false 
 };
+
 static const GPIOInfo LED2Info = {
-                                  GPIOLed2Port
-                                  ,GPIOLed2Pin
-                                  ,1
-                                  ,GPIO_OFF
-                                  ,GPIO_OUT
-                                  ,false,false // No interrupts
-                                  ,false,false  // Not open collector, not tristate
+    .GPIOPort             = GPIOLed2Port,
+    .PinNum               = GPIOLed2Pin,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false 
 
 };
+
 static const GPIOInfo LED3Info = {
-                                  GPIOLed3Port
-                                  ,GPIOLed3Pin
-                                  ,1
-                                  ,GPIO_OFF
-                                  ,GPIO_OUT
-                                  ,false,false // No interrupts
-                                  ,false,false  // Not open collector, not tristate
+    .GPIOPort             = GPIOLed3Port,
+    .PinNum               = GPIOLed3Pin,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false 
 
 };
 
+static const GPIOInfo AX5043_Rx1_InterruptInfo = {
+    .GPIOPort             = GPIO_Rx1AX5043InterruptPort,
+    .PinNum               = GPIO_Rx1AX5043InterruptPin,
+    .InitialStateOn       = GPIO_UNUSED,
+    .DirectionIsOut       = GPIO_IN,
+    .CanInterrupt         = true,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
+};
 
-static const GPIOInfo AX0InterruptInfo = {
-                                             GPIO_Rx1DCTInterruptPort
-                                             ,GPIO_Rx1DCTInterruptPin
-                                             ,1
-                                             ,GPIO_UNUSED // Default off
-                                             ,GPIO_IN
-                                             ,true,false //Interrupts one one edge only
-                                             ,false,false // Not Open collector nor tristate
+static const GPIOInfo AX5043_Rx2_InterruptInfo = {
+    .GPIOPort             = GPIO_Rx2AX5043InterruptPort,
+    .PinNum               = GPIO_Rx2AX5043InterruptPin,
+    .InitialStateOn       = GPIO_UNUSED,
+    .DirectionIsOut       = GPIO_IN,
+    .CanInterrupt         = true,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
 };
-static const GPIOInfo AX1InterruptInfo = {
-                                             GPIO_Rx2DCTInterruptPort
-                                             ,GPIO_Rx2DCTInterruptPin
-                                             ,1
-                                             ,GPIO_UNUSED // Default off
-                                             ,GPIO_IN
-                                             ,true,false //Interrupts one one edge only
-                                             ,false,false // Not Open collector nor tristate
+
+static const GPIOInfo AX5043_Rx3_InterruptInfo = {
+    .GPIOPort             = GPIO_Rx3AX5043InterruptPort,
+    .PinNum               = GPIO_Rx3AX5043InterruptPin,
+    .InitialStateOn       = GPIO_UNUSED,
+    .DirectionIsOut       = GPIO_IN,
+    .CanInterrupt         = true,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
 };
-static const GPIOInfo AX2InterruptInfo = {
-                                             GPIO_Rx3DCTInterruptPort
-                                             ,GPIO_Rx3DCTInterruptPin
-                                             ,1
-                                             ,GPIO_UNUSED // Default off
-                                             ,GPIO_IN
-                                             ,true,false //Interrupts one one edge only
-                                             ,false,false // Not Open collector nor tristate
+
+static const GPIOInfo AX5043_Rx4_InterruptInfo = {
+    .GPIOPort             = GPIO_Rx4AX5043InterruptPort,
+    .PinNum               = GPIO_Rx4AX5043InterruptPin,
+    .InitialStateOn       = GPIO_UNUSED,
+    .DirectionIsOut       = GPIO_IN,
+    .CanInterrupt         = true,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
 };
-static const GPIOInfo AX3InterruptInfo = {
-                                             GPIO_Rx4DCTInterruptPort
-                                             ,GPIO_Rx4DCTInterruptPin
-                                             ,1
-                                             ,GPIO_UNUSED // Default off
-                                             ,GPIO_IN
-                                             ,true,false //Interrupts one one edge only
-                                             ,false,false // Not Open collector nor tristate
+
+static const GPIOInfo AX5043_Tx_InterruptInfo = {
+    .GPIOPort             = GPIO_TxAX5043InterruptPort,
+    .PinNum               = GPIO_TxAX5043InterruptPin,
+    .InitialStateOn       = GPIO_UNUSED,
+    .DirectionIsOut       = GPIO_IN,
+    .CanInterrupt         = true,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
 };
-static const GPIOInfo AX4InterruptInfo = {
-                                             GPIO_TxDCTInterruptPort
-                                             ,GPIO_TxDCTInterruptPin
-                                             ,1
-                                             ,GPIO_UNUSED // Default off
-                                             ,GPIO_IN
-                                             ,true,false //Interrupts one one edge only
-                                             ,false,false // Not Open collector nor tristate
+
+static const GPIOInfo AX5043_Rx1_Selector = {
+    .GPIOPort             = SPI_Rx1AX5043_Select_Port,
+    .PinNum               = SPI_Rx1AX5043_Select_Pin,
+    .InitialStateOn       = GPIO_ON,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
 };
+
+static const GPIOInfo AX5043_Rx2_Selector = {
+    .GPIOPort             = SPI_Rx2AX5043_Select_Port,
+    .PinNum               = SPI_Rx2AX5043_Select_Pin,
+    .InitialStateOn       = GPIO_ON,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
+};
+
+static const GPIOInfo AX5043_Rx3_Selector = {
+    .GPIOPort             = SPI_Rx3AX5043_Select_Port,
+    .PinNum               = SPI_Rx3AX5043_Select_Pin,
+    .InitialStateOn       = GPIO_ON,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
+};
+
+static const GPIOInfo AX5043_Rx4_Selector = {
+    .GPIOPort             = SPI_Rx4AX5043_Select_Port,
+    .PinNum               = SPI_Rx4AX5043_Select_Pin,
+    .InitialStateOn       = GPIO_ON,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
+};
+
+static const GPIOInfo AX5043_Tx_Selector = {
+    .GPIOPort             = SPI_TxAX5043_Select_Port,
+    .PinNum               = SPI_TxAX5043_Select_Pin,
+    .InitialStateOn       = GPIO_ON,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
+};
+
+static const GPIOInfo MRAM0_Selector = {
+    .GPIOPort             = SPI_MRAM0_Select_Port,
+    .PinNum               = SPI_MRAM0_Select_Pin,
+    .InitialStateOn       = GPIO_ON,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
+};
+
+static const GPIOInfo MRAM1_Selector = {
+    .GPIOPort             = SPI_MRAM1_Select_Port,
+    .PinNum               = SPI_MRAM1_Select_Pin,
+    .InitialStateOn       = GPIO_ON,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
+};
+
+static const GPIOInfo MRAM2_Selector = {
+    .GPIOPort             = SPI_MRAM2_Select_Port,
+    .PinNum               = SPI_MRAM2_Select_Pin,
+    .InitialStateOn       = GPIO_ON,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
+};
+
+static const GPIOInfo MRAM3_Selector = {
+    .GPIOPort             = SPI_MRAM3_Select_Port,
+    .PinNum               = SPI_MRAM3_Select_Pin,
+    .InitialStateOn       = GPIO_ON,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false
+};
+
 static const GPIOInfo SSPAPowerInfo = {
-                                  GPIOsspaPowerPort
-                                  ,GPIOsspaPowerPin
-                                  ,1
-                                  ,GPIO_ON
-                                  ,GPIO_OUT
-                                  ,false,false // No interrupts
-                                  ,false,false  // Not open collector, not tristate
-
+    .GPIOPort             = GPIOsspaPowerPort,
+    .PinNum               = GPIOsspaPowerPin,
+    .InitialStateOn       = GPIO_ON,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false 
 };
+
 static const GPIOInfo Ax5043PowerInfo = {
-                                  GPIOax5043PowerPort
-                                  ,GPIOax5043PowerPin
-                                  ,1
-                                  ,GPIO_OFF
-                                  ,GPIO_OUT
-                                  ,false,false // No interrupts
-                                  ,false,false  // Not open collector, not tristate
-
+    .GPIOPort             = GPIOax5043PowerPort,
+    .PinNum               = GPIOax5043PowerPin,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+    .CanInterrupt         = false,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+    .InitialStateTristate = false 
 };
-
 
 
 /*
@@ -363,8 +629,13 @@ static const GPIOInfo Ax5043PowerInfo = {
 
 static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] =
 {
- &LED1Info,&LED2Info,&LED3Info,&AX0InterruptInfo,&AX1InterruptInfo,&AX2InterruptInfo,&AX3InterruptInfo,
- &AX4InterruptInfo,&SSPAPowerInfo,&Ax5043PowerInfo
+    &LED1Info, &LED2Info, &LED3Info,
+    &AX5043_Rx1_InterruptInfo, &AX5043_Rx2_InterruptInfo, &AX5043_Rx3_InterruptInfo,
+    &AX5043_Rx4_InterruptInfo, &AX5043_Tx_InterruptInfo,
+    &AX5043_Rx1_Selector, &AX5043_Rx2_Selector, &AX5043_Rx3_Selector,
+    &AX5043_Rx4_Selector, &AX5043_Tx_Selector,
+    &MRAM0_Selector, &MRAM1_Selector, &MRAM2_Selector, &MRAM3_Selector,
+    &SSPAPowerInfo, &Ax5043PowerInfo
 };
 
 #endif
@@ -395,7 +666,7 @@ bool GPIOInit(Gpio_Use whichGpio, DestinationTask task, IntertaskMessageType msg
      */
 
     const GPIOInfo *thisGPIO = GPIOInfoStructures[whichGpio];
-    int portIndex,i;
+    int portIndex;
 
     // This whole mess below is to allow us to set the direction correctly.  The direction bits are write-only and
     // must be written for the entire port.  So we keep track of what directions the port has, and re-write each
@@ -420,16 +691,9 @@ bool GPIOInit(Gpio_Use whichGpio, DestinationTask task, IntertaskMessageType msg
         ) return false; // No can do.
     }
 #endif
-    /*
-     * If there is more than one pin read together, init all of them.  Note that they MUST be
-     * adjacent in the same port, and the 'thisGPIO' structure must have the data for the first one.
-     * All data except the pin number must be the same for both, and they must be input only and only
-     * the first one can interrupt
-     */
-    for(i=0;i<thisGPIO->NumBits;i++){
-        int pin = thisGPIO->PinNum + i;
-        GPIOSetPinDirection(thisGPIO->GPIOPort,pin,thisGPIO->DirectionIsOut);
-    }
+    GPIOSetPinDirection(thisGPIO->GPIOPort,
+			thisGPIO->PinNum,
+			thisGPIO->DirectionIsOut);
     if(thisGPIO->DirectionIsOut){
 
         /*
@@ -439,10 +703,10 @@ bool GPIOInit(Gpio_Use whichGpio, DestinationTask task, IntertaskMessageType msg
 
         uint16_t pinNum = thisGPIO->PinNum;
         gioPORT_t *thisPort = thisGPIO->GPIOPort;
-            if(thisGPIO->OpenCollector || thisGPIO->initialStateTristate){
+            if(thisGPIO->OpenCollector || thisGPIO->InitialStateTristate){
                 thisPort->PDR |= 1 << pinNum;  //Tri-state the pin if the output register is high
             }
-            if(thisGPIO->initialstateOn || thisGPIO->initialStateTristate){
+            if(thisGPIO->InitialStateOn || thisGPIO->InitialStateTristate){
                 thisPort->DSET = (1<<pinNum);
             } else {
                 thisPort->DCLR = (1<<pinNum);
@@ -545,7 +809,7 @@ uint16_t GPIORead(Gpio_Use whichGpio)
 
     readData = gioGetPort(thisGPIO->GPIOPort);
     readData = readData >> thisGPIO->PinNum;
-    return readData & ~(0xffffffff << thisGPIO->NumBits);
+    return readData & 1;
 }
 
 void gioNotification(gioPORT_t *port, uint32 bit)
@@ -612,7 +876,7 @@ void GPIOSetPushPull(Gpio_Use gpioNum){
     gioPORT_t *thisPort = thisGPIO->GPIOPort;
     int pinNum = thisGPIO->PinNum;
     uint32_t mask = 0xFFFFFFFF;
-    if(thisGPIO->initialstateOn){
+    if(thisGPIO->InitialStateOn){
         thisPort->DSET = 1 << pinNum;
     } else {
         thisPort->DCLR = 1 << pinNum;  //Set the output register low

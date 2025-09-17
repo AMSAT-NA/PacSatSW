@@ -84,10 +84,10 @@ static bool InitTelemetry = true;
 // Forward routines
 
 static void SendTelemComplete(void);
-static void FakeDCTInterrupt(void);
+static void FakeAX5043Interrupt(void);
 
 
-static uint8_t PAPowerFlagCnt=0,DCTPowerFlagCnt=0;
+static uint8_t PAPowerFlagCnt=0,AX5043PowerFlagCnt=0;
 
 static int sendingPacket = 0;
 bool startWithSync;
@@ -117,7 +117,7 @@ portTASK_FUNCTION_PROTO(TelemetryRadioTask, pvParameters)  {
 
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)RadioWD );
     InitInterTask(ToRadio, 10);
-    GPIOInit(DCTInterrupt,ToRadio,DCTInterruptMsg,None);
+    GPIOInit(AX5043Interrupt,ToRadio,AX5043InterruptMsg,None);
 
 
     ResetAllWatchdogs();
@@ -134,16 +134,16 @@ portTASK_FUNCTION_PROTO(TelemetryRadioTask, pvParameters)  {
             //    debug_print("MessagesWaiting=%d\n",WaitingInterTask(ToRadio));
             //}
             switch(messageReceived.MsgType){
-            case DCTPowerFlagMsg:
+            case AX5043PowerFlagMsg:
                 debug_print("AX5043 Power Interrupted\n");
-                DCTPowerFlagCnt++;
+                AX5043PowerFlagCnt++;
                 break;
             case PAPowerFlagMsg:
                 debug_print("Power Amp Power Interrupted\n");
                 PAPowerFlagCnt++;
                 break;
 
-            case DCTInterruptMsg: {
+            case AX5043InterruptMsg: {
 
                 if ((ax5043ReadReg(AX5043_PWRMODE) & 0x0F) == AX5043_PWRSTATE_FULL_RX) {
                     //printf("Interrupt while in FULL_RX mode\n");
@@ -204,7 +204,7 @@ portTASK_FUNCTION_PROTO(TelemetryRadioTask, pvParameters)  {
                 if (lastPacketQueued && (numbytes == 256)) {
                     //debug_print("Last packet queued\n");
 
-                    // The next two calls will shut the telemetry and the DCT
+                    // The next two calls will shut the telemetry and the AX5043
 
                     AudioSetMixerSource(MixerSilence);
                     lastPacketQueued = 0;
@@ -330,7 +330,7 @@ portTASK_FUNCTION_PROTO(TelemetryRadioTask, pvParameters)  {
                              * an interrupt when we go below it.  So we fake an interrupt to ourselves
                              */
                             //debug_print("Faking an interrupt--\n");
-                            FakeDCTInterrupt();
+                            FakeAX5043Interrupt();
                         }
 
                         // What happens if we don't enqueue enough to clear the IRQ?
@@ -357,7 +357,7 @@ portTASK_FUNCTION_PROTO(TelemetryRadioTask, pvParameters)  {
                 } // Else there was not enough room in the FIFO, but it will interrupt again with more room
 
                 //break;
-            } // case DCTInterrupt
+            } // case AX5043Interrupt
             } // switch on message type
         } // if status == 1
     } // while (1)
@@ -402,13 +402,13 @@ static void SendTelemComplete(void){
 
 /*
  * The following is used when we are in a position where we need to run the interrupt routine again
- * but the DCT is not going to generate an interrupt (e.g. if the bytes we have to put in do to
+ * but the AX5043 is not going to generate an interrupt (e.g. if the bytes we have to put in do to
  * exceed the interrupt threshold
  */
-void FakeDCTInterrupt(){
+void FakeAX5043Interrupt(){
     Intertask_Message messageSent;
-    messageSent.MsgType = DCTInterruptMsg;
-    NotifyInterTask(ToRadio,0,&messageSent); //This is what a DCT interrupt will do
+    messageSent.MsgType = AX5043InterruptMsg;
+    NotifyInterTask(ToRadio,0,&messageSent); //This is what a AX5043 interrupt will do
 }
 
 /*
@@ -418,8 +418,8 @@ void FakeDCTInterrupt(){
 uint8_t GetPAPowerFlagCnt(void){
     return PAPowerFlagCnt;
 }
-uint8_t GetDCTPowerFlagCnt(void){
-    return DCTPowerFlagCnt;
+uint8_t GetAX5043PowerFlagCnt(void){
+    return AX5043PowerFlagCnt;
 }
 
 void copyAndPack(uint8_t *byteBuf, FECBufferReturn *newBuffer, bool *startWithSync, bool *endWithSync, int *bytes, int *partial) {

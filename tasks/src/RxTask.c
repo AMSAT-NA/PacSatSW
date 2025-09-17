@@ -29,7 +29,7 @@
 #include "ax25_util.h"
 
 /* Local variables */
-static uint8_t PAPowerFlagCnt=0,DCTPowerFlagCnt=0;
+static uint8_t PAPowerFlagCnt=0,AX5043PowerFlagCnt=0;
 static rx_radio_buffer_t rx_radio_buffer; // static buffer to store the channel and received bytes from the radio
 static rx_radio_buffer_t EMPTY_RADIO_BUFFER;
 //static uint8_t axradio_rxbuffer[AX25_PKT_BUFFER_LEN];  ******************** HERE WE ARE - REMOVING THIS
@@ -117,30 +117,28 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
         if (status==1) { // We received a message
             //debug_print("AX5043 Message %d\n",messageReceived.MsgType);
             switch(messageReceived.MsgType){
-            case DCTPowerFlagMsg:
+            case AX5043PowerFlagMsg:
                 debug_print("AX5043 Power Interrupted\n");
-                DCTPowerFlagCnt++;
+                AX5043PowerFlagCnt++;
                 break;
             case PAPowerFlagMsg:
                 debug_print("Power Amp Power Interrupted\n");
                 PAPowerFlagCnt++;
                 break;
 
-            case Rx0DCTInterruptMsg:
+            case AX5043_Rx1_InterruptMsg:
                 process_fifo(AX5043Dev0);
                 break;
-            case Rx1DCTInterruptMsg:
+            case AX5043_Rx2_InterruptMsg:
                 process_fifo(AX5043Dev1);
                 break;
-            case Rx2DCTInterruptMsg:
+            case AX5043_Rx3_InterruptMsg:
                 process_fifo(AX5043Dev2);
                 break;
-            case Rx3DCTInterruptMsg:
+            case AX5043_Rx4_InterruptMsg:
                 process_fifo(AX5043Dev3);
                 break;
-
-
-          }
+	    }
         }
     }
 }

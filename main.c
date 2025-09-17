@@ -170,17 +170,17 @@ void startup(void)
     // HET2 and thus have no initHET routine from HCG.  Why does "set direction" what the entire
     // register, while SetBit takes the bit number?
     //
-    gioSetDirection(SPI_Rx1DCT_Select_Port, (1U<<SPI_Rx1DCT_Select_Pin));
-    gioSetDirection(SPI_Rx2DCT_Select_Port, (1U<<SPI_Rx2DCT_Select_Pin));
-    gioSetDirection(SPI_Rx3DCT_Select_Port, (1U<<SPI_Rx3DCT_Select_Pin));
-    gioSetDirection(SPI_Rx4DCT_Select_Port, (1U<<SPI_Rx4DCT_Select_Pin));
-    gioSetDirection(SPI_TxDCT_Select_Port, (1U<<SPI_TxDCT_Select_Pin));
+    gioSetDirection(SPI_Rx1AX5043_Select_Port, (1U<<SPI_Rx1AX5043_Select_Pin));
+    gioSetDirection(SPI_Rx2AX5043_Select_Port, (1U<<SPI_Rx2AX5043_Select_Pin));
+    gioSetDirection(SPI_Rx3AX5043_Select_Port, (1U<<SPI_Rx3AX5043_Select_Pin));
+    gioSetDirection(SPI_Rx4AX5043_Select_Port, (1U<<SPI_Rx4AX5043_Select_Pin));
+    gioSetDirection(SPI_TxAX5043_Select_Port, (1U<<SPI_TxAX5043_Select_Pin));
 
-    gioSetBit(SPI_Rx1DCT_Select_Port,SPI_Rx1DCT_Select_Pin,1); // Make chip select pins be high
-    gioSetBit(SPI_Rx2DCT_Select_Port,SPI_Rx2DCT_Select_Pin,1); // Make chip select pins be high
-    gioSetBit(SPI_Rx3DCT_Select_Port,SPI_Rx3DCT_Select_Pin,1); // Make chip select pins be high
-    gioSetBit(SPI_Rx4DCT_Select_Port,SPI_Rx4DCT_Select_Pin,1); // Make chip select pins be high
-    gioSetBit(SPI_TxDCT_Select_Port,SPI_TxDCT_Select_Pin,1); // Make chip select pins be high
+    gioSetBit(SPI_Rx1AX5043_Select_Port,SPI_Rx1AX5043_Select_Pin,1); // Make chip select pins be high
+    gioSetBit(SPI_Rx2AX5043_Select_Port,SPI_Rx2AX5043_Select_Pin,1); // Make chip select pins be high
+    gioSetBit(SPI_Rx3AX5043_Select_Port,SPI_Rx3AX5043_Select_Pin,1); // Make chip select pins be high
+    gioSetBit(SPI_Rx4AX5043_Select_Port,SPI_Rx4AX5043_Select_Pin,1); // Make chip select pins be high
+    gioSetBit(SPI_TxAX5043_Select_Port,SPI_TxAX5043_Select_Pin,1); // Make chip select pins be high
 #endif
     /*
      * RTI is used by FreeRTOS as its clock and also by the watchdog as its counter.
@@ -249,17 +249,17 @@ void ConsoleTask(void *pvParameters){
     // Initialize the SPI driver for our SPI devices
 
 #ifdef LAUNCHPAD_HARDWARE
-    //    SPIInit(TxDCTDev); // This is the transmitter on UHF
-    //    SPIInit(Rx1DCTDev); // This is the receiver on VHF on the Pacsat Booster Board
+    //    SPIInit(TxAX5043Dev); // This is the transmitter on UHF
+    //    SPIInit(Rx1AX5043Dev); // This is the receiver on VHF on the Pacsat Booster Board
 
-    SPIInit(DCTDev0); // This is the receiver on VHF on the Pacsat Booster Board
-    SPIInit(DCTDev1); // This is the transmitter on UHF
+    SPIInit(AX5043Dev0); // This is the receiver on VHF on the Pacsat Booster Board
+    SPIInit(AX5043Dev1); // This is the transmitter on UHF
 #else
-    SPIInit(Rx1DCTDev); // This is the receiver on VHF on the Pacsat Booster Board
-    SPIInit(Rx2DCTDev); // This is the receiver on VHF on the Pacsat Booster Board
-    SPIInit(Rx3DCTDev); // This is the receiver on VHF on the Pacsat Booster Board
-    SPIInit(Rx4DCTDev); // This is the receiver on VHF on the Pacsat Booster Board
-    SPIInit(TxDCTDev); // This is the transmitter on UHF
+    SPIInit(Rx1AX5043Dev); // This is the receiver on VHF on the Pacsat Booster Board
+    SPIInit(Rx2AX5043Dev); // This is the receiver on VHF on the Pacsat Booster Board
+    SPIInit(Rx3AX5043Dev); // This is the receiver on VHF on the Pacsat Booster Board
+    SPIInit(Rx4AX5043Dev); // This is the receiver on VHF on the Pacsat Booster Board
+    SPIInit(TxAX5043Dev); // This is the transmitter on UHF
 #endif
     SPIInit(MRAM0Dev);
     SPIInit(MRAM1Dev);
@@ -281,15 +281,15 @@ void ConsoleTask(void *pvParameters){
     I2cInit(I2C2);
     GPIOEzInit(LED1);
     GPIOEzInit(LED2);
-    GPIOInit(DCTInterrupt,ToRxTask,Rx0DCTInterruptMsg,None);
-    //    GPIOInit(Rx0DCTInterrupt,ToRxTask,Rx0DCTInterruptMsg,None);
-    //    GPIOInit(TxDCTInterrupt,ToTxTask,TxDCTInterruptMsg,None);
+    GPIOInit(AX5043_0_Interrupt, ToRxTask, Rx0AX5043_0_InterruptMsg, None);
+    //    GPIOInit(Rx0AX5043Interrupt,ToRxTask,Rx0AX5043InterruptMsg,None);
+    //    GPIOInit(TxAX5043Interrupt,ToTxTask,TxAX5043InterruptMsg,None);
 #else
-    GPIOInit(Rx0DCTInterrupt,ToRxTask,Rx0DCTInterruptMsg,None);
-    GPIOInit(Rx1DCTInterrupt,ToRxTask,Rx1DCTInterruptMsg,None);
-    GPIOInit(Rx2DCTInterrupt,ToRxTask,Rx2DCTInterruptMsg,None);
-    GPIOInit(Rx3DCTInterrupt,ToRxTask,Rx3DCTInterruptMsg,None);
-    GPIOInit(TxDCTInterrupt,ToTxTask,TxDCTInterruptMsg,None);
+    GPIOInit(AX5043_Rx1_Interrupt, ToRxTask, AX5043_Rx1_InterruptMsg, None);
+    GPIOInit(AX5043_Rx2_Interrupt, ToRxTask, AX5043_Rx2_InterruptMsg, None);
+    GPIOInit(AX5043_Rx3_Interrupt, ToRxTask, AX5043_Rx3_InterruptMsg, None);
+    GPIOInit(AX5043_Rx4_Interrupt, ToRxTask, AX5043_Rx4_InterruptMsg, None);
+    GPIOInit(AX5043_Tx_Interrupt, ToTxTask, AX5043_Tx_InterruptMsg, None);
 #endif
     /* Poll the I2C devices to see which are working.
      * This also calls the init routine for the temperature device */

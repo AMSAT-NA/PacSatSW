@@ -50,14 +50,14 @@ typedef enum {
     /*
      * For messages to the radio task
      */
-    Rx0DCTInterruptMsg,
-    Rx1DCTInterruptMsg,
-    Rx2DCTInterruptMsg,
-    Rx3DCTInterruptMsg,
-    TxDCTInterruptMsg,
-    DCTPowerFlagMsg,
+    AX5043_Rx1_InterruptMsg,
+    AX5043_Rx2_InterruptMsg,
+    AX5043_Rx3_InterruptMsg,
+    AX5043_Rx4_InterruptMsg,
+    AX5043_Tx_InterruptMsg,
+    AX5043PowerFlagMsg,
     PAPowerFlagMsg,
-    DCTInitMessage,
+    AX5043InitMessage,
     /*
      * Messages to the telemetry and Control task
      */
