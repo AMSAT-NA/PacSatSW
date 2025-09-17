@@ -16,6 +16,7 @@
  * on blinky.  You must also copy in the hcg files from the PacSatHardware project.  See the
  * instructions in the README file of PacSatHardware */
 //#define LAUNCHPAD_HARDWARE
+//#define BLINKY_HARDWARE
 
 #define PACSAT_NUMBER "0" // This PacSat number is only used in the PACSAT_FW_VERSION_STRING below.
 
