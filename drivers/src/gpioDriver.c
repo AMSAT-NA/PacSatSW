@@ -122,7 +122,7 @@ static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] =
 {
  &LED1Info,&LED2Info,&AX5043InterruptInfo,&CommandStrobeInfo,&CommandBitsInfo
 };
-#else
+#elif defined(BLINKY_HARDWARE)
 
 static const GPIOInfo LED1Info = {
                                   GPIOLed1Port//GPIOLed3Port,
@@ -254,6 +254,119 @@ static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] =
  &AX4InterruptInfo,&CommandStrobeInfo,&CommandBitsInfo,&SSPAPowerInfo,&Ax5043PowerInfo
 };
 
+#else
+
+static const GPIOInfo LED1Info = {
+                                  GPIOLed1Port//GPIOLed3Port,
+                                  ,GPIOLed1Pin
+                                  ,1
+                                  ,GPIO_OFF
+                                  ,GPIO_OUT
+                                  ,false,false // No interrupts
+                                  ,false,false  // Not open collector, not tristate
+
+};
+static const GPIOInfo LED2Info = {
+                                  GPIOLed2Port
+                                  ,GPIOLed2Pin
+                                  ,1
+                                  ,GPIO_OFF
+                                  ,GPIO_OUT
+                                  ,false,false // No interrupts
+                                  ,false,false  // Not open collector, not tristate
+
+};
+static const GPIOInfo LED3Info = {
+                                  GPIOLed3Port
+                                  ,GPIOLed3Pin
+                                  ,1
+                                  ,GPIO_OFF
+                                  ,GPIO_OUT
+                                  ,false,false // No interrupts
+                                  ,false,false  // Not open collector, not tristate
+
+};
+
+
+static const GPIOInfo AX0InterruptInfo = {
+                                             GPIO_Rx1DCTInterruptPort
+                                             ,GPIO_Rx1DCTInterruptPin
+                                             ,1
+                                             ,GPIO_UNUSED // Default off
+                                             ,GPIO_IN
+                                             ,true,false //Interrupts one one edge only
+                                             ,false,false // Not Open collector nor tristate
+};
+static const GPIOInfo AX1InterruptInfo = {
+                                             GPIO_Rx2DCTInterruptPort
+                                             ,GPIO_Rx2DCTInterruptPin
+                                             ,1
+                                             ,GPIO_UNUSED // Default off
+                                             ,GPIO_IN
+                                             ,true,false //Interrupts one one edge only
+                                             ,false,false // Not Open collector nor tristate
+};
+static const GPIOInfo AX2InterruptInfo = {
+                                             GPIO_Rx3DCTInterruptPort
+                                             ,GPIO_Rx3DCTInterruptPin
+                                             ,1
+                                             ,GPIO_UNUSED // Default off
+                                             ,GPIO_IN
+                                             ,true,false //Interrupts one one edge only
+                                             ,false,false // Not Open collector nor tristate
+};
+static const GPIOInfo AX3InterruptInfo = {
+                                             GPIO_Rx4DCTInterruptPort
+                                             ,GPIO_Rx4DCTInterruptPin
+                                             ,1
+                                             ,GPIO_UNUSED // Default off
+                                             ,GPIO_IN
+                                             ,true,false //Interrupts one one edge only
+                                             ,false,false // Not Open collector nor tristate
+};
+static const GPIOInfo AX4InterruptInfo = {
+                                             GPIO_TxDCTInterruptPort
+                                             ,GPIO_TxDCTInterruptPin
+                                             ,1
+                                             ,GPIO_UNUSED // Default off
+                                             ,GPIO_IN
+                                             ,true,false //Interrupts one one edge only
+                                             ,false,false // Not Open collector nor tristate
+};
+static const GPIOInfo SSPAPowerInfo = {
+                                  GPIOsspaPowerPort
+                                  ,GPIOsspaPowerPin
+                                  ,1
+                                  ,GPIO_ON
+                                  ,GPIO_OUT
+                                  ,false,false // No interrupts
+                                  ,false,false  // Not open collector, not tristate
+
+};
+static const GPIOInfo Ax5043PowerInfo = {
+                                  GPIOax5043PowerPort
+                                  ,GPIOax5043PowerPin
+                                  ,1
+                                  ,GPIO_OFF
+                                  ,GPIO_OUT
+                                  ,false,false // No interrupts
+                                  ,false,false  // Not open collector, not tristate
+
+};
+
+
+
+/*
+ * Use this array to index to the correct GPIOInfoStructure based on the GPIO
+ * enum index.
+ */
+
+static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] =
+{
+ &LED1Info,&LED2Info,&LED3Info,&AX0InterruptInfo,&AX1InterruptInfo,&AX2InterruptInfo,&AX3InterruptInfo,
+ &AX4InterruptInfo,&SSPAPowerInfo,&Ax5043PowerInfo
+};
+
 #endif
 
 static int GPIOInterruptLastIndex = 0;
@@ -262,12 +375,14 @@ static IntertaskMessageType GPIOMessage[NumberOfGPIOs];
 static DestinationTask GPIOMessageDestination[NumberOfGPIOs];
 static Gpio_Use GPIOAuxGPIO1[NumberOfGPIOs];
 
-bool GPIOEzInit(Gpio_Use whichGpio){
+bool GPIOEzInit(Gpio_Use whichGpio)
+{
     // Save some typing, reading, and some code space for most init calls
     return GPIOInit(whichGpio,NO_TASK,NO_MESSAGE,None);
 }
-bool GPIOInit( Gpio_Use whichGpio,DestinationTask task, IntertaskMessageType msg,
-               Gpio_Use auxDataGPIO1)
+
+bool GPIOInit(Gpio_Use whichGpio, DestinationTask task, IntertaskMessageType msg,
+              Gpio_Use auxDataGPIO1)
 {
     /*
      * Note:  GPIOInitialize returns a void * (think of it as an opaque value)
@@ -286,10 +401,13 @@ bool GPIOInit( Gpio_Use whichGpio,DestinationTask task, IntertaskMessageType msg
     // must be written for the entire port.  So we keep track of what directions the port has, and re-write each
     // time one of them is specified.
 
-    if(thisGPIO->GPIOPort ==0)return false; //Todo: Make sure we have all the GPIOs set up (now missing I2c reset)
+    if (thisGPIO->GPIOPort == 0)
+        return false; //Todo: Make sure we have all the GPIOs set up (now missing I2c reset)
+
     portIndex = (thisGPIO->GPIOPort==gioPORTA)?0:(thisGPIO->GPIOPort==gioPORTB)?1:
            (thisGPIO->GPIOPort==hetPORT1)?2:(thisGPIO->GPIOPort==spiPORT1)?3:
            (thisGPIO->GPIOPort==spiPORT5)?4:5;
+
 #ifdef UNDEFINE_BEFORE_FLIGHT
     if(portIndex == 5)
         return false; ///////////Need to add new ports above

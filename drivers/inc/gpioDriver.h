@@ -18,11 +18,22 @@ typedef enum gu {None=-1,
     NumberOfGPIOs
 } Gpio_Use;
 
-#else
+#elif defined(BLINKY_HARDWARE)
 typedef enum gu {None=-1,
-	 LED1,LED2,LED3,Rx0DCTInterrupt,Rx1DCTInterrupt,Rx2DCTInterrupt,Rx3DCTInterrupt,TxDCTInterrupt,
+	 LED1,LED2,LED3,
+	 Rx0DCTInterrupt,Rx1DCTInterrupt,Rx2DCTInterrupt,Rx3DCTInterrupt,
+	 TxDCTInterrupt,
 	 CommandStrobe,CommandBits,SSPAPower,AX5043Power,
 	 NumberOfGPIOs
+} Gpio_Use;
+
+#else
+typedef enum gu {None=-1,
+     LED1,LED2,LED3,
+     Rx0DCTInterrupt,Rx1DCTInterrupt,Rx2DCTInterrupt,Rx3DCTInterrupt,
+     TxDCTInterrupt,
+     SSPAPower,AX5043Power,
+     NumberOfGPIOs
 } Gpio_Use;
 #endif
 

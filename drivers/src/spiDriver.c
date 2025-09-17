@@ -144,7 +144,7 @@ static const SPIDevInfo *SPIDevInfoStructures[] = {
 #else
 static SPIDevInfo SPIMram0Device={
                                  SPI_MRAM_Reg,
-                                 SPI_MRAM02_Select_Port,
+                                 SPI_MRAM0_Select_Port,
                                  {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
                                  &bus1Data,
                                  SPI_MRAM0_Select_Pin //chipSelect
@@ -158,7 +158,7 @@ static SPIDevInfo SPIMram1Device={
 };
 static SPIDevInfo SPIMram2Device={
                                  SPI_MRAM_Reg,
-                                 SPI_MRAM02_Select_Port,
+                                 SPI_MRAM2_Select_Port,
                                  {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
                                  &bus1Data,
                                  SPI_MRAM2_Select_Pin //chipSelect
@@ -173,7 +173,7 @@ static SPIDevInfo SPIMram3Device={
 
 static SPIDevInfo SPIRx1DCTDevice={
                                 SPI_DCT_Reg,
-                                SPI_DCT_Select_Port,
+                                SPI_Rx1DCT_Select_Port,
                                 {
                                  .WDEL = false, .DFSEL = SPI_DCT_Data_Format
                                 },
@@ -182,7 +182,7 @@ static SPIDevInfo SPIRx1DCTDevice={
 };
 static SPIDevInfo SPIRx2DCTDevice={
                                 SPI_DCT_Reg,
-                                SPI_DCT_Select_Port,
+                                SPI_Rx2DCT_Select_Port,
                                 {
                                  .WDEL = false, .DFSEL = SPI_DCT_Data_Format
                                 },
@@ -191,7 +191,7 @@ static SPIDevInfo SPIRx2DCTDevice={
 };
 static SPIDevInfo SPIRx3DCTDevice={
                                 SPI_DCT_Reg,
-                                SPI_DCT_Select_Port,
+                                SPI_Rx3DCT_Select_Port,
                                 {
                                  .WDEL = false, .DFSEL = SPI_DCT_Data_Format
                                 },
@@ -200,7 +200,7 @@ static SPIDevInfo SPIRx3DCTDevice={
 };
 static SPIDevInfo SPIRx4DCTDevice={
                                 SPI_DCT_Reg,
-                                SPI_DCT_Select_Port,
+                                SPI_Rx4DCT_Select_Port,
                                 {
                                  .WDEL = false, .DFSEL = SPI_DCT_Data_Format
                                 },
@@ -209,7 +209,7 @@ static SPIDevInfo SPIRx4DCTDevice={
 };
 static SPIDevInfo SPITxDCTDevice={
                                 SPI_DCT_Reg,
-                                SPI_DCT_Select_Port,
+                                SPI_TxDCT_Select_Port,
                                 {
                                  .WDEL = false, .DFSEL = SPI_DCT_Data_Format
                                 },

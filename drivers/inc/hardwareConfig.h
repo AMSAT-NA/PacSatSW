@@ -148,8 +148,9 @@
 // SPI Definitions
 
 #define SPI_MRAM_Reg spiREG1
-#define SPI_MRAM02_Select_Port spiPORT1 /*Gpio port for chip select on MRAM 0,2*/
+#define SPI_MRAM0_Select_Port spiPORT1
 #define SPI_MRAM1_Select_Port spiPORT3
+#define SPI_MRAM2_Select_Port spiPORT1
 #define SPI_MRAM3_Select_Port spiPORT5
 #define SPI_MRAM0_Select_Pin 0
 #define SPI_MRAM1_Select_Pin 0
@@ -160,11 +161,15 @@
 // AX5043 SPI pins
 
 #define SPI_DCT_Reg spiREG3
-#define SPI_DCT_Select_Port hetPORT1 /*Gpio port for chip select*/
+#define SPI_Rx1DCT_Select_Port hetPORT1 /*Gpio port for chip select*/
 #define SPI_Rx1DCT_Select_Pin 3
+#define SPI_Rx2DCT_Select_Port hetPORT1
 #define SPI_Rx2DCT_Select_Pin 7
+#define SPI_Rx3DCT_Select_Port hetPORT1
 #define SPI_Rx3DCT_Select_Pin 9
+#define SPI_Rx4DCT_Select_Port hetPORT1
 #define SPI_Rx4DCT_Select_Pin 4
+#define SPI_TxDCT_Select_Port hetPORT1
 #define SPI_TxDCT_Select_Pin 12
 #define SPI_DCT_Data_Format SPI_FMT_0
 
@@ -192,18 +197,13 @@
 #define GPIO_IN 0
 #define GPIO_OUT 1
 
-#define GPIO_UNUSED_IN_PORT hetPORT1
-#define GPIO_UNUSED_IN_PIN 16
-#define GPIO_UNUSED_OUT_PORT hetPORT1
-#define GPIO_UNUSED_OUT_PIN 18
-
 /*
  * Power for SSPA and AX5043
  */
-#define GPIOsspaPowerPort spiPORT5
-#define GPIOsspaPowerPin 11 /*This is SOMI[0]*/
-#define GPIOax5043PowerPort spiPORT5
-#define GPIOax5043PowerPin 10 /*This is SIMO[0]*/
+#define GPIOsspaPowerPort hetPORT1
+#define GPIOsspaPowerPin 14 /*This is N2HET1[14]*/
+#define GPIOax5043PowerPort hetPORT1
+#define GPIOax5043PowerPin 20 /*This is N2HET1[20]*/
 
 
 /*
@@ -223,15 +223,6 @@
 #define GPIOLed3Pin 2
 
 
-#define GPIOCommandStrobePort gioPORTA
-#define GPIOCommandStrobePin 0
-#define GPIOCommandBit0Port hetPORT1
-#define GPIOCommandBit0Pin 15
-
-
-
-
-
 // Serial port definitions
 
 #define COM3_Port 0 //Does not exist on PacSat
@@ -241,24 +232,29 @@
 
 // SPI Definitions
 
-#define SPI_MRAM_Reg spiREG1
-#define SPI_MRAM02_Select_Port spiPORT1 /*Gpio port for chip select on MRAM 0,2*/
+#define SPI_MRAM_Reg spiREG3
+#define SPI_MRAM0_Select_Port spiPORT3
 #define SPI_MRAM1_Select_Port spiPORT3
-#define SPI_MRAM3_Select_Port spiPORT5
-#define SPI_MRAM0_Select_Pin 0
-#define SPI_MRAM1_Select_Pin 0
-#define SPI_MRAM2_Select_Pin 2
-#define SPI_MRAM3_Select_Pin 0
+#define SPI_MRAM2_Select_Port spiPORT1
+#define SPI_MRAM3_Select_Port spiPORT3
+#define SPI_MRAM0_Select_Pin SPI_PIN_CS0
+#define SPI_MRAM1_Select_Pin SPI_PIN_ENA
+#define SPI_MRAM2_Select_Pin SPI_PIN_CS2
+#define SPI_MRAM3_Select_Pin SPI_PIN_CS1
 #define SPI_MRAM_Data_Format SPI_FMT_0
 
 // AX5043 SPI pins
 
-#define SPI_DCT_Reg spiREG3
-#define SPI_DCT_Select_Port hetPORT1 /*Gpio port for chip select*/
+#define SPI_DCT_Reg spiREG1
+#define SPI_Rx1DCT_Select_Port hetPORT1 /*Gpio port for chip select*/
 #define SPI_Rx1DCT_Select_Pin 3
+#define SPI_Rx2DCT_Select_Port hetPORT1
 #define SPI_Rx2DCT_Select_Pin 7
+#define SPI_Rx3DCT_Select_Port hetPORT1
 #define SPI_Rx3DCT_Select_Pin 9
+#define SPI_Rx4DCT_Select_Port hetPORT1
 #define SPI_Rx4DCT_Select_Pin 4
+#define SPI_TxDCT_Select_Port hetPORT1
 #define SPI_TxDCT_Select_Pin 12
 #define SPI_DCT_Data_Format SPI_FMT_0
 

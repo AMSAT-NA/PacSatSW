@@ -170,18 +170,17 @@ void startup(void)
     // HET2 and thus have no initHET routine from HCG.  Why does "set direction" what the entire
     // register, while SetBit takes the bit number?
     //
-    gioSetDirection(SPI_DCT_Select_Port,
-                    (1U<<SPI_Rx1DCT_Select_Pin)  |
-                    (1U<<SPI_Rx2DCT_Select_Pin)  |
-                    (1U<<SPI_Rx3DCT_Select_Pin)  |
-                    (1U<<SPI_Rx4DCT_Select_Pin)  |
-                    (1U<<SPI_TxDCT_Select_Pin));
+    gioSetDirection(SPI_Rx1DCT_Select_Port, (1U<<SPI_Rx1DCT_Select_Pin));
+    gioSetDirection(SPI_Rx2DCT_Select_Port, (1U<<SPI_Rx2DCT_Select_Pin));
+    gioSetDirection(SPI_Rx3DCT_Select_Port, (1U<<SPI_Rx3DCT_Select_Pin));
+    gioSetDirection(SPI_Rx4DCT_Select_Port, (1U<<SPI_Rx4DCT_Select_Pin));
+    gioSetDirection(SPI_TxDCT_Select_Port, (1U<<SPI_TxDCT_Select_Pin));
 
-    gioSetBit(SPI_DCT_Select_Port,SPI_Rx1DCT_Select_Pin,1); // Make chip select pins be high
-    gioSetBit(SPI_DCT_Select_Port,SPI_Rx2DCT_Select_Pin,1); // Make chip select pins be high
-    gioSetBit(SPI_DCT_Select_Port,SPI_Rx3DCT_Select_Pin,1); // Make chip select pins be high
-    gioSetBit(SPI_DCT_Select_Port,SPI_Rx4DCT_Select_Pin,1); // Make chip select pins be high
-    gioSetBit(SPI_DCT_Select_Port,SPI_TxDCT_Select_Pin,1); // Make chip select pins be high
+    gioSetBit(SPI_Rx1DCT_Select_Port,SPI_Rx1DCT_Select_Pin,1); // Make chip select pins be high
+    gioSetBit(SPI_Rx2DCT_Select_Port,SPI_Rx2DCT_Select_Pin,1); // Make chip select pins be high
+    gioSetBit(SPI_Rx3DCT_Select_Port,SPI_Rx3DCT_Select_Pin,1); // Make chip select pins be high
+    gioSetBit(SPI_Rx4DCT_Select_Port,SPI_Rx4DCT_Select_Pin,1); // Make chip select pins be high
+    gioSetBit(SPI_TxDCT_Select_Port,SPI_TxDCT_Select_Pin,1); // Make chip select pins be high
 #endif
     /*
      * RTI is used by FreeRTOS as its clock and also by the watchdog as its counter.
