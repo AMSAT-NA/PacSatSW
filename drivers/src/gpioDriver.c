@@ -30,25 +30,57 @@
 #include "os_semphr.h"
 
 /*
- * Base functions for a GPIO type, like the PORT ones (gio, het, spi) or
- * the CAN ones.
+ * Adding a GPIO...
+ *
+ * To add a GPIO, first add the name to the Gpio_Use enum(s) in the
+ * gpioDriver.h file.  There are different ones for different
+ * hardware, so add it to the right ones.
+ *
+ * Next add a GPIOInfo structure under the proper hardware ifdefs
+ * further down in the file.  This structure must be const.
+ *
+ * Then add your new GPIOInfo struct to GPIOInfoStructures[] for the given
+ * hardware and to to GPIONames[].
+ */
+
+/*
+ * Base functions for a GPIO type, like the PORT ones (gio, het, spi),
+ * CAN, eclk, dummy, etc.
  */
 typedef struct GPIOFuncs {
+    /* Set the particular pin to the given raw value. */
     void (*setBit)(const GPIOHandler *h, uint16_t pinNum, uint16_t val);
+
+    /* Get the raw value of the given pin. */
     uint16_t (*getBit)(const GPIOHandler *h, uint16_t pinNum);
+
+    /* Toggle the raw value of the given pin. */
     void (*toggleBit)(const GPIOHandler *h, uint16_t pinNum);
+
+    /* Set the direction of the pin, out for true, in for false. */
     void (*setDirectionOut)(const GPIOHandler *h, uint16_t pinNum, bool v);
+
+    /* Set whether the given pin is open collector. */
     void (*setOpenCollector)(const GPIOHandler *h, uint16_t pinNum, bool v);
 } GPIOFuncs;
 
 /*
- * Structure to represent a GPIO port that can have multiple pins in it.
- * This will be a const struct when defined.
+ * Structure to represent a GPIO type.  You must use const when you
+ * define this.
+ *
+ * To create a new GPIO type, you must create a GPIOFuncs structure
+ * (assuming you can't use an existing one).  The data value can be
+ * anything you want.  For port types it holds the direction and
+ * gioPORT info, for instance.  There are plenty of examples below.
  */
 struct _GPIOHandler {
-    gioPORT_t *port;
     void *data;
     const GPIOFuncs *funcs;
+
+    /*
+     * Can the GPIO in this type be used as an interrupt?  This should
+     * only be set for gioA and gioB types.
+     */
     bool CanInterrupt;
 };
 
@@ -384,14 +416,48 @@ const GPIOHandler dummyGPIO = {
  * This structure defines each GPIO that is in use.
  */
 typedef struct _GPIOInfo {
+    /*
+     * This describes the particular GPIO type.  The current set of
+     * available ones is in gpioDriver.h, search for GPIOHandler.  See
+     * comments on the GPIOHandler structure for more details.
+     */
     const GPIOHandler *info;
+
+    /*
+     * The particular pin number for the GPIO.  Each GPIO type has one
+     * or more pins, this tells you which one.  For GPIO types with one
+     * pin (eclk for instance) you don't have to set this.
+     */
     uint16_t PinNum;
+
+    /*
+     * The initial state of an output.  It takes negative logic into
+     * account.  This only has to be set for output GPIOs.
+     */
     bool InitialStateOn;
+
+    /*
+     * If true, the GPIO is an output.  If false it is an input.
+     */
     bool DirectionIsOut;
+
+    /*
+     * If true, and the device is set up for interrupts, an interrupt
+     * will be generated on rising and falling edges of the GPIO.
+     * Otherwise it will be the edge set by HalGoGen.
+     */
     bool InterruptBothEdges;
+
+    /*
+     * If true, set the output to open collector.  If not, it's a push
+     * pull output.  Only valid for outputs.
+     */
     bool OpenCollector;
 
     /*
+     * If true, set 1 as the "off" value and 0 as the "on" value.  If false,
+     * do the opposite.
+     *
      * This affects GPIOIsOn, GPIOSetOn and GPIOSetOff.  If does not
      * affect GPIORead or GPIOSet.
      */

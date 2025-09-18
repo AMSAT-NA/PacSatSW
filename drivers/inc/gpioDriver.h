@@ -14,7 +14,8 @@
 
 /*
  * IMPORTANT: If you add something to Gpio_Use, make sure to add it to
- * GPIONames and GPIOInfoStructures in gpioDriver.c.
+ * GPIONames and GPIOInfoStructures in gpioDriver.c.  For instructions
+ * on adding GPIOs, see the comments near the top of gpioDriver.c.
  */
 #ifdef LAUNCHPAD_HARDWARE
 typedef enum gu {
@@ -69,14 +70,30 @@ typedef enum gu {
 
 typedef struct _GPIOHandler GPIOHandler;
 
+/*
+ * Standard GPIOs.  These are the only ones that support interrupts.
+ */
 extern const GPIOHandler gioPortAGPIO;
 extern const GPIOHandler gioPortBGPIO;
+
+/*
+ * Using HET pins for GPIO.  Use the HET number as the pin number.
+ */
 extern const GPIOHandler hetPort1GPIO;
+
+/*
+ * Using SPI pins as GPIOs.  Use the spiPinSelect values in spi.h
+ * for the pin numbers.
+ */
 extern const GPIOHandler spiPort1GPIO;
 extern const GPIOHandler spiPort3GPIO;
 extern const GPIOHandler spiPort5GPIO;
 
-// A GPIO that doesn't do anything and always reads 0.
+/*
+ * A GPIO that doesn't do anything and always reads 0.  This is
+ * useful for avoiding ugly ifdefs in code, for instance on power
+ * enables when the particular board doesn't have one.
+ */
 extern const GPIOHandler dummyGPIO;
 
 /* CAN bus GPIO pins and structure. */
