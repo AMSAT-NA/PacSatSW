@@ -75,7 +75,7 @@
 #define I2c2_HET_SDA_Pin 14
 
 
-#elif BLINKY_HARDWARE
+#elif defined(BLINKY_HARDWARE)
 
 //GPIO Definitions
 
