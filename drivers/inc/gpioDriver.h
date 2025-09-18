@@ -53,10 +53,20 @@ typedef enum gu {
     MRAM0_Sel, MRAM1_Sel, MRAM2_Sel, MRAM3_Sel,
     SSPAPower, AX5043Power, Watchdog,
 
+    /* GPIOs from the other board in an active standby setup. */
     OtherFault, OtherPowerOffState, OtherPresense, OtherActive,
+
+    /*
+     * GPIOs I control for active/standby.  ImActive must be set on a
+     * simplex board with the RF loopback hardware in place.
+     */
     OtherPowerOff, ImActive,
 
+    /*
+     * Are we in the launch vehicle?  Inhibit any activity if so.
+     */
     UmbilicalAttached,
+
     LNAPower, MeasurePower,
 
     AX5043_Rx1_Power, AX5043_Rx2_Power, AX5043_Rx3_Power, AX5043_Rx4_Power,
