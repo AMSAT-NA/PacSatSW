@@ -361,8 +361,6 @@ static const GPIOInfo LED1Info = {
     .PinNum               = GPIOLed1Pin,
     .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
     .NegativeLogic        = true,
 };
 
@@ -371,8 +369,6 @@ static const GPIOInfo LED2Info = {
     .PinNum               = GPIOLed2Pin,
     .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
     .NegativeLogic        = true,
 };
 
@@ -381,8 +377,7 @@ static const GPIOInfo MRAM0_Selector = {
     .PinNum               = SPI_MRAM0_Select_Pin,
     .InitialStateOn       = GPIO_ON,
     .DirectionIsOut       = GPIO_OUT,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
+    .NegativeLogic        = true,
 };
 
 static const GPIOInfo MRAM1_Selector = {
@@ -390,8 +385,7 @@ static const GPIOInfo MRAM1_Selector = {
     .PinNum               = SPI_MRAM1_Select_Pin,
     .InitialStateOn       = GPIO_ON,
     .DirectionIsOut       = GPIO_OUT,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
+    .NegativeLogic        = true,
 };
 
 static const GPIOInfo MRAM2_Selector = {
@@ -399,8 +393,7 @@ static const GPIOInfo MRAM2_Selector = {
     .PinNum               = SPI_MRAM2_Select_Pin,
     .InitialStateOn       = GPIO_ON,
     .DirectionIsOut       = GPIO_OUT,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
+    .NegativeLogic        = true,
 };
 
 static const GPIOInfo MRAM3_Selector = {
@@ -408,8 +401,7 @@ static const GPIOInfo MRAM3_Selector = {
     .PinNum               = SPI_MRAM3_Select_Pin,
     .InitialStateOn       = GPIO_ON,
     .DirectionIsOut       = GPIO_OUT,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
+    .NegativeLogic        = true,
 };
 
 static const GPIOInfo AX5043_Rx1_InterruptInfo = {
@@ -417,8 +409,7 @@ static const GPIOInfo AX5043_Rx1_InterruptInfo = {
     .PinNum               = GPIO_Rx1AX5043InterruptPin,
     .InitialStateOn       = GPIO_UNUSED,
     .DirectionIsOut       = GPIO_IN,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
+    .NegativeLogic        = true,
 };
 
 static const GPIOInfo AX5043_Tx_InterruptInfo = {
@@ -426,8 +417,7 @@ static const GPIOInfo AX5043_Tx_InterruptInfo = {
     .PinNum               = GPIO_TxAX5043InterruptPin,
     .InitialStateOn       = GPIO_UNUSED,
     .DirectionIsOut       = GPIO_IN,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
+    .NegativeLogic        = true,
 };
 
 static const GPIOInfo AX5043_Rx1_Selector = {
@@ -435,8 +425,7 @@ static const GPIOInfo AX5043_Rx1_Selector = {
     .PinNum               = SPI_Rx1AX5043_Select_Pin,
     .InitialStateOn       = GPIO_ON,
     .DirectionIsOut       = GPIO_OUT,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
+    .NegativeLogic        = true,
 };
 
 static const GPIOInfo AX5043_Tx_Selector = {
@@ -444,37 +433,27 @@ static const GPIOInfo AX5043_Tx_Selector = {
     .PinNum               = SPI_TxAX5043_Select_Pin,
     .InitialStateOn       = GPIO_ON,
     .DirectionIsOut       = GPIO_OUT,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
+    .NegativeLogic        = true,
 };
 
 #ifdef LAUNCHPAD_HARDWARE
 
 static const GPIOInfo LED3Info = {
     .info                 = &dummyGPIO,
-    .PinNum               = 0,
     .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
 };
 
 static const GPIOInfo SSPAPowerInfo = {
     .info                 = &dummyGPIO,
-    .PinNum               = 0,
     .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
 };
 
 static const GPIOInfo Ax5043PowerInfo = {
     .info                 = &dummyGPIO,
-    .PinNum               = 0,
     .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
 };
 
 /*
@@ -493,7 +472,7 @@ static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] = {
 #ifdef DEBUG
 static const char *GPIONames[NumberOfGPIOs] = {
     "LED1", "LED2", "LED3", "AX5043_Rx1_Interrupt", "AX5043_Tx_Interrupt",
-    "AX5043_Sel0", "AX5043_Sel1",
+    "AX5043_Rx1_Interrupt", "AX5043_Tx_Interrupt",
     "MRAM0_Sel", "MRAM1_Sel", "MRAM2_Sel", "MRAM3_Sel",
     "SSPAPower", "AX5043Power",
 };
@@ -506,8 +485,6 @@ static const GPIOInfo LED3Info = {
     .PinNum               = GPIOLed3Pin,
     .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
     .NegativeLogic        = true,
 };
 
@@ -516,8 +493,7 @@ static const GPIOInfo AX5043_Rx2_InterruptInfo = {
     .PinNum               = GPIO_Rx2AX5043InterruptPin,
     .InitialStateOn       = GPIO_UNUSED,
     .DirectionIsOut       = GPIO_IN,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
+    .NegativeLogic        = true,
 };
 
 static const GPIOInfo AX5043_Rx3_InterruptInfo = {
@@ -525,8 +501,7 @@ static const GPIOInfo AX5043_Rx3_InterruptInfo = {
     .PinNum               = GPIO_Rx3AX5043InterruptPin,
     .InitialStateOn       = GPIO_UNUSED,
     .DirectionIsOut       = GPIO_IN,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
+    .NegativeLogic        = true,
 };
 
 static const GPIOInfo AX5043_Rx4_InterruptInfo = {
@@ -534,8 +509,7 @@ static const GPIOInfo AX5043_Rx4_InterruptInfo = {
     .PinNum               = GPIO_Rx4AX5043InterruptPin,
     .InitialStateOn       = GPIO_UNUSED,
     .DirectionIsOut       = GPIO_IN,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
+    .NegativeLogic        = true,
 };
 
 static const GPIOInfo AX5043_Rx2_Selector = {
@@ -543,8 +517,7 @@ static const GPIOInfo AX5043_Rx2_Selector = {
     .PinNum               = SPI_Rx2AX5043_Select_Pin,
     .InitialStateOn       = GPIO_ON,
     .DirectionIsOut       = GPIO_OUT,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
+    .NegativeLogic        = true,
 };
 
 static const GPIOInfo AX5043_Rx3_Selector = {
@@ -552,8 +525,7 @@ static const GPIOInfo AX5043_Rx3_Selector = {
     .PinNum               = SPI_Rx3AX5043_Select_Pin,
     .InitialStateOn       = GPIO_ON,
     .DirectionIsOut       = GPIO_OUT,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
+    .NegativeLogic        = true,
 };
 
 static const GPIOInfo AX5043_Rx4_Selector = {
@@ -561,8 +533,7 @@ static const GPIOInfo AX5043_Rx4_Selector = {
     .PinNum               = SPI_Rx4AX5043_Select_Pin,
     .InitialStateOn       = GPIO_ON,
     .DirectionIsOut       = GPIO_OUT,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
+    .NegativeLogic        = true,
 };
 
 static const GPIOInfo SSPAPowerInfo = {
@@ -570,8 +541,6 @@ static const GPIOInfo SSPAPowerInfo = {
     .PinNum               = GPIOsspaPowerPin,
     .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
 #ifdef BLINKY_HARDWARE
     .NegativeLogic        = true,
 #endif
@@ -582,8 +551,6 @@ static const GPIOInfo Ax5043PowerInfo = {
     .PinNum               = GPIOax5043PowerPin,
     .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
 #ifdef BLINKY_HARDWARE
     .NegativeLogic        = true,
 #endif

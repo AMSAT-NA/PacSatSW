@@ -226,8 +226,8 @@ void SPIInit(SPIDevice thisDeviceNumber) {
     const SPIDevInfo *thisDevInfo = SPIDevInfoStructures[thisDeviceNumber];
     SPIBusData *thisBusData = thisDevInfo->thisBusData;
     // Here is the only thing we need to do with the device itself
-    GPIOSetPinDirection(thisDevInfo->selGPIO, true); // Define this "GPIO" as output
-    GPIOSetOn(thisDevInfo->selGPIO); // Make sure it is set high initially
+    GPIOSetPinDirection(thisDevInfo->selGPIO, GPIO_OUT);
+    GPIOSetOff(thisDevInfo->selGPIO); // Make sure it is disabled initially
 
     if(!SPIIsInitted){
         /*
@@ -332,15 +332,11 @@ bool SPISendCommand(SPIDevice device, uint32_t command,uint8_t comLength, void *
 }
 static void CompleteIO(SPIBusData *thisBusData, const SPIDevInfo *thisDevInfo)
 {
-    GPIOSetOn(thisDevInfo->selGPIO);
+    GPIOSetOff(thisDevInfo->selGPIO);
 }
 static bool StartIO(SPIBusData *thisBusData, const SPIDevInfo *thisDevInfo)
 {
-    /*
-     * Turn on (low) the select line for whichever device is chosen
-     */
-
-    GPIOSetOff(thisDevInfo->selGPIO);
+    GPIOSetOn(thisDevInfo->selGPIO);
 
     /*
      * Now we start the I/O in the first state that exists.  The
