@@ -53,17 +53,21 @@ void ForceExternalWatchdogTrigger(void){
     DoExternalResetOk = false;
     while(1){ResetInternalWatchdog();}
 }
-void ResetExternalWatchdog(void){
-    static bool isOn=true;
-    if(DoExternalResetOk){
-        if(isOn){
-            //GPIOSetOff(WatchdogFeed);
+
+void ResetExternalWatchdog(void)
+{
+    static bool isOn = true;
+
+    if (DoExternalResetOk) {
+        if (isOn) {
+            GPIOSetOff(Watchdog);
         } else {
-            //GPIOSetOn(WatchdogFeed);
+            GPIOSetOn(Watchdog);
         }
         isOn = !isOn;
     }
 }
+
 void ResetInternalWatchdog(void){
 #ifdef WATCHDOG_ENABLE    /* start up the watchdog - relies on CheckAndResetWatchdogs running faster than timeout */
     dwdReset();
