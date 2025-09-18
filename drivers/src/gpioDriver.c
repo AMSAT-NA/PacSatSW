@@ -201,15 +201,15 @@ static void CANGPIO_setBit(const GPIOHandler *h, uint16_t pinNum, uint16_t val)
     canBASE_t *can = info->can;
 
     if (pinNum == CAN_GPIO_RX) {
-	if (val)
-	    can->RIOC |= 2;
-	else
-	    can->RIOC &= ~2;
+        if (val)
+            can->RIOC |= 2;
+        else
+            can->RIOC &= ~2;
     } else if (pinNum == CAN_GPIO_TX) {
-	if (val)
-	    can->TIOC |= 2;
-	else
-	    can->TIOC &= ~2;
+        if (val)
+            can->TIOC |= 2;
+        else
+            can->TIOC &= ~2;
     }
 }
 
@@ -220,9 +220,9 @@ static uint16_t CANGPIO_getBit(const GPIOHandler *h, uint16_t pinNum)
     uint16_t rv = 0;
 
     if (pinNum == CAN_GPIO_RX) {
-	rv = can->RIOC;
+        rv = can->RIOC;
     } else if (pinNum == CAN_GPIO_TX) {
-	rv = can->TIOC;
+        rv = can->TIOC;
     }
     return rv & 1;
 }
@@ -233,47 +233,47 @@ static void CANGPIO_toggleBit(const GPIOHandler *h, uint16_t pinNum)
     canBASE_t *can = info->can;
 
     if (pinNum == CAN_GPIO_RX) {
-	can->RIOC ^= 2;
+        can->RIOC ^= 2;
     } else if (pinNum == CAN_GPIO_TX) {
-	can->TIOC ^= 2;
+        can->TIOC ^= 2;
     }
 }
 
 static void CANGPIO_setDirectionOut(const GPIOHandler *h, uint16_t pinNum,
-				    bool val)
+                                    bool val)
 {
     CANGPIOInfo *info = h->data;
     canBASE_t *can = info->can;
 
     if (pinNum == CAN_GPIO_RX) {
-	if (val)
-	    can->RIOC |= 4;
-	else
-	    can->RIOC &= ~4;
+        if (val)
+            can->RIOC |= 4;
+        else
+            can->RIOC &= ~4;
     } else if (pinNum == CAN_GPIO_TX) {
-	if (val)
-	    can->TIOC |= 4;
-	else
-	    can->TIOC &= ~4;
+        if (val)
+            can->TIOC |= 4;
+        else
+            can->TIOC &= ~4;
     }
 }
 
 static void CANGPIO_setOpenCollector(const GPIOHandler *h, uint16_t pinNum,
-				     bool val)
+                                     bool val)
 {
     CANGPIOInfo *info = h->data;
     canBASE_t *can = info->can;
 
     if (pinNum == CAN_GPIO_RX) {
-	if (val)
-	    can->RIOC |= (1 << 16);
-	else
-	    can->RIOC &= ~(1 << 16);
+        if (val)
+            can->RIOC |= (1 << 16);
+        else
+            can->RIOC &= ~(1 << 16);
     } else if (pinNum == CAN_GPIO_TX) {
-	if (val)
-	    can->TIOC |= (1 << 16);
-	else
-	    can->TIOC &= ~(1 << 16);
+        if (val)
+            can->TIOC |= (1 << 16);
+        else
+            can->TIOC &= ~(1 << 16);
     }
 }
 
@@ -413,13 +413,20 @@ static const GPIOInfo AX5043_Tx_Selector = {
  * enum index.
  */
 
-static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] =
-{
+static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] = {
     &LED1Info, &LED2Info,
     &AX5043_Rx1_InterruptInfo, &AX5043_Tx_InterruptInfo,
     &AX5043_Rx1_Selector, &AX5043_Tx_Selector,
     &MRAM0_Selector, &MRAM1_Selector, &MRAM2_Selector, &MRAM3_Selector,
 };
+
+#ifdef DEBUG
+static const char *GPIONames[NumberOfGPIOs] = {
+    "LED1", "LED2", "AX5043_Rx1_Interrupt", "AX5043_Tx_Interrupt",
+    "AX5043_Sel0", "AX5043_Sel1",
+    "MRAM0_Sel", "MRAM1_Sel", "MRAM2_Sel", "MRAM3_Sel",
+};
+#endif
 
 #else
 
@@ -522,6 +529,18 @@ static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] =
     &SSPAPowerInfo, &Ax5043PowerInfo
 };
 
+#ifdef DEBUG
+static const char *GPIONames[NumberOfGPIOs] = {
+    "LED1", "LED2", "LED3",
+    "AX5043_Rx1_Interrupt", "AX5043_Rx2_Interrupt", "AX5043_Rx3_Interrupt", "AX5043_Rx4_Interrupt",
+    "AX5043_Tx_Interrupt",
+    "AX5043_Rx1_Sel", "AX5043_Rx2_Sel", "AX5043_Rx3_Sel", "AX5043_Rx4_Sel",
+    "AX5043_Tx_Sel",
+    "MRAM0_Sel", "MRAM1_Sel", "MRAM2_Sel", "MRAM3_Sel",
+    "SSPAPower", "AX5043Power",
+};
+#endif
+
 #else
 
 /* Put AFSK-specific hardware here when the time comes. */
@@ -537,12 +556,35 @@ static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] =
     &SSPAPowerInfo, &Ax5043PowerInfo
 };
 
+#ifdef DEBUG
+static const char *GPIONames[NumberOfGPIOs] = {
+    "LED1", "LED2", "LED3",
+    "AX5043_Rx1_Interrupt", "AX5043_Rx2_Interrupt", "AX5043_Rx3_Interrupt", "AX5043_Rx4_Interrupt",
+    "AX5043_Tx_Interrupt",
+    "AX5043_Rx1_Sel", "AX5043_Rx2_Sel", "AX5043_Rx3_Sel", "AX5043_Rx4_Sel",
+    "AX5043_Tx_Sel",
+    "MRAM0_Sel", "MRAM1_Sel", "MRAM2_Sel", "MRAM3_Sel",
+    "SSPAPower", "AX5043Power",
+};
+#endif
+
 #endif
 #endif
 
 static bool GPIOUsable[NumberOfGPIOs];
 static IntertaskMessageType GPIOMessage[NumberOfGPIOs];
 static DestinationTask GPIOMessageDestination[NumberOfGPIOs];
+
+#ifdef DEBUG
+const char *GPIOToName(Gpio_Use whichGpio)
+{
+    if (whichGpio < (Gpio_Use) 0)
+        return "None";
+    if (whichGpio >= NumberOfGPIOs)
+        return "?";
+    return GPIONames[(int)whichGpio];
+}
+#endif
 
 bool GPIOEzInit(Gpio_Use whichGpio)
 {

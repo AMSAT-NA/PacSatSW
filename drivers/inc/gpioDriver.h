@@ -11,6 +11,11 @@
 #include "config.h"
 #include "interTaskNotify.h"
 
+
+/*
+ * IMPORTANT: If you add something to Gpio_Use, make sure to add it to
+ * GPIONames and GPIOInfoStructures in gpioDriver.c.
+ */
 #ifdef LAUNCHPAD_HARDWARE
 typedef enum gu {
     No_GPIO=-1,
@@ -29,7 +34,7 @@ typedef enum gu {
     AX5043_Rx1_Sel, AX5043_Rx2_Sel, AX5043_Rx3_Sel, AX5043_Rx4_Sel,
     AX5043_Tx_Sel,
     MRAM0_Sel, MRAM1_Sel, MRAM2_Sel, MRAM3_Sel,
-    SSPAPower,AX5043Power,
+    SSPAPower, AX5043Power,
     NumberOfGPIOs
 } Gpio_Use;
 
@@ -42,7 +47,7 @@ typedef enum gu {
     AX5043_Rx1_Sel, AX5043_Rx2_Sel, AX5043_Rx3_Sel, AX5043_Rx4_Sel,
     AX5043_Tx_Sel,
     MRAM0_Sel, MRAM1_Sel, MRAM2_Sel, MRAM3_Sel,
-    SSPAPower,AX5043Power,
+    SSPAPower, AX5043Power,
     NumberOfGPIOs
 } Gpio_Use;
 #endif
@@ -80,7 +85,8 @@ void GPIOSetOn(Gpio_Use whichGpio);
 void GPIOSetOff(Gpio_Use whichGpio);
 void GPIOToggle(Gpio_Use whichGpio);
 uint16_t GPIORead(Gpio_Use whichGpio);
-void GPIOSetPinDirection(Gpio_Use whichGpio ,bool IsOut);
+void GPIOSetPinDirection(Gpio_Use whichGpio, bool IsOut);
+const char *GPIOToName(Gpio_Use whichGpio);
 
 #endif /* GPIO_H_ */
 

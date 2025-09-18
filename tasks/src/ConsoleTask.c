@@ -517,16 +517,14 @@ void RealConsoleTask(void)
         }
 #ifdef DEBUG
         case GetGpios:{
-            int i;
-            char *gpioNames[NumberOfGPIOs]={
-                                            "LED1","LED2","LED3","Rx0Interrupt","Rx1Interrupt","Rx2Interrupt2","Rx3Interrupt"
-                                            ,"TxInterrupt4", "SSPAPower","AX5043Power"
-            };
-            for (i=0; i < NumberOfGPIOs; i++) {
-                if (i % 4 == 0) {
+            Gpio_Use i;
+	    int count;
+
+            for (i = (Gpio_Use) 0, count = 0; i < NumberOfGPIOs; i++, count++) {
+                if (count % 4 == 0) {
                     printf("\n");
                 }
-                printf("%s:%d ", gpioNames[i], GPIOIsOn((Gpio_Use)i));
+                printf("%s:%d ", GPIOToName(i), GPIOIsOn(i));
             }
             printf("\n");
             break;
