@@ -138,23 +138,6 @@ void startup(void)
      * to high (not selected)
      */
     //MRAM
-#ifdef LAUNCHPAD_HARDWARE
-    /*
-     * FIXME - Figure out what these things are and convert them to
-     * normal GPIOs if necessary.
-     */
-       
-    gioSetDirection(gioPORTB,6);
-    gioSetBit(gioPORTB,1,1);
-    gioSetBit(gioPORTB,2,1);
-    gioSetDirection(spiPORT1,7); // Make chip select pins be output
-    gioSetDirection(spiPORT3,7); //
-    gioSetDirection(spiPORT5,7); //
-    gioSetBit(spiPORT3,0,1);
-
-    gioSetBit(spiPORT3,1,1);  //Set chip selects high just in case
-    gioSetBit(spiPORT3,2,1);
-#endif
 
     /*
      * RTI is used by FreeRTOS as its clock and also by the watchdog as its counter.
