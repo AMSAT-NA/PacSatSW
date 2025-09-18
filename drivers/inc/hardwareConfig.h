@@ -34,10 +34,10 @@
 #define GPIOLed2Port gioPortBGPIO
 #define GPIOLed2Pin 2
 
-#define GPIO_AX5043_0_InterruptPort gioPortBGPIO
-#define GPIO_AX5043_0_InterruptPin  0
-#define GPIO_AX5043_1_InterruptPort gioPortBGPIO
-#define GPIO_AC5043_1_InterruptPin  3
+#define GPIO_Rx1AX5043InterruptPort gioPortBGPIO
+#define GPIO_Rx1AX5043InterruptPin  0
+#define GPIO_TxAX5043InterruptPort gioPortBGPIO
+#define GPIO_TxAX5043InterruptPin  3
 
 
 // Serial port definitions
@@ -54,19 +54,23 @@
 // SPI Definitions
 
 #define SPI_MRAM_Reg spiREG1
-#define SPI_MRAM_Select_Port spiPort1GPIO /*Gpio port for chip select*/
+#define SPI_MRAM0_Select_Port spiPort1GPIO /*Gpio port for chip select*/
 #define SPI_MRAM0_Select_Pin 0
+#define SPI_MRAM1_Select_Port spiPort1GPIO /*Gpio port for chip select*/
 #define SPI_MRAM1_Select_Pin 1
+#define SPI_MRAM2_Select_Port spiPort1GPIO /*Gpio port for chip select*/
 #define SPI_MRAM2_Select_Pin 2
+#define SPI_MRAM3_Select_Port spiPort1GPIO /*Gpio port for chip select*/
 #define SPI_MRAM3_Select_Pin 5
 #define SPI_MRAM_Data_Format SPI_FMT_0
 
-#define SPI_AX5043_Reg spiREG3
-#define SPI_AX5043_Select_Port spiPort3GPIO /*Gpio port for chip select*/
-#define SPI_AX5043_0_Select_Pin 1
-#define SPI_AX5043_1_Select_Pin 4
-#define SPI_AX5043_Data_Format SPI_FMT_0
 
+#define SPI_AX5043_Reg spiREG3
+#define SPI_Rx1AX5043_Select_Port spiPort3GPIO /*Gpio port for chip select*/
+#define SPI_Rx1AX5043_Select_Pin 1
+#define SPI_TxAX5043_Select_Port spiPort3GPIO /*Gpio port for chip select*/
+#define SPI_TxAX5043_Select_Pin 4
+#define SPI_AX5043_Data_Format SPI_FMT_0
 
 
 #define I2c2_HET_Port hetPORT2 /* For GPIO-like ops*/

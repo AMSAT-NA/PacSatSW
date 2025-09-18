@@ -222,19 +222,14 @@ void ConsoleTask(void *pvParameters){
 
     // Initialize the SPI driver for our SPI devices
 
-#ifdef LAUNCHPAD_HARDWARE
-    //    SPIInit(TxAX5043Dev); // This is the transmitter on UHF
-    //    SPIInit(Rx1AX5043Dev); // This is the receiver on VHF on the Pacsat Booster Board
-
-    SPIInit(AX5043Dev0); // This is the receiver on VHF on the Pacsat Booster Board
-    SPIInit(AX5043Dev1); // This is the transmitter on UHF
-#else
-    SPIInit(Rx1AX5043Dev); // This is the receiver on VHF on the Pacsat Booster Board
-    SPIInit(Rx2AX5043Dev); // This is the receiver on VHF on the Pacsat Booster Board
-    SPIInit(Rx3AX5043Dev); // This is the receiver on VHF on the Pacsat Booster Board
-    SPIInit(Rx4AX5043Dev); // This is the receiver on VHF on the Pacsat Booster Board
-    SPIInit(TxAX5043Dev); // This is the transmitter on UHF
+    // First receiver is always present
+    SPIInit(Rx1AX5043Dev);
+#ifndef LAUNCHPAD_HARDWARE
+    SPIInit(Rx2AX5043Dev);
+    SPIInit(Rx3AX5043Dev);
+    SPIInit(Rx4AX5043Dev);
 #endif
+    SPIInit(TxAX5043Dev); // This is the transmitter on UHF
     SPIInit(MRAM0Dev);
     SPIInit(MRAM1Dev);
     SPIInit(MRAM2Dev);
@@ -251,19 +246,14 @@ void ConsoleTask(void *pvParameters){
     initMET();
     I2cInit(I2C1);
 
+    GPIOInit(AX5043_Rx1_Interrupt, ToRxTask, AX5043_Rx1_InterruptMsg);
+    GPIOInit(AX5043_Tx_Interrupt, ToTxTask, AX5043_Tx_InterruptMsg);
 #ifdef LAUNCHPAD_HARDWARE
     I2cInit(I2C2);
-    GPIOEzInit(LED1);
-    GPIOEzInit(LED2);
-    GPIOInit(AX5043_0_Interrupt, ToRxTask, Rx0AX5043_0_InterruptMsg);
-    //    GPIOInit(Rx0AX5043Interrupt,ToRxTask,Rx0AX5043InterruptMsg);
-    //    GPIOInit(TxAX5043Interrupt,ToTxTask,TxAX5043InterruptMsg);
 #else
-    GPIOInit(AX5043_Rx1_Interrupt, ToRxTask, AX5043_Rx1_InterruptMsg);
     GPIOInit(AX5043_Rx2_Interrupt, ToRxTask, AX5043_Rx2_InterruptMsg);
     GPIOInit(AX5043_Rx3_Interrupt, ToRxTask, AX5043_Rx3_InterruptMsg);
     GPIOInit(AX5043_Rx4_Interrupt, ToRxTask, AX5043_Rx4_InterruptMsg);
-    GPIOInit(AX5043_Tx_Interrupt, ToTxTask, AX5043_Tx_InterruptMsg);
 #endif
     /* Poll the I2C devices to see which are working.
      * This also calls the init routine for the temperature device */

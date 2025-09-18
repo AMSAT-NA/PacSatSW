@@ -14,7 +14,7 @@
 #ifdef LAUNCHPAD_HARDWARE
 typedef enum gu {
     No_GPIO=-1,
-    LED1, LED2, AX5043Interrupt0, AX5043Interrupt1,
+    LED1, LED2, AX5043_Rx1_Interrupt, AX5043_Tx_Interrupt,
     AX5043_Sel0, AX5043_Sel1,
     MRAM0_Sel, MRAM1_Sel, MRAM2_Sel, MRAM3_Sel,
     NumberOfGPIOs

@@ -17,6 +17,7 @@
  * instructions in the README file of PacSatHardware */
 //#define LAUNCHPAD_HARDWARE
 //#define BLINKY_HARDWARE
+#define AFSK_HARDWARE
 
 #define PACSAT_NUMBER "0" // This PacSat number is only used in the PACSAT_FW_VERSION_STRING below.
 
