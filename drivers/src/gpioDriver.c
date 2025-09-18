@@ -827,7 +827,7 @@ const char *GPIOToName(Gpio_Use whichGpio)
 bool GPIOEzInit(Gpio_Use whichGpio)
 {
     // Save some typing, reading, and some code space for most init calls
-    return GPIOInit(whichGpio,NO_TASK,NO_MESSAGE);
+    return GPIOInit(whichGpio, NO_TASK, NO_MESSAGE);
 }
 
 bool GPIOInit(Gpio_Use whichGpio, DestinationTask task, IntertaskMessageType msg)
@@ -850,7 +850,8 @@ bool GPIOInit(Gpio_Use whichGpio, DestinationTask task, IntertaskMessageType msg
     }
 #endif
 
-    GPIOSetPinDirection(whichGpio, thisGPIO->DirectionIsOut);
+    thisGPIO->info->funcs->setDirectionOut(thisGPIO->info, thisGPIO->PinNum,
+					   thisGPIO->DirectionIsOut);
 
     if (thisGPIO->DirectionIsOut) {
 
@@ -1002,13 +1003,6 @@ uint16_t GPIORead(Gpio_Use whichGpio)
 #endif
 
     return thisGPIO->info->funcs->getBit(thisGPIO->info, thisGPIO->PinNum);
-}
-
-void GPIOSetPinDirection(Gpio_Use whichGpio, bool IsOut)
-{
-    const GPIOInfo *thisGPIO = GPIOInfoStructures[whichGpio];
-
-    thisGPIO->info->funcs->setDirectionOut(thisGPIO->info, thisGPIO->PinNum, IsOut);
 }
 
 static void GPIOIntRoutine(Gpio_Use whichGPIO)

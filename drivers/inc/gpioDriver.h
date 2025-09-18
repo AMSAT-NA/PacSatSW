@@ -87,26 +87,59 @@ extern const GPIOHandler can1GPIO;
 /* GPIO for the ECLK pin, there is only one. */
 extern const GPIOHandler eclkGPIO;
 
-
 #define GPIO_OFF false
 #define GPIO_ON true
 
-// These are for the WhoAmI gpio
-#define GPIO_SECONDARY true
-#define GPIO_PRIMARY false
+#define NO_MESSAGE ((IntertaskMessageType)-1)
+#define NO_TASK ((DestinationTask)-1)
 
-#define NO_MESSAGE (IntertaskMessageType)-1
-#define NO_TASK (DestinationTask)-1
+/*
+ * Initialize a GPIO.  All GPIOs used by the system must be initialized
+ * before they can be used.
+ *
+ * If task is not NO_TASK, then this GPIO must support interrupts
+ * (gioA or giob) and when an interrupt comes in on the GPIO, the
+ * given msg is sent to the task.
+ */
+bool GPIOInit(Gpio_Use whichGpio, DestinationTask task,
+	      IntertaskMessageType msg);
+
+/* Simplified GPIO init with no tasks or messages. */
 bool GPIOEzInit(Gpio_Use whichGpio);
-bool GPIOInit(Gpio_Use whichGpio, DestinationTask task, IntertaskMessageType);
-bool GPIOIsOn(Gpio_Use whichGpio);
-void GPIOSet(Gpio_Use whichGpio, bool v);
-void GPIOSetOn(Gpio_Use whichGpio);
-void GPIOSetOff(Gpio_Use whichGpio);
-void GPIOToggle(Gpio_Use whichGpio);
+
+/*
+ * Read the raw value of the GPIO, no logic translation is done.
+ */
 uint16_t GPIORead(Gpio_Use whichGpio);
-void GPIOSetPinDirection(Gpio_Use whichGpio, bool IsOut);
+
+/*
+ * Returns true if the GPIO is on and false if it is not.  This takes
+ * negative logic into account, if the GPIO is set as negative logic,
+ * then if the raw value is 0, it is on.
+ */
+bool GPIOIsOn(Gpio_Use whichGpio);
+
+/*
+ * Set the raw value of the GPIO, no logic translation is done.
+ */
+void GPIOSet(Gpio_Use whichGpio, bool v);
+
+/*
+ * Set the GPIO to on related to if the GPIO is negative or positive
+ * logic.  If it is negative logic, 0 is on and 1 if off.
+ */
+void GPIOSetOn(Gpio_Use whichGpio);
+
+/*
+ * Set the GPIO to off related to if the GPIO is negative or positive
+ * logic.
+ */
+void GPIOSetOff(Gpio_Use whichGpio);
+
+/* Toggle the output value of the GPIO. */
+void GPIOToggle(Gpio_Use whichGpio);
+
+/* Convert a GPIO enum to a string.  Only available if DEBUG is set. */
 const char *GPIOToName(Gpio_Use whichGpio);
 
 #endif /* GPIO_H_ */
-

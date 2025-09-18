@@ -225,8 +225,7 @@ void SPIInit(SPIDevice thisDeviceNumber) {
      */
     const SPIDevInfo *thisDevInfo = SPIDevInfoStructures[thisDeviceNumber];
     SPIBusData *thisBusData = thisDevInfo->thisBusData;
-    // Here is the only thing we need to do with the device itself
-    GPIOSetPinDirection(thisDevInfo->selGPIO, GPIO_OUT);
+
     GPIOSetOff(thisDevInfo->selGPIO); // Make sure it is disabled initially
 
     if(!SPIIsInitted){
