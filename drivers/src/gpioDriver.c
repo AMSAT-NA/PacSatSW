@@ -184,6 +184,7 @@ static Gpio_Use gioPortA_Interrupts[MAX_gioPORTA_PINS] = {
 static Gpio_Use gioPortB_Interrupts[MAX_gioPORTB_PINS] = {
     No_GPIO, No_GPIO, No_GPIO, No_GPIO
 };
+
 static struct PortGPIOInfo hetPort1GPIOInfo = {
     .port = hetPORT1
 };
@@ -535,7 +536,7 @@ static const GPIOInfo AX5043_Tx_InterruptInfo = {
 static const GPIOInfo AX5043_Rx1_Selector = {
     .info                 = &SPI_Rx1AX5043_Select_Port,
     .PinNum               = SPI_Rx1AX5043_Select_Pin,
-    .InitialStateOn       = GPIO_ON,
+    .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
     .NegativeLogic        = true,
 };
@@ -543,7 +544,7 @@ static const GPIOInfo AX5043_Rx1_Selector = {
 static const GPIOInfo AX5043_Tx_Selector = {
     .info                 = &SPI_TxAX5043_Select_Port,
     .PinNum               = SPI_TxAX5043_Select_Pin,
-    .InitialStateOn       = GPIO_ON,
+    .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
     .NegativeLogic        = true,
 };
@@ -631,7 +632,7 @@ static const GPIOInfo AX5043_Rx4_InterruptInfo = {
 static const GPIOInfo AX5043_Rx2_Selector = {
     .info                 = &SPI_Rx2AX5043_Select_Port,
     .PinNum               = SPI_Rx2AX5043_Select_Pin,
-    .InitialStateOn       = GPIO_ON,
+    .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
     .NegativeLogic        = true,
 };
@@ -639,7 +640,7 @@ static const GPIOInfo AX5043_Rx2_Selector = {
 static const GPIOInfo AX5043_Rx3_Selector = {
     .info                 = &SPI_Rx3AX5043_Select_Port,
     .PinNum               = SPI_Rx3AX5043_Select_Pin,
-    .InitialStateOn       = GPIO_ON,
+    .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
     .NegativeLogic        = true,
 };
@@ -647,7 +648,7 @@ static const GPIOInfo AX5043_Rx3_Selector = {
 static const GPIOInfo AX5043_Rx4_Selector = {
     .info                 = &SPI_Rx4AX5043_Select_Port,
     .PinNum               = SPI_Rx4AX5043_Select_Pin,
-    .InitialStateOn       = GPIO_ON,
+    .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
     .NegativeLogic        = true,
 };

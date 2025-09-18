@@ -41,7 +41,7 @@ static bool Txing[NUM_AX5043_SPI_DEVICES+4];
 
 /* This lookup table returns the SPIDevice id for a given AX5043Device id */
 #ifdef LAUNCHPAD_HARDWARE
-static SPIDevice ax5043_spi_devices[] = {AX5043Dev0,AX5043Dev1};
+static SPIDevice ax5043_spi_devices[] = {Rx1AX5043Dev,TxAX5043Dev};
 #else
 static SPIDevice ax5043_spi_devices[] = {Rx1AX5043Dev,Rx2AX5043Dev,Rx3AX5043Dev,Rx4AX5043Dev,TxAX5043Dev};
 #endif

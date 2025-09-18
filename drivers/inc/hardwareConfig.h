@@ -55,29 +55,22 @@
 
 #define SPI_MRAM_Reg spiREG1
 #define SPI_MRAM0_Select_Port spiPort1GPIO /*Gpio port for chip select*/
-#define SPI_MRAM0_Select_Pin 0
+#define SPI_MRAM0_Select_Pin SPI_PIN_CS0
 #define SPI_MRAM1_Select_Port spiPort1GPIO /*Gpio port for chip select*/
-#define SPI_MRAM1_Select_Pin 1
+#define SPI_MRAM1_Select_Pin SPI_PIN_CS1
 #define SPI_MRAM2_Select_Port spiPort1GPIO /*Gpio port for chip select*/
-#define SPI_MRAM2_Select_Pin 2
+#define SPI_MRAM2_Select_Pin SPI_PIN_CS2
 #define SPI_MRAM3_Select_Port spiPort1GPIO /*Gpio port for chip select*/
-#define SPI_MRAM3_Select_Pin 5
+#define SPI_MRAM3_Select_Pin SPI_PIN_CS5
 #define SPI_MRAM_Data_Format SPI_FMT_0
 
 
 #define SPI_AX5043_Reg spiREG3
 #define SPI_Rx1AX5043_Select_Port spiPort3GPIO /*Gpio port for chip select*/
-#define SPI_Rx1AX5043_Select_Pin 1
+#define SPI_Rx1AX5043_Select_Pin SPI_PIN_CS1
 #define SPI_TxAX5043_Select_Port spiPort3GPIO /*Gpio port for chip select*/
-#define SPI_TxAX5043_Select_Pin 4
+#define SPI_TxAX5043_Select_Pin SPI_PIN_CS4
 #define SPI_AX5043_Data_Format SPI_FMT_0
-
-
-#define I2c2_HET_Port hetPORT2 /* For GPIO-like ops*/
-#define I2c2_HET_Reg hetREG2
-#define I2c2_HET_SCL_Pin 16
-#define I2c2_HET_SDA_Pin 14
-
 
 #elif defined(BLINKY_HARDWARE)
 

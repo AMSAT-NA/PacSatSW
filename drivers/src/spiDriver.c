@@ -78,7 +78,6 @@ SPIBusData bus1Data,bus2Data,bus3Data,bus4Data,bus5Data;
 #error Work required here
 #endif
 
-#ifdef LAUNCHPAD_HARDWARE
 static SPIDevInfo SPIMram0Device={
     .thisBus     = SPI_MRAM_Reg,
     .selGPIO     = MRAM0_Sel,
@@ -92,12 +91,14 @@ static SPIDevInfo SPIMram1Device={
     .thisDat1    = {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
     .thisBusData = &bus1Data,
 };
+
 static SPIDevInfo SPIMram2Device={
     .thisBus     = SPI_MRAM_Reg,
     .selGPIO     = MRAM2_Sel,
     .thisDat1    = {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
     .thisBusData = &bus1Data,
 };
+
 static SPIDevInfo SPIMram3Device={
     .thisBus     = SPI_MRAM_Reg,
     .selGPIO     = MRAM3_Sel,
@@ -107,16 +108,19 @@ static SPIDevInfo SPIMram3Device={
 
 static SPIDevInfo SPIAX50430Device={
     .thisBus     = SPI_AX5043_Reg,
-    .selGPIO     = AX5043_Sel0,
+    .selGPIO     = AX5043_Rx1_Sel,
     .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
     .thisBusData = &bus3Data,
 };
+
 static SPIDevInfo SPIAX50431Device={
     .thisBus     = SPI_AX5043_Reg,
-    .selGPIO     = AX5043_Sel1,
+    .selGPIO     = AX5043_Tx_Sel,
     .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
     .thisBusData = &bus3Data,
 };
+
+#ifdef LAUNCHPAD_HARDWARE
 
 static const SPIDevInfo *SPIDevInfoStructures[] = {
     &SPIMram0Device, &SPIMram1Device, &SPIMram2Device, &SPIMram3Device,
@@ -124,58 +128,24 @@ static const SPIDevInfo *SPIDevInfoStructures[] = {
 };
 
 #else
-static SPIDevInfo SPIMram0Device={
-    .thisBus     = SPI_MRAM_Reg,
-    .selGPIO     = MRAM0_Sel,
-    .thisDat1    = {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
-    .thisBusData = &bus1Data,
-};
-static SPIDevInfo SPIMram1Device={
-    .thisBus     = SPI_MRAM_Reg,
-    .selGPIO     = MRAM1_Sel,
-    .thisDat1    = {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
-    .thisBusData = &bus1Data,
-};
-static SPIDevInfo SPIMram2Device={
-    .thisBus     = SPI_MRAM_Reg,
-    .selGPIO     = MRAM2_Sel,
-    .thisDat1    = {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
-    .thisBusData = &bus1Data,
-};
-static SPIDevInfo SPIMram3Device={
-    .thisBus     = SPI_MRAM_Reg,
-    .selGPIO     = MRAM3_Sel,
-    .thisDat1    = {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
-    .thisBusData = &bus1Data,
-};
 
-static SPIDevInfo SPIRx1AX5043Device={
-    .thisBus     = SPI_AX5043_Reg,
-    .selGPIO     = AX5043_Rx1_Sel,
-    .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
-    .thisBusData = &bus3Data,
-};
 static SPIDevInfo SPIRx2AX5043Device={
     .thisBus     = SPI_AX5043_Reg,
     .selGPIO     = AX5043_Rx2_Sel,
     .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
     .thisBusData = &bus3Data,
 };
+
 static SPIDevInfo SPIRx3AX5043Device={
     .thisBus     = SPI_AX5043_Reg,
     .selGPIO     = AX5043_Rx3_Sel,
     .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
     .thisBusData = &bus3Data,
 };
+
 static SPIDevInfo SPIRx4AX5043Device={
     .thisBus     = SPI_AX5043_Reg,
     .selGPIO     = AX5043_Rx4_Sel,
-    .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
-    .thisBusData = &bus3Data,
-};
-static SPIDevInfo SPITxAX5043Device={
-    .thisBus     = SPI_AX5043_Reg,
-    .selGPIO     = AX5043_Tx_Sel,
     .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
     .thisBusData = &bus3Data,
 };
