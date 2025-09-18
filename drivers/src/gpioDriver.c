@@ -450,6 +450,15 @@ static const GPIOInfo AX5043_Tx_Selector = {
 
 #ifdef LAUNCHPAD_HARDWARE
 
+static const GPIOInfo LED3Info = {
+    .info                 = &dummyGPIO,
+    .PinNum               = 0,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+};
+
 static const GPIOInfo SSPAPowerInfo = {
     .info                 = &dummyGPIO,
     .PinNum               = 0,
@@ -474,7 +483,7 @@ static const GPIOInfo Ax5043PowerInfo = {
  */
 
 static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] = {
-    &LED1Info, &LED2Info,
+    &LED1Info, &LED2Info, &LED3Info,
     &AX5043_Rx1_InterruptInfo, &AX5043_Tx_InterruptInfo,
     &AX5043_Rx1_Selector, &AX5043_Tx_Selector,
     &MRAM0_Selector, &MRAM1_Selector, &MRAM2_Selector, &MRAM3_Selector,
@@ -483,7 +492,7 @@ static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] = {
 
 #ifdef DEBUG
 static const char *GPIONames[NumberOfGPIOs] = {
-    "LED1", "LED2", "AX5043_Rx1_Interrupt", "AX5043_Tx_Interrupt",
+    "LED1", "LED2", "LED3", "AX5043_Rx1_Interrupt", "AX5043_Tx_Interrupt",
     "AX5043_Sel0", "AX5043_Sel1",
     "MRAM0_Sel", "MRAM1_Sel", "MRAM2_Sel", "MRAM3_Sel",
     "SSPAPower", "AX5043Power",
