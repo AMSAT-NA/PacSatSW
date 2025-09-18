@@ -105,6 +105,8 @@ bool AllTasksStarted = false,CoordinationMessageReceived = false,SimDoppler=fals
 resetMemory_t tempPrintReset;
 void startup(void)
 {
+    unsigned int i;
+
     /*
      * Start of by doing a bunch of HalCoGen routine initializations.  In most cases, this still will require
      * Golf Driver inits after the OS starts, but in many cases, the IO will work before the OS starts.
@@ -119,33 +121,29 @@ void startup(void)
     sciDisableNotification(sciREG,SCI_TX_INT | SCI_RX_INT); // No interrupts before we start the OS
     sciSetBaudrate(sciREG, COM2_BAUD);
 
-    //GPIO Easy Inits can be done before the OS is started
-#ifdef LAUNCHPAD_HARDWARE
-
-#else
-    GPIOEzInit(LED1);
-    GPIOEzInit(LED2);
-    GPIOEzInit(LED3);
-    GPIOSetOff(LED1);
-    GPIOSetOff(LED2);
-    GPIOSetOff(LED3);
-    GPIOEzInit(SSPAPower);
-    GPIOEzInit(AX5043Power);
-
+    // Initialize all GPIOs.  Ones with special handling can override this later.
+    for (i = 0; i < NumberOfGPIOs; i++)
+	GPIOEzInit(i);
     GPIOToggle(LED1);
-#endif
+
     sciSend(sciREG,38,"Starting a test on the SCI register\r\n");
 
     i2cInit();
     spiInit();
     adcInit();
     /*
-     * A few things need to be started and initialized via HAL routines before we get the OS
-     * and drivers running.  Here, SPI chip select gios require their direction to be set and
-     * raised to high (not selected)
+     * A few things need to be started and initialized via HAL
+     * routines before we get the OS and drivers running.  Here, SPI
+     * chip select gios require their direction to be set and raised
+     * to high (not selected)
      */
     //MRAM
 #ifdef LAUNCHPAD_HARDWARE
+    /*
+     * FIXME - Figure out what these things are and convert them to
+     * normal GPIOs if necessary.
+     */
+       
     gioSetDirection(gioPORTB,6);
     gioSetBit(gioPORTB,1,1);
     gioSetBit(gioPORTB,2,1);
@@ -156,32 +154,8 @@ void startup(void)
 
     gioSetBit(spiPORT3,1,1);  //Set chip selects high just in case
     gioSetBit(spiPORT3,2,1);
-
-#else
-    gioSetDirection(spiPORT1,1U<<0 || 1U<<2); // Make chip select pins be output
-    gioSetDirection(spiPORT3,1); // Make chip select pins be output
-    gioSetDirection(spiPORT5,1); //
-    gioSetBit(spiPORT1,0,1);
-    gioSetBit(spiPORT1,2,1);  //Set chip selects high just in case
-    gioSetBit(spiPORT3,0,1);
-    gioSetBit(spiPORT5,0,1);  //Set chip selects high just in case
-    //
-    // Need to do the 5043 bits too.  Especially doing these here since we don't use
-    // HET2 and thus have no initHET routine from HCG.  Why does "set direction" what the entire
-    // register, while SetBit takes the bit number?
-    //
-    gioSetDirection(SPI_Rx1AX5043_Select_Port, (1U<<SPI_Rx1AX5043_Select_Pin));
-    gioSetDirection(SPI_Rx2AX5043_Select_Port, (1U<<SPI_Rx2AX5043_Select_Pin));
-    gioSetDirection(SPI_Rx3AX5043_Select_Port, (1U<<SPI_Rx3AX5043_Select_Pin));
-    gioSetDirection(SPI_Rx4AX5043_Select_Port, (1U<<SPI_Rx4AX5043_Select_Pin));
-    gioSetDirection(SPI_TxAX5043_Select_Port, (1U<<SPI_TxAX5043_Select_Pin));
-
-    gioSetBit(SPI_Rx1AX5043_Select_Port,SPI_Rx1AX5043_Select_Pin,1); // Make chip select pins be high
-    gioSetBit(SPI_Rx2AX5043_Select_Port,SPI_Rx2AX5043_Select_Pin,1); // Make chip select pins be high
-    gioSetBit(SPI_Rx3AX5043_Select_Port,SPI_Rx3AX5043_Select_Pin,1); // Make chip select pins be high
-    gioSetBit(SPI_Rx4AX5043_Select_Port,SPI_Rx4AX5043_Select_Pin,1); // Make chip select pins be high
-    gioSetBit(SPI_TxAX5043_Select_Port,SPI_TxAX5043_Select_Pin,1); // Make chip select pins be high
 #endif
+
     /*
      * RTI is used by FreeRTOS as its clock and also by the watchdog as its counter.
      * FreeRTOS uses counter 0, compare 0 for its interrupt.  Let's start the counter
@@ -235,7 +209,7 @@ void startup(void)
 }
 void ConsoleTask(void *pvParameters){
     bool haveWaited,umbilicalAttached; //todo: Fix charger when we get that line in V1.2
-    //GPIOInit(WatchdogFeed,NO_TASK,NO_MESSAGE,None);
+    //GPIOInit(WatchdogFeed,NO_TASK,NO_MESSAGE);
     ResetAllWatchdogs(); // This is started before MET and other tasks so just reporting in does not help
     debug_print("Starting console task\n");
     /*
@@ -281,15 +255,15 @@ void ConsoleTask(void *pvParameters){
     I2cInit(I2C2);
     GPIOEzInit(LED1);
     GPIOEzInit(LED2);
-    GPIOInit(AX5043_0_Interrupt, ToRxTask, Rx0AX5043_0_InterruptMsg, None);
-    //    GPIOInit(Rx0AX5043Interrupt,ToRxTask,Rx0AX5043InterruptMsg,None);
-    //    GPIOInit(TxAX5043Interrupt,ToTxTask,TxAX5043InterruptMsg,None);
+    GPIOInit(AX5043_0_Interrupt, ToRxTask, Rx0AX5043_0_InterruptMsg);
+    //    GPIOInit(Rx0AX5043Interrupt,ToRxTask,Rx0AX5043InterruptMsg);
+    //    GPIOInit(TxAX5043Interrupt,ToTxTask,TxAX5043InterruptMsg);
 #else
-    GPIOInit(AX5043_Rx1_Interrupt, ToRxTask, AX5043_Rx1_InterruptMsg, None);
-    GPIOInit(AX5043_Rx2_Interrupt, ToRxTask, AX5043_Rx2_InterruptMsg, None);
-    GPIOInit(AX5043_Rx3_Interrupt, ToRxTask, AX5043_Rx3_InterruptMsg, None);
-    GPIOInit(AX5043_Rx4_Interrupt, ToRxTask, AX5043_Rx4_InterruptMsg, None);
-    GPIOInit(AX5043_Tx_Interrupt, ToTxTask, AX5043_Tx_InterruptMsg, None);
+    GPIOInit(AX5043_Rx1_Interrupt, ToRxTask, AX5043_Rx1_InterruptMsg);
+    GPIOInit(AX5043_Rx2_Interrupt, ToRxTask, AX5043_Rx2_InterruptMsg);
+    GPIOInit(AX5043_Rx3_Interrupt, ToRxTask, AX5043_Rx3_InterruptMsg);
+    GPIOInit(AX5043_Rx4_Interrupt, ToRxTask, AX5043_Rx4_InterruptMsg);
+    GPIOInit(AX5043_Tx_Interrupt, ToTxTask, AX5043_Tx_InterruptMsg);
 #endif
     /* Poll the I2C devices to see which are working.
      * This also calls the init routine for the temperature device */

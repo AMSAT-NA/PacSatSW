@@ -94,10 +94,10 @@ void I2cInit(I2cBusNum thisBusNumber) {
     waitingForSemaphore[thisBusNumber] = false;  // Don't free the semaphore when we are not waiting!
     // Init the I2c Lines
     if(thisBusNumber==I2C1){
-        //GPIOInit(I2c1Reset,NO_TASK,NO_MESSAGE,None);
+        //GPIOInit(I2c1Reset,NO_TASK,NO_MESSAGE);
 
     } else if (thisBusNumber==I2C2){
-        //GPIOInit(I2c2Reset,NO_TASK,NO_MESSAGE,None);
+        //GPIOInit(I2c2Reset,NO_TASK,NO_MESSAGE);
     }
 
 

@@ -117,7 +117,7 @@ portTASK_FUNCTION_PROTO(TelemetryRadioTask, pvParameters)  {
 
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)RadioWD );
     InitInterTask(ToRadio, 10);
-    GPIOInit(AX5043Interrupt,ToRadio,AX5043InterruptMsg,None);
+    GPIOInit(AX5043Interrupt, ToRadio, AX5043InterruptMsg);
 
 
     ResetAllWatchdogs();

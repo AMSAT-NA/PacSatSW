@@ -27,23 +27,23 @@
  */
 
 //Yellow LED
-#define GPIOLed1Port gioPORTB
+#define GPIOLed1Port gioPortBGPIO
 #define GPIOLed1Pin 1
 
 //Green LED
-#define GPIOLed2Port gioPORTB
+#define GPIOLed2Port gioPortBGPIO
 #define GPIOLed2Pin 2
 
-#define GPIO_AX5043_0_InterruptPort gioPORTB
+#define GPIO_AX5043_0_InterruptPort gioPortBGPIO
 #define GPIO_AX5043_0_InterruptPin  0
-#define GPIO_AX5043_1_InterruptPort gioPORTB
+#define GPIO_AX5043_1_InterruptPort gioPortBGPIO
 #define GPIO_AC5043_1_InterruptPin  3
 
 
 // Serial port definitions
 
 #define COM1_Port 0 /* 0 = HET1, 1=HET2 */
-#define COM1_HET_Port hetPORT1
+#define COM1_HET_Port hetPort1GPIO
 #define COM1_HET_Reg hetREG1
 #define COM1_HET_Rx_Pin 5
 #define COM1_HET_Tx_Pin 4
@@ -54,7 +54,7 @@
 // SPI Definitions
 
 #define SPI_MRAM_Reg spiREG1
-#define SPI_MRAM_Select_Port spiPORT1 /*Gpio port for chip select*/
+#define SPI_MRAM_Select_Port spiPort1GPIO /*Gpio port for chip select*/
 #define SPI_MRAM0_Select_Pin 0
 #define SPI_MRAM1_Select_Pin 1
 #define SPI_MRAM2_Select_Pin 2
@@ -62,7 +62,7 @@
 #define SPI_MRAM_Data_Format SPI_FMT_0
 
 #define SPI_AX5043_Reg spiREG3
-#define SPI_AX5043_Select_Port spiPORT3 /*Gpio port for chip select*/
+#define SPI_AX5043_Select_Port spiPort3GPIO /*Gpio port for chip select*/
 #define SPI_AX5043_0_Select_Pin 1
 #define SPI_AX5043_1_Select_Pin 4
 #define SPI_AX5043_Data_Format SPI_FMT_0
@@ -86,9 +86,9 @@
 /*
  * Power for SSPA and AX5043
  */
-#define GPIOsspaPowerPort spiPORT5
+#define GPIOsspaPowerPort spiPort5GPIO
 #define GPIOsspaPowerPin 11 /*This is SOMI[0]*/
-#define GPIOax5043PowerPort spiPORT5
+#define GPIOax5043PowerPort spiPort5GPIO
 #define GPIOax5043PowerPin 10 /*This is SIMO[0]*/
 
 
@@ -97,15 +97,15 @@
  */
 
 //Red LED
-#define GPIOLed1Port hetPORT1
+#define GPIOLed1Port hetPort1GPIO
 #define GPIOLed1Pin 0
 
 //Yellow LED
-#define GPIOLed2Port hetPORT1
+#define GPIOLed2Port hetPort1GPIO
 #define GPIOLed2Pin 1
 
 //Green LED
-#define GPIOLed3Port hetPORT1
+#define GPIOLed3Port hetPort1GPIO
 #define GPIOLed3Pin 2
 
 // Serial port definitions
@@ -118,10 +118,10 @@
 // SPI Definitions
 
 #define SPI_MRAM_Reg spiREG1
-#define SPI_MRAM0_Select_Port spiPORT1
-#define SPI_MRAM1_Select_Port spiPORT3
-#define SPI_MRAM2_Select_Port spiPORT1
-#define SPI_MRAM3_Select_Port spiPORT5
+#define SPI_MRAM0_Select_Port spiPort1GPIO
+#define SPI_MRAM1_Select_Port spiPort3GPIO
+#define SPI_MRAM2_Select_Port spiPort1GPIO
+#define SPI_MRAM3_Select_Port spiPort5GPIO
 #define SPI_MRAM0_Select_Pin 0
 #define SPI_MRAM1_Select_Pin 0
 #define SPI_MRAM2_Select_Pin 2
@@ -131,29 +131,29 @@
 // AX5043 SPI pins
 
 #define SPI_AX5043_Reg spiREG3
-#define SPI_Rx1AX5043_Select_Port hetPORT1 /*Gpio port for chip select*/
+#define SPI_Rx1AX5043_Select_Port hetPort1GPIO /*Gpio port for chip select*/
 #define SPI_Rx1AX5043_Select_Pin 3
-#define SPI_Rx2AX5043_Select_Port hetPORT1
+#define SPI_Rx2AX5043_Select_Port hetPort1GPIO
 #define SPI_Rx2AX5043_Select_Pin 7
-#define SPI_Rx3AX5043_Select_Port hetPORT1
+#define SPI_Rx3AX5043_Select_Port hetPort1GPIO
 #define SPI_Rx3AX5043_Select_Pin 9
-#define SPI_Rx4AX5043_Select_Port hetPORT1
+#define SPI_Rx4AX5043_Select_Port hetPort1GPIO
 #define SPI_Rx4AX5043_Select_Pin 4
-#define SPI_TxAX5043_Select_Port hetPORT1
+#define SPI_TxAX5043_Select_Port hetPort1GPIO
 #define SPI_TxAX5043_Select_Pin 12
 #define SPI_AX5043_Data_Format SPI_FMT_0
 
 //AX5043 IRQ Pins
 
-#define GPIO_Rx1AX5043InterruptPort gioPORTA
+#define GPIO_Rx1AX5043InterruptPort gioPortAGPIO
 #define GPIO_Rx1AX5043InterruptPin  1
-#define GPIO_Rx2AX5043InterruptPort gioPORTB
+#define GPIO_Rx2AX5043InterruptPort gioPortBGPIO
 #define GPIO_Rx2AX5043InterruptPin  0
-#define GPIO_Rx3AX5043InterruptPort gioPORTA
+#define GPIO_Rx3AX5043InterruptPort gioPortAGPIO
 #define GPIO_Rx3AX5043InterruptPin  7
-#define GPIO_Rx4AX5043InterruptPort gioPORTA
+#define GPIO_Rx4AX5043InterruptPort gioPortAGPIO
 #define GPIO_Rx4AX5043InterruptPin  5
-#define GPIO_TxAX5043InterruptPort gioPORTB
+#define GPIO_TxAX5043InterruptPort gioPortBGPIO
 #define GPIO_TxAX5043InterruptPin  2
 
 #else /* AFSK hardware */
@@ -167,9 +167,9 @@
 /*
  * Power for SSPA and AX5043
  */
-#define GPIOsspaPowerPort hetPORT1
+#define GPIOsspaPowerPort hetPort1GPIO
 #define GPIOsspaPowerPin 14 /*This is N2HET1[14]*/
-#define GPIOax5043PowerPort hetPORT1
+#define GPIOax5043PowerPort hetPort1GPIO
 #define GPIOax5043PowerPin 20 /*This is N2HET1[20]*/
 
 
@@ -178,15 +178,15 @@
  */
 
 //Red LED
-#define GPIOLed1Port hetPORT1
+#define GPIOLed1Port hetPort1GPIO
 #define GPIOLed1Pin 0
 
 //Yellow LED
-#define GPIOLed2Port hetPORT1
+#define GPIOLed2Port hetPort1GPIO
 #define GPIOLed2Pin 1
 
 //Green LED
-#define GPIOLed3Port hetPORT1
+#define GPIOLed3Port hetPort1GPIO
 #define GPIOLed3Pin 2
 
 
@@ -200,10 +200,10 @@
 // SPI Definitions
 
 #define SPI_MRAM_Reg spiREG3
-#define SPI_MRAM0_Select_Port spiPORT3
-#define SPI_MRAM1_Select_Port spiPORT3
-#define SPI_MRAM2_Select_Port spiPORT1
-#define SPI_MRAM3_Select_Port spiPORT3
+#define SPI_MRAM0_Select_Port spiPort3GPIO
+#define SPI_MRAM1_Select_Port spiPort3GPIO
+#define SPI_MRAM2_Select_Port spiPort1GPIO
+#define SPI_MRAM3_Select_Port spiPort3GPIO
 #define SPI_MRAM0_Select_Pin SPI_PIN_CS0
 #define SPI_MRAM1_Select_Pin SPI_PIN_ENA
 #define SPI_MRAM2_Select_Pin SPI_PIN_CS2
@@ -213,29 +213,29 @@
 // AX5043 SPI pins
 
 #define SPI_AX5043_Reg spiREG1
-#define SPI_Rx1AX5043_Select_Port hetPORT1 /*Gpio port for chip select*/
+#define SPI_Rx1AX5043_Select_Port hetPort1GPIO /*Gpio port for chip select*/
 #define SPI_Rx1AX5043_Select_Pin 3
-#define SPI_Rx2AX5043_Select_Port hetPORT1
+#define SPI_Rx2AX5043_Select_Port hetPort1GPIO
 #define SPI_Rx2AX5043_Select_Pin 7
-#define SPI_Rx3AX5043_Select_Port hetPORT1
+#define SPI_Rx3AX5043_Select_Port hetPort1GPIO
 #define SPI_Rx3AX5043_Select_Pin 9
-#define SPI_Rx4AX5043_Select_Port hetPORT1
+#define SPI_Rx4AX5043_Select_Port hetPort1GPIO
 #define SPI_Rx4AX5043_Select_Pin 4
-#define SPI_TxAX5043_Select_Port hetPORT1
+#define SPI_TxAX5043_Select_Port hetPort1GPIO
 #define SPI_TxAX5043_Select_Pin 12
 #define SPI_AX5043_Data_Format SPI_FMT_0
 
 //AX5043 IRQ Pins
 
-#define GPIO_Rx1AX5043InterruptPort gioPORTA
+#define GPIO_Rx1AX5043InterruptPort gioPortAGPIO
 #define GPIO_Rx1AX5043InterruptPin  1
-#define GPIO_Rx2AX5043InterruptPort gioPORTB
+#define GPIO_Rx2AX5043InterruptPort gioPortBGPIO
 #define GPIO_Rx2AX5043InterruptPin  0
-#define GPIO_Rx3AX5043InterruptPort gioPORTA
+#define GPIO_Rx3AX5043InterruptPort gioPortAGPIO
 #define GPIO_Rx3AX5043InterruptPin  7
-#define GPIO_Rx4AX5043InterruptPort gioPORTA
+#define GPIO_Rx4AX5043InterruptPort gioPortAGPIO
 #define GPIO_Rx4AX5043InterruptPin  5
-#define GPIO_TxAX5043InterruptPort gioPORTB
+#define GPIO_TxAX5043InterruptPort gioPortBGPIO
 #define GPIO_TxAX5043InterruptPin  2
 
 #endif /* Launch Pad Hardware vs Blinky vs AFSK */

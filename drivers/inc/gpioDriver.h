@@ -13,7 +13,7 @@
 
 #ifdef LAUNCHPAD_HARDWARE
 typedef enum gu {
-    None=-1,
+    No_GPIO=-1,
     LED1, LED2, AX5043Interrupt0, AX5043Interrupt1,
     AX5043_Sel0, AX5043_Sel1,
     MRAM0_Sel, MRAM1_Sel, MRAM2_Sel, MRAM3_Sel,
@@ -22,7 +22,7 @@ typedef enum gu {
 
 #elif defined(BLINKY_HARDWARE)
 typedef enum gu {
-    None=-1,
+    No_GPIO=-1,
     LED1, LED2, LED3,
     AX5043_Rx1_Interrupt, AX5043_Rx2_Interrupt, AX5043_Rx3_Interrupt, AX5043_Rx4_Interrupt,
     AX5043_Tx_Interrupt,
@@ -35,7 +35,7 @@ typedef enum gu {
 
 #else
 typedef enum gu {
-    None=-1,
+    No_GPIO=-1,
     LED1, LED2, LED3,
     AX5043_Rx1_Interrupt, AX5043_Rx2_Interrupt, AX5043_Rx3_Interrupt, AX5043_Rx4_Interrupt,
     AX5043_Tx_Interrupt,
@@ -46,6 +46,16 @@ typedef enum gu {
     NumberOfGPIOs
 } Gpio_Use;
 #endif
+
+typedef struct _GPIOHandler GPIOHandler;
+
+extern const GPIOHandler gioPortAGPIO;
+extern const GPIOHandler gioPortBGPIO;
+extern const GPIOHandler hetPort1GPIO;
+extern const GPIOHandler spiPort1GPIO;
+extern const GPIOHandler spiPort3GPIO;
+extern const GPIOHandler spiPort5GPIO;
+
 
 #define GPIO_UNUSED false
 #define GPIO_OFF false
@@ -58,16 +68,14 @@ typedef enum gu {
 #define NO_MESSAGE (IntertaskMessageType)-1
 #define NO_TASK (DestinationTask)-1
 bool GPIOEzInit(Gpio_Use whichGpio);
-bool GPIOInit(Gpio_Use whichGpio, DestinationTask task,
-	      IntertaskMessageType, Gpio_Use auxGPIO);
+bool GPIOInit(Gpio_Use whichGpio, DestinationTask task, IntertaskMessageType);
 bool GPIOIsOn(Gpio_Use whichGpio);
+void GPIOSet(Gpio_Use whichGpio, bool v);
 void GPIOSetOn(Gpio_Use whichGpio);
 void GPIOSetOff(Gpio_Use whichGpio);
 void GPIOToggle(Gpio_Use whichGpio);
 uint16_t GPIORead(Gpio_Use whichGpio);
 void GPIOSetPinDirection(Gpio_Use whichGpio ,bool IsOut);
-void GPIOSetTristate(Gpio_Use gpioNum);
-void GPIOSetPushPull(Gpio_Use gpioNum);
 
 #endif /* GPIO_H_ */
 

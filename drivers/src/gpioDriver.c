@@ -28,25 +28,175 @@
 #include "FreeRTOS.h"
 #include "os_semphr.h"
 
-/* Forward Routine Declarations */
-void GPIOIntRoutine(Gpio_Use whichGPIO);
-
+/*
+ * Base functions for a GPIO type, like the PORT ones (gio, het, spi) or
+ * the CAN ones.
+ */
+typedef struct GPIOFuncs {
+    void (*setBit)(const GPIOHandler *h, uint16_t pinNum, uint16_t val);
+    uint16_t (*getBit)(const GPIOHandler *h, uint16_t pinNum);
+    void (*toggleBit)(const GPIOHandler *h, uint16_t pinNum);
+    void (*setDirectionOut)(const GPIOHandler *h, uint16_t pinNum, bool v);
+    void (*setOpenCollector)(const GPIOHandler *h, uint16_t pinNum, bool v);
+} GPIOFuncs;
 
 /*
- * This structure defines each GPIO that is in use.  A couple fields will need to be
- * added if there is more than one GPIO that generates interrupts (EXTIPortSource is
- * not "EXTI_None")
+ * Structure to represent a GPIO port that can have multiple pins in it.
+ * This will be a const struct when defined.
  */
+struct _GPIOHandler {
+    gioPORT_t *port;
+    void *data;
+    const GPIOFuncs *funcs;
+    bool CanInterrupt;
+};
 
+/*
+ * Dynamic info about a port.  Right now it just holds the I/O
+ * direction.
+ */
+typedef struct PortGPIOInfo {
+    gioPORT_t *port;
+    uint32_t direction;
+} PortGPIOInfo;
+
+/*
+ * Functions for handling standard PORT types, gio, het, and spi GPIOs.
+ */
+static void PORT_setBit(const GPIOHandler *h, uint16_t pinNum, uint16_t val)
+{
+    PortGPIOInfo *info = h->data;
+    gioPORT_t *port = info->port;
+
+    gioSetBit(port, pinNum, val);
+}
+
+static uint16_t PORT_getBit(const GPIOHandler *h, uint16_t pinNum)
+{
+    PortGPIOInfo *info = h->data;
+    gioPORT_t *port = info->port;
+
+    return gioGetBit(port, pinNum);
+}
+
+static void PORT_toggleBit(const GPIOHandler *h, uint16_t pinNum)
+{
+    PortGPIOInfo *info = h->data;
+    gioPORT_t *port = info->port;
+
+    return gioToggleBit(port, pinNum);
+}
+
+static void PORT_setDirectionOut(const GPIOHandler *h, uint16_t pinNum, bool v)
+{
+    PortGPIOInfo *info = h->data;
+    gioPORT_t *port = info->port;
+
+    if (v)
+        info->direction |= 1 << pinNum;
+    else
+        info->direction &= ~(1 << pinNum);
+    port->DIR = info->direction;
+    port->PULDIS = info->direction;
+}
+
+static void PORT_setOpenCollector(const GPIOHandler *h, uint16_t pinNum, bool v)
+{
+    PortGPIOInfo *info = h->data;
+    gioPORT_t *port = info->port;
+
+    if (v)
+        port->PDR |= 1 << pinNum;
+    else
+        port->PDR &= ~(1 << pinNum);
+}
+
+static const GPIOFuncs PortGPIOFuncs = {
+    .setBit = PORT_setBit,
+    .getBit = PORT_getBit,
+    .toggleBit = PORT_toggleBit,
+    .setDirectionOut = PORT_setDirectionOut,
+    .setOpenCollector = PORT_setOpenCollector,
+};
+
+static struct PortGPIOInfo gioPortAGPIOInfo = {
+    .port = gioPORTA
+};
+
+const GPIOHandler gioPortAGPIO = {
+    .data = &gioPortAGPIOInfo,
+    .funcs = &PortGPIOFuncs,
+    .CanInterrupt = true
+};
+
+static struct PortGPIOInfo gioPortBGPIOInfo = {
+    .port = gioPORTB
+};
+
+const GPIOHandler gioPortBGPIO = {
+    .data = &gioPortBGPIOInfo,
+    .funcs = &PortGPIOFuncs,
+    .CanInterrupt = true
+};
+
+/*
+ * The interrupt handler uses these to map from the incoming interrupts
+ * back to the GPIOs.
+ */
+#define MAX_gioPORTA_PINS 8
+static Gpio_Use gioPortA_Interrupts[MAX_gioPORTA_PINS] = {
+    No_GPIO, No_GPIO, No_GPIO, No_GPIO, No_GPIO, No_GPIO, No_GPIO, No_GPIO
+};
+#define MAX_gioPORTB_PINS 4
+static Gpio_Use gioPortB_Interrupts[MAX_gioPORTB_PINS] = {
+    No_GPIO, No_GPIO, No_GPIO, No_GPIO
+};
+static struct PortGPIOInfo hetPort1GPIOInfo = {
+    .port = hetPORT1
+};
+
+const GPIOHandler hetPort1GPIO = {
+    .data = &hetPort1GPIOInfo,
+    .funcs = &PortGPIOFuncs
+};
+
+static struct PortGPIOInfo spiPort1GPIOInfo = {
+    .port = spiPORT1
+};
+
+const GPIOHandler spiPort1GPIO = {
+    .data = &spiPort1GPIOInfo,
+    .funcs = &PortGPIOFuncs
+};
+
+static struct PortGPIOInfo spiPort3GPIOInfo = {
+    .port = spiPORT3
+};
+
+const GPIOHandler spiPort3GPIO = {
+    .data = &spiPort3GPIOInfo,
+    .funcs = &PortGPIOFuncs
+};
+
+static struct PortGPIOInfo spiPort5GPIOInfo = {
+    .port = spiPORT5
+};
+
+const GPIOHandler spiPort5GPIO = {
+    .data = &spiPort5GPIOInfo,
+    .funcs = &PortGPIOFuncs
+};
+
+/*
+ * This structure defines each GPIO that is in use.
+ */
 typedef struct _GPIOInfo {
-    gioPORT_t *GPIOPort;
+    const GPIOHandler *info;
     uint16_t PinNum;
     bool InitialStateOn;
     bool DirectionIsOut;
-    bool CanInterrupt;
     bool InterruptBothEdges;
     bool OpenCollector;
-    bool InitialStateTristate;
 } GPIOInfo;
 
 #define EXTI_None 0xff
@@ -57,116 +207,96 @@ static bool GPIOUsable[NumberOfGPIOs];
  * Each structure below defines one of the GPIOs in use.
  */
 
-#ifdef LAUNCHPAD_HARDWARE
-
 static const GPIOInfo LED1Info = {
-    .GPIOPort             = GPIOLed1Port,
+    .info                 = &GPIOLed1Port,
     .PinNum               = GPIOLed1Pin,
     .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
     .InterruptBothEdges   = false,
     .OpenCollector        = false,
-    .InitialStateTristate = false
 };
 
 static const GPIOInfo LED2Info = {
-    .GPIOPort             = GPIOLed2Port,
+    .info                 = &GPIOLed2Port,
     .PinNum               = GPIOLed2Pin,
     .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
     .InterruptBothEdges   = false,
     .OpenCollector        = false,
-    .InitialStateTristate = false 
-};
-
-static const GPIOInfo AX5043_0_InterruptInfo = {
-    .GPIOPort             = GPIO_AX5043_0_InterruptPort,
-    .PinNum               = GPIO_AX5043_0_InterruptPin,
-    .InitialStateOn       = GPIO_UNUSED,
-    .DirectionIsOut       = GPIO_IN,
-    .CanInterrupt         = true,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
-    .InitialStateTristate = false
-};
-
-static const GPIOInfo AX5043_1_InterruptInfo = {
-    .GPIOPort             = GPIO_AX5043_1_InterruptPort,
-    .PinNum               = GPIO_AX5043_1_InterruptPin,
-    .InitialStateOn       = GPIO_UNUSED,
-    .DirectionIsOut       = GPIO_IN,
-    .CanInterrupt         = true,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
-    .InitialStateTristate = false
-};
-
-static const GPIOInfo AX5043_0_Select0 = {
-    .GPIOPort             = GPIO_AX5043_0_InterruptPort,
-    .PinNum               = GPIO_AX5043_0_InterruptPin,
-    .InitialStateOn       = GPIO_UNUSED,
-    .DirectionIsOut       = GPIO_IN,
-    .CanInterrupt         = true,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
-    .InitialStateTristate = false
-};
-
-static const GPIOInfo AX5043_1_Select = {
-    .GPIOPort             = GPIO_AX5043_1_InterruptPort,
-    .PinNum               = GPIO_AX5043_1_InterruptPin,
-    .InitialStateOn       = GPIO_UNUSED,
-    .DirectionIsOut       = GPIO_IN,
-    .CanInterrupt         = true,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
-    .InitialStateTristate = false
 };
 
 static const GPIOInfo MRAM0_Selector = {
-    .GPIOPort             = SPI_MRAM0_Select_Port,
+    .info                 = &SPI_MRAM0_Select_Port,
     .PinNum               = SPI_MRAM0_Select_Pin,
     .InitialStateOn       = GPIO_ON,
     .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
     .InterruptBothEdges   = false,
     .OpenCollector        = false,
-    .InitialStateTristate = false
 };
 
 static const GPIOInfo MRAM1_Selector = {
-    .GPIOPort             = SPI_MRAM1_Select_Port,
+    .info                 = &SPI_MRAM1_Select_Port,
     .PinNum               = SPI_MRAM1_Select_Pin,
     .InitialStateOn       = GPIO_ON,
     .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
     .InterruptBothEdges   = false,
     .OpenCollector        = false,
-    .InitialStateTristate = false
 };
 
 static const GPIOInfo MRAM2_Selector = {
-    .GPIOPort             = SPI_MRAM2_Select_Port,
+    .info                 = &SPI_MRAM2_Select_Port,
     .PinNum               = SPI_MRAM2_Select_Pin,
     .InitialStateOn       = GPIO_ON,
     .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
     .InterruptBothEdges   = false,
     .OpenCollector        = false,
-    .InitialStateTristate = false
 };
 
 static const GPIOInfo MRAM3_Selector = {
-    .GPIOPort             = SPI_MRAM3_Select_Port,
+    .info                 = &SPI_MRAM3_Select_Port,
     .PinNum               = SPI_MRAM3_Select_Pin,
     .InitialStateOn       = GPIO_ON,
     .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
     .InterruptBothEdges   = false,
     .OpenCollector        = false,
-    .InitialStateTristate = false
+};
+
+#ifdef LAUNCHPAD_HARDWARE
+
+static const GPIOInfo AX5043_0_InterruptInfo = {
+    .info                 = &GPIO_AX5043_0_InterruptPort,
+    .PinNum               = GPIO_AX5043_0_InterruptPin,
+    .InitialStateOn       = GPIO_UNUSED,
+    .DirectionIsOut       = GPIO_IN,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+};
+
+static const GPIOInfo AX5043_1_InterruptInfo = {
+    .info                 = &GPIO_AX5043_1_InterruptPort,
+    .PinNum               = GPIO_AX5043_1_InterruptPin,
+    .InitialStateOn       = GPIO_UNUSED,
+    .DirectionIsOut       = GPIO_IN,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+};
+
+static const GPIOInfo AX5043_0_Select0 = {
+    .info                 = &GPIO_AX5043_0_InterruptPort,
+    .PinNum               = GPIO_AX5043_0_InterruptPin,
+    .InitialStateOn       = GPIO_UNUSED,
+    .DirectionIsOut       = GPIO_IN,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+};
+
+static const GPIOInfo AX5043_1_Select = {
+    .info                 = &GPIO_AX5043_1_InterruptPort,
+    .PinNum               = GPIO_AX5043_1_InterruptPin,
+    .InitialStateOn       = GPIO_UNUSED,
+    .DirectionIsOut       = GPIO_IN,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
 };
 
 /*
@@ -182,221 +312,125 @@ static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] =
     &MRAM0_Selector, &MRAM1_Selector, &MRAM2_Selector, &MRAM3_Selector,
 };
 
-#elif defined(BLINKY_HARDWARE)
-
-static const GPIOInfo LED1Info = {
-    .GPIOPort             = GPIOLed1Port,
-    .PinNum               = GPIOLed1Pin,
-    .InitialStateOn       = GPIO_OFF,
-    .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
-    .InitialStateTristate = false 
-};
-
-static const GPIOInfo LED2Info = {
-    .GPIOPort             = GPIOLed2Port,
-    .PinNum               = GPIOLed2Pin,
-    .InitialStateOn       = GPIO_OFF,
-    .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
-    .InitialStateTristate = false 
-};
+#else
 
 static const GPIOInfo LED3Info = {
-    .GPIOPort             = GPIOLed3Port,
+    .info                 = &GPIOLed3Port,
     .PinNum               = GPIOLed3Pin,
     .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
     .InterruptBothEdges   = false,
     .OpenCollector        = false,
-    .InitialStateTristate = false 
 };
 
 static const GPIOInfo AX5043_Rx1_InterruptInfo = {
-    .GPIOPort             = GPIO_Rx1AX5043InterruptPort,
+    .info                 = &GPIO_Rx1AX5043InterruptPort,
     .PinNum               = GPIO_Rx1AX5043InterruptPin,
     .InitialStateOn       = GPIO_UNUSED,
     .DirectionIsOut       = GPIO_IN,
-    .CanInterrupt         = true,
     .InterruptBothEdges   = false,
     .OpenCollector        = false,
-    .InitialStateTristate = false
 };
 static const GPIOInfo AX5043_Rx2_InterruptInfo = {
-    .GPIOPort             = GPIO_Rx2AX5043InterruptPort,
+    .info                 = &GPIO_Rx2AX5043InterruptPort,
     .PinNum               = GPIO_Rx2AX5043InterruptPin,
     .InitialStateOn       = GPIO_UNUSED,
     .DirectionIsOut       = GPIO_IN,
-    .CanInterrupt         = true,
     .InterruptBothEdges   = false,
     .OpenCollector        = false,
-    .InitialStateTristate = false
 };
 
 static const GPIOInfo AX5043_Rx3_InterruptInfo = {
-    .GPIOPort             = GPIO_Rx3AX5043InterruptPort,
+    .info                 = &GPIO_Rx3AX5043InterruptPort,
     .PinNum               = GPIO_Rx3AX5043InterruptPin,
     .InitialStateOn       = GPIO_UNUSED,
     .DirectionIsOut       = GPIO_IN,
-    .CanInterrupt         = true,
     .InterruptBothEdges   = false,
     .OpenCollector        = false,
-    .InitialStateTristate = false
 };
 
 static const GPIOInfo AX5043_Rx4_InterruptInfo = {
-    .GPIOPort             = GPIO_Rx4AX5043InterruptPort,
+    .info                 = &GPIO_Rx4AX5043InterruptPort,
     .PinNum               = GPIO_Rx4AX5043InterruptPin,
     .InitialStateOn       = GPIO_UNUSED,
     .DirectionIsOut       = GPIO_IN,
-    .CanInterrupt         = true,
     .InterruptBothEdges   = false,
     .OpenCollector        = false,
-    .InitialStateTristate = false
 };
 
 static const GPIOInfo AX5043_Tx_InterruptInfo = {
-    .GPIOPort             = GPIO_TxAX5043InterruptPort,
+    .info                 = &GPIO_TxAX5043InterruptPort,
     .PinNum               = GPIO_TxAX5043InterruptPin,
     .InitialStateOn       = GPIO_UNUSED,
     .DirectionIsOut       = GPIO_IN,
-    .CanInterrupt         = true,
     .InterruptBothEdges   = false,
     .OpenCollector        = false,
-    .InitialStateTristate = false
 };
 
 static const GPIOInfo AX5043_Rx1_Selector = {
-    .GPIOPort             = SPI_Rx1AX5043_Select_Port,
+    .info                 = &SPI_Rx1AX5043_Select_Port,
     .PinNum               = SPI_Rx1AX5043_Select_Pin,
     .InitialStateOn       = GPIO_ON,
     .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
     .InterruptBothEdges   = false,
     .OpenCollector        = false,
-    .InitialStateTristate = false
 };
 
 static const GPIOInfo AX5043_Rx2_Selector = {
-    .GPIOPort             = SPI_Rx2AX5043_Select_Port,
+    .info                 = &SPI_Rx2AX5043_Select_Port,
     .PinNum               = SPI_Rx2AX5043_Select_Pin,
     .InitialStateOn       = GPIO_ON,
     .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
     .InterruptBothEdges   = false,
     .OpenCollector        = false,
-    .InitialStateTristate = false
 };
 
 static const GPIOInfo AX5043_Rx3_Selector = {
-    .GPIOPort             = SPI_Rx3AX5043_Select_Port,
+    .info                 = &SPI_Rx3AX5043_Select_Port,
     .PinNum               = SPI_Rx3AX5043_Select_Pin,
     .InitialStateOn       = GPIO_ON,
     .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
     .InterruptBothEdges   = false,
     .OpenCollector        = false,
-    .InitialStateTristate = false
 };
 
 static const GPIOInfo AX5043_Rx4_Selector = {
-    .GPIOPort             = SPI_Rx4AX5043_Select_Port,
+    .info                 = &SPI_Rx4AX5043_Select_Port,
     .PinNum               = SPI_Rx4AX5043_Select_Pin,
     .InitialStateOn       = GPIO_ON,
     .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
     .InterruptBothEdges   = false,
     .OpenCollector        = false,
-    .InitialStateTristate = false
 };
 
 static const GPIOInfo AX5043_Tx_Selector = {
-    .GPIOPort             = SPI_TxAX5043_Select_Port,
+    .info                 = &SPI_TxAX5043_Select_Port,
     .PinNum               = SPI_TxAX5043_Select_Pin,
     .InitialStateOn       = GPIO_ON,
     .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
     .InterruptBothEdges   = false,
     .OpenCollector        = false,
-    .InitialStateTristate = false
-};
-
-static const GPIOInfo MRAM0_Selector = {
-    .GPIOPort             = SPI_MRAM0_Select_Port,
-    .PinNum               = SPI_MRAM0_Select_Pin,
-    .InitialStateOn       = GPIO_ON,
-    .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
-    .InitialStateTristate = false
-};
-
-static const GPIOInfo MRAM1_Selector = {
-    .GPIOPort             = SPI_MRAM1_Select_Port,
-    .PinNum               = SPI_MRAM1_Select_Pin,
-    .InitialStateOn       = GPIO_ON,
-    .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
-    .InitialStateTristate = false
-};
-
-static const GPIOInfo MRAM2_Selector = {
-    .GPIOPort             = SPI_MRAM2_Select_Port,
-    .PinNum               = SPI_MRAM2_Select_Pin,
-    .InitialStateOn       = GPIO_ON,
-    .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
-    .InitialStateTristate = false
-};
-
-static const GPIOInfo MRAM3_Selector = {
-    .GPIOPort             = SPI_MRAM3_Select_Port,
-    .PinNum               = SPI_MRAM3_Select_Pin,
-    .InitialStateOn       = GPIO_ON,
-    .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
-    .InitialStateTristate = false
 };
 
 static const GPIOInfo SSPAPowerInfo = {
-    .GPIOPort             = GPIOsspaPowerPort,
+    .info                 = &GPIOsspaPowerPort,
     .PinNum               = GPIOsspaPowerPin,
     .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
     .InterruptBothEdges   = false,
     .OpenCollector        = false,
-    .InitialStateTristate = false 
 };
 
 static const GPIOInfo Ax5043PowerInfo = {
-    .GPIOPort             = GPIOax5043PowerPort,
+    .info                 = &GPIOax5043PowerPort,
     .PinNum               = GPIOax5043PowerPin,
     .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
     .InterruptBothEdges   = false,
     .OpenCollector        = false,
-    .InitialStateTristate = false 
 };
 
-/*
- * Use this array to index to the correct GPIOInfoStructure based on the GPIO
- * enum index.
- */
-
+#if defined(BLINKY_HARDWARE)
 static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] =
 {
     &LED1Info, &LED2Info, &LED3Info,
@@ -410,222 +444,7 @@ static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] =
 
 #else
 
-static const GPIOInfo LED1Info = {
-    .GPIOPort             = GPIOLed1Port,
-    .PinNum               = GPIOLed1Pin,
-    .InitialStateOn       = GPIO_OFF,
-    .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
-    .InitialStateTristate = false 
-};
-
-static const GPIOInfo LED2Info = {
-    .GPIOPort             = GPIOLed2Port,
-    .PinNum               = GPIOLed2Pin,
-    .InitialStateOn       = GPIO_OFF,
-    .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
-    .InitialStateTristate = false 
-
-};
-
-static const GPIOInfo LED3Info = {
-    .GPIOPort             = GPIOLed3Port,
-    .PinNum               = GPIOLed3Pin,
-    .InitialStateOn       = GPIO_OFF,
-    .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
-    .InitialStateTristate = false 
-
-};
-
-static const GPIOInfo AX5043_Rx1_InterruptInfo = {
-    .GPIOPort             = GPIO_Rx1AX5043InterruptPort,
-    .PinNum               = GPIO_Rx1AX5043InterruptPin,
-    .InitialStateOn       = GPIO_UNUSED,
-    .DirectionIsOut       = GPIO_IN,
-    .CanInterrupt         = true,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
-    .InitialStateTristate = false
-};
-
-static const GPIOInfo AX5043_Rx2_InterruptInfo = {
-    .GPIOPort             = GPIO_Rx2AX5043InterruptPort,
-    .PinNum               = GPIO_Rx2AX5043InterruptPin,
-    .InitialStateOn       = GPIO_UNUSED,
-    .DirectionIsOut       = GPIO_IN,
-    .CanInterrupt         = true,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
-    .InitialStateTristate = false
-};
-
-static const GPIOInfo AX5043_Rx3_InterruptInfo = {
-    .GPIOPort             = GPIO_Rx3AX5043InterruptPort,
-    .PinNum               = GPIO_Rx3AX5043InterruptPin,
-    .InitialStateOn       = GPIO_UNUSED,
-    .DirectionIsOut       = GPIO_IN,
-    .CanInterrupt         = true,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
-    .InitialStateTristate = false
-};
-
-static const GPIOInfo AX5043_Rx4_InterruptInfo = {
-    .GPIOPort             = GPIO_Rx4AX5043InterruptPort,
-    .PinNum               = GPIO_Rx4AX5043InterruptPin,
-    .InitialStateOn       = GPIO_UNUSED,
-    .DirectionIsOut       = GPIO_IN,
-    .CanInterrupt         = true,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
-    .InitialStateTristate = false
-};
-
-static const GPIOInfo AX5043_Tx_InterruptInfo = {
-    .GPIOPort             = GPIO_TxAX5043InterruptPort,
-    .PinNum               = GPIO_TxAX5043InterruptPin,
-    .InitialStateOn       = GPIO_UNUSED,
-    .DirectionIsOut       = GPIO_IN,
-    .CanInterrupt         = true,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
-    .InitialStateTristate = false
-};
-
-static const GPIOInfo AX5043_Rx1_Selector = {
-    .GPIOPort             = SPI_Rx1AX5043_Select_Port,
-    .PinNum               = SPI_Rx1AX5043_Select_Pin,
-    .InitialStateOn       = GPIO_ON,
-    .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
-    .InitialStateTristate = false
-};
-
-static const GPIOInfo AX5043_Rx2_Selector = {
-    .GPIOPort             = SPI_Rx2AX5043_Select_Port,
-    .PinNum               = SPI_Rx2AX5043_Select_Pin,
-    .InitialStateOn       = GPIO_ON,
-    .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
-    .InitialStateTristate = false
-};
-
-static const GPIOInfo AX5043_Rx3_Selector = {
-    .GPIOPort             = SPI_Rx3AX5043_Select_Port,
-    .PinNum               = SPI_Rx3AX5043_Select_Pin,
-    .InitialStateOn       = GPIO_ON,
-    .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
-    .InitialStateTristate = false
-};
-
-static const GPIOInfo AX5043_Rx4_Selector = {
-    .GPIOPort             = SPI_Rx4AX5043_Select_Port,
-    .PinNum               = SPI_Rx4AX5043_Select_Pin,
-    .InitialStateOn       = GPIO_ON,
-    .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
-    .InitialStateTristate = false
-};
-
-static const GPIOInfo AX5043_Tx_Selector = {
-    .GPIOPort             = SPI_TxAX5043_Select_Port,
-    .PinNum               = SPI_TxAX5043_Select_Pin,
-    .InitialStateOn       = GPIO_ON,
-    .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
-    .InitialStateTristate = false
-};
-
-static const GPIOInfo MRAM0_Selector = {
-    .GPIOPort             = SPI_MRAM0_Select_Port,
-    .PinNum               = SPI_MRAM0_Select_Pin,
-    .InitialStateOn       = GPIO_ON,
-    .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
-    .InitialStateTristate = false
-};
-
-static const GPIOInfo MRAM1_Selector = {
-    .GPIOPort             = SPI_MRAM1_Select_Port,
-    .PinNum               = SPI_MRAM1_Select_Pin,
-    .InitialStateOn       = GPIO_ON,
-    .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
-    .InitialStateTristate = false
-};
-
-static const GPIOInfo MRAM2_Selector = {
-    .GPIOPort             = SPI_MRAM2_Select_Port,
-    .PinNum               = SPI_MRAM2_Select_Pin,
-    .InitialStateOn       = GPIO_ON,
-    .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
-    .InitialStateTristate = false
-};
-
-static const GPIOInfo MRAM3_Selector = {
-    .GPIOPort             = SPI_MRAM3_Select_Port,
-    .PinNum               = SPI_MRAM3_Select_Pin,
-    .InitialStateOn       = GPIO_ON,
-    .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
-    .InitialStateTristate = false
-};
-
-static const GPIOInfo SSPAPowerInfo = {
-    .GPIOPort             = GPIOsspaPowerPort,
-    .PinNum               = GPIOsspaPowerPin,
-    .InitialStateOn       = GPIO_ON,
-    .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
-    .InitialStateTristate = false 
-};
-
-static const GPIOInfo Ax5043PowerInfo = {
-    .GPIOPort             = GPIOax5043PowerPort,
-    .PinNum               = GPIOax5043PowerPin,
-    .InitialStateOn       = GPIO_OFF,
-    .DirectionIsOut       = GPIO_OUT,
-    .CanInterrupt         = false,
-    .InterruptBothEdges   = false,
-    .OpenCollector        = false,
-    .InitialStateTristate = false 
-};
-
-
-/*
- * Use this array to index to the correct GPIOInfoStructure based on the GPIO
- * enum index.
- */
+/* Put AFSK-specific hardware here when the time comes. */
 
 static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] =
 {
@@ -639,58 +458,30 @@ static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] =
 };
 
 #endif
+#endif
 
-static int GPIOInterruptLastIndex = 0;
-static Gpio_Use GPIOInterruptList[NumberOfGPIOs]={None}; /*List of GPIOs that support interrupts*/
 static IntertaskMessageType GPIOMessage[NumberOfGPIOs];
 static DestinationTask GPIOMessageDestination[NumberOfGPIOs];
-static Gpio_Use GPIOAuxGPIO1[NumberOfGPIOs];
 
 bool GPIOEzInit(Gpio_Use whichGpio)
 {
     // Save some typing, reading, and some code space for most init calls
-    return GPIOInit(whichGpio,NO_TASK,NO_MESSAGE,None);
+    return GPIOInit(whichGpio,NO_TASK,NO_MESSAGE);
 }
 
-bool GPIOInit(Gpio_Use whichGpio, DestinationTask task, IntertaskMessageType msg,
-              Gpio_Use auxDataGPIO1)
+bool GPIOInit(Gpio_Use whichGpio, DestinationTask task, IntertaskMessageType msg)
 {
-    /*
-     * Note:  GPIOInitialize returns a void * (think of it as an opaque value)
-     * which is in fact the semaphore that is being used for this GPIO.  It might
-     * be useful later to help implement the equivalent of an OR.  The second argument
-     * can be specified for input GPIOs with interrupts associated.  In this void HetSetPinDirection(hetBASE_t *regPtr,int pinNum,bool IsOut);
-     * case,
-     * when the current GPIO interrupt fires, "alsoRead" will also be read, and the
-     * value returned by GPIOWait.
-     */
-
     const GPIOInfo *thisGPIO = GPIOInfoStructures[whichGpio];
-    int portIndex;
-
-    // This whole mess below is to allow us to set the direction correctly.  The direction bits are write-only and
-    // must be written for the entire port.  So we keep track of what directions the port has, and re-write each
-    // time one of them is specified.
-
-    if (thisGPIO->GPIOPort == 0)
-        return false; //Todo: Make sure we have all the GPIOs set up (now missing I2c reset)
-
-    portIndex = (thisGPIO->GPIOPort==gioPORTA)?0:(thisGPIO->GPIOPort==gioPORTB)?1:
-           (thisGPIO->GPIOPort==hetPORT1)?2:(thisGPIO->GPIOPort==spiPORT1)?3:
-           (thisGPIO->GPIOPort==spiPORT5)?4:5;
 
 #ifdef UNDEFINE_BEFORE_FLIGHT
-    if(portIndex == 5)
-        return false; ///////////Need to add new ports above
-    if(task!= NO_TASK){
-        // If they are asking for an interrupt and either
-        if(
-                (portIndex > 1) || //...it is not a GIO port or...
-                (thisGPIO->DirectionIsOut) //...it is an output port or...
-                //We could check to see whether it is in the GIO interrupt list
-        ) return false; // No can do.
+    if (task != NO_TASK) {
+        // If they are asking for an interrupt, make sure it's supported.
+        if (!thisGPIO->info->CanInterrupt || thisGPIO->DirectionIsOut) {
+            return false; // No can do.
+        }
     }
 #endif
+
     GPIOSetPinDirection(whichGpio, thisGPIO->DirectionIsOut);
 
     if (thisGPIO->DirectionIsOut) {
@@ -701,197 +492,181 @@ bool GPIOInit(Gpio_Use whichGpio, DestinationTask task, IntertaskMessageType msg
          */
 
         uint16_t pinNum = thisGPIO->PinNum;
-        gioPORT_t *thisPort = thisGPIO->GPIOPort;
-            if(thisGPIO->OpenCollector || thisGPIO->InitialStateTristate){
-                thisPort->PDR |= 1 << pinNum;  //Tri-state the pin if the output register is high
-            }
-            if(thisGPIO->InitialStateOn || thisGPIO->InitialStateTristate){
-                thisPort->DSET = (1<<pinNum);
-            } else {
-                thisPort->DCLR = (1<<pinNum);
-            }
+
+        thisGPIO->info->funcs->setOpenCollector(thisGPIO->info, pinNum, 
+                                                thisGPIO->OpenCollector);
+        thisGPIO->info->funcs->setBit(thisGPIO->info, pinNum, 
+                                      thisGPIO->InitialStateOn);
     } else {
 
-        /* Here the direction is in so check for and set up interrupt possibilities */
+        /*
+         * Here the direction is in so check for and set up interrupt
+         * possibilities
+         */
 
-        if(thisGPIO->CanInterrupt && (task != NO_TASK)){
+        if (task != NO_TASK) {
+            struct PortGPIOInfo *info = thisGPIO->info->data;
+            gioPORT_t *port = info->port;
+
             /*
-             * Here we have a "real" GPIO port and we are a asking for a message to be sent when it changes.
-             * That means we set up an interrupt.
+             * Here we have a "real" GPIO port and we are a asking for
+             * a message to be sent when it changes.  That means we
+             * set up an interrupt.
              */
             GPIOMessage[whichGpio] = msg;
             GPIOMessageDestination[whichGpio] = task;
-            GPIOAuxGPIO1[whichGpio] = auxDataGPIO1;
-            /*
-             * Set up a quick search list of GPIOs that can take interrupts for the interrupt
-             * handler to use
-             */
-            GPIOInterruptList[GPIOInterruptLastIndex++] = whichGpio;
-            GPIOInterruptList[GPIOInterruptLastIndex] = None;
 
             /*
-             * Next we have to figure out whether this is an interrupt on both edges or not.  HalCoGen
-             * can set up for which edge direction if it is only one, but if we want an interrupt on
-             * both directions, we have to set the INTDET register, which HalCoGen can't currently do.
-             * INTDET had 32 bits, 8 for each of GPIOA, GPIOB, GPIOC and GPIOD (our chip does not have
-             * C and D).  So shift a bit to match the pin number of the GPIO and then over by 8 if it is
-             * GPIOB.
+             * This should really be handled through the abstraction,
+             * but GIOA and GIOB are the only things that can receive
+             * interrupts, so it's easier to just leave this for now.
+             */
+             
+            /*
+             * Next we have to figure out whether this is an interrupt
+             * on both edges or not.  HalCoGen can set up for which
+             * edge direction if it is only one, but if we want an
+             * interrupt on both directions, we have to set the INTDET
+             * register, which HalCoGen can't currently do.  INTDET
+             * had 32 bits, 8 for each of GPIOA, GPIOB, GPIOC and
+             * GPIOD (our chip does not have C and D).  So shift a bit
+             * to match the pin number of the GPIO and then over by 8
+             * if it is GPIOB.
              */
 
-            if(thisGPIO->InterruptBothEdges){
+            if (port == gioPORTA) {
+                if (thisGPIO->PinNum >= MAX_gioPORTA_PINS)
+                    return false;
+                gioPortA_Interrupts[thisGPIO->PinNum] = whichGpio;
+            } else {
+                if (thisGPIO->PinNum >= MAX_gioPORTB_PINS)
+                    return false;
+                gioPortB_Interrupts[thisGPIO->PinNum] = whichGpio;
+            }
+
+            if (thisGPIO->InterruptBothEdges) {
                 uint32_t mask = 1 << thisGPIO->PinNum;
-                if(thisGPIO->GPIOPort == gioPORTB){
+
+                if (port == gioPORTB) {
                     mask <<= 8;
                 }
                 /*
                  * Now finally set the bit in INTDET to say both directions.
                  */
                 gioREG->INTDET |= mask;
-
             }
-            gioEnableNotification(thisGPIO->GPIOPort, thisGPIO->PinNum);
+            gioEnableNotification(port, thisGPIO->PinNum);
         }
     }
     GPIOUsable[whichGpio] = true;
+
     return true;
+}
+
+void GPIOSet(Gpio_Use whichGpio, bool v)
+{
+    const GPIOInfo *thisGPIO = GPIOInfoStructures[whichGpio];
+
+    if (!GPIOUsable[whichGpio])
+        return;
+
+#ifdef DEBUG_BUILD
+    if (thisGPIO->Mode != GPIO_Mode_OUT) {
+        ReportError(IllegalGPIOOutput, TRUE, PortNumber, whichGpio);
+    }
+#endif
+
+    thisGPIO->info->funcs->setBit(thisGPIO->info, thisGPIO->PinNum, v);
 }
 
 void GPIOSetOn(Gpio_Use whichGpio)
 {
-    const GPIOInfo *thisGPIO = GPIOInfoStructures[whichGpio];
-#ifdef DEBUG_BUILD
-    if(thisGPIO->Mode != GPIO_Mode_OUT)ReportError(IllegalGPIOOutput,TRUE,PortNumber,whichGpio);
-#endif
-    if(GPIOUsable[whichGpio]){
-        gioSetBit(thisGPIO->GPIOPort, thisGPIO->PinNum,1);
-    }
- }
+    GPIOSet(whichGpio, 1);
+}
+
 void GPIOSetOff(Gpio_Use whichGpio)
 {
-    const GPIOInfo *thisGPIO = GPIOInfoStructures[whichGpio];
-#ifdef DEBUG_BUILD
-    if(thisGPIO->Mode != GPIO_Mode_OUT)ReportError(IllegalGPIOOutput,TRUE,PortNumber,whichGpio);
-#endif
-    if(GPIOUsable[whichGpio]){
-        gioSetBit(thisGPIO->GPIOPort, thisGPIO->PinNum,0);
-    }
+    GPIOSet(whichGpio, 0);
 }
 
 void GPIOToggle(Gpio_Use whichGpio)
 {
     const GPIOInfo *thisGPIO = GPIOInfoStructures[whichGpio];
-    if(GPIOUsable[whichGpio]){
-        gioToggleBit(thisGPIO->GPIOPort,thisGPIO->PinNum);
+
+    if (!GPIOUsable[whichGpio])
+        return;
+
+#ifdef DEBUG_BUILD
+    if (thisGPIO->Mode != GPIO_Mode_IN) {
+        ReportError(IllegalGPIOOutput, TRUE, PortNumber, whichGpio);
     }
+#endif
+
+    thisGPIO->info->funcs->toggleBit(thisGPIO->info, thisGPIO->PinNum);
 }
-/*
- *
- */
+
 bool GPIOIsOn(Gpio_Use whichGpio)
 {
-    const GPIOInfo *thisGPIO = GPIOInfoStructures[whichGpio];
-#ifdef DEBUG_BUILD
-    if(thisGPIO->Mode != GPIO_Mode_OUT)ReportError(IllegalGPIOOutput,TRUE,PortNumber,whichGpio);
-#endif
-    return gioGetBit(thisGPIO->GPIOPort,thisGPIO->PinNum) == 1;
+    return GPIORead(whichGpio) == 1;
 }
 
 uint16_t GPIORead(Gpio_Use whichGpio)
 {
-    //	extern bool IgnoreUmbilical;
-    uint32_t readData;
     const GPIOInfo *thisGPIO = GPIOInfoStructures[whichGpio];
 
+    if (!GPIOUsable[whichGpio])
+        return 0;
+
 #ifdef DEBUG_BUILD
-    if(thisGPIO->Mode != GPIO_Mode_IN)ReportError(IllegalGPIOInput,TRUE,PortNumber,whichGpio);
+    if (thisGPIO->Mode != GPIO_Mode_IN) {
+        ReportError(IllegalGPIOOutput, TRUE, PortNumber, whichGpio);
+    }
 #endif
 
-    readData = gioGetPort(thisGPIO->GPIOPort);
-    readData = readData >> thisGPIO->PinNum;
-    return readData & 1;
+    return thisGPIO->info->funcs->getBit(thisGPIO->info, thisGPIO->PinNum);
 }
 
-void gioNotification(gioPORT_t *port, uint32 bit)
+void GPIOSetPinDirection(Gpio_Use whichGpio, bool IsOut)
 {
-    int i;
-    for(i=0;GPIOInterruptList[i]!=None;i++){
-        //todo:  We could speed this up a bit by having separate lists for each port, or at least ordering them
-        // and we could also arrange a separate table of interrupting GPIOs.
-        Gpio_Use thisGPIO = GPIOInterruptList[i];
-        if((port == GPIOInfoStructures[thisGPIO]->GPIOPort) && (bit == GPIOInfoStructures[thisGPIO]->PinNum)){
-            GPIOIntRoutine(thisGPIO);
-            break;
-        }
+    const GPIOInfo *thisGPIO = GPIOInfoStructures[whichGpio];
 
-    }
+    thisGPIO->info->funcs->setDirectionOut(thisGPIO->info, thisGPIO->PinNum, IsOut);
 }
 
-void GPIOIntRoutine(Gpio_Use whichGPIO)
+static void GPIOIntRoutine(Gpio_Use whichGPIO)
 {
     /*
-     * Interrupt handler.  Clear the pending bit, and then, if
-     * requested read 1 or 2 extra GPIOs.  Finally send the message
-     * requested in the init.  Note that reading a GPIO can be done
-     * from an interrupt routine.  Care must be taken not to mess with
-     * GPIORead to prevent this.
+     * Interrupt handler.  Send the message requested in the init.
+     * Note that reading a GPIO can be done from an interrupt routine.
+     * Care must be taken not to mess with GPIORead to prevent this.
      */
     Intertask_Message message;
 
     message.MsgType = GPIOMessage[whichGPIO];
-    if (GPIOAuxGPIO1[whichGPIO] != None) {
-        message.argument = GPIORead(GPIOAuxGPIO1[whichGPIO]);
-    }
     NotifyInterTaskFromISR(GPIOMessageDestination[whichGPIO],&message);
 
     //EndInterruptRoutine();
 }
 
-void GPIOSetPinDirection(Gpio_Use gpioNum ,bool IsOut)
+void gioNotification(gioPORT_t *port, uint32 bit)
 {
-    static uint32_t portDirection[]={0,0,0,0,0,0,0};
-    gioPORT_t *regPtr = GPIOInfoStructures[gpioNum]->GPIOPort;
-    int pinNum = GPIOInfoStructures[gpioNum]->PinNum;
-    int portIndex;
+    Gpio_Use thisGPIO;
 
-    portIndex = regPtr==hetPORT1?0:regPtr==hetPORT2?1:regPtr==gioPORTA?2:regPtr==spiPORT1?3:
-            regPtr==spiPORT3?4:regPtr==spiPORT5?5:6;
-    portDirection[portIndex] |=
-            ((IsOut) ? (1<<pinNum):0);
-    regPtr->DIR = portDirection[portIndex];     // Set any pins that we know should be output to output
-    regPtr->PULDIS |= portDirection[portIndex]; // All the output pins should have pull disabled
-}
-
-void GPIOSetTristate(Gpio_Use gpioNum)
-{
-    const GPIOInfo *thisGPIO = GPIOInfoStructures[gpioNum];
-    gioPORT_t *thisPort = thisGPIO->GPIOPort;
-    int pinNum = thisGPIO->PinNum;
-
-    if (thisGPIO->DirectionIsOut) {
-        thisPort->PDR |= 1 << pinNum;  //Tri-state the pin if the output register is high
-        thisPort->DSET = 1 << pinNum;  //Set the output register high
-        GPIOUsable[gpioNum] = false;
-    }
-    return;
-}
-void GPIOSetPushPull(Gpio_Use gpioNum){
-    const GPIOInfo *thisGPIO = GPIOInfoStructures[gpioNum];
-    gioPORT_t *thisPort = thisGPIO->GPIOPort;
-    int pinNum = thisGPIO->PinNum;
-    uint32_t mask = 0xFFFFFFFF;
-
-    if (thisGPIO->InitialStateOn) {
-        thisPort->DSET = 1 << pinNum;
+    if (port == gioPORTA) {
+        if (bit >= MAX_gioPORTA_PINS)
+            return;
+        thisGPIO = gioPortA_Interrupts[bit];
+        if (thisGPIO == No_GPIO)
+            return;
+    } else if (port == gioPORTB) {
+        if (bit >= MAX_gioPORTB_PINS)
+            return;
+        thisGPIO = gioPortB_Interrupts[bit];
+        if (thisGPIO == No_GPIO)
+            return;
     } else {
-        thisPort->DCLR = 1 << pinNum;  //Set the output register low
+        return;
     }
 
-    if (thisGPIO->OpenCollector) {
-        thisPort->PDR |= 1 << pinNum;  // Enable Open drain (same as tristate except it is marked usable)
-    } else {
-        mask = 0xFFFFFFFF ^ (1<<pinNum); // Set the bit we care about to 0; all the rest to 1
-        thisPort->PDR &= mask;  //Switch off open drain on the pin
-    }
-    GPIOUsable[gpioNum] = true;
-    return;
+    GPIOIntRoutine(thisGPIO);
 }
