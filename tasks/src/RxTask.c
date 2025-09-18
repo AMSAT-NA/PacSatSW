@@ -81,8 +81,7 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
    // ax5043StartRx(AX5043Dev1, ANT_DIFFERENTIAL);
     ax5043StartRx(AX5043Dev2, ANT_SINGLE_ENDED);
     ax5043StartRx(AX5043Dev3,ANT_DIFFERENTIAL);
-//Turn on the LED2 if off for Rx    N5BRG   240519
-    GPIOSetOff(LED2);
+    GPIOSetOn(LED2);
 #endif
     while(1) {
         Intertask_Message messageReceived;
@@ -187,8 +186,7 @@ void process_fifo(AX5043Device device) {
                     snprintf(rx_str, sizeof(rx_str), "RX[%d]",device);
                     print_packet(rx_str, &rx_radio_buffer.bytes[0],rx_radio_buffer.len);
                 }
-                //Turn off the LED2 if on for Rx   N5BRG   240521
-                GPIOSetOn(LED2);
+                GPIOSetOff(LED2);
 
                 // Store the channel here - same as device id
                 rx_radio_buffer.channel = (rx_channel_t)device;

@@ -363,6 +363,7 @@ static const GPIOInfo LED1Info = {
     .DirectionIsOut       = GPIO_OUT,
     .InterruptBothEdges   = false,
     .OpenCollector        = false,
+    .NegativeLogic        = true,
 };
 
 static const GPIOInfo LED2Info = {
@@ -372,6 +373,7 @@ static const GPIOInfo LED2Info = {
     .DirectionIsOut       = GPIO_OUT,
     .InterruptBothEdges   = false,
     .OpenCollector        = false,
+    .NegativeLogic        = true,
 };
 
 static const GPIOInfo MRAM0_Selector = {
@@ -497,6 +499,7 @@ static const GPIOInfo LED3Info = {
     .DirectionIsOut       = GPIO_OUT,
     .InterruptBothEdges   = false,
     .OpenCollector        = false,
+    .NegativeLogic        = true,
 };
 
 static const GPIOInfo AX5043_Rx2_InterruptInfo = {

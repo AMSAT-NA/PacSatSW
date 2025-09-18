@@ -856,16 +856,17 @@ void RealConsoleTask(void)
         case noticeUmb:
             //OverrideUmbilical(false);
             break;
+
         case testLED:{
-            GPIOSetOff(LED1);
-            GPIOSetOff(LED2);
-            vTaskDelay(SECONDS(2));
             GPIOSetOn(LED1);
-            vTaskDelay(SECONDS(2));
-            GPIOSetOff(LED1);
             GPIOSetOn(LED2);
             vTaskDelay(SECONDS(2));
+            GPIOSetOff(LED1);
+            vTaskDelay(SECONDS(2));
+            GPIOSetOn(LED1);
             GPIOSetOff(LED2);
+            vTaskDelay(SECONDS(2));
+            GPIOSetOff(LED1);
             break;
         }
 

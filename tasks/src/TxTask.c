@@ -69,9 +69,8 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)  {
 
     /* Set Power state to FULL_TX */
      ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_FULL_TX);
-     //Turn on the LED1 if off for TX    N5BRG   240519
-     printf("Turn on TX LED1\n");
-     GPIOSetOff(LED1);
+     //printf("Turn on TX LED1\n");
+     GPIOSetOn(LED1);
      //vTaskDelay(SECONDS(10));
      GPIOSetOn(SSPAPower);
 
@@ -109,9 +108,8 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)  {
             while (ax5043ReadReg(device, AX5043_RADIOSTATE) != 0) {
                 vTaskDelay(1); // this will yield and allow other processing while it transmits
             }
-            //Turn off the LED1 if on    N5BRG   240519
             //printf("Turn off TX LED1\n");
-            GPIOSetOn(LED1);
+            GPIOSetOff(LED1);
             GPIOSetOff(SSPAPower);
             //       printf("INFO: Transmission complete\n");
         }
@@ -329,9 +327,8 @@ bool tx_send_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint
     TickType_t xTicksToWait = 0;
     if (block)
         xTicksToWait = CENTISECONDS(1);
-    //Turn on the LED1 if off for TX    N5BRG   240521
-        //printf("Turn on TX LED1  2nd place\n");
-    GPIOSetOff(LED1);
+    //printf("Turn on TX LED1  2nd place\n");
+    GPIOSetOn(LED1);
     GPIOSetOn(SSPAPower);
 
     BaseType_t xStatus = xQueueSendToBack( xTxPacketQueue, &tmp_packet_buffer, xTicksToWait );
