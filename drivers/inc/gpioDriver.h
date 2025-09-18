@@ -24,7 +24,7 @@ typedef enum gu {
     MRAM0_Sel, MRAM1_Sel, MRAM2_Sel, MRAM3_Sel,
 
     // Dummy GPIOs
-    SSPAPower, AX5043Power,
+    SSPAPower, AX5043Power, Watchdog
     NumberOfGPIOs
 } Gpio_Use;
 
@@ -37,7 +37,7 @@ typedef enum gu {
     AX5043_Rx1_Sel, AX5043_Rx2_Sel, AX5043_Rx3_Sel, AX5043_Rx4_Sel,
     AX5043_Tx_Sel,
     MRAM0_Sel, MRAM1_Sel, MRAM2_Sel, MRAM3_Sel,
-    SSPAPower, AX5043Power,
+    SSPAPower, AX5043Power, Watchdog,
     NumberOfGPIOs
 } Gpio_Use;
 
@@ -50,7 +50,19 @@ typedef enum gu {
     AX5043_Rx1_Sel, AX5043_Rx2_Sel, AX5043_Rx3_Sel, AX5043_Rx4_Sel,
     AX5043_Tx_Sel,
     MRAM0_Sel, MRAM1_Sel, MRAM2_Sel, MRAM3_Sel,
-    SSPAPower, AX5043Power,
+    SSPAPower, AX5043Power, Watchdog,
+
+    OtherFault, OtherPowerOffState, OtherPresense, OtherActive,
+    OtherPowerOff, ImActive,
+
+    UmbilicalAttached,
+    LNAPower, MeasurePower,
+
+    AX5043_Rx1_Power, AX5043_Rx2_Power, AX5043_Rx3_Power, AX5043_Rx4_Power,
+    AX5043_Tx_Power,
+
+    CANAPower, CANBPower,
+
     NumberOfGPIOs
 } Gpio_Use;
 #endif
@@ -72,8 +84,10 @@ extern const GPIOHandler dummyGPIO;
 #define CAN_GPIO_TX 1
 extern const GPIOHandler can1GPIO;
 
+/* GPIO for the ECLK pin, there is only one. */
+extern const GPIOHandler eclkGPIO;
 
-#define GPIO_UNUSED false
+
 #define GPIO_OFF false
 #define GPIO_ON true
 

@@ -17,6 +17,7 @@
 #include "het.h"
 #include "i2c.h"
 #include "sci.h"
+#include "reg_system.h"
 
 /* Golf headers*/
 #include "interTaskNotify.h"
@@ -295,6 +296,51 @@ const GPIOHandler can1GPIO = {
 };
 
 /*
+ * Functions for handling standard ECLK gpio types.
+ */
+static void ECLKGPIO_setBit(const GPIOHandler *h, uint16_t pinNum, uint16_t val)
+{
+    systemREG1->SYSPC4 = val;
+}
+
+static uint16_t ECLKGPIO_getBit(const GPIOHandler *h, uint16_t pinNum)
+{
+    return systemREG1->SYSPC3;
+;
+}
+
+static void ECLKGPIO_toggleBit(const GPIOHandler *h, uint16_t pinNum)
+{
+    systemREG1->SYSPC4 = !systemREG1->SYSPC4;
+}
+
+static void ECLKGPIO_setDirectionOut(const GPIOHandler *h, uint16_t pinNum,
+				     bool val)
+{
+    systemREG1->SYSPC1 = 0; // Set to GPIO mode.
+    systemREG1->SYSPC2 = val;
+}
+
+static void ECLKGPIO_setOpenCollector(const GPIOHandler *h, uint16_t pinNum,
+				      bool val)
+{
+    systemREG1->SYSPC7 = val;
+}
+
+static const GPIOFuncs ECLKGPIOFuncs = {
+    .setBit = ECLKGPIO_setBit,
+    .getBit = ECLKGPIO_getBit,
+    .toggleBit = ECLKGPIO_toggleBit,
+    .setDirectionOut = ECLKGPIO_setDirectionOut,
+    .setOpenCollector = ECLKGPIO_setOpenCollector,
+};
+
+const GPIOHandler eclkGPIO = {
+    .data = NULL,
+    .funcs = &ECLKGPIOFuncs
+};
+
+/*
  * Functions for handling standard DUMMY gpio types.  These remove ugly
  * ifdefs for setting things.
  */
@@ -361,6 +407,7 @@ static const GPIOInfo LED1Info = {
     .PinNum               = GPIOLed1Pin,
     .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
+    .OpenCollector        = true,
     .NegativeLogic        = true,
 };
 
@@ -369,6 +416,7 @@ static const GPIOInfo LED2Info = {
     .PinNum               = GPIOLed2Pin,
     .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
+    .OpenCollector        = true,
     .NegativeLogic        = true,
 };
 
@@ -407,7 +455,6 @@ static const GPIOInfo MRAM3_Selector = {
 static const GPIOInfo AX5043_Rx1_InterruptInfo = {
     .info                 = &GPIO_Rx1AX5043InterruptPort,
     .PinNum               = GPIO_Rx1AX5043InterruptPin,
-    .InitialStateOn       = GPIO_UNUSED,
     .DirectionIsOut       = GPIO_IN,
     .NegativeLogic        = true,
 };
@@ -415,7 +462,6 @@ static const GPIOInfo AX5043_Rx1_InterruptInfo = {
 static const GPIOInfo AX5043_Tx_InterruptInfo = {
     .info                 = &GPIO_TxAX5043InterruptPort,
     .PinNum               = GPIO_TxAX5043InterruptPin,
-    .InitialStateOn       = GPIO_UNUSED,
     .DirectionIsOut       = GPIO_IN,
     .NegativeLogic        = true,
 };
@@ -456,6 +502,12 @@ static const GPIOInfo Ax5043PowerInfo = {
     .DirectionIsOut       = GPIO_OUT,
 };
 
+static const GPIOInfo WatchdogInfo = {
+    .info                 = &dummyGPIO,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+};
+
 /*
  * Use this array to index to the correct GPIOInfoStructure based on the GPIO
  * enum index.
@@ -466,7 +518,7 @@ static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] = {
     &AX5043_Rx1_InterruptInfo, &AX5043_Tx_InterruptInfo,
     &AX5043_Rx1_Selector, &AX5043_Tx_Selector,
     &MRAM0_Selector, &MRAM1_Selector, &MRAM2_Selector, &MRAM3_Selector,
-    &SSPAPowerInfo, &Ax5043PowerInfo
+    &SSPAPowerInfo, &Ax5043PowerInfo, &WatchdogInfo
 };
 
 #ifdef DEBUG
@@ -474,7 +526,7 @@ static const char *GPIONames[NumberOfGPIOs] = {
     "LED1", "LED2", "LED3", "AX5043_Rx1_Interrupt", "AX5043_Tx_Interrupt",
     "AX5043_Rx1_Interrupt", "AX5043_Tx_Interrupt",
     "MRAM0_Sel", "MRAM1_Sel", "MRAM2_Sel", "MRAM3_Sel",
-    "SSPAPower", "AX5043Power",
+    "SSPAPower", "AX5043Power", "Watchdog",
 };
 #endif
 
@@ -485,13 +537,13 @@ static const GPIOInfo LED3Info = {
     .PinNum               = GPIOLed3Pin,
     .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
+    .OpenCollector        = true,
     .NegativeLogic        = true,
 };
 
 static const GPIOInfo AX5043_Rx2_InterruptInfo = {
     .info                 = &GPIO_Rx2AX5043InterruptPort,
     .PinNum               = GPIO_Rx2AX5043InterruptPin,
-    .InitialStateOn       = GPIO_UNUSED,
     .DirectionIsOut       = GPIO_IN,
     .NegativeLogic        = true,
 };
@@ -499,7 +551,6 @@ static const GPIOInfo AX5043_Rx2_InterruptInfo = {
 static const GPIOInfo AX5043_Rx3_InterruptInfo = {
     .info                 = &GPIO_Rx3AX5043InterruptPort,
     .PinNum               = GPIO_Rx3AX5043InterruptPin,
-    .InitialStateOn       = GPIO_UNUSED,
     .DirectionIsOut       = GPIO_IN,
     .NegativeLogic        = true,
 };
@@ -507,7 +558,6 @@ static const GPIOInfo AX5043_Rx3_InterruptInfo = {
 static const GPIOInfo AX5043_Rx4_InterruptInfo = {
     .info                 = &GPIO_Rx4AX5043InterruptPort,
     .PinNum               = GPIO_Rx4AX5043InterruptPin,
-    .InitialStateOn       = GPIO_UNUSED,
     .DirectionIsOut       = GPIO_IN,
     .NegativeLogic        = true,
 };
@@ -556,6 +606,16 @@ static const GPIOInfo Ax5043PowerInfo = {
 #endif
 };
 
+static const GPIOInfo WatchdogInfo = {
+    .info                 = &spiPort1GPIO,
+    .PinNum               = SPI_PIN_CS1,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+#ifdef BLINKY_HARDWARE
+    .NegativeLogic        = true,
+#endif
+};
+
 #if defined(BLINKY_HARDWARE)
 static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] =
 {
@@ -565,7 +625,7 @@ static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] =
     &AX5043_Rx1_Selector, &AX5043_Rx2_Selector, &AX5043_Rx3_Selector,
     &AX5043_Rx4_Selector, &AX5043_Tx_Selector,
     &MRAM0_Selector, &MRAM1_Selector, &MRAM2_Selector, &MRAM3_Selector,
-    &SSPAPowerInfo, &Ax5043PowerInfo
+    &SSPAPowerInfo, &Ax5043PowerInfo, &WatchdogInfo,
 };
 
 #ifdef DEBUG
@@ -576,13 +636,130 @@ static const char *GPIONames[NumberOfGPIOs] = {
     "AX5043_Rx1_Sel", "AX5043_Rx2_Sel", "AX5043_Rx3_Sel", "AX5043_Rx4_Sel",
     "AX5043_Tx_Sel",
     "MRAM0_Sel", "MRAM1_Sel", "MRAM2_Sel", "MRAM3_Sel",
-    "SSPAPower", "AX5043Power",
+    "SSPAPower", "AX5043Power", "Watchdog"
 };
 #endif
 
 #else
 
-/* Put AFSK-specific hardware here when the time comes. */
+static const GPIOInfo OtherFaultInfo = {
+    .info                 = &gioPortAGPIO,
+    .PinNum               = 3,
+    .DirectionIsOut       = GPIO_IN,
+    .NegativeLogic        = true,
+};
+
+static const GPIOInfo OtherPowerOffStateInfo = {
+    .info                 = &hetPort1GPIO,
+    .PinNum               = 1,
+    .DirectionIsOut       = GPIO_IN,
+    .NegativeLogic        = true,
+};
+
+static const GPIOInfo OtherPresenceInfo = {
+    .info                 = &gioPortAGPIO,
+    .PinNum               = 2,
+    .DirectionIsOut       = GPIO_IN,
+    .NegativeLogic        = true,
+};
+
+static const GPIOInfo OtherActiveInfo = {
+    .info                 = &gioPortAGPIO,
+    .PinNum               = 6,
+    .DirectionIsOut       = GPIO_IN,
+    .NegativeLogic        = true,
+};
+
+static const GPIOInfo OtherPowerOffInfo = {
+    .info                 = &hetPort1GPIO,
+    .PinNum               = 10,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+};
+
+static const GPIOInfo ActiveInfo = {
+    .info                 = &gioPortBGPIO,
+    .PinNum               = 1,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+};
+
+static const GPIOInfo UmbilicalAttachedInfo = {
+    .info                 = &eclkGPIO,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+};
+
+static const GPIOInfo LNAPowerInfo = {
+    .info                 = &hetPort1GPIO,
+    .PinNum               = 5,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+};
+
+static const GPIOInfo MeasurePowerInfo = {
+    .info                 = &hetPort1GPIO,
+    .PinNum               = 12,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+};
+
+static const GPIOInfo AX5043_Rx1_PowerInfo = {
+    .info                 = &hetPort1GPIO,
+    .PinNum               = 4,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+    .NegativeLogic        = true,
+};
+
+static const GPIOInfo AX5043_Rx2_PowerInfo = {
+    .info                 = &hetPort1GPIO,
+    .PinNum               = 9,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+    .NegativeLogic        = true,
+};
+
+static const GPIOInfo AX5043_Rx3_PowerInfo = {
+    .info                 = &hetPort1GPIO,
+    .PinNum               = 7,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+    .NegativeLogic        = true,
+};
+
+static const GPIOInfo AX5043_Rx4_PowerInfo = {
+    .info                 = &hetPort1GPIO,
+    .PinNum               = 3,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+    .NegativeLogic        = true,
+};
+
+static const GPIOInfo AX5043_Tx_PowerInfo = {
+    .info                 = &can1GPIO,
+    .PinNum               = CAN_GPIO_TX,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+    .NegativeLogic        = true,
+};
+
+static const GPIOInfo CANAPowerInfo = {
+    .info                 = &hetPort1GPIO,
+    .PinNum               = 15,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+    .NegativeLogic        = true,
+};
+
+static const GPIOInfo CANBPowerInfo = {
+    .info                 = &spiPort1GPIO,
+    .PinNum               = SPI_PIN_CS0,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+    .NegativeLogic        = true,
+};
+
 
 static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] =
 {
@@ -592,7 +769,18 @@ static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] =
     &AX5043_Rx1_Selector, &AX5043_Rx2_Selector, &AX5043_Rx3_Selector,
     &AX5043_Rx4_Selector, &AX5043_Tx_Selector,
     &MRAM0_Selector, &MRAM1_Selector, &MRAM2_Selector, &MRAM3_Selector,
-    &SSPAPowerInfo, &Ax5043PowerInfo
+    &SSPAPowerInfo, &Ax5043PowerInfo, &WatchdogInfo,
+
+    &OtherFaultInfo, &OtherPowerOffStateInfo, &OtherPresenceInfo, &OtherActiveInfo,
+    &OtherPowerOffInfo, &ActiveInfo,
+
+    &UmbilicalAttachedInfo,
+    &LNAPowerInfo, &MeasurePowerInfo,
+
+    &AX5043_Rx1_PowerInfo, &AX5043_Rx2_PowerInfo, &AX5043_Rx3_PowerInfo,
+    &AX5043_Rx4_PowerInfo, &AX5043_Tx_PowerInfo,
+
+    &CANAPowerInfo, &CANBPowerInfo, 
 };
 
 #ifdef DEBUG
@@ -603,7 +791,18 @@ static const char *GPIONames[NumberOfGPIOs] = {
     "AX5043_Rx1_Sel", "AX5043_Rx2_Sel", "AX5043_Rx3_Sel", "AX5043_Rx4_Sel",
     "AX5043_Tx_Sel",
     "MRAM0_Sel", "MRAM1_Sel", "MRAM2_Sel", "MRAM3_Sel",
-    "SSPAPower", "AX5043Power",
+    "SSPAPower", "AX5043Power", "Watchdog",
+
+    "OtherFault", "OtherPowerOffState", "OtherPresense", "OtherActive",
+    "OtherPowerOff", "ImActive",
+
+    "UmbilicalAttached",
+    "LNAPower", "MeasurePower",
+
+    "AX5043_Rx1_Power", "AX5043_Rx2_Power", "AX5043_Rx3_Power", "AX5043_Rx4_Power",
+    "AX5043_Tx_Power",
+
+    "CANAPower", "CANBPower",
 };
 #endif
 
@@ -662,10 +861,13 @@ bool GPIOInit(Gpio_Use whichGpio, DestinationTask task, IntertaskMessageType msg
 
         uint16_t pinNum = thisGPIO->PinNum;
 
+	GPIOUsable[whichGpio] = true;
         thisGPIO->info->funcs->setOpenCollector(thisGPIO->info, pinNum, 
                                                 thisGPIO->OpenCollector);
-        thisGPIO->info->funcs->setBit(thisGPIO->info, pinNum, 
-                                      thisGPIO->InitialStateOn);
+	if (thisGPIO->InitialStateOn)
+	    GPIOSetOn(whichGpio);
+	else
+	    GPIOSetOff(whichGpio);
     } else {
 
         /*
@@ -713,6 +915,8 @@ bool GPIOInit(Gpio_Use whichGpio, DestinationTask task, IntertaskMessageType msg
                 gioPortB_Interrupts[thisGPIO->PinNum] = whichGpio;
             }
 
+	    GPIOUsable[whichGpio] = true;
+
             if (thisGPIO->InterruptBothEdges) {
                 uint32_t mask = 1 << thisGPIO->PinNum;
 
@@ -727,7 +931,6 @@ bool GPIOInit(Gpio_Use whichGpio, DestinationTask task, IntertaskMessageType msg
             gioEnableNotification(port, thisGPIO->PinNum);
         }
     }
-    GPIOUsable[whichGpio] = true;
 
     return true;
 }
