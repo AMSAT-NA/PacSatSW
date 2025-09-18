@@ -46,21 +46,26 @@ extern bool monitorPackets;
 //uint8_t byteBuf[] = {0xA0,0x84,0x98,0x92,0xA6,0xA8,0x00,0xA0,0x8C,0xA6,0x66,
 //                     0x40,0x40,0x17,0x03,0xF0,0x50,0x42,0x3A,0x20,0x45,0x6D,0x70,0x74,0x79,0x2E,0x0D};
 
-portTASK_FUNCTION_PROTO(TxTask, pvParameters)  {
+portTASK_FUNCTION_PROTO(TxTask, pvParameters)
+{
+    bool rate = ReadMRAMBoolState(StateAx25Rate9600);
 
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)TxTaskWD );
     InitInterTask(ToTxTask, 10);
 
-//    printf("Initializing TX\n");
+    //    printf("Initializing TX\n");
 
     /* This is defined in pacsat.h, declared here */
     xTxPacketQueue = xQueueCreate( TX_PACKET_QUEUE_LEN, sizeof( rx_radio_buffer_t ) );
     if (xTxPacketQueue == NULL) {
-        /* The queue could not be created.  This is fatal and should only happen in test if we are short of memory at startup */
-        ReportError(RTOSfailure, TRUE, CharString, (int)"FATAL ERROR: Could not create TX Packet Queue");
+        /*
+         * The queue could not be created.  This is fatal and should
+         * only happen in test if we are short of memory at startup.
+         */
+        ReportError(RTOSfailure, true, CharString,
+                    (int)"FATAL ERROR: Could not create TX Packet Queue");
     }
 
-    bool rate = ReadMRAMBoolState(StateAx25Rate9600);
     ax5043StartTx(device, ANT_DIFFERENTIAL);
     // Add seletable Tx power levels  N5BRG  240516
     //radio_set_power(0x020); // minimum power to test RF output on AX5043
@@ -68,37 +73,53 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)  {
     radio_set_power(0x0fff); // maximum power to test RF output on AX5043
 
     /* Set Power state to FULL_TX */
-     ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_FULL_TX);
-     //printf("Turn on TX LED1\n");
-     GPIOSetOn(LED1);
-     //vTaskDelay(SECONDS(10));
-     GPIOSetOn(SSPAPower);
+    ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_FULL_TX);
 
-   // Add power on TX here
+    //printf("Turn off TX LED1 at init\n");
+    GPIOSetOff(LED1);
+    GPIOSetOff(SSPAPower);
+    ReportToWatchdog(CurrentTaskWD);
 
-    while(1) {
-
+    while (1) {
         uint8_t pktstart_flag = 0x01;
         uint8_t pktend_flag = 0x02;
         uint8_t raw_no_crc_flag = 0x18; // Flag of 0x18 is RAW no CRC
         uint8_t preamble_length = 32; // 10 for 1200 bps - Radio lab recommends 32 for 9600, may need as much as 56.
+        BaseType_t xStatus;
+
         if (rate == RATE_1200) {
             preamble_length = 10;
         }
+
+        // TODO - adjust block time vs watchdog
+        xStatus = xQueueReceive(xTxPacketQueue, &tx_packet_buffer, CENTISECONDS(10));
         ReportToWatchdog(CurrentTaskWD);
-        BaseType_t xStatus = xQueueReceive( xTxPacketQueue, &tx_packet_buffer, CENTISECONDS(10) );  // TODO - adjust block time vs watchdog
-        ReportToWatchdog(CurrentTaskWD);
-        if( xStatus == pdPASS ) {
+
+	if (xStatus != pdPASS) {
+	    continue;
+	}
+
+	GPIOSetOn(LED1);
+	GPIOSetOn(SSPAPower);
+	// FIXME - do we need a delay here?
+	//vTaskDelay(MILLISECONDS(1));
+
+	/* Transmit until we have no more packets. */
+        while (xStatus == pdPASS) {
+            /* Data was successfully received from the queue */
+            int numbytes = tx_packet_buffer.len;
+
             if (monitorPackets)
                 print_packet("TX", tx_packet_buffer.bytes, tx_packet_buffer.len);
 
-            /* Data was successfully received from the queue */
-            int numbytes = tx_packet_buffer.len;
-            //        printf("FIFO_FREE 1: %d\n",fifo_free());
+            //       printf("FIFO_FREE 1: %d\n",fifo_free());
             ax5043WriteReg(device, AX5043_FIFOSTAT, 3); // clear FIFO data & flags
-            fifo_repeat_byte(device, 0x7E, preamble_length, raw_no_crc_flag); // repeat the preamble bytes  ///  TODO - no preamble for back to back packets
+
+            // repeat the preamble bytes  ///  TODO - no preamble for back to back packets
+            fifo_repeat_byte(device, 0x7E, preamble_length, raw_no_crc_flag);
             fifo_commit(device);
-            fifo_queue_buffer(device, tx_packet_buffer.bytes, numbytes, pktstart_flag|pktend_flag);
+            fifo_queue_buffer(device, tx_packet_buffer.bytes, numbytes,
+                              pktstart_flag | pktend_flag);
             //       printf("FIFO_FREE 2: %d\n",fifo_free());
             fifo_commit(device);
             //       printf("INFO: Waiting for transmission to complete\n");
@@ -106,13 +127,20 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)  {
             // TODO - we need to support longer packets
             // Setup the interrupt to tell us when the buffer is empty and we can check the TX status then
             while (ax5043ReadReg(device, AX5043_RADIOSTATE) != 0) {
-                vTaskDelay(1); // this will yield and allow other processing while it transmits
+                // this will yield and allow other processing while it transmits
+		// FIXME - Can't we use an interrupt for this?
+                vTaskDelay(MILLISECONDS(1));
             }
-            //printf("Turn off TX LED1\n");
-            GPIOSetOff(LED1);
-            GPIOSetOff(SSPAPower);
-            //       printf("INFO: Transmission complete\n");
-        }
+
+	    // See if we have another packet to send.
+	    xStatus = xQueueReceive(xTxPacketQueue, &tx_packet_buffer, NO_TIMEOUT);
+	    ReportToWatchdog(CurrentTaskWD);
+	}
+
+	//       printf("Turn off TX LED1\n");
+	GPIOSetOff(LED1);
+	GPIOSetOff(SSPAPower);
+	//       printf("INFO: Transmission complete\n");
     }
 }
 
@@ -124,8 +152,8 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)  {
  *
  */
 void radio_set_power(uint32_t regVal) {
-    ax5043WriteReg(device, AX5043_TXPWRCOEFFB0,regVal);
-    ax5043WriteReg(device, AX5043_TXPWRCOEFFB1,regVal>>8);
+    ax5043WriteReg(device, AX5043_TXPWRCOEFFB0, regVal);
+    ax5043WriteReg(device, AX5043_TXPWRCOEFFB1, regVal >> 8);
 }
 
 /**
@@ -138,12 +166,15 @@ void radio_set_power(uint32_t regVal) {
  * stored in the first byte, which will not be transmitted.
  *
  */
-bool tx_make_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t *bytes, int len, rx_radio_buffer_t *tx_radio_buffer) {
+bool tx_make_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid,
+                       uint8_t *bytes, int len, rx_radio_buffer_t *tx_radio_buffer)
+{
     uint8_t packet_len;
     uint8_t header_len = 16;
     int i;
     unsigned char buf[7];
     int l = encode_call(to_callsign, buf, false, 0);
+
     if (l != true) return false;
     for (i=0; i<7; i++)
         tx_radio_buffer->bytes[i] = buf[i];
@@ -184,7 +215,8 @@ bool tx_make_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint
  * Returns true unless there is an error
  * TODO - this should be in ax25_util and be called encode_packet()
  */
-bool tx_make_packet(AX25_PACKET *packet, rx_radio_buffer_t *tx_radio_buffer) {
+bool tx_make_packet(AX25_PACKET *packet, rx_radio_buffer_t *tx_radio_buffer)
+{
     uint8_t packet_len;
     uint8_t header_len = 15; // Assumes no PID
     int i;
@@ -192,80 +224,91 @@ bool tx_make_packet(AX25_PACKET *packet, rx_radio_buffer_t *tx_radio_buffer) {
 
     // set the control byte
     switch (packet->frame_type) {
-        case TYPE_I : {
-            packet->control = (packet->NR << 5) | (packet->PF << 4) | (packet->NS << 1) | 0b00;
-            header_len = 16; // make room for pid
-            packet->pid = 0xF0;
-            packet->command = AX25_COMMAND;
-            break;
-        }
-        case TYPE_S_RR : {
-            packet->control = (packet->NR << 5) | (packet->PF << 4) | (BITS_S_RECEIVE_READY);
-            break;
-        }
-        case TYPE_S_RNR : {
-            packet->control = (packet->NR << 5) | (packet->PF << 4) | (BITS_S_RECEIVE_NOT_READY);
-            break;
+    case TYPE_I : {
+        packet->control = (packet->NR << 5) | (packet->PF << 4) | (packet->NS << 1) | 0b00;
+        header_len = 16; // make room for pid
+        packet->pid = 0xF0;
+        packet->command = AX25_COMMAND;
+        break;
+    }
 
-        }
-        case TYPE_S_REJ : {
-            packet->control = (packet->NR << 5) | (packet->PF << 4) | (BITS_S_REJECT);
-            break;
+    case TYPE_S_RR : {
+        packet->control = (packet->NR << 5) | (packet->PF << 4) | (BITS_S_RECEIVE_READY);
+        break;
+    }
 
-        }
-        case TYPE_S_SREJ : {
-            packet->control = (packet->NR << 5) | (packet->PF << 4) | (BITS_S_SELECTIVE_REJECT);
-            break;
+    case TYPE_S_RNR : {
+        packet->control = (packet->NR << 5) | (packet->PF << 4) | (BITS_S_RECEIVE_NOT_READY);
+        break;
 
-        }
-        case TYPE_U_SABM : {
-            packet->command = AX25_COMMAND; // override this as it is always a command
-            packet->control = (packet->PF << 4) | (BITS_U_SABM);
-            break;
-        }
-        case TYPE_U_SABME : {
-            packet->command = AX25_COMMAND; // override this as it is always a command
-            packet->control = (packet->PF << 4) | (BITS_U_SABME);
-            break;
-        }
-        case TYPE_U_DISC : {
-            packet->command = AX25_COMMAND; // override this as it is always a command
-            packet->control = (packet->PF << 4) | (BITS_U_DISCONNECT);
-            break;
-        }
-        case TYPE_U_DM : {
-            packet->command = AX25_RESPONSE; // override this as it is always a response
-            packet->control = (packet->PF << 4) | (BITS_U_DISCONNECT_MODE);
-            break;
-        }
-        case TYPE_U_UA : {
-            packet->command = AX25_RESPONSE; // override this as it is always a response
-            packet->control = (packet->PF << 4) | (BITS_UA);
-            break;
-        }
-        case TYPE_U_FRMR : {
-            packet->command = AX25_RESPONSE; // override this as it is always a response
-            packet->control = (packet->PF << 4) | (BITS_U_FRAME_REJECT);
-            break;
-        }
-        case TYPE_U_UI : {
-            packet->control = (packet->PF << 4) | (BITS_UI);
-            header_len = 16; // room for pid, which has to be set in the packet already
-            break;
-        }
-        case TYPE_U_XID : {
-            packet->control = (packet->PF << 4) | (BITS_U_EXCH_ID);
-            break;
-        }
-        case TYPE_U_TEST : {
-            packet->control = (packet->PF << 4) | (BITS_U_TEST);
-            break;
-        }
+    }
 
-        default : {
-            debug_print("ERR: Invalid frame type\n");
-            return FALSE;
-        }
+    case TYPE_S_REJ : {
+        packet->control = (packet->NR << 5) | (packet->PF << 4) | (BITS_S_REJECT);
+        break;
+    }
+
+    case TYPE_S_SREJ : {
+        packet->control = (packet->NR << 5) | (packet->PF << 4) | (BITS_S_SELECTIVE_REJECT);
+        break;
+    }
+
+    case TYPE_U_SABM : {
+        packet->command = AX25_COMMAND; // override this as it is always a command
+        packet->control = (packet->PF << 4) | (BITS_U_SABM);
+        break;
+    }
+
+    case TYPE_U_SABME : {
+        packet->command = AX25_COMMAND; // override this as it is always a command
+        packet->control = (packet->PF << 4) | (BITS_U_SABME);
+        break;
+    }
+
+    case TYPE_U_DISC : {
+        packet->command = AX25_COMMAND; // override this as it is always a command
+        packet->control = (packet->PF << 4) | (BITS_U_DISCONNECT);
+        break;
+    }
+
+    case TYPE_U_DM : {
+        packet->command = AX25_RESPONSE; // override this as it is always a response
+        packet->control = (packet->PF << 4) | (BITS_U_DISCONNECT_MODE);
+        break;
+    }
+
+    case TYPE_U_UA : {
+        packet->command = AX25_RESPONSE; // override this as it is always a response
+        packet->control = (packet->PF << 4) | (BITS_UA);
+        break;
+    }
+
+    case TYPE_U_FRMR : {
+        packet->command = AX25_RESPONSE; // override this as it is always a response
+        packet->control = (packet->PF << 4) | (BITS_U_FRAME_REJECT);
+        break;
+    }
+
+    case TYPE_U_UI : {
+        packet->control = (packet->PF << 4) | (BITS_UI);
+        header_len = 16; // room for pid, which has to be set in the packet already
+        break;
+    }
+
+    case TYPE_U_XID : {
+        packet->control = (packet->PF << 4) | (BITS_U_EXCH_ID);
+        break;
+    }
+
+    case TYPE_U_TEST : {
+        packet->control = (packet->PF << 4) | (BITS_U_TEST);
+        break;
+    }
+
+    default : {
+        debug_print("ERR: Invalid frame type\n");
+        return false;
+    }
     }
 
     // We are using V2, so both calls encode the command bit:
@@ -319,20 +362,20 @@ bool tx_make_packet(AX25_PACKET *packet, rx_radio_buffer_t *tx_radio_buffer) {
  * pid byte is F0, BB or BD
  * bytes is a buffer of length len that is sent in the body of the packet
  * The TX takes are of HDLC framing and CRC
- *
  */
-bool tx_send_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t *bytes, int len, bool block) {
+bool tx_send_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid,
+                       uint8_t *bytes, int len, bool block)
+{
     //uint8_t raw_bytes[AX25_PKT_BUFFER_LEN];
     bool rc = tx_make_ui_packet(from_callsign, to_callsign, pid, bytes, len, &tmp_packet_buffer);
     TickType_t xTicksToWait = 0;
+
     if (block)
         xTicksToWait = CENTISECONDS(1);
-    //printf("Turn on TX LED1  2nd place\n");
-    GPIOSetOn(LED1);
-    GPIOSetOn(SSPAPower);
 
-    BaseType_t xStatus = xQueueSendToBack( xTxPacketQueue, &tmp_packet_buffer, xTicksToWait );
-    if( xStatus != pdPASS ) {
+    BaseType_t xStatus = xQueueSendToBack(xTxPacketQueue, &tmp_packet_buffer,
+                                          xTicksToWait);
+    if (xStatus != pdPASS) {
         /* The send operation could not complete because the queue was full */
         debug_print("TX QUEUE FULL: Could not add UI frame to Packet Queue\n");
         // TODO - we should log this error and downlink in telemetry
@@ -350,19 +393,19 @@ bool tx_send_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint
  *
  * Channel is passed in but not yet implemented.  Only 1 TX channel is assumed
  *
- * NOTE - we have a mix of errors which could return FALSE.  If this is called from iFramePops then
+ * NOTE - we have a mix of errors which could return false.  If this is called from iFramePops then
  * the failure causes the I-Frame to be put back on the queue.  That means logic errors will
- * repeat in a loop.  They should be logged but return TRUE as we want to ignore the
+ * repeat in a loop.  They should be logged but return true as we want to ignore the
  * bad data.  That seems to be safer than locking up the BBS with a bad packet in a loop.
- *
  */
-bool tx_send_packet(AX25_PACKET *packet, bool expedited, bool block) {
+bool tx_send_packet(AX25_PACKET *packet, bool expedited, bool block)
+{
     bool rc = tx_make_packet(packet, &tmp_packet_buffer);
-    if (rc == FALSE) {
+    if (rc == false) {
         debug_print("LOGIC ERROR: Invalid packet. Packet not sent\n");
-        return TRUE; // return true here as we do not want to repeat this bad packet.  Data is dropped
+        return true; // return true here as we do not want to repeat this bad packet.  Data is dropped
     }
-//    print_packet("TX_SEND: ", &tmp_packet_buffer[1], tmp_packet_buffer[0]);
+    //    print_packet("TX_SEND: ", &tmp_packet_buffer[1], tmp_packet_buffer[0]);
 
     TickType_t xTicksToWait = 0;
     BaseType_t xStatus = pdFAIL;
@@ -372,12 +415,12 @@ bool tx_send_packet(AX25_PACKET *packet, bool expedited, bool block) {
         xStatus = xQueueSendToFront( xTxPacketQueue, &tmp_packet_buffer, xTicksToWait );
     else
         xStatus = xQueueSendToBack( xTxPacketQueue, &tmp_packet_buffer, xTicksToWait );
-    if( xStatus != pdPASS ) {
+    if (xStatus != pdPASS) {
         /* The send operation could not complete because the queue was full.  The caller should log this error. */
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 /**
@@ -399,10 +442,10 @@ bool tx_test_make_packet() {
     if( xStatus != pdPASS ) {
         /* The send operation could not complete because the queue was full */
         debug_print("TX QUEUE FULL: Could not add to Packet Queue\n");
-        rc = FALSE;
+        rc = false;
     }
 
-    if (rc == FALSE) {
+    if (rc == false) {
         debug_print("## FAILED SELF TEST: pb_test_status\n");
     } else {
         debug_print("## PASSED SELF TEST: pb_test_status\n");

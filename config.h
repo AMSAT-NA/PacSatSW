@@ -114,6 +114,7 @@ void NullPrint(char *, ...);
  * timers.
  */
 
+#define MILLISECONDS(HowMany) ((portTickType)(HowMany))
 #define CENTISECONDS(HowMany) ((portTickType)((HowMany)*(10/portTICK_RATE_MS))) /* A Centisecond is 10 milliseconds */
 #define SECONDS(HowMany) ((portTickType)((HowMany)*(1000/portTICK_RATE_MS)))
 #define MINUTES(HowMany) SECONDS(60*(HowMany))
