@@ -179,6 +179,23 @@ void startup(void)
     hetREG1->DOUT=0x00000017;
 #endif
 
+#ifdef AFSK_HARDWARE
+    /* Just power everything up on the AFSK board for now. */
+    GPIOSetOn(LNAPower);
+    GPIOSetOn(MeasurePower);
+    GPIOSetOn(AX5043Power);
+    GPIOSetOn(AX5043_Rx1_Power);
+    GPIOSetOn(AX5043_Rx2_Power);
+    GPIOSetOn(AX5043_Rx3_Power);
+    GPIOSetOn(AX5043_Rx4_Power);
+    GPIOSetOn(AX5043_Tx_Power);
+    GPIOSetOn(CANAPower);
+    GPIOSetOn(CANBPower);
+
+    /* Enable this board to transmit if the loopback is in place. */
+    GPIOSetOn(ImActive);
+#endif
+
     xTaskCreate(ConsoleTask, "Console", CONSOLE_STACK_SIZE,
                 NULL,CONSOLE_PRIORITY, NULL);
 
