@@ -721,6 +721,7 @@ uint8_t ax5043_receiver_on_continuous(AX5043Device device) {
 
     return AXRADIO_ERR_NOERROR;
 }
+
 /*
  * Initialization routines
  */
@@ -733,15 +734,22 @@ uint8_t ax5043_receiver_on_continuous(AX5043Device device) {
  * If everything works it returns success - AXRADIO_ERR_NOERROR
  *
  */
-uint8_t axradio_init(AX5043Device device, bool band_vhf, int32_t freq, bool rate_9600, bool antenna_differential) {
+uint8_t axradio_init(AX5043Device device, bool band_vhf, int32_t freq,
+                     bool rate_9600, bool antenna_differential)
+{
+    int rv;
+
     //printf("Inside axradio_init_70cm\n");
 
     /* Store the current state and reset the radio.  This makes sure everything is
      * clean as we start up */
     axradio_mode = AXRADIO_MODE_UNINIT;
     axradio_trxstate = trxstate_off;
-    if (ax5043_reset(device)) // this also confirms that we can read/write to the chip
+    rv = ax5043_reset(device);
+    if (rv != RADIO_OK) { // this also confirms that we can read/write to the chip
+        printf("Error resetting 5043: %d\n", rv);
         return AXRADIO_ERR_NOCHIP;
+    }
 
     ax5043_ax25_init_registers(device, band_vhf, rate_9600, antenna_differential);
     ax5043_ax25_set_registers_tx(device, band_vhf, rate_9600);
@@ -752,11 +760,15 @@ uint8_t axradio_init(AX5043Device device, bool band_vhf, int32_t freq, bool rate
 
     // range all channels
     ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_XTAL_ON);
-    ax5043WriteReg(device, AX5043_MODULATION              ,0x08); // GOLF uses 08.  It should not matter as just for ranging.  07 is FSK. 0A is AFSK.  0x04 is PSK
+
+    // GOLF uses 08.  It should not matter as just for ranging.  07 is
+    // FSK. 0A is AFSK.  0x04 is PSK
+    ax5043WriteReg(device, AX5043_MODULATION, 0x08);
+
     // The freq dev be set to zero values here to make ranging work better
-    ax5043WriteReg(device, AX5043_FSKDEV2                 ,0x00);
-    ax5043WriteReg(device, AX5043_FSKDEV1                 ,0x00);
-    ax5043WriteReg(device, AX5043_FSKDEV0                 ,0x00);
+    ax5043WriteReg(device, AX5043_FSKDEV2, 0x00);
+    ax5043WriteReg(device, AX5043_FSKDEV1, 0x00);
+    ax5043WriteReg(device, AX5043_FSKDEV0, 0x00);
     axradio_wait_for_xtal(device);
 
     quick_setfreq(device, freq);
@@ -764,7 +776,6 @@ uint8_t axradio_init(AX5043Device device, bool band_vhf, int32_t freq, bool rate
     axradio_trxstate = trxstate_pll_ranging;
 
 #if 0
-
     printf("AX5043_PLLLOOP: %02.2x\n", ax5043ReadReg(device, AX5043_PLLLOOP));
     printf("AX5043_PLLCPI: %02.2x\n", ax5043ReadReg(device, AX5043_PLLCPI));
 
@@ -929,36 +940,36 @@ uint8_t mode_rx(AX5043Device device, bool band_vhf, bool rate_9600) {
  *
  * Returns RADIO_OK if all is well.
  */
-static uint8_t ax5043_reset(AX5043Device device) {
-	//printf("INFO: Resetting AX5043 (ax5043_reset)\n");
-	uint8_t i;
-	// Initialize Interface
-	// Reset Device
-	ax5043WriteReg(device, AX5043_PWRMODE, 0x80);
-	ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_POWERDOWN);
-	// Wait some time for regulator startup
-	vTaskDelay(CENTISECONDS(1));
+static uint8_t ax5043_reset(AX5043Device device)
+{
+    //printf("INFO: Resetting AX5043 (ax5043_reset)\n");
+    uint8_t i;
 
-	// Check the version and that we can read/write to scratch.  Then we know the chip is connected
-	i = ax5043ReadReg(device, AX5043_SILICONREVISION);
-	i = ax5043ReadReg(device, AX5043_SILICONREVISION);
+    // Initialize Interface
+    // Reset Device
+    ax5043WriteReg(device, AX5043_PWRMODE, 0x80);
+    ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_POWERDOWN);
+    // Wait some time for regulator startup
+    vTaskDelay(CENTISECONDS(1));
 
-	if (i != SILICONREV1)
-		return RADIO_ERR_REVISION;
+    // Check the version and that we can read/write to scratch.  Then
+    // we know the chip is connected
+    i = ax5043ReadReg(device, AX5043_SILICONREVISION);
+    i = ax5043ReadReg(device, AX5043_SILICONREVISION);
 
-	ax5043WriteReg(device, AX5043_SCRATCH, 0x55);
-	if (ax5043ReadReg(device, AX5043_SCRATCH) != 0x55)
-		return RADIO_ERR_COMM;
+    if (i != SILICONREV1)
+        return RADIO_ERR_REVISION;
 
-	ax5043WriteReg(device, AX5043_SCRATCH, 0xAA);
-	if (ax5043ReadReg(device, AX5043_SCRATCH) != 0xAA)
-		return RADIO_ERR_COMM;
+    ax5043WriteReg(device, AX5043_SCRATCH, 0x55);
+    if (ax5043ReadReg(device, AX5043_SCRATCH) != 0x55)
+        return RADIO_ERR_COMM;
 
-	return RADIO_OK;
+    ax5043WriteReg(device, AX5043_SCRATCH, 0xAA);
+    if (ax5043ReadReg(device, AX5043_SCRATCH) != 0xAA)
+        return RADIO_ERR_COMM;
+
+    return RADIO_OK;
 }
-
-
-
 
 /**
  * TODO - need to understand what this does.
@@ -985,19 +996,25 @@ uint8_t axradio_get_pllvcoi(AX5043Device device)
     return ax5043ReadReg(device, AX5043_PLLVCOI);
 }
 
-
-void start_ax25_rx(AX5043Device device, bool rate_9600, bool antenna_differential) {
+void start_ax25_rx(AX5043Device device, bool rate_9600, bool antenna_differential)
+{
     uint32_t freq;
     int status = 0;
     bool band_vhf = FALSE;
+
     freq = ReadMRAMReceiveFreq((uint8_t)device);
     if (freq < 150000000)
         band_vhf = TRUE;
-    debug_print("Starting RX with AX5043Device %d, vhf=%d 9600bps=%d, freq=%d\n", device, band_vhf, rate_9600, freq);
+
+    debug_print("Starting RX with AX5043Device %d, vhf=%d 9600bps=%d, freq=%d\n",
+                device, band_vhf, rate_9600, freq);
+
     //uint8_t retVal;
     ax5043WriteReg(device, AX5043_PINFUNCIRQ, 0x0); //disable IRQs
-//    debug_print("In start_rx, Setting freq to %d\n", freq); //DEBUG RBG
-    if ((status = axradio_init(device, band_vhf, freq, rate_9600, antenna_differential)) != AXRADIO_ERR_NOERROR) {
+
+    //    debug_print("In start_rx, Setting freq to %d\n", freq); //DEBUG RBG
+    status = axradio_init(device, band_vhf, freq, rate_9600, antenna_differential);
+    if (status != AXRADIO_ERR_NOERROR) {
         printf("ERROR: In start_rx, axradio_init returned: %d\n", status);
     }
 
@@ -1010,7 +1027,6 @@ void start_ax25_rx(AX5043Device device, bool rate_9600, bool antenna_differentia
     ax5043WriteReg(device, AX5043_PINFUNCIRQ, 0x3); //enable IRQs
 
     // ax5043 should be receiving packets now and interrupting on FIFO not empty
-
 }
 
 void start_ax25_tx(AX5043Device device, bool rate_9600, bool antenna_differential) {
@@ -1023,55 +1039,60 @@ void start_ax25_tx(AX5043Device device, bool rate_9600, bool antenna_differentia
     freq = ReadMRAMTelemFreq();
     if (freq < 150000000)
         band_vhf = TRUE;
-    debug_print("Starting TX with AX5043Device %d, vhf=%d 9600bps=%d, freq=%d\n", device, band_vhf, rate_9600, freq);
+
+    debug_print("Starting TX with AX5043Device %d, vhf=%d 9600bps=%d, freq=%d\n",
+                device, band_vhf, rate_9600, freq);
 
     /* Get ready for TX */
-  //printf("Disabling IRQs\n");
-  ax5043WriteReg(device, AX5043_PINFUNCIRQ, 0x0); //disable IRQs
-//  debug_print("In start_tx, Setting freq to %d\n", freq); //DEBUG RBG
-  if ((status = axradio_init(device, band_vhf, freq, rate_9600, antenna_differential)) != AXRADIO_ERR_NOERROR) {
-      printf("ERROR: In start_tx, axradio_init_70cm returned: %d", status);
-      // TODO - what do we do if this error is returned?  Wait and try again?  Same issue for RX
-  }
+    //printf("Disabling IRQs\n");
+    ax5043WriteReg(device, AX5043_PINFUNCIRQ, 0x0); //disable IRQs
 
-  //printf("axradio_init_70cm status: %d\n", status);
+    //  debug_print("In start_tx, Setting freq to %d\n", freq); //DEBUG RBG
+    status = axradio_init(device, band_vhf, freq, rate_9600, antenna_differential);
+    if (status != AXRADIO_ERR_NOERROR) {
+        printf("ERROR: In start_tx, axradio_init_70cm returned: %d\n", status);
+        // TODO - what do we do if this error is returned?  Wait and
+        // try again?  Same issue for RX
+    }
 
-  mode_tx(device, band_vhf, rate_9600);
-  ax5043_prepare_tx(device, band_vhf, rate_9600);
+    //printf("axradio_init_70cm status: %d\n", status);
 
-/* Set up IRQ on FIFO_FREE > THRESHOLD */
-  ax5043WriteReg(device, AX5043_FIFOTHRESH1, 0);
-  ax5043WriteReg(device, AX5043_FIFOTHRESH0, 150);  //Interrupt when FIFO has more than this many free bytes.
+    mode_tx(device, band_vhf, rate_9600);
+    ax5043_prepare_tx(device, band_vhf, rate_9600);
+
+    /* Set up IRQ on FIFO_FREE > THRESHOLD */
+    ax5043WriteReg(device, AX5043_FIFOTHRESH1, 0);
+    //Interrupt when FIFO has more than this many free bytes.
+    ax5043WriteReg(device, AX5043_FIFOTHRESH0, 150);
   
-  irqreq = ax5043ReadReg(device, AX5043_IRQREQUEST0);
-  irqreq |= (ax5043ReadReg(device, AX5043_IRQREQUEST1) << 8);
-  //printf("AX5043_IRQREQUEST: %x\n", irqreq);
+    irqreq = ax5043ReadReg(device, AX5043_IRQREQUEST0);
+    irqreq |= (ax5043ReadReg(device, AX5043_IRQREQUEST1) << 8);
+    //printf("AX5043_IRQREQUEST: %x\n", irqreq);
 
-  /* Clear FIFO Flags */
-  ax5043ReadReg(device, AX5043_RADIOEVENTREQ0); // make sure REVRDONE bit is cleared
-  ax5043WriteReg(device, AX5043_FIFOSTAT, 3); // clear FIFO data & flags
+    /* Clear FIFO Flags */
+    ax5043ReadReg(device, AX5043_RADIOEVENTREQ0); // make sure REVRDONE bit is cleared
+    ax5043WriteReg(device, AX5043_FIFOSTAT, 3); // clear FIFO data & flags
 
-  /* Set Power state to FULL_TX */
-  ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_FULL_TX);
-  //printf("Powerstate is FULL_TX\n");
+    /* Set Power state to FULL_TX */
+    ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_FULL_TX);
+    //printf("Powerstate is FULL_TX\n");
 
-  irqs = ax5043ReadReg(device, AX5043_IRQMASK0);
-  irqs |= (ax5043ReadReg(device, AX5043_IRQMASK1) << 8);
-  //printf("before: AX5043_IRQMASK: %x\n", irqs);
+    irqs = ax5043ReadReg(device, AX5043_IRQMASK0);
+    irqs |= (ax5043ReadReg(device, AX5043_IRQMASK1) << 8);
+    //printf("before: AX5043_IRQMASK: %x\n", irqs);
 
-  irqs |= 0x08; //FifoFree > THRESHOLD
+    irqs |= 0x08; //FifoFree > THRESHOLD
 
-  ax5043WriteReg(device, AX5043_IRQMASK0, irqs & 0xff);
-  ax5043WriteReg(device, AX5043_IRQMASK1, irqs >> 8);
+    ax5043WriteReg(device, AX5043_IRQMASK0, irqs & 0xff);
+    ax5043WriteReg(device, AX5043_IRQMASK1, irqs >> 8);
 
-  irqs = ax5043ReadReg(device, AX5043_IRQMASK0);
-  irqs |= (ax5043ReadReg(device, AX5043_IRQMASK1) << 8);
-  //printf("After: AX5043_IRQMASK: %x\n", irqs);
+    irqs = ax5043ReadReg(device, AX5043_IRQMASK0);
+    irqs |= (ax5043ReadReg(device, AX5043_IRQMASK1) << 8);
+    //printf("After: AX5043_IRQMASK: %x\n", irqs);
   
-  //printf("Enabling IRQs\n");
+    //printf("Enabling IRQs\n");
 
-  ax5043WriteReg(device, AX5043_PINFUNCIRQ, 0x3); //enable IRQs
-
+    ax5043WriteReg(device, AX5043_PINFUNCIRQ, 0x3); //enable IRQs
 }
 
 void fifo_send_sync(AX5043Device device, int final) {
