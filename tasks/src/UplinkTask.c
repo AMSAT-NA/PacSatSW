@@ -73,7 +73,6 @@ bool ftl0_clear_upload_table();
 static ftl0_state_machine_t ftl0_state_machine[NUM_OF_RX_CHANNELS];
 static AX25_event_t ax25_event; /* Static storage for event */
 static AX25_event_t send_event_buffer;
-static Intertask_Message statusMsg; // Storage used to send messages to the telem and control task
 static const MRAMmap_t *LocalFlash = (MRAMmap_t *) 0; /* Used to index the MRAM static storage where the File Upload Table is stored */
 static HEADER ftl0_pfh_buffer; // Static allocation of a header to use when we need to load/save the header details
 static uint8_t ftl0_pfh_byte_buffer[MAX_BYTES_IN_PACSAT_FILE_HEADER]; /* Buffer for the bytes in a PFH when we decode a received file */
