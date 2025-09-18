@@ -17,13 +17,6 @@
 #define EXPEDITED true
 #define NOT_EXPEDITED false
 
-typedef struct {
-    rx_channel_t channel;
-    uint8_t bytes[AX25_PKT_BUFFER_LEN];
-    uint16_t len;
-} tx_radio_buffer_t;
-
-
 /*
  * Routine prototypes
  */
