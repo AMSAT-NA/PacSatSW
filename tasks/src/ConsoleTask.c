@@ -437,25 +437,25 @@ void RealConsoleTask(void)
         }
         case DisablePA:{
 #ifndef LAUNCHPAD_HARDWARE
-            GPIOSetOn(SSPAPower); //The switch is inverted
+            GPIOSetOff(SSPAPower);
 #endif
             break;
         }
         case EnablePA:{
 #ifndef LAUNCHPAD_HARDWARE
-            GPIOSetOff(SSPAPower);
+            GPIOSetOn(SSPAPower);
 #endif
             break;
         }
         case DisableAx:{
 #ifndef LAUNCHPAD_HARDWARE
-            GPIOSetOn(AX5043Power);
+            GPIOSetOff(AX5043Power);
 #endif
             break;
         }
         case EnableAx:{
 #ifndef LAUNCHPAD_HARDWARE
-            GPIOSetOff(AX5043Power);
+            GPIOSetOn(AX5043Power);
 #endif
             break;
         }
@@ -522,11 +522,11 @@ void RealConsoleTask(void)
                                             "LED1","LED2","LED3","Rx0Interrupt","Rx1Interrupt","Rx2Interrupt2","Rx3Interrupt"
                                             ,"TxInterrupt4", "SSPAPower","AX5043Power"
             };
-            for (i=0;i<NumberOfGPIOs;i++){
-                if(i%4 == 0){
+            for (i=0; i < NumberOfGPIOs; i++) {
+                if (i % 4 == 0) {
                     printf("\n");
                 }
-                printf("%s:%d ",gpioNames[i],GPIORead((Gpio_Use)i));
+                printf("%s:%d ", gpioNames[i], GPIOIsOn((Gpio_Use)i));
             }
             printf("\n");
             break;

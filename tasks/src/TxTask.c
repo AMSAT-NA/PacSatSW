@@ -74,7 +74,7 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)  {
      GPIOSetOff(LED1);
      //vTaskDelay(SECONDS(10));
 #ifndef LAUNCHPAD_HARDWARE
-     GPIOSetOff(SSPAPower); //The switch is inverted, Turn on PA power  240519  N5BRG
+     GPIOSetOn(SSPAPower);
 #endif
 
    // Add power on TX here
@@ -115,7 +115,7 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)  {
             //printf("Turn off TX LED1\n");
             GPIOSetOn(LED1);
 #ifndef LAUNCHPAD_HARDWARE
-            GPIOSetOn(SSPAPower); //The switch is inverted, Turn off PA power  240519  N5BRG
+            GPIOSetOff(SSPAPower);
 #endif
             //       printf("INFO: Transmission complete\n");
         }
@@ -337,7 +337,7 @@ bool tx_send_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint
         //printf("Turn on TX LED1  2nd place\n");
     GPIOSetOff(LED1);
 #ifndef LAUNCHPAD_HARDWARE
-    GPIOSetOff(SSPAPower); //The switch is inverted, Turn on PA power  240521  N5BRG
+    GPIOSetOn(SSPAPower);
 #endif
 
 

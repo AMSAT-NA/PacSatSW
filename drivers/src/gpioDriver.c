@@ -304,6 +304,12 @@ typedef struct _GPIOInfo {
     bool DirectionIsOut;
     bool InterruptBothEdges;
     bool OpenCollector;
+
+    /*
+     * This affects GPIOIsOn, GPIOSetOn and GPIOSetOff.  If does not
+     * affect GPIORead or GPIOSet.
+     */
+    bool NegativeLogic;
 } GPIOInfo;
 
 /*
@@ -487,6 +493,9 @@ static const GPIOInfo SSPAPowerInfo = {
     .DirectionIsOut       = GPIO_OUT,
     .InterruptBothEdges   = false,
     .OpenCollector        = false,
+#ifdef BLINKY_HARDWARE
+    .NegativeLogic        = true,
+#endif
 };
 
 static const GPIOInfo Ax5043PowerInfo = {
@@ -496,6 +505,9 @@ static const GPIOInfo Ax5043PowerInfo = {
     .DirectionIsOut       = GPIO_OUT,
     .InterruptBothEdges   = false,
     .OpenCollector        = false,
+#ifdef BLINKY_HARDWARE
+    .NegativeLogic        = true,
+#endif
 };
 
 #if defined(BLINKY_HARDWARE)
@@ -657,12 +669,16 @@ void GPIOSet(Gpio_Use whichGpio, bool v)
 
 void GPIOSetOn(Gpio_Use whichGpio)
 {
-    GPIOSet(whichGpio, 1);
+    const GPIOInfo *thisGPIO = GPIOInfoStructures[whichGpio];
+
+    GPIOSet(whichGpio, !thisGPIO->NegativeLogic);
 }
 
 void GPIOSetOff(Gpio_Use whichGpio)
 {
-    GPIOSet(whichGpio, 0);
+    const GPIOInfo *thisGPIO = GPIOInfoStructures[whichGpio];
+
+    GPIOSet(whichGpio, thisGPIO->NegativeLogic);
 }
 
 void GPIOToggle(Gpio_Use whichGpio)
@@ -683,7 +699,9 @@ void GPIOToggle(Gpio_Use whichGpio)
 
 bool GPIOIsOn(Gpio_Use whichGpio)
 {
-    return GPIORead(whichGpio) == 1;
+    const GPIOInfo *thisGPIO = GPIOInfoStructures[whichGpio];
+
+    return GPIORead(whichGpio) == !thisGPIO->NegativeLogic;
 }
 
 uint16_t GPIORead(Gpio_Use whichGpio)

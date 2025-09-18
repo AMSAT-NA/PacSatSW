@@ -137,13 +137,12 @@ bool ax5043SetClockout(AX5043Device device){
  */
 
 void ax5043PowerOn(AX5043Device device){
-    // Later boards are active high
     //GPIOSetOn(AX5043Power);
     PowerOn[device]=true;
     vTaskDelay(CENTISECONDS(1)); // Don't try to mess with it for a bit
 }
 void ax5043PowerOff(AX5043Device device){
-    //GPIOSetOff(PAPower);  // Make sure the PA is off if we are turning off the 5043.
+    //GPIOSetOff(SPPAPower);  // Make sure the PA is off if we are turning off the 5043.
     //GPIOSetOff(AX5043Power);
     PowerOn[device] = Rxing[device] = Txing[device] = false;
 }
