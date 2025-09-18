@@ -213,16 +213,16 @@
 // AX5043 SPI pins
 
 #define SPI_AX5043_Reg spiREG1
-#define SPI_Rx1AX5043_Select_Port hetPort1GPIO /*Gpio port for chip select*/
-#define SPI_Rx1AX5043_Select_Pin 3
+#define SPI_Rx1AX5043_Select_Port can1GPIO /*Gpio port for chip select*/
+#define SPI_Rx1AX5043_Select_Pin CAN_GPIO_RX
 #define SPI_Rx2AX5043_Select_Port hetPort1GPIO
-#define SPI_Rx2AX5043_Select_Pin 7
+#define SPI_Rx2AX5043_Select_Pin 24
 #define SPI_Rx3AX5043_Select_Port hetPort1GPIO
-#define SPI_Rx3AX5043_Select_Pin 9
+#define SPI_Rx3AX5043_Select_Pin 26
 #define SPI_Rx4AX5043_Select_Port hetPort1GPIO
 #define SPI_Rx4AX5043_Select_Pin 4
-#define SPI_TxAX5043_Select_Port hetPort1GPIO
-#define SPI_TxAX5043_Select_Pin 12
+#define SPI_TxAX5043_Select_Port spiPort5GPIO
+#define SPI_TxAX5043_Select_Pin SPI_PIN_ENA
 #define SPI_AX5043_Data_Format SPI_FMT_0
 
 //AX5043 IRQ Pins

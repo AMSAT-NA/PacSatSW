@@ -187,6 +187,113 @@ const GPIOHandler spiPort5GPIO = {
     .funcs = &PortGPIOFuncs
 };
 
+
+/*
+ * Functions for handling standard CAN gpio types.
+ */
+typedef struct CANGPIOInfo {
+    canBASE_t *can;
+} CANGPIOInfo;
+
+static void CANGPIO_setBit(const GPIOHandler *h, uint16_t pinNum, uint16_t val)
+{
+    CANGPIOInfo *info = h->data;
+    canBASE_t *can = info->can;
+
+    if (pinNum == CAN_GPIO_RX) {
+	if (val)
+	    can->RIOC |= 2;
+	else
+	    can->RIOC &= ~2;
+    } else if (pinNum == CAN_GPIO_TX) {
+	if (val)
+	    can->TIOC |= 2;
+	else
+	    can->TIOC &= ~2;
+    }
+}
+
+static uint16_t CANGPIO_getBit(const GPIOHandler *h, uint16_t pinNum)
+{
+    CANGPIOInfo *info = h->data;
+    canBASE_t *can = info->can;
+    uint16_t rv = 0;
+
+    if (pinNum == CAN_GPIO_RX) {
+	rv = can->RIOC;
+    } else if (pinNum == CAN_GPIO_TX) {
+	rv = can->TIOC;
+    }
+    return rv & 1;
+}
+
+static void CANGPIO_toggleBit(const GPIOHandler *h, uint16_t pinNum)
+{
+    CANGPIOInfo *info = h->data;
+    canBASE_t *can = info->can;
+
+    if (pinNum == CAN_GPIO_RX) {
+	can->RIOC ^= 2;
+    } else if (pinNum == CAN_GPIO_TX) {
+	can->TIOC ^= 2;
+    }
+}
+
+static void CANGPIO_setDirectionOut(const GPIOHandler *h, uint16_t pinNum,
+				    bool val)
+{
+    CANGPIOInfo *info = h->data;
+    canBASE_t *can = info->can;
+
+    if (pinNum == CAN_GPIO_RX) {
+	if (val)
+	    can->RIOC |= 4;
+	else
+	    can->RIOC &= ~4;
+    } else if (pinNum == CAN_GPIO_TX) {
+	if (val)
+	    can->TIOC |= 4;
+	else
+	    can->TIOC &= ~4;
+    }
+}
+
+static void CANGPIO_setOpenCollector(const GPIOHandler *h, uint16_t pinNum,
+				     bool val)
+{
+    CANGPIOInfo *info = h->data;
+    canBASE_t *can = info->can;
+
+    if (pinNum == CAN_GPIO_RX) {
+	if (val)
+	    can->RIOC |= (1 << 16);
+	else
+	    can->RIOC &= ~(1 << 16);
+    } else if (pinNum == CAN_GPIO_TX) {
+	if (val)
+	    can->TIOC |= (1 << 16);
+	else
+	    can->TIOC &= ~(1 << 16);
+    }
+}
+
+static const GPIOFuncs CANGPIOFuncs = {
+    .setBit = CANGPIO_setBit,
+    .getBit = CANGPIO_getBit,
+    .toggleBit = CANGPIO_toggleBit,
+    .setDirectionOut = CANGPIO_setDirectionOut,
+    .setOpenCollector = CANGPIO_setOpenCollector,
+};
+
+static struct CANGPIOInfo can1GPIOInfo = {
+    .can = canREG1
+};
+
+const GPIOHandler can1GPIO = {
+    .data = &can1GPIOInfo,
+    .funcs = &CANGPIOFuncs
+};
+
 /*
  * This structure defines each GPIO that is in use.
  */
@@ -198,10 +305,6 @@ typedef struct _GPIOInfo {
     bool InterruptBothEdges;
     bool OpenCollector;
 } GPIOInfo;
-
-#define EXTI_None 0xff
-
-static bool GPIOUsable[NumberOfGPIOs];
 
 /*
  * Each structure below defines one of the GPIOs in use.
@@ -460,6 +563,7 @@ static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] =
 #endif
 #endif
 
+static bool GPIOUsable[NumberOfGPIOs];
 static IntertaskMessageType GPIOMessage[NumberOfGPIOs];
 static DestinationTask GPIOMessageDestination[NumberOfGPIOs];
 
@@ -471,7 +575,14 @@ bool GPIOEzInit(Gpio_Use whichGpio)
 
 bool GPIOInit(Gpio_Use whichGpio, DestinationTask task, IntertaskMessageType msg)
 {
-    const GPIOInfo *thisGPIO = GPIOInfoStructures[whichGpio];
+    const GPIOInfo *thisGPIO;
+
+#ifdef UNDEFINE_BEFORE_FLIGHT
+    if (whichGpio >= NumberOfGPIOs)
+        return false;
+#endif
+
+    thisGPIO = GPIOInfoStructures[whichGpio];
 
 #ifdef UNDEFINE_BEFORE_FLIGHT
     if (task != NO_TASK) {

@@ -56,6 +56,11 @@ extern const GPIOHandler spiPort1GPIO;
 extern const GPIOHandler spiPort3GPIO;
 extern const GPIOHandler spiPort5GPIO;
 
+/* CAN bus GPIO pins and structure. */
+#define CAN_GPIO_RX 0
+#define CAN_GPIO_TX 1
+extern const GPIOHandler can1GPIO;
+
 
 #define GPIO_UNUSED false
 #define GPIO_OFF false

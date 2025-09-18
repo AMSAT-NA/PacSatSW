@@ -105,7 +105,7 @@ bool AllTasksStarted = false,CoordinationMessageReceived = false,SimDoppler=fals
 resetMemory_t tempPrintReset;
 void startup(void)
 {
-    unsigned int i;
+    Gpio_Use gpion;
 
     /*
      * Start of by doing a bunch of HalCoGen routine initializations.  In most cases, this still will require
@@ -122,8 +122,8 @@ void startup(void)
     sciSetBaudrate(sciREG, COM2_BAUD);
 
     // Initialize all GPIOs.  Ones with special handling can override this later.
-    for (i = 0; i < NumberOfGPIOs; i++)
-	GPIOEzInit(i);
+    for (gpion = (Gpio_Use) 0; gpion < NumberOfGPIOs; gpion++)
+        GPIOEzInit(gpion);
     GPIOToggle(LED1);
 
     sciSend(sciREG,38,"Starting a test on the SCI register\r\n");
