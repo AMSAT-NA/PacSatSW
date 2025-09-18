@@ -436,27 +436,19 @@ void RealConsoleTask(void)
             break;
         }
         case DisablePA:{
-#ifndef LAUNCHPAD_HARDWARE
             GPIOSetOff(SSPAPower);
-#endif
             break;
         }
         case EnablePA:{
-#ifndef LAUNCHPAD_HARDWARE
             GPIOSetOn(SSPAPower);
-#endif
             break;
         }
         case DisableAx:{
-#ifndef LAUNCHPAD_HARDWARE
             GPIOSetOff(AX5043Power);
-#endif
             break;
         }
         case EnableAx:{
-#ifndef LAUNCHPAD_HARDWARE
             GPIOSetOn(AX5043Power);
-#endif
             break;
         }
 

@@ -295,6 +295,46 @@ const GPIOHandler can1GPIO = {
 };
 
 /*
+ * Functions for handling standard DUMMY gpio types.  These remove ugly
+ * ifdefs for setting things.
+ */
+static void DUMMYGPIO_setBit(const GPIOHandler *h, uint16_t pinNum, uint16_t val)
+{
+}
+
+static uint16_t DUMMYGPIO_getBit(const GPIOHandler *h, uint16_t pinNum)
+{
+    return 0;
+}
+
+static void DUMMYGPIO_toggleBit(const GPIOHandler *h, uint16_t pinNum)
+{
+}
+
+static void DUMMYGPIO_setDirectionOut(const GPIOHandler *h, uint16_t pinNum,
+                                    bool val)
+{
+}
+
+static void DUMMYGPIO_setOpenCollector(const GPIOHandler *h, uint16_t pinNum,
+                                     bool val)
+{
+}
+
+static const GPIOFuncs DUMMYGPIOFuncs = {
+    .setBit = DUMMYGPIO_setBit,
+    .getBit = DUMMYGPIO_getBit,
+    .toggleBit = DUMMYGPIO_toggleBit,
+    .setDirectionOut = DUMMYGPIO_setDirectionOut,
+    .setOpenCollector = DUMMYGPIO_setOpenCollector,
+};
+
+const GPIOHandler dummyGPIO = {
+    .data = NULL,
+    .funcs = &DUMMYGPIOFuncs
+};
+
+/*
  * This structure defines each GPIO that is in use.
  */
 typedef struct _GPIOInfo {
@@ -408,6 +448,24 @@ static const GPIOInfo AX5043_Tx_Selector = {
 
 #ifdef LAUNCHPAD_HARDWARE
 
+static const GPIOInfo SSPAPowerInfo = {
+    .info                 = &dummyGPIO,
+    .PinNum               = 0,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+};
+
+static const GPIOInfo Ax5043PowerInfo = {
+    .info                 = &dummyGPIO,
+    .PinNum               = 0,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+    .InterruptBothEdges   = false,
+    .OpenCollector        = false,
+};
+
 /*
  * Use this array to index to the correct GPIOInfoStructure based on the GPIO
  * enum index.
@@ -418,6 +476,7 @@ static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] = {
     &AX5043_Rx1_InterruptInfo, &AX5043_Tx_InterruptInfo,
     &AX5043_Rx1_Selector, &AX5043_Tx_Selector,
     &MRAM0_Selector, &MRAM1_Selector, &MRAM2_Selector, &MRAM3_Selector,
+    &SSPAPowerInfo, &Ax5043PowerInfo
 };
 
 #ifdef DEBUG
@@ -425,6 +484,7 @@ static const char *GPIONames[NumberOfGPIOs] = {
     "LED1", "LED2", "AX5043_Rx1_Interrupt", "AX5043_Tx_Interrupt",
     "AX5043_Sel0", "AX5043_Sel1",
     "MRAM0_Sel", "MRAM1_Sel", "MRAM2_Sel", "MRAM3_Sel",
+    "SSPAPower", "AX5043Power",
 };
 #endif
 

@@ -73,9 +73,7 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)  {
      printf("Turn on TX LED1\n");
      GPIOSetOff(LED1);
      //vTaskDelay(SECONDS(10));
-#ifndef LAUNCHPAD_HARDWARE
      GPIOSetOn(SSPAPower);
-#endif
 
    // Add power on TX here
 
@@ -114,9 +112,7 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)  {
             //Turn off the LED1 if on    N5BRG   240519
             //printf("Turn off TX LED1\n");
             GPIOSetOn(LED1);
-#ifndef LAUNCHPAD_HARDWARE
             GPIOSetOff(SSPAPower);
-#endif
             //       printf("INFO: Transmission complete\n");
         }
     }
@@ -336,10 +332,7 @@ bool tx_send_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint
     //Turn on the LED1 if off for TX    N5BRG   240521
         //printf("Turn on TX LED1  2nd place\n");
     GPIOSetOff(LED1);
-#ifndef LAUNCHPAD_HARDWARE
     GPIOSetOn(SSPAPower);
-#endif
-
 
     BaseType_t xStatus = xQueueSendToBack( xTxPacketQueue, &tmp_packet_buffer, xTicksToWait );
     if( xStatus != pdPASS ) {

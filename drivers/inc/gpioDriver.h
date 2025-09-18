@@ -22,6 +22,9 @@ typedef enum gu {
     LED1, LED2, AX5043_Rx1_Interrupt, AX5043_Tx_Interrupt,
     AX5043_Sel0, AX5043_Sel1,
     MRAM0_Sel, MRAM1_Sel, MRAM2_Sel, MRAM3_Sel,
+
+    // Dummy GPIOs
+    SSPAPower, AX5043Power,
     NumberOfGPIOs
 } Gpio_Use;
 
@@ -60,6 +63,9 @@ extern const GPIOHandler hetPort1GPIO;
 extern const GPIOHandler spiPort1GPIO;
 extern const GPIOHandler spiPort3GPIO;
 extern const GPIOHandler spiPort5GPIO;
+
+// A GPIO that doesn't do anything and always reads 0.
+extern const GPIOHandler dummyGPIO;
 
 /* CAN bus GPIO pins and structure. */
 #define CAN_GPIO_RX 0
