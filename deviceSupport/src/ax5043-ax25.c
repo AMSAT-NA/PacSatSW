@@ -1337,7 +1337,7 @@ void start_ax25_rx(AX5043Device device,
     freq = ReadMRAMReceiveFreq((uint8_t) device);
     flags = calc_flags(device, freq, flags);
 
-    debug_print("Starting RX with AX5043Device %d, 9600bps=%d, freq=%d, mode=%s, flags=0x%x\n",
+    debug_print("Starting RX with AX5043Device %d, freq=%d, mode=%s, flags=0x%x\n",
                 device, freq, ax5043_mode_to_str(mode), flags);
 
     //uint8_t retVal;
@@ -1374,7 +1374,7 @@ void start_ax25_tx(AX5043Device device,
     freq = ReadMRAMTelemFreq();
     flags = calc_flags(device, freq, flags);
 
-    debug_print("Starting TX with AX5043Device %d, 9600bps=%d, freq=%d, mode=%s, flags=0x%x\n",
+    debug_print("Starting TX with AX5043Device %d, freq=%d, mode=%s, flags=0x%x\n",
                 device, freq, ax5043_mode_to_str(mode), flags);
 
     /* Get ready for TX */
