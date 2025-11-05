@@ -106,14 +106,14 @@ static SPIDevInfo SPIMram3Device={
     .thisBusData = &bus1Data,
 };
 
-static SPIDevInfo SPIAX50430Device={
+static SPIDevInfo SPIRx1AX5043Device={
     .thisBus     = SPI_AX5043_Reg,
     .selGPIO     = AX5043_Rx1_Sel,
     .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
     .thisBusData = &bus3Data,
 };
 
-static SPIDevInfo SPIAX50431Device={
+static SPIDevInfo SPITxAX5043Device={
     .thisBus     = SPI_AX5043_Reg,
     .selGPIO     = AX5043_Tx_Sel,
     .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
@@ -124,7 +124,7 @@ static SPIDevInfo SPIAX50431Device={
 
 static const SPIDevInfo *SPIDevInfoStructures[] = {
     &SPIMram0Device, &SPIMram1Device, &SPIMram2Device, &SPIMram3Device,
-    &SPIAX50430Device, &SPIAX50431Device
+    &SPIRx1AX50430Device, &SPITxAX5043Device
 };
 
 #else

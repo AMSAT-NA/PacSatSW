@@ -24,3 +24,6 @@ state.  I would have to check the commits or branches.
 
 # Convert to thermsistor temperature measurement
 
+# Allow PA output to be controlled from the ground station
+
+# Telemetry

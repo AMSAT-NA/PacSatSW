@@ -245,14 +245,12 @@ void ax25_send_status() {
 
         int i;
         for (i=0; i < NUM_OF_RX_CHANNELS; i++) {
-            int powerMode = ax5043ReadReg((AX5043Device)i, AX5043_PWRMODE);
-            /* if Power Mode != 9 then RX is not on or working */
-            if (powerMode == AX5043_PWRSTATE_FULL_RX && data_link_state_machine[i].dl_state == DISCONNECTED) {
+            if (ax5043RxWorking((AX5043Device) i) && data_link_state_machine[i].dl_state == DISCONNECTED) {
                 strlcat(buffer, rx_channel_names[i], sizeof(buffer));
             } else {
                 channels_available--;
                 strlcat(buffer, " ", sizeof(buffer));
-              }
+            }
         }
         strlcat(buffer, ".", sizeof(buffer));
 

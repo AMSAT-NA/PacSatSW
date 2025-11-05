@@ -994,70 +994,17 @@ void RealConsoleTask(void)
         }
         case testAX5043:{
             int i;
-            for(i=0;i<=5;i++){
-                ax5043WriteReg((AX5043Device)i,AX5043_SCRATCH,i);
-
-                printf("AX5043 #%d: Revision=0x%x, scratch=%d\n",i,
-                       ax5043ReadReg((AX5043Device)i,AX5043_SILICONREVISION),
-                       ax5043ReadReg((AX5043Device)i,AX5043_SCRATCH));
-            }
+            for (i = 0; i < NUM_AX5043_SPI_DEVICES; i++)
+                ax5043Test((AX5043Device)i);
             break;
         }
         case getax5043:{
             uint8_t devb = parseNumber(afterCommand);
-            if(devb >= InvalidAX5043Device){
-                printf("Give a device number between 0 and 4\n");
+            if (devb >= InvalidAX5043Device) {
+                printf("Give a device number between 0 and %d\n", NUM_AX5043_SPI_DEVICES - 1);
                 break;
             }
-            AX5043Device dev = (AX5043Device)devb;
-            printf("AX5043 dev %d\n",dev);
-            printf(" FIFOSTAT: %02x\n", ax5043ReadReg(dev, AX5043_FIFOSTAT));
-            printf(" PWRMODE:: %02x\n", ax5043ReadReg(dev, AX5043_PWRMODE));
-            printf(" XTALCAP: %d\n", ax5043ReadReg(dev, AX5043_XTALCAP));
-            printf(" PLLLOOP: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLLOOP));
-            printf(" PLLCPI: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLCPI));
-            printf(" PLLVCOI: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLVCOI));
-            printf(" PLLRANGINGA: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLRANGINGA));
-            printf(" PLLVCODIV: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLVCODIV));
-            //            printf(" FREQ: %x", ax5043ReadReg(dev, AX5043_FREQA0));
-            //            printf(" %x", ax5043ReadReg(dev, AX5043_FREQA1));
-            //            printf(" %x", ax5043ReadReg(dev, AX5043_FREQA2));
-            //            printf(" %x\n", ax5043ReadReg(dev, AX5043_FREQA3));
-            uint32_t val = ax5043ReadReg(dev, AX5043_FREQA0)
-                        + (ax5043ReadReg(dev, AX5043_FREQA1) << 8)
-                        + (ax5043ReadReg(dev, AX5043_FREQA2) << 16)
-                        + (ax5043ReadReg(dev, AX5043_FREQA3) << 24);
-            uint32_t freq = axradio_conv_freq_tohz(val);
-            printf(" FREQ %d Hz\n", freq);
-            printf(" MODULATION: %x\n", ax5043ReadReg(dev, AX5043_MODULATION));
-            printf(" TXPWRCOEFFB0: %x\n", ax5043ReadReg(dev, AX5043_TXPWRCOEFFB0));
-            printf(" TXPWRCOEFFB1: %x\n", ax5043ReadReg(dev, AX5043_TXPWRCOEFFB1));
-
-            // Tx on VHF (typically)
-            dev = TX_DEVICE;
-            printf("\nAX5043 dev %d Tx:\n",dev);
-            printf(" FIFOSTAT: %02x\n", ax5043ReadReg(dev, AX5043_FIFOSTAT));
-            printf(" PWRMODE: %02x\n", ax5043ReadReg(dev, AX5043_PWRMODE));
-            printf(" XTALCAP: %d\n", ax5043ReadReg(dev, AX5043_XTALCAP));
-            printf(" PLLLOOP: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLLOOP));
-            printf(" PLLCPI: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLCPI));
-            printf(" PLLVCOI: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLVCOI));
-            printf(" PLLRANGINGA: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLRANGINGA));
-            printf(" PLLVCODIV: %02.2x\n", ax5043ReadReg(dev, AX5043_PLLVCODIV));
-            //            printf(" FREQ: %x", ax5043ReadReg(dev, AX5043_FREQA0));
-            //            printf(" %x", ax5043ReadReg(dev, AX5043_FREQA1));
-            //            printf(" %x", ax5043ReadReg(dev, AX5043_FREQA2));
-            //            printf(" %x\n", ax5043ReadReg(dev, AX5043_FREQA3));
-            val = ax5043ReadReg(dev, AX5043_FREQA0)
-                        + (ax5043ReadReg(dev, AX5043_FREQA1) << 8)
-                        + (ax5043ReadReg(dev, AX5043_FREQA2) << 16)
-                        + (ax5043ReadReg(dev, AX5043_FREQA3) << 24);
-            freq = axradio_conv_freq_tohz(val);
-            printf(" FREQ %d Hz\n", freq);
-            printf(" MODULATION: %x\n", ax5043ReadReg(dev, AX5043_MODULATION));
-            printf(" TXPWRCOEFFB0: %x\n", ax5043ReadReg(dev, AX5043_TXPWRCOEFFB0));
-            printf(" TXPWRCOEFFB1: %x\n", ax5043ReadReg(dev, AX5043_TXPWRCOEFFB1));
-
+            ax5043Dump((AX5043Device) devb);
             break;
         }
 
