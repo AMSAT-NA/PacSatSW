@@ -57,7 +57,7 @@ static struct AX5043Info ax5043_info[NUM_AX5043_SPI_DEVICES] = {
 static struct AX5043Info *ax5043_get_info(AX5043Device device)
 {
     if (device >= NUM_AX5043_SPI_DEVICES)
-	return NULL;
+        return NULL;
     return &ax5043_info[device];
 }
 
@@ -68,7 +68,7 @@ void ax5043WriteReg(AX5043Device device, unsigned int reg, unsigned int val)
     struct AX5043Info *info = ax5043_get_info(device);
 
     if (!info)
-	return;
+        return;
 
     srcbuf[0] = 0x00f0 | ((reg & 0xf00) >> 8);
     srcbuf[1] = (reg & 0xff);
@@ -78,17 +78,17 @@ void ax5043WriteReg(AX5043Device device, unsigned int reg, unsigned int val)
 
 #if 0
     if ((reg != AX5043_FIFODATA) && (reg != AX5043_FIFOSTAT)) {
-	if ((reg < (sizeof(axregs)/sizeof(axregs[0]))) && (axregs[reg] != NULL)) {
-	    printf("ax5043WriteReg: %s: %02.2x\n", axregs[reg], val);
-	} else {
-	    printf("ax5043WriteReg: %x: %02.2x\n", reg, val);
-	}
+        if ((reg < (sizeof(axregs)/sizeof(axregs[0]))) && (axregs[reg] != NULL)) {
+            printf("ax5043WriteReg: %s: %02.2x\n", axregs[reg], val);
+        } else {
+            printf("ax5043WriteReg: %x: %02.2x\n", reg, val);
+        }
     }
 #endif
 }
 
 static unsigned int ax5043ReadLongreg(AX5043Device device,
-				      unsigned int reg, int bytes)
+                                      unsigned int reg, int bytes)
 {
     uint8_t srcbuf[2];
     uint8_t dstbuf[4] = { 0, 0, 0, 0};
@@ -96,18 +96,18 @@ static unsigned int ax5043ReadLongreg(AX5043Device device,
     struct AX5043Info *info = ax5043_get_info(device);
 
     if (!info)
-	return 0;
+        return 0;
 
     if (bytes > 4)
-	bytes = 4;
+        bytes = 4;
 
     srcbuf[0] = 0x0070 | ((reg & 0xf00) >> 8);
     srcbuf[1] = (reg & 0xff);
 
     SPISendCommand(info->spidev, 0, 0, srcbuf, 2, dstbuf, bytes);
     for (i=0; i < bytes; i++) {
-	retval <<= 8;
-	retval |= dstbuf[i];
+        retval <<= 8;
+        retval |= dstbuf[i];
     }
     return retval;
 }
@@ -130,8 +130,8 @@ void ax5043Test(AX5043Device device)
     ax5043WriteReg(device, AX5043_SCRATCH, device);
 
     printf("AX5043 #%d: Revision=0x%x, scratch=%d\n", device,
-	   ax5043ReadReg(device, AX5043_SILICONREVISION),
-	   ax5043ReadReg(device, AX5043_SCRATCH));
+           ax5043ReadReg(device, AX5043_SILICONREVISION),
+           ax5043ReadReg(device, AX5043_SCRATCH));
 }
 
 void ax5043Dump(AX5043Device dev)
@@ -152,9 +152,9 @@ void ax5043Dump(AX5043Device dev)
     //            printf(" %x", ax5043ReadReg(dev, AX5043_FREQA2));
     //            printf(" %x\n", ax5043ReadReg(dev, AX5043_FREQA3));
     val = ax5043ReadReg(dev, AX5043_FREQA0)
-	+ (ax5043ReadReg(dev, AX5043_FREQA1) << 8)
-	+ (ax5043ReadReg(dev, AX5043_FREQA2) << 16)
-	+ (ax5043ReadReg(dev, AX5043_FREQA3) << 24);
+        + (ax5043ReadReg(dev, AX5043_FREQA1) << 8)
+        + (ax5043ReadReg(dev, AX5043_FREQA2) << 16)
+        + (ax5043ReadReg(dev, AX5043_FREQA3) << 24);
     printf(" FREQ %d Hz\n", axradio_conv_freq_tohz(val));
     printf(" MODULATION: %x\n", ax5043ReadReg(dev, AX5043_MODULATION));
     printf(" TXPWRCOEFFB0: %x\n", ax5043ReadReg(dev, AX5043_TXPWRCOEFFB0));
@@ -171,7 +171,7 @@ void ax5043PowerOn(AX5043Device device)
     struct AX5043Info *info = ax5043_get_info(device);
 
     if (!info)
-	return;
+        return;
 
     //GPIOSetOn(AX5043Power);
     info->on = true;
@@ -183,7 +183,7 @@ void ax5043PowerOff(AX5043Device device)
     struct AX5043Info *info = ax5043_get_info(device);
 
     if (!info)
-	return;
+        return;
 
     // Make sure the PA is off if we are turning off the 5043.
     //GPIOSetOff(SPPAPower);
@@ -227,7 +227,7 @@ void ax5043StartRx(AX5043Device device, bool antenna_differential)
     struct AX5043Info *info = ax5043_get_info(device);
 
     if (!info)
-	return;
+        return;
 
     //printf("StartRx: Power=%d,Txing=%d,Rxing=%d\n",PowerOn,Txing,Rxing);
     ax5043StopTx(device);
@@ -240,7 +240,7 @@ void ax5043StartRx(AX5043Device device, bool antenna_differential)
 
         start_ax25_rx(device, rate, antenna_differential);
         info->rxing = true;
-	info->txing = false;
+        info->txing = false;
     }
 }
 
@@ -249,13 +249,13 @@ void ax5043StopRx(AX5043Device device)
     struct AX5043Info *info = ax5043_get_info(device);
 
     if (!info)
-	return;
+        return;
 
     //printf("StopRx: Power=%d,Txing=%d,Rxing=%d\n",PowerOn,Txing,Rxing);
     if (info->rxing & info->on) {
         ax5043_off(device);  // Do not turn off power, just stop receiving
         info->txing = false;
-	info->rxing = false;
+        info->rxing = false;
     }
 }
 
@@ -265,7 +265,7 @@ void ax5043StartTx(AX5043Device device, bool antenna_differential)
     bool rate = ReadMRAMBoolState(StateAx25Rate9600);
 
     if (!info)
-	return;
+        return;
 
     //printf("StartTx: Power=%d,Txing=%d,Rxing=%d\n",PowerOn,Txing,Rxing);
     if (info->rxing) {
@@ -286,13 +286,13 @@ void ax5043StopTx(AX5043Device device)
     struct AX5043Info *info = ax5043_get_info(device);
 
     if (!info)
-	return;
+        return;
 
     //printf("StopTx: Power=%d,Txing=%d,Rxing=%d\n",PowerOn,Txing,Rxing);
     if (info->txing && info->on) {
         ax5043_off(device);
         info->txing = false;
-	info->rxing = false;
+        info->rxing = false;
     }
     ax5043PowerOff(device);
 }
