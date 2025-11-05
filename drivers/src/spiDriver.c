@@ -124,7 +124,7 @@ static SPIDevInfo SPITxAX5043Device={
 
 static const SPIDevInfo *SPIDevInfoStructures[] = {
     &SPIMram0Device, &SPIMram1Device, &SPIMram2Device, &SPIMram3Device,
-    &SPIRx1AX50430Device, &SPITxAX5043Device
+    &SPIRx1AX5043Device, &SPITxAX5043Device
 };
 
 #else

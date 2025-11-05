@@ -25,6 +25,7 @@
 #define RX4_DEVICE AX5043Dev3
 #define TX_DEVICE AX5043Dev4
 #endif
+#define NUM_AX5043_RX_DEVICES (NUM_AX5043_SPI_DEVICES - 1)
 
 typedef enum {
     AX5043Dev0 = 0,

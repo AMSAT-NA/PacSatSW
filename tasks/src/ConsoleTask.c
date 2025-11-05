@@ -70,8 +70,7 @@ extern uint8_t SWCmdRing[SW_CMD_RING_SIZE],SWCmdIndex;
 
 
 static char commandString[COM_STRING_SIZE]; /* Must be long enough for worst case: Uploadtest20xxxxxx  which is 86 */
-static uint32_t DCTTxFreq,DCTRxFreq[4];
-
+static uint32_t DCTTxFreq, DCTRxFreq[4];
 
 extern bool InSafeMode,InScienceMode,InHealthMode;
 extern bool TransponderEnabled,onOrbit,SimDoppler;
@@ -121,10 +120,8 @@ enum {
     ,GetRfPower
     ,SelectRFPowerLevels
     ,SetDCTDrivePower
-    ,RaiseTxFreq
-    ,LowerTxFreq
-    ,RaiseRxFreq
-    ,LowerRxFreq
+    ,RaiseFreq
+    ,LowerFreq
     ,ReadFreqs
     ,SaveFreq
     ,LoadKey
@@ -205,10 +202,8 @@ enum {
 /* These commands should only be required to setup a new board and configure it. */
 commandPairs setupCommands[] = {
                                 {"init new proc","Init DCT and MRAM stuff that will be set once for each unit",initSaved}
-                                ,{"raise tx freq","Raise the telem frequency by n Hz",RaiseTxFreq}
-                                ,{"lower tx freq","Lower the telem frequency by n Hz",LowerTxFreq}
-                                ,{"raise rx freq","Raise the command frequency by n Hz",RaiseRxFreq}
-                                ,{"lower rx freq","Lower the command frequency by n Hz",LowerRxFreq}
+                                ,{"raise freq","Raise the frequency by n Hz",RaiseFreq}
+                                ,{"lower freq","Lower the frequency by n Hz",LowerFreq}
                                 ,{"save freq","Save the current frequency in MRAM",SaveFreq}
                                 ,{"read freq","Read all the frequencies from MRAM",ReadFreqs}
                                 ,{"test freq", "xmit on receive frequency of specified device",testRxFreq}
@@ -355,21 +350,24 @@ void RealConsoleTask(void)
     int numberOfDebugCommands = sizeof(debugCommands)/sizeof(commandPairs);
     char * afterCommand;
     bool DoEcho = true;
+
     DCTTxFreq = ReadMRAMTelemFreq();
     DCTRxFreq[0] = ReadMRAMReceiveFreq(0);
     DCTRxFreq[1] = ReadMRAMReceiveFreq(1);
     DCTRxFreq[2] = ReadMRAMReceiveFreq(2);
     DCTRxFreq[3] = ReadMRAMReceiveFreq(3);
-    if((DCTTxFreq<999000) || (DCTTxFreq>600000000)){
+    if((DCTTxFreq < 999000) || (DCTTxFreq > 600000000)){
         DCTTxFreq = DCT_DEFAULT_TX_FREQ;
     }
-    if((DCTRxFreq[0]<999000) || (DCTRxFreq[0]>600000000)){
+    if((DCTRxFreq[0] < 999000) || (DCTRxFreq[0] > 600000000)){
         DCTRxFreq[0] = DCT_DEFAULT_RX_FREQ[0];
     }
     quick_setfreq(RX1_DEVICE, DCTRxFreq[0]);
+#if NUM_AX5043_RX_DEVICES == 4
     quick_setfreq(RX2_DEVICE, DCTRxFreq[1]);
     quick_setfreq(RX3_DEVICE, DCTRxFreq[2]);
     quick_setfreq(RX4_DEVICE, DCTRxFreq[3]);
+#endif
     quick_setfreq(TX_DEVICE, DCTTxFreq);
 
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)ConsoleTsk); // For watchdog when it is called with "current task"
@@ -510,7 +508,7 @@ void RealConsoleTask(void)
 #ifdef DEBUG
         case GetGpios:{
             Gpio_Use i;
-	    int count;
+            int count;
 
             for (i = (Gpio_Use) 0, count = 0; i < NumberOfGPIOs; i++, count++) {
                 if (count % 4 == 0) {
@@ -565,52 +563,56 @@ void RealConsoleTask(void)
             break;
 
         }
-        case RaiseTxFreq:{
-            int number = parseNumber(afterCommand);
-            DCTTxFreq += number;
-            printf("TxFreq=%d\n",DCTTxFreq);
-            quick_setfreq(AX5043Dev1, DCTTxFreq);
-            break;
-        }
-        case LowerTxFreq:{
-            int number = parseNumber(afterCommand);
-            DCTTxFreq -= number;
-            printf("TxFreq=%d\n",DCTTxFreq);
-            quick_setfreq(AX5043Dev4, DCTTxFreq);
-            break;
-        }
-        case RaiseRxFreq:{
-            const AX5043Device rxList[]={RX1_DEVICE,RX2_DEVICE,RX3_DEVICE,RX4_DEVICE};
-            uint16_t rxNumber = parseNumber(afterCommand);
-            int number = parseNextNumber();
-            if(rxNumber==0 || rxNumber > 4){
-                printf("Must specify receiver number between 1 and 4--ex: 'raise rx freq 2 500'\n");
+        case RaiseFreq:{
+            uint8_t devb = parseNumber(afterCommand);
+            if(devb >= InvalidAX5043Device){
+                printf("Give a device number between 0 and 4\n");
+                break;
             }
-            DCTRxFreq[rxNumber-1] += number;
-            printf("RxFreq=%d\n",DCTRxFreq[rxNumber-1]);
-            quick_setfreq(rxList[rxNumber-1], DCTRxFreq[rxNumber-1]);
-            break;
-        }
-        case LowerRxFreq:{
-            const AX5043Device rxList[]={RX1_DEVICE,RX2_DEVICE,RX3_DEVICE,RX4_DEVICE};
-            uint16_t rxNumber = parseNumber(afterCommand);
+            AX5043Device dev = (AX5043Device)devb;
             int number = parseNextNumber();
-            if(rxNumber==0 || rxNumber > 4){
-                printf("Must specify receiver number between 1 and 4--ex: 'raise rx freq 2 500'\n");
+
+            if (dev == TX_DEVICE) {
+                DCTTxFreq += number;
+                printf("TxFreq=%d\n", DCTTxFreq);
+                quick_setfreq(dev, DCTTxFreq);
+            } else {
+                DCTRxFreq[dev] += number;
+                printf("RxFreq=%d\n", DCTRxFreq[dev]);
+                quick_setfreq(dev, DCTRxFreq[dev]);
             }
-            DCTRxFreq[rxNumber-1] -= number;
-            printf("RxFreq=%d\n",DCTRxFreq[rxNumber-1]);
-            quick_setfreq(rxList[rxNumber-1], DCTRxFreq[rxNumber-1]);
             break;
         }
+        case LowerFreq:{
+            uint8_t devb = parseNumber(afterCommand);
+            if(devb >= InvalidAX5043Device){
+                printf("Give a device number between 0 and 4\n");
+                break;
+            }
+            AX5043Device dev = (AX5043Device)devb;
+            int number = parseNextNumber();
+
+            if (dev == TX_DEVICE) {
+                DCTTxFreq -= number;
+                printf("TxFreq=%d\n", DCTTxFreq);
+                quick_setfreq(dev, DCTTxFreq);
+            } else {
+                DCTRxFreq[dev] -= number;
+                printf("RxFreq=%d\n", DCTRxFreq[dev]);
+                quick_setfreq(dev, DCTRxFreq[dev]);
+            }
+            break;
+        }
+
         case ReadFreqs:{
             int i;
-            for(i=0;i<4;i++){
+            for (i = 0; i < 4; i++) {
                 printf("Rx%d--MRAM: %d Memory: %d\n",i+1,ReadMRAMReceiveFreq(i),DCTRxFreq[i]);
             }
             printf("Tx Frequency--MRAM: %d, Memory: %d\n",ReadMRAMTelemFreq(),DCTTxFreq);
             break;
         }
+
         case SaveFreq:{
             uint8_t i;
             printf("Saving Rx frequencies and Tx frequency %d to MRAM\n",DCTRxFreq,DCTTxFreq);
@@ -620,12 +622,14 @@ void RealConsoleTask(void)
             }
             break;
         }
+
         case initSaved:{
             initMRAM(true); //Init this thing from scratch (address size, data size, partitions etc)
             IHUInitSaved(); //Init stuff that we won't want to change on reboot
             SetupMRAM();    //Init stuff that do change (epoch number etc)
             break;
         }
+
         case LoadKey:{
             uint8_t key[AUTH_KEY_SIZE],i;
             uint32_t magic = ENCRYPTION_KEY_MAGIC_VALUE,checksum;
@@ -1022,30 +1026,30 @@ void RealConsoleTask(void)
 
         case testRxFreq: {
             //This is so we can find what the receive frequency is on first build
-	    uint8_t devb = parseNumber(afterCommand);
-	    if(devb >= InvalidAX5043Device){
-		printf("Give a device number between 0 and 4\n");
-		break;
-	    }
-	    AX5043Device device = (AX5043Device)devb;
-	    uint32_t freq = 145835000;
-	    
-	    printf("Testing TX/RX for AX5043 Dev: %d\n",device);
-	    test_rx_freq(device, freq, AX5043_MODE_AFSK_1200, 0);
+            uint8_t devb = parseNumber(afterCommand);
+            if(devb >= InvalidAX5043Device){
+                printf("Give a device number between 0 and 4\n");
+                break;
+            }
+            AX5043Device device = (AX5043Device)devb;
+            uint32_t freq = 145835000;
+
+            printf("Testing TX/RX for AX5043 Dev: %d\n",device);
+            test_rx_freq(device, freq, AX5043_MODE_AFSK_1200, 0);
             break;
-	}
+        }
 
         case testPLLrange:{
-	    uint8_t devb = parseNumber(afterCommand);
-	    if(devb >= InvalidAX5043Device){
-		printf("Give a device number between 0 and 4\n");
-		break;
-	    }
-	    AX5043Device device = (AX5043Device)devb;
+            uint8_t devb = parseNumber(afterCommand);
+            if(devb >= InvalidAX5043Device){
+                printf("Give a device number between 0 and 4\n");
+                break;
+            }
+            AX5043Device device = (AX5043Device)devb;
 
             printf("Testing the PLL range for device: %d\n", device);
 
-	    // test the range of the receiver on 2m
+            // test the range of the receiver on 2m
             test_pll_2m_range(device, AX5043_MODE_AFSK_9600, 0);
             break;
         }
@@ -1303,20 +1307,24 @@ void RealConsoleTask(void)
         case setRate1200:
         case setRate9600:{
             printf("Setting Radio to %sbps.\n",
-		   index == setRate9600 ? "9600" : "1200");
+                   index == setRate9600 ? "9600" : "1200");
             WriteMRAMBoolState(StateAx25Rate9600, index == setRate9600);
 
-            ax5043StopRx(AX5043Dev0);
-            ax5043StopRx(AX5043Dev1);
-            ax5043StopRx(AX5043Dev2);
-            ax5043StopRx(AX5043Dev3);
-            ax5043StopTx(AX5043Dev4);
+            ax5043StopRx(RX1_DEVICE);
+#if NUM_AX5043_RX_DEVICES == 4
+            ax5043StopRx(RX2_DEVICE);
+            ax5043StopRx(RX3_DEVICE);
+            ax5043StopRx(RX4_DEVICE);
+#endif
+            ax5043StopTx(TX_DEVICE);
 
-            ax5043StartRx(AX5043Dev0);
-            ax5043StartRx(AX5043Dev1);
-            ax5043StartRx(AX5043Dev2);
-            ax5043StartRx(AX5043Dev3);
-            ax5043StartTx(AX5043Dev4);
+            ax5043StartRx(RX1_DEVICE);
+#if NUM_AX5043_SPI_DEVICES == 5
+            ax5043StartRx(RX2_DEVICE);
+            ax5043StartRx(RX3_DEVICE);
+            ax5043StartRx(RX4_DEVICE);
+#endif
+            ax5043StartTx(TX_DEVICE);
             printf("RESET the IHU to complete the change ..\n");
             break;
         }
