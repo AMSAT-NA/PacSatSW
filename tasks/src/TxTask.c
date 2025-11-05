@@ -49,6 +49,9 @@ extern bool monitorPackets;
 portTASK_FUNCTION_PROTO(TxTask, pvParameters)
 {
     bool rate = ReadMRAMBoolState(StateAx25Rate9600);
+    /* FIXME - store the enum in MRAM. */
+    enum ax5043_mode mode = (rate ? AX5043_MODE_AFSK_9600
+			     : AX5043_MODE_AFSK_1200);
 
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)TxTaskWD );
     InitInterTask(ToTxTask, 10);
@@ -66,7 +69,7 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
                     (int)"FATAL ERROR: Could not create TX Packet Queue");
     }
 
-    ax5043StartTx(device, ANT_DIFFERENTIAL);
+    ax5043StartTx(device);
     // Add seletable Tx power levels  N5BRG  240516
     //radio_set_power(0x020); // minimum power to test RF output on AX5043
     //radio_set_power(0x0800); // midrange power to test RF output on AX5043
@@ -87,7 +90,7 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
         uint8_t preamble_length = 32; // 10 for 1200 bps - Radio lab recommends 32 for 9600, may need as much as 56.
         BaseType_t xStatus;
 
-        if (rate == RATE_1200) {
+        if (mode == AX5043_MODE_AFSK_1200) {
             preamble_length = 10;
         }
 

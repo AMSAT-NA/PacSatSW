@@ -74,13 +74,16 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
 
     /* Initialize the Radio RX */
 #ifdef LAUNCHPAD_HARDWARE
-    ax5043StartRx(AX5043Dev0, ANT_SINGLE_ENDED);
+    ax5043StartRx(AX5043Dev0);
 #else
-    ax5043StartRx(AX5043Dev0, ANT_DIFFERENTIAL);
-    ax5043_off(AX5043Dev1);
-   // ax5043StartRx(AX5043Dev1, ANT_DIFFERENTIAL);
-    ax5043StartRx(AX5043Dev2, ANT_SINGLE_ENDED);
-    ax5043StartRx(AX5043Dev3,ANT_DIFFERENTIAL);
+    ax5043StartRx(AX5043Dev0);
+#ifdef BLINKY_HARDWARE
+    ax5043_off(AX5043Dev1); // dev1 is broken on blinky.
+#else
+    ax5043StartRx(AX5043Dev1);
+#endif
+    ax5043StartRx(AX5043Dev2);
+    ax5043StartRx(AX5043Dev3);
     GPIOSetOn(LED2);
 #endif
     while(1) {

@@ -56,13 +56,6 @@
 #include <stdint.h>
 #include "ax5043_access.h"
 
-#define RATE_9600 true
-#define RATE_1200 false
-#define BAND_VHF true
-#define BAND_UHF false
-#define ANT_DIFFERENTIAL true
-#define ANT_SINGLE_ENDED false
-
 #define AXRADIO_ERR_NOERROR                     0x00 //!< Operation successful
 #define AXRADIO_ERR_NOTSUPPORTED                0x01 //!< Operation not supported
 #define AXRADIO_ERR_BUSY                        0x02 //!< Transceiver busy
@@ -474,11 +467,22 @@ struct axradio_address {
     uint8_t addr[4];
 };
 
+enum ax5043_mode {
+    AX5043_MODE_AFSK_1200,
+    AX5043_MODE_AFSK_9600,
+};
+
+#define AX5043_FLAG_DIV2	(1 << 0) // Divide the frequency by 2.
+#define AX5043_FLAG_EXT_INDUCT	(1 << 1) // Use an external inductor.
+#define AX5043_FLAG_ANT_DIFFER	(1 << 2) // Differential antenna input.
+
 static uint8_t axradio_setfreq(AX5043Device device, int32_t f);
 static uint8_t ax5043_reset(AX5043Device device);
 void quick_setfreq(AX5043Device device, int32_t f);
-void start_ax25_rx(AX5043Device device, bool rate_9600, bool antenna_differential);
-void start_ax25_tx(AX5043Device device, bool rate_9600, bool antenna_differential);
+void start_ax25_rx(AX5043Device device,
+		   enum ax5043_mode mode, unsigned int flags);
+void start_ax25_tx(AX5043Device device,
+		   enum ax5043_mode mode, unsigned int flags);
 uint16_t fifo_free(AX5043Device device);
 void fifo_repeat_byte(AX5043Device device, uint8_t b, uint8_t count, uint8_t flags);
 void fifo_commit(AX5043Device device);
@@ -489,5 +493,7 @@ void fifo_repeat_byte(AX5043Device device, uint8_t b, uint8_t count, uint8_t fla
 void fifo_queue_buffer(AX5043Device device, uint8_t *buf, uint8_t len, uint8_t flags);
 uint16_t fifo_free(AX5043Device device);
 uint8_t get_rssi(AX5043Device device);
-void test_rx_freq(AX5043Device device, uint32_t freq, bool antenna_differential);
-void test_pll_2m_range(AX5043Device device, bool rate_9600);
+void test_rx_freq(AX5043Device device, uint32_t freq, enum ax5043_mode mode,
+		  unsigned int flags);
+void test_pll_2m_range(AX5043Device device, enum ax5043_mode mode,
+		       unsigned int flags);

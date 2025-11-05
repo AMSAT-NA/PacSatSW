@@ -930,7 +930,7 @@ void RealConsoleTask(void)
         }
 
         case startRx:{
-            ax5043StartRx(AX5043Dev0, ANT_DIFFERENTIAL);
+            ax5043StartRx(AX5043Dev0);
             break;
         }
 
@@ -1019,33 +1019,34 @@ void RealConsoleTask(void)
             printf("AX5043 Dev: %d RSSI is %02x = %d dBm\n",dev,rssi,((int16_t)rssi) - 255);
             break;
         }
+
         case testRxFreq: {
             //This is so we can find what the receive frequency is on first build
-            {
-                uint8_t devb = parseNumber(afterCommand);
-                if(devb >= InvalidAX5043Device){
-                    printf("Give a device number between 0 and 4\n");
-                    break;
-                }
-                AX5043Device device = (AX5043Device)devb;
-                uint32_t freq = 145835000;
-
-                if (device == AX5043Dev2) {
-                    printf("Testing TX for AX5043 Dev: %d with single ended antenna\n",device);
-                    test_rx_freq(device, freq, ANT_SINGLE_ENDED); // only AX5043Dev2 is single ended
-                } else {
-                    printf("Testing TX for AX5043 Dev: %d with differential antenna\n",device);
-                    test_rx_freq(device, freq, ANT_DIFFERENTIAL);
-                }
-            }
+	    uint8_t devb = parseNumber(afterCommand);
+	    if(devb >= InvalidAX5043Device){
+		printf("Give a device number between 0 and 4\n");
+		break;
+	    }
+	    AX5043Device device = (AX5043Device)devb;
+	    uint32_t freq = 145835000;
+	    
+	    printf("Testing TX/RX for AX5043 Dev: %d\n",device);
+	    test_rx_freq(device, freq, AX5043_MODE_AFSK_1200, 0);
             break;
-        }
+	}
 
         case testPLLrange:{
-            AX5043Device dev = AX5043Dev1;
-            printf("Testing the PLL range for device: %d\n",dev);
+	    uint8_t devb = parseNumber(afterCommand);
+	    if(devb >= InvalidAX5043Device){
+		printf("Give a device number between 0 and 4\n");
+		break;
+	    }
+	    AX5043Device device = (AX5043Device)devb;
 
-            test_pll_2m_range(dev, RATE_9600); // test the range of the receiver on 2m
+            printf("Testing the PLL range for device: %d\n", device);
+
+	    // test the range of the receiver on 2m
+            test_pll_2m_range(device, AX5043_MODE_AFSK_9600, 0);
             break;
         }
 
@@ -1299,40 +1300,24 @@ void RealConsoleTask(void)
             break;
         }
 
-        case setRate1200:{
-            printf("Setting Radio to 1200bps.\n");
-            WriteMRAMBoolState(StateAx25Rate9600, RATE_1200);
-
-            ax5043StopRx(AX5043Dev0);
-            ax5043StopRx(AX5043Dev1);
-            ax5043StopRx(AX5043Dev2);
-            ax5043StopRx(AX5043Dev3);
-            ax5043StopTx(AX5043Dev4);
-
-            ax5043StartRx(AX5043Dev0, ANT_DIFFERENTIAL);
-            ax5043StartRx(AX5043Dev1, ANT_DIFFERENTIAL);
-            ax5043StartRx(AX5043Dev2, ANT_SINGLE_ENDED);
-            ax5043StartRx(AX5043Dev3, ANT_DIFFERENTIAL);
-            ax5043StartTx(AX5043Dev4, ANT_DIFFERENTIAL);
-            printf("RESET the IHU to complete the change ..\n");
-            break;
-        }
-
+        case setRate1200:
         case setRate9600:{
-            printf("Setting radio to 9600bps.\n");
-            WriteMRAMBoolState(StateAx25Rate9600, RATE_9600);
+            printf("Setting Radio to %sbps.\n",
+		   index == setRate9600 ? "9600" : "1200");
+            WriteMRAMBoolState(StateAx25Rate9600, index == setRate9600);
+
             ax5043StopRx(AX5043Dev0);
             ax5043StopRx(AX5043Dev1);
             ax5043StopRx(AX5043Dev2);
             ax5043StopRx(AX5043Dev3);
             ax5043StopTx(AX5043Dev4);
 
-            ax5043StartRx(AX5043Dev0, ANT_DIFFERENTIAL);
-            ax5043StartRx(AX5043Dev1, ANT_DIFFERENTIAL);
-            ax5043StartRx(AX5043Dev2, ANT_SINGLE_ENDED);
-            ax5043StartRx(AX5043Dev3, ANT_DIFFERENTIAL);
-            ax5043StartTx(AX5043Dev4, ANT_DIFFERENTIAL);
-            printf("RESET the IHU to complete the change...\n");
+            ax5043StartRx(AX5043Dev0);
+            ax5043StartRx(AX5043Dev1);
+            ax5043StartRx(AX5043Dev2);
+            ax5043StartRx(AX5043Dev3);
+            ax5043StartTx(AX5043Dev4);
+            printf("RESET the IHU to complete the change ..\n");
             break;
         }
 

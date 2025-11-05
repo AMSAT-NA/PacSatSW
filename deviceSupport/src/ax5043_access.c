@@ -222,7 +222,7 @@ uint8_t ax5043_off(AX5043Device device)
  * command receiver.
  *
  */
-void ax5043StartRx(AX5043Device device, bool antenna_differential)
+void ax5043StartRx(AX5043Device device)
 {
     struct AX5043Info *info = ax5043_get_info(device);
 
@@ -237,8 +237,11 @@ void ax5043StartRx(AX5043Device device, bool antenna_differential)
     }
     if (info->rxing) {
         bool rate = ReadMRAMBoolState(StateAx25Rate9600);
+	/* FIXME - store the enum in MRAM. */
+	enum ax5043_mode mode = (rate ? AX5043_MODE_AFSK_9600
+				 : AX5043_MODE_AFSK_1200);
 
-        start_ax25_rx(device, rate, antenna_differential);
+        start_ax25_rx(device, mode, 0);
         info->rxing = true;
         info->txing = false;
     }
@@ -259,10 +262,13 @@ void ax5043StopRx(AX5043Device device)
     }
 }
 
-void ax5043StartTx(AX5043Device device, bool antenna_differential)
+void ax5043StartTx(AX5043Device device)
 {
     struct AX5043Info *info = ax5043_get_info(device);
     bool rate = ReadMRAMBoolState(StateAx25Rate9600);
+    /* FIXME - store the enum in MRAM. */
+    enum ax5043_mode mode = (rate ? AX5043_MODE_AFSK_9600
+			     : AX5043_MODE_AFSK_1200);
 
     if (!info)
         return;
@@ -276,7 +282,7 @@ void ax5043StartTx(AX5043Device device, bool antenna_differential)
         info->on = true;
     }
 
-    start_ax25_tx(device, rate, antenna_differential);
+    start_ax25_tx(device, mode, 0);
     info->txing = true;
     info->rxing = false;
 }

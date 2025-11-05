@@ -38,9 +38,9 @@ typedef enum {
 } AX5043Device;
 
 
-void ax5043StartRx(AX5043Device device, bool antenna_differential);
+void ax5043StartRx(AX5043Device device);
 void ax5043StopRx(AX5043Device device);
-void ax5043StartTx(AX5043Device device, bool antenna_differential);
+void ax5043StartTx(AX5043Device device);
 void ax5043StopTx(AX5043Device device);
 
 void ax5043PowerOn(AX5043Device device);
