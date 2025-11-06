@@ -268,8 +268,8 @@ static void ax5043_ax25_set_registers(AX5043Device device,
     ax5043WriteReg(device, AX5043_FSKDMIN0, 0x00);
 
   /*
-   *AFSK detector bandwidth set as
-   *  AFSKCTRL = 2 * log2 (Fxtal / 2^5 * bitrate * decimation)
+   * AFSK detector bandwidth set as
+   *   AFSKCTRL = 2 * log2 (Fxtal / 2^5 * bitrate * decimation)
    * Radio laB SETS TO 0C
    */
     switch (mode) {
@@ -687,7 +687,7 @@ static void ax5043_ax25_set_registers(AX5043Device device,
     ax5043WriteReg(device, AX5043_MATCH1PAT1, 0x7E);  /// 7E for 1200
     ax5043WriteReg(device, AX5043_MATCH1PAT0, 0x7E);
 
- // unclear if this needs to be different, but it is from radio lab
+    // unclear if this needs to be different, but it is from radio lab
     switch (mode) {
     case AX5043_MODE_AFSK_1200:
         ax5043WriteReg(device, AX5043_MATCH1LEN, 0x8A);
@@ -712,16 +712,16 @@ static void ax5043_ax25_set_registers(AX5043Device device,
     ax5043WriteReg(device, AX5043_TMGRXRSSI, 0x03); // per radio lab
     // Preamble 2 timeout - This was 0x35 for GOLF.  Radio lab says 17
     ax5043WriteReg(device, AX5043_TMGRXPREAMBLE2, 0x17);
-     // This was DD in GOLF, radio lab says E0.  RSSI levels above
-     // this value indicate a busy channel.  We don't care with a full
-     // duplex radio
+    // This was DD in GOLF, radio lab says E0.  RSSI levels above
+    // this value indicate a busy channel.  We don't care with a full
+    // duplex radio
     ax5043WriteReg(device, AX5043_RSSIABSTHR, 0xE0);
     ax5043WriteReg(device, AX5043_BGNDRSSITHR, 0x00); // per radio lab
     // Set FIFO chunk size to max of 240 bytes
     ax5043WriteReg(device, AX5043_PKTCHUNKSIZE, 0x0D);
-     // 3F for debug, otherwise Set to 0x20 Bit 5 LRGP - enables
-     // packets that span multiple fifo chunks.  We dont want that if
-     // we use HDLC framing
+    // 3F for debug, otherwise Set to 0x20 Bit 5 LRGP - enables
+    // packets that span multiple fifo chunks.  We dont want that if
+    // we use HDLC framing
     ax5043WriteReg(device, AX5043_PKTACCEPTFLAGS, 0x20);
     ax5043WriteReg(device, AX5043_DACVALUE1, 0x00);
     ax5043WriteReg(device, AX5043_DACVALUE0, 0x00);
