@@ -333,13 +333,15 @@ typedef enum {
 #define AX5043_USES_TCXO // If this is not defined then we are using an XTAL
 #define DCT_DEFAULT_TX_FREQ 435760000 // Actual frequency.  Converted later to ax5043 register value
 //#define DCT_DEFAULT_RX_FREQ 145835000 //436800000 // The Flight frequency will be in 2m. e.g. 145835000
-static uint32_t DCT_DEFAULT_RX_FREQ[4] = {145780000, 145810000,145840000,145870000};
+/* Defined in ConsoleTask.c */
+extern const uint32_t DCT_DEFAULT_RX_FREQ[4];
 // For now, we want the output to be something like 100mW (20dBm) and 500mW (27dBm)
 // I believe this makes the DCT output be about -7dBM and +3dBM
 #define DCT_DEFAULT_LOW_POWER 261   // This seems about right for 20dBm
 #define DCT_DEFAULT_HIGH_POWER 632 // TODO:  This should be defined so we get about 27dBm out of the PA.
 
- static uint8_t DCT_DEFAULT_RX_MODE[4] = {0x15,0x15,0x15,0x15}; // default all channels to allow Digi, PB, Uplink
+/* Defined in ConsoleTask.c */
+extern const uint8_t DCT_DEFAULT_RX_MODE[4];
 
 /*
  * MET Constants.  The MET timer goes off every second.  Other time constants

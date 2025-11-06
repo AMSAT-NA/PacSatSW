@@ -1118,7 +1118,8 @@ static uint8_t axradio_init(AX5043Device device, int32_t freq,
             uint8_t vcoisave = ax5043ReadReg(device, AX5043_PLLVCOI);
             uint8_t j = 2;
             axradio_phy_chanvcoi[0] = 0;
-            ax5043WriteReg(device, AX5043_PLLRANGINGA, axradio_phy_chanpllrng[0] & 0x0F);
+            ax5043WriteReg(device, AX5043_PLLRANGINGA,
+			   axradio_phy_chanpllrng[0] & 0x0F);
             {
                 uint32_t f = axradio_phy_chanfreq[0];
                 ax5043WriteReg(device, AX5043_FREQA0, f);
@@ -1130,7 +1131,8 @@ static uint8_t axradio_init(AX5043Device device, int32_t freq,
                 if (axradio_phy_chanvcoiinit[0]) {
                     uint8_t x = axradio_phy_chanvcoiinit[0];
                     if (!(axradio_phy_chanpllrnginit[0] & 0xF0))
-                        x += (axradio_phy_chanpllrng[0] & 0x0F) - (axradio_phy_chanpllrnginit[0] & 0x0F);
+                        x += ((axradio_phy_chanpllrng[0] & 0x0F)
+			      - (axradio_phy_chanpllrnginit[0] & 0x0F));
                     axradio_phy_chanvcoi[0] = axradio_adjustvcoi(x);
                 } else {
                     axradio_phy_chanvcoi[0] = axradio_calvcoi();

@@ -72,6 +72,12 @@ extern uint8_t SWCmdRing[SW_CMD_RING_SIZE],SWCmdIndex;
 static char commandString[COM_STRING_SIZE]; /* Must be long enough for worst case: Uploadtest20xxxxxx  which is 86 */
 static uint32_t DCTTxFreq, DCTRxFreq[4];
 
+const uint32_t DCT_DEFAULT_RX_FREQ[4] =
+    {145780000, 145810000, 145840000, 145870000};
+
+// default all ch
+const uint8_t DCT_DEFAULT_RX_MODE[4] = { 0x15, 0x15, 0x15, 0x15};
+
 extern bool InSafeMode,InScienceMode,InHealthMode;
 extern bool TransponderEnabled,onOrbit,SimDoppler;
 extern resetMemory_t SaveAcrossReset;
