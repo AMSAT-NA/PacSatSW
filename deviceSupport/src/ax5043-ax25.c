@@ -76,18 +76,20 @@ static uint8_t ax5043_ax25_init_registers_tx(AX5043Device device,
 static uint8_t ax5043_ax25_init_registers_rx(AX5043Device device,
                                              enum ax5043_mode mode,
                                              unsigned int flags);
+static uint8_t ax5043_reset(AX5043Device device);
 
-// Global variables for radio physical layer.  These are used by the radio and read by telemetry or the console
-// TODO - this needs to be a set of arrays, one for each radio
-const uint32_t axradio_phy_chanfreq[2] = { 0x1b3b5550,0x1b3b5550}; //Primary and secondry frequencies.  There are two per radio
-const uint8_t axradio_phy_chanpllrnginit[1] = { 0x09 };
-uint8_t axradio_phy_chanpllrng[1];
-const uint8_t axradio_phy_vcocalib = 0;
-uint8_t axradio_phy_chanvcoi[1];
-const uint8_t axradio_phy_chanvcoiinit[1] = { 0x97 };
+// Global variables for radio physical layer.  These are used by the
+// radio and read by telemetry or the console
 
+// TODO - need to go through all these things and figure out what they
+// do and make it work correctly and document it.
 
-static const int8_t  axradio_phy_rssireference = 57;// 0xF9 + 64;
+static const uint8_t axradio_phy_chanpllrnginit = 0x09;
+static const uint8_t axradio_phy_vcocalib = 0;
+static const uint8_t axradio_phy_chanvcoiinit = 0x97;
+
+static uint8_t axradio_phy_chanpllrng[NUM_AX5043_SPI_DEVICES];
+static uint8_t axradio_phy_chanvcoi[NUM_AX5043_SPI_DEVICES];
 
 /**
  * FIRST ALL OF THE SETTINGS THAT ARE COMMON TO BOTH BANDS AND FOR RX AND TX
@@ -796,15 +798,16 @@ static void ax5043_ax25_init_registers(AX5043Device device,
 static uint8_t axradio_get_pllvcoi(AX5043Device device)
 {
     if (axradio_phy_vcocalib) {
-        uint8_t x = axradio_phy_chanvcoi[0];
+        uint8_t x = axradio_phy_chanvcoi[device];
         if (x & 0x80)
             return x;
     }
     {
-        uint8_t x = axradio_phy_chanvcoiinit[0];
+        uint8_t x = axradio_phy_chanvcoiinit;
         if (x & 0x80) {
-            if (!(axradio_phy_chanpllrnginit[0] & 0xF0)) {
-                x += (axradio_phy_chanpllrng[0] & 0x0F) - (axradio_phy_chanpllrnginit[0] & 0x0F);
+            if (!(axradio_phy_chanpllrnginit & 0xF0)) {
+                x += ((axradio_phy_chanpllrng[device] & 0x0F)
+		      - (axradio_phy_chanpllrnginit & 0x0F));
                 x &= 0x3f;
                 x |= 0x80;
             }
@@ -821,7 +824,7 @@ static uint8_t axradio_get_pllvcoi(AX5043Device device)
  */
 static uint8_t ax5043_ax25_init_registers_common(AX5043Device device)
 {
-    uint8_t rng = axradio_phy_chanpllrng[0];
+    uint8_t rng = axradio_phy_chanpllrng[device];
 
     if (rng & 0x20)
         return AXRADIO_ERR_RANGING;
@@ -1000,11 +1003,12 @@ static uint8_t ax5043_receiver_on_continuous(AX5043Device device)
 {
     uint8_t regValue;
 
-    ax5043WriteReg(device, AX5043_RSSIREFERENCE, axradio_phy_rssireference); //
+    ax5043WriteReg(device, AX5043_RSSIREFERENCE, 57); // 0xF9 + 64;
     ax5043_set_registers_rxcont(device);
 
     regValue = ax5043ReadReg(device, AX5043_PKTSTOREFLAGS);
-    regValue &= (uint8_t)~0x40;                      // 40 stores RSSI and background noise measure at ant selection time
+    // 40 stores RSSI and background noise measure at ant selection time
+    regValue &= (uint8_t) ~0x40;
     ax5043WriteReg(device, AX5043_PKTSTOREFLAGS, regValue);
 
     ax5043WriteReg(device, AX5043_FIFOSTAT, 3); // clear FIFO data & flags
@@ -1030,6 +1034,7 @@ static uint8_t axradio_init(AX5043Device device, int32_t freq,
                             unsigned int flags)
 {
     int rv;
+    uint8_t r;
 
     //printf("Inside axradio_init_70cm\n");
 
@@ -1083,10 +1088,9 @@ static uint8_t axradio_init(AX5043Device device, int32_t freq,
 
     //debug_print("Before ranging: AX5043_PLLRANGINGA: %02.2x\n", ax5043ReadReg(device, AX5043_PLLRANGINGA)); //DEBUG RBG
 
-    uint8_t r;
     // start values for ranging available
-    if (!(axradio_phy_chanpllrnginit[0] & 0xF0)) {
-        r = axradio_phy_chanpllrnginit[0] | 0x10;
+    if (!(axradio_phy_chanpllrnginit & 0xF0)) {
+        r = axradio_phy_chanpllrnginit | 0x10;
     } else {
         r = 0x18;
     }
@@ -1103,10 +1107,14 @@ static uint8_t axradio_init(AX5043Device device, int32_t freq,
 //    debug_print("After ranging: AX5043_PLLRANGINGA: %02.2x\n", ax5043ReadReg(device, AX5043_PLLRANGINGA)); //DEBUG RBG
 
     //printf("INFO: PLL ranging process complete\n");
-    axradio_phy_chanpllrng[0] = ax5043ReadReg(device, AX5043_PLLRANGINGA);
+    axradio_phy_chanpllrng[device] = ax5043ReadReg(device, AX5043_PLLRANGINGA);
 
 #if 0
+    // TODO - What is this?
     // VCOI Calibration
+
+    // Primary and secondary frequencies.  There are two per radio
+    static const uint32_t axradio_phy_chanfreq[2] = { 0x1b3b5550,0x1b3b5550};
     if (axradio_phy_vcocalib) {
         ax5043_set_registers_tx();
         ax5043WriteReg(device, AX5043_MODULATION, 0x08);
@@ -1128,9 +1136,9 @@ static uint8_t axradio_init(AX5043Device device, int32_t freq,
         {
             uint8_t vcoisave = ax5043ReadReg(device, AX5043_PLLVCOI);
             uint8_t j = 2;
-            axradio_phy_chanvcoi[0] = 0;
+            axradio_phy_chanvcoi[device] = 0;
             ax5043WriteReg(device, AX5043_PLLRANGINGA,
-			   axradio_phy_chanpllrng[0] & 0x0F);
+			   axradio_phy_chanpllrng[device] & 0x0F);
             {
                 uint32_t f = axradio_phy_chanfreq[0];
                 ax5043WriteReg(device, AX5043_FREQA0, f);
@@ -1139,14 +1147,14 @@ static uint8_t axradio_init(AX5043Device device, int32_t freq,
                 ax5043WriteReg(device, AX5043_FREQA3, f >> 24);
             }
             do {
-                if (axradio_phy_chanvcoiinit[0]) {
-                    uint8_t x = axradio_phy_chanvcoiinit[0];
-                    if (!(axradio_phy_chanpllrnginit[0] & 0xF0))
-                        x += ((axradio_phy_chanpllrng[0] & 0x0F)
-			      - (axradio_phy_chanpllrnginit[0] & 0x0F));
-                    axradio_phy_chanvcoi[0] = axradio_adjustvcoi(x);
+                if (axradio_phy_chanvcoiinit) {
+                    uint8_t x = axradio_phy_chanvcoiinit;
+                    if (!(axradio_phy_chanpllrnginit & 0xF0))
+                        x += ((axradio_phy_chanpllrng[device] & 0x0F)
+			      - (axradio_phy_chanpllrnginit & 0x0F));
+                    axradio_phy_chanvcoi[device] = axradio_adjustvcoi(x);
                 } else {
-                    axradio_phy_chanvcoi[0] = axradio_calvcoi();
+                    axradio_phy_chanvcoi[device] = axradio_calvcoi();
                 }
             } while (--j);
             j = 1;
@@ -1159,7 +1167,8 @@ static uint8_t axradio_init(AX5043Device device, int32_t freq,
     ax5043_ax25_init_registers(device, mode, flags);
     // TODO - G0KLA - why is this RX?  Both TX and RX ranging is run??
     ax5043_ax25_set_registers_rx(device, mode, flags);
-    ax5043WriteReg(device, AX5043_PLLRANGINGA, axradio_phy_chanpllrng[0] & 0x0F);
+    ax5043WriteReg(device, AX5043_PLLRANGINGA,
+		   axradio_phy_chanpllrng[device] & 0x0F);
 
 #if 0
 
@@ -1173,11 +1182,11 @@ static uint8_t axradio_init(AX5043Device device, int32_t freq,
 
 #endif
 
-    if (axradio_phy_chanpllrng[0] & 0x20) {
+    if (axradio_phy_chanpllrng[device] & 0x20) {
         debug_print("*** PLL RANGE ERROR!\n");
         return AXRADIO_ERR_RANGING;
     } else {
-//        debug_print("PLL LOCK: %d\n",axradio_phy_chanpllrng[0] & 0x40);
+//        debug_print("PLL LOCK: %d\n",axradio_phy_chanpllrng[device] & 0x40);
     }
     return AXRADIO_ERR_NOERROR;
 }

@@ -396,23 +396,12 @@ struct axradio_address_mask {
     uint8_t mask[4];
 };
 
-/* Global Variables referenced in this file */
-extern const uint32_t axradio_phy_chanfreq[];
-extern const uint8_t axradio_phy_chanpllrnginit[];
-extern uint8_t axradio_phy_chanpllrng[];
-extern const uint8_t axradio_phy_vcocalib;
-extern uint8_t axradio_phy_chanvcoi[];
-extern const uint8_t axradio_phy_chanvcoiinit[];
-
 //unsigned int ax5043ReadReg(unsigned int reg);
 //void ax5043WriteReg(unsigned int reg, unsigned int val);
 
 //void ax5043_prepare_tx(AX5043Device device, bool rate_9600);
 uint32_t ReadMRAMTelemFreq(void);
 
-static void axradio_wait_for_xtal(AX5043Device device);
-static uint8_t ax5043_receiver_on_continuous(AX5043Device device);
-static int32_t axradio_conv_freq_fromhz(int32_t f);
 int32_t axradio_conv_freq_tohz(int32_t f);
 
 struct axradio_address {
@@ -428,8 +417,6 @@ enum ax5043_mode {
 #define AX5043_FLAG_EXT_INDUCT	(1 << 1) // Use an external inductor.
 #define AX5043_FLAG_ANT_DIFFER	(1 << 2) // Differential antenna input.
 
-static uint8_t axradio_setfreq(AX5043Device device, int32_t f);
-static uint8_t ax5043_reset(AX5043Device device);
 void quick_setfreq(AX5043Device device, int32_t f);
 void start_ax25_rx(AX5043Device device,
 		   enum ax5043_mode mode, unsigned int flags);
