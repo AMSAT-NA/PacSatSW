@@ -411,7 +411,6 @@ extern const uint8_t axradio_phy_chanvcoiinit[];
 uint32_t ReadMRAMTelemFreq(void);
 
 static void axradio_wait_for_xtal(AX5043Device device);
-static uint8_t axradio_get_pllvcoi(AX5043Device device);
 static uint8_t ax5043_receiver_on_continuous(AX5043Device device);
 static int32_t axradio_conv_freq_fromhz(int32_t f);
 int32_t axradio_conv_freq_tohz(int32_t f);

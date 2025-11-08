@@ -790,6 +790,31 @@ static void ax5043_ax25_init_registers(AX5043Device device,
 }
 
 /**
+ * TODO - need to understand what this does.
+ * It seems to get the VCO bias current
+ */
+static uint8_t axradio_get_pllvcoi(AX5043Device device)
+{
+    if (axradio_phy_vcocalib) {
+        uint8_t x = axradio_phy_chanvcoi[0];
+        if (x & 0x80)
+            return x;
+    }
+    {
+        uint8_t x = axradio_phy_chanvcoiinit[0];
+        if (x & 0x80) {
+            if (!(axradio_phy_chanpllrnginit[0] & 0xF0)) {
+                x += (axradio_phy_chanpllrng[0] & 0x0F) - (axradio_phy_chanpllrnginit[0] & 0x0F);
+                x &= 0x3f;
+                x |= 0x80;
+            }
+            return x;
+        }
+    }
+    return ax5043ReadReg(device, AX5043_PLLVCOI);
+}
+
+/**
  * TODO - why is this run after all the setup.  It appears to range
  * the PLL again, but we have already done that.  It also seems to
  * read/write the VCO bias current
@@ -953,9 +978,9 @@ static void ax5043_ax25_set_registers_rx(AX5043Device device,
 /**
  * This is called once the ranging is complete.  It finalizes the registers for receive
  */
-uint8_t ax5043_ax25_init_registers_rx(AX5043Device device,
-                                      enum ax5043_mode mode,
-                                      unsigned int flags)
+static uint8_t ax5043_ax25_init_registers_rx(AX5043Device device,
+					     enum ax5043_mode mode,
+					     unsigned int flags)
 {
     ax5043_ax25_set_registers_rx(device, mode, flags);
     return ax5043_ax25_init_registers_common(device);
@@ -971,7 +996,7 @@ static void ax5043_set_registers_rxcont(AX5043Device device)
     ax5043WriteReg(device, AX5043_PKTMISCFLAGS, 0x00);
 }
 
-uint8_t ax5043_receiver_on_continuous(AX5043Device device)
+static uint8_t ax5043_receiver_on_continuous(AX5043Device device)
 {
     uint8_t regValue;
 
@@ -1158,7 +1183,8 @@ static uint8_t axradio_init(AX5043Device device, int32_t freq,
 }
 
 
-uint8_t mode_tx(AX5043Device device, enum ax5043_mode mode, unsigned int flags)
+static uint8_t mode_tx(AX5043Device device,
+		       enum ax5043_mode mode, unsigned int flags)
 {
     int retVal;
 
@@ -1176,7 +1202,8 @@ uint8_t mode_tx(AX5043Device device, enum ax5043_mode mode, unsigned int flags)
 }
 
 
-uint8_t mode_rx(AX5043Device device, enum ax5043_mode mode, unsigned int flags)
+static uint8_t mode_rx(AX5043Device device,
+		       enum ax5043_mode mode, unsigned int flags)
 {
     int retVal;
 
@@ -1241,31 +1268,6 @@ static uint8_t ax5043_reset(AX5043Device device)
     return RADIO_OK;
 }
 
-/**
- * TODO - need to understand what this does.
- * It seems to get the VCO bias current
- */
-uint8_t axradio_get_pllvcoi(AX5043Device device)
-{
-    if (axradio_phy_vcocalib) {
-        uint8_t x = axradio_phy_chanvcoi[0];
-        if (x & 0x80)
-            return x;
-    }
-    {
-        uint8_t x = axradio_phy_chanvcoiinit[0];
-        if (x & 0x80) {
-            if (!(axradio_phy_chanpllrnginit[0] & 0xF0)) {
-                x += (axradio_phy_chanpllrng[0] & 0x0F) - (axradio_phy_chanpllrnginit[0] & 0x0F);
-                x &= 0x3f;
-                x |= 0x80;
-            }
-            return x;
-        }
-    }
-    return ax5043ReadReg(device, AX5043_PLLVCOI);
-}
-
 static unsigned int calc_flags(AX5043Device device, uint32_t freq,
                                unsigned int flags)
 {
@@ -1299,7 +1301,7 @@ static unsigned int calc_flags(AX5043Device device, uint32_t freq,
     return flags;
 }
 
-const char *ax5043_mode_to_str(enum ax5043_mode mode)
+static char *ax5043_mode_to_str(enum ax5043_mode mode)
 {
     switch (mode) {
     case AX5043_MODE_AFSK_1200:
@@ -1415,6 +1417,8 @@ void start_ax25_tx(AX5043Device device,
     ax5043WriteReg(device, AX5043_PINFUNCIRQ, 0x3); //enable IRQs
 }
 
+// TODO - This is commented out in ax5043.h and called from TelemetryRadio.c
+// with the wrong parameters.
 void fifo_send_sync(AX5043Device device, int final)
 {
     uint8_t i;
