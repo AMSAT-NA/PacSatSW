@@ -235,7 +235,7 @@ void ax5043StartRx(AX5043Device device)
         ax5043PowerOn(device);
         info->on = true;
     }
-    if (info->rxing) {
+    if (!info->rxing) {
         bool rate = ReadMRAMBoolState(StateAx25Rate9600);
 	/* FIXME - store the enum in MRAM. */
 	enum ax5043_mode mode = (rate ? AX5043_MODE_AFSK_9600
@@ -265,26 +265,28 @@ void ax5043StopRx(AX5043Device device)
 void ax5043StartTx(AX5043Device device)
 {
     struct AX5043Info *info = ax5043_get_info(device);
-    bool rate = ReadMRAMBoolState(StateAx25Rate9600);
-    /* FIXME - store the enum in MRAM. */
-    enum ax5043_mode mode = (rate ? AX5043_MODE_AFSK_9600
-			     : AX5043_MODE_AFSK_1200);
 
     if (!info)
         return;
 
     //printf("StartTx: Power=%d,Txing=%d,Rxing=%d\n",PowerOn,Txing,Rxing);
-    if (info->rxing) {
-        ax5043StopRx(device);
-    }
-    if (info->on) {
+    ax5043StopRx(device);
+
+    if (!info->on) {
         ax5043PowerOn(device);
         info->on = true;
     }
 
-    start_ax25_tx(device, mode, 0);
-    info->txing = true;
-    info->rxing = false;
+    if (!info->txing) {
+	bool rate = ReadMRAMBoolState(StateAx25Rate9600);
+	/* FIXME - store the enum in MRAM. */
+	enum ax5043_mode mode = (rate ? AX5043_MODE_AFSK_9600
+				 : AX5043_MODE_AFSK_1200);
+
+	start_ax25_tx(device, mode, 0);
+	info->txing = true;
+	info->rxing = false;
+    }
 }
 
 void ax5043StopTx(AX5043Device device)
