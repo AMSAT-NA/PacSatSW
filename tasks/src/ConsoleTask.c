@@ -1038,9 +1038,9 @@ void RealConsoleTask(void)
                 break;
             }
             AX5043Device device = (AX5043Device)devb;
-            uint32_t freq = 145835000;
+            uint32_t freq = DCTRxFreq[device];
 
-            printf("Testing TX/RX for AX5043 Dev: %d\n",device);
+            printf("Testing TX/RX for AX5043 Dev: %d\n", device);
             test_rx_freq(device, freq, AX5043_MODE_AFSK_1200, 0);
             break;
         }
