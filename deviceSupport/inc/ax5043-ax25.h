@@ -69,33 +69,6 @@
 #define AXRADIO_ERR_RESYNCTIMEOUT               0x0a //!< Synchronization timed out
 #define AXRADIO_ERR_RECEIVESTART                0x0b //!< Receiver restarted
 
-#define AXRADIO_MODE_UNINIT                     0x00
-#define AXRADIO_MODE_OFF                        0x01
-#define AXRADIO_MODE_DEEPSLEEP                  0x02
-#define AXRADIO_MODE_CW_TRANSMIT                0x03
-#define AXRADIO_MODE_ASYNC_TRANSMIT             0x10
-#define AXRADIO_MODE_WOR_TRANSMIT               0x11
-#define AXRADIO_MODE_ACK_TRANSMIT               0x12
-#define AXRADIO_MODE_WOR_ACK_TRANSMIT           0x13
-#define AXRADIO_MODE_STREAM_TRANSMIT_UNENC      0x18
-#define AXRADIO_MODE_STREAM_TRANSMIT_SCRAM      0x19
-#define AXRADIO_MODE_STREAM_TRANSMIT_UNENC_LSB  0x1A
-#define AXRADIO_MODE_STREAM_TRANSMIT_SCRAM_LSB  0x1B
-#define AXRADIO_MODE_STREAM_TRANSMIT            0x1C
-#define AXRADIO_MODE_ASYNC_RECEIVE              0x20
-#define AXRADIO_MODE_WOR_RECEIVE                0x21
-#define AXRADIO_MODE_ACK_RECEIVE                0x22
-#define AXRADIO_MODE_WOR_ACK_RECEIVE            0x23
-#define AXRADIO_MODE_STREAM_RECEIVE_UNENC       0x28
-#define AXRADIO_MODE_STREAM_RECEIVE_SCRAM       0x29
-#define AXRADIO_MODE_STREAM_RECEIVE_UNENC_LSB   0x2A
-#define AXRADIO_MODE_STREAM_RECEIVE_SCRAM_LSB   0x2B
-#define AXRADIO_MODE_STREAM_RECEIVE             0x2C
-#define AXRADIO_MODE_STREAM_RECEIVE_DATAPIN     0x2D
-#define AXRADIO_MODE_SYNC_MASTER                0x30
-#define AXRADIO_MODE_SYNC_ACK_MASTER            0x31
-#define AXRADIO_MODE_SYNC_SLAVE                 0x32
-#define AXRADIO_MODE_SYNC_ACK_SLAVE             0x33
 #define AX5043_AFSKCTRL 0x114   /* AFSK Control */
 #define AX5043_AFSKMARK0 0x113   /* AFSK Mark (1) Frequency 0 */
 #define AX5043_AFSKMARK1 0x112   /* AFSK Mark (1) Frequency 1 */
@@ -417,26 +390,6 @@
 #define RADIO_ERR_WAKEUPTIMEOUT 4
 
 #define PKTDATA_BUFLEN 260
-
-typedef enum {
-    trxstate_off,
-    trxstate_rx,
-    trxstate_rxwor,
-    trxstate_wait_xtal,
-    trxstate_xtal_ready,
-    trxstate_pll_ranging,
-    trxstate_pll_ranging_done,
-    trxstate_pll_settling,
-    trxstate_pll_settled,
-    trxstate_tx_xtalwait,
-    trxstate_tx_longpreamble,
-    trxstate_tx_shortpreamble,
-    trxstate_tx_packet,
-    trxstate_tx_waitdone,
-    trxstate_txcw_xtalwait,
-    trxstate_txstream_xtalwait,
-    trxstate_txstream
-} axradio_trxstate_t;
 
 struct axradio_address_mask {
     uint8_t addr[4];

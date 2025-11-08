@@ -77,15 +77,6 @@ static uint8_t ax5043_ax25_init_registers_rx(AX5043Device device,
                                              enum ax5043_mode mode,
                                              unsigned int flags);
 
-/// TODO - these variables need to be indexed by AX5043Device id
-
-/* Variables */
-static volatile uint8_t axradio_mode = AXRADIO_MODE_UNINIT;
-static volatile axradio_trxstate_t axradio_trxstate = trxstate_off;
-
-//static struct axradio_address_mask axradio_localaddr;
-uint8_t axradio_rxbuffer_70cm[PKTDATA_BUFLEN];
-
 // Global variables for radio physical layer.  These are used by the radio and read by telemetry or the console
 // TODO - this needs to be a set of arrays, one for each radio
 const uint32_t axradio_phy_chanfreq[2] = { 0x1b3b5550,0x1b3b5550}; //Primary and secondry frequencies.  There are two per radio
@@ -1019,8 +1010,6 @@ static uint8_t axradio_init(AX5043Device device, int32_t freq,
 
     /* Store the current state and reset the radio.  This makes sure everything is
      * clean as we start up */
-    axradio_mode = AXRADIO_MODE_UNINIT;
-    axradio_trxstate = trxstate_off;
     rv = ax5043_reset(device);
     if (rv != RADIO_OK) { // this also confirms that we can read/write to the chip
         printf("Error resetting 5043: %d\n", rv);
@@ -1052,8 +1041,6 @@ static uint8_t axradio_init(AX5043Device device, int32_t freq,
     axradio_wait_for_xtal(device);
 
     quick_setfreq(device, freq);
-
-    axradio_trxstate = trxstate_pll_ranging;
 
 #if 0
     printf("AX5043_PLLLOOP: %02.2x\n", ax5043ReadReg(device, AX5043_PLLLOOP));
@@ -1091,7 +1078,6 @@ static uint8_t axradio_init(AX5043Device device, int32_t freq,
 //    debug_print("After ranging: AX5043_PLLRANGINGA: %02.2x\n", ax5043ReadReg(device, AX5043_PLLRANGINGA)); //DEBUG RBG
 
     //printf("INFO: PLL ranging process complete\n");
-    axradio_trxstate = trxstate_off;
     axradio_phy_chanpllrng[0] = ax5043ReadReg(device, AX5043_PLLRANGINGA);
 
 #if 0
@@ -1149,8 +1135,6 @@ static uint8_t axradio_init(AX5043Device device, int32_t freq,
     // TODO - G0KLA - why is this RX?  Both TX and RX ranging is run??
     ax5043_ax25_set_registers_rx(device, mode, flags);
     ax5043WriteReg(device, AX5043_PLLRANGINGA, axradio_phy_chanpllrng[0] & 0x0F);
-
-    axradio_mode = AXRADIO_MODE_OFF;
 
 #if 0
 
