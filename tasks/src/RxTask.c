@@ -97,10 +97,11 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
 
         if (monitorPackets) {
             uint8_t rssi = get_rssi(AX5043Dev0);
+	    int16_t dbm;
             // this magic value is supposed to be above the background
             // noise, so we only see actual transmissions
             if (rssi > 180) {
-                int16_t dbm = rssi - 255;
+                dbm = rssi - 255;
                 debug_print("RSSI-0: %d dBm\n",dbm);
             }
 #if NUM_AX5043_RX_DEVICES == 4
