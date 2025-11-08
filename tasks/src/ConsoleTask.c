@@ -128,6 +128,7 @@ enum {
     ,SetDCTDrivePower
     ,RaiseFreq
     ,LowerFreq
+    ,SetFreq
     ,ReadFreqs
     ,SaveFreq
     ,LoadKey
@@ -210,6 +211,7 @@ commandPairs setupCommands[] = {
                                 {"init new proc","Init DCT and MRAM stuff that will be set once for each unit",initSaved}
                                 ,{"raise freq","Raise the frequency by n Hz",RaiseFreq}
                                 ,{"lower freq","Lower the frequency by n Hz",LowerFreq}
+                                ,{"set freq","Set the frequency by n kHz",SetFreq}
                                 ,{"save freq","Save the current frequency in MRAM",SaveFreq}
                                 ,{"read freq","Read all the frequencies from MRAM",ReadFreqs}
                                 ,{"test freq", "xmit on receive frequency of specified device",testRxFreq}
@@ -610,21 +612,47 @@ void RealConsoleTask(void)
             break;
         }
 
+        case SetFreq:{
+            uint8_t devb = parseNumber(afterCommand);
+            if(devb >= InvalidAX5043Device){
+                printf("Give a device number between 0 and 4\n");
+                break;
+            }
+            AX5043Device dev = (AX5043Device)devb;
+            uint32_t freq = parseNextNumber32() * 1000;
+
+            if (dev == TX_DEVICE) {
+                DCTTxFreq = freq;
+                printf("TxFreq=%d\n", DCTTxFreq);
+                quick_setfreq(dev, DCTTxFreq);
+            } else {
+                DCTRxFreq[dev] = freq;
+                printf("RxFreq=%d\n", DCTRxFreq[dev]);
+                quick_setfreq(dev, DCTRxFreq[dev]);
+            }
+            break;
+        }
+
         case ReadFreqs:{
             int i;
-            for (i = 0; i < 4; i++) {
-                printf("Rx%d--MRAM: %d Memory: %d\n",i+1,ReadMRAMReceiveFreq(i),DCTRxFreq[i]);
+
+            printf("Tx--MRAM: %d, Memory: %d\n",
+		   ReadMRAMTelemFreq(), DCTTxFreq);
+            for (i = 0; i < NUM_AX5043_RX_DEVICES; i++) {
+                printf("Rx%d--MRAM: %d Memory: %d\n", i,
+		       ReadMRAMReceiveFreq(i), DCTRxFreq[i]);
             }
-            printf("Tx Frequency--MRAM: %d, Memory: %d\n",ReadMRAMTelemFreq(),DCTTxFreq);
             break;
         }
 
         case SaveFreq:{
-            uint8_t i;
-            printf("Saving Rx frequencies and Tx frequency %d to MRAM\n",DCTRxFreq,DCTTxFreq);
+            int i;
+
+            printf("Saving Tx frequency %d to MRAM\n", DCTTxFreq);
             WriteMRAMTelemFreq(DCTTxFreq);
-            for(i=0;i<4;i++){
-                WriteMRAMReceiveFreq(i,DCTRxFreq[i]);
+            for (i = 0; i < NUM_AX5043_RX_DEVICES; i++) {
+		printf("Saving Rx%d frequency %d to MRAM\n",i, DCTRxFreq[i]);
+                WriteMRAMReceiveFreq(i, DCTRxFreq[i]);
             }
             break;
         }

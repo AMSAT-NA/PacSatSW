@@ -51,6 +51,14 @@ uint16_t parseNextNumber(void){
     string = nextNum;
     return (uint16_t)strtol(string,&nextNum,0);
 }
+uint32_t parseNumber32(char *afterCommand){
+    return (uint32_t)strtoul(afterCommand,&nextNum,0);
+}
+uint32_t parseNextNumber32(void){
+    char *string;
+    string = nextNum;
+    return (uint32_t)strtoul(string,&nextNum,0);
+}
 
 
 void receiveLine(COM_NUM ioCom, char *commandString, char prompt, bool echo) {
