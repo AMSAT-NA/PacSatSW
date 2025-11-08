@@ -170,7 +170,7 @@ void spiInit(void)
                     | (uint32)((uint32)1U << 3U)  /* SCS[3] */
                     | (uint32)((uint32)1U << 4U)  /* SCS[4] */
                     | (uint32)((uint32)1U << 5U)  /* SCS[5] */
-                    | (uint32)((uint32)0U << 8U)  /* ENA */
+                    | (uint32)((uint32)1U << 8U)  /* ENA */
                     | (uint32)((uint32)0U << 9U)  /* CLK */
                     | (uint32)((uint32)0U << 10U)  /* SIMO[0] */
                     | (uint32)((uint32)0U << 11U)  /* SOMI[0] */
@@ -293,9 +293,9 @@ void spiInit(void)
                   | (uint32)((uint32)0U << 21U)  /* wait on enable */
                   | (uint32)((uint32)0U << 20U)  /* shift direction */
                   | (uint32)((uint32)0U << 17U)  /* clock polarity */
-                  | (uint32)((uint32)1U << 16U)  /* clock phase */
+                  | (uint32)((uint32)0U << 16U)  /* clock phase */
                   | (uint32)((uint32)79U << 8U) /* baudrate prescale */
-                  | (uint32)((uint32)8U << 0U);  /* data word length */
+                  | (uint32)((uint32)16U << 0U);  /* data word length */
 
     /** - Data Format 2 */
     spiREG3->FMT2 = (uint32)((uint32)0U << 24U)  /* wdelay */
@@ -353,8 +353,8 @@ void spiInit(void)
                     | (uint32)((uint32)1U << 4U)  /* SCS[4] */
                     | (uint32)((uint32)1U << 5U)  /* SCS[5] */
                     | (uint32)((uint32)0U << 8U)  /* ENA */
-                    | (uint32)((uint32)1U << 9U)  /* CLK */
-                    | (uint32)((uint32)1U << 10U)  /* SIMO */
+                    | (uint32)((uint32)0U << 9U)  /* CLK */
+                    | (uint32)((uint32)0U << 10U)  /* SIMO */
                     | (uint32)((uint32)0U << 11U); /* SOMI */
 
     /** - SPI3 Port direction */
@@ -407,11 +407,11 @@ void spiInit(void)
 
     /* SPI3 set all pins to functional */
     spiREG3->PC0  =   (uint32)((uint32)0U << 0U)  /* SCS[0] */
-                    | (uint32)((uint32)1U << 1U)  /* SCS[1] */
-                    | (uint32)((uint32)1U << 2U)  /* SCS[2] */
-                    | (uint32)((uint32)1U << 3U)  /* SCS[3] */
-                    | (uint32)((uint32)1U << 4U)  /* SCS[4] */
-                    | (uint32)((uint32)1U << 5U)  /* SCS[5] */
+                    | (uint32)((uint32)0U << 1U)  /* SCS[1] */
+                    | (uint32)((uint32)0U << 2U)  /* SCS[2] */
+                    | (uint32)((uint32)0U << 3U)  /* SCS[3] */
+                    | (uint32)((uint32)0U << 4U)  /* SCS[4] */
+                    | (uint32)((uint32)0U << 5U)  /* SCS[5] */
                     | (uint32)((uint32)1U << 8U)  /* ENA */
                     | (uint32)((uint32)1U << 9U)  /* CLK */
                     | (uint32)((uint32)1U << 10U)  /* SIMO */
@@ -505,7 +505,7 @@ void spiInit(void)
     /** - enable interrupts */
     spiREG5->INT0 = (spiREG5->INT0 & 0xFFFF0000U)
                   | (uint32)((uint32)0U << 9U)  /* TXINT */
-                  | (uint32)((uint32)0U << 8U)  /* RXINT */
+                  | (uint32)((uint32)1U << 8U)  /* RXINT */
                   | (uint32)((uint32)0U << 6U)  /* OVRNINT */
                   | (uint32)((uint32)0U << 4U)  /* BITERR */
                   | (uint32)((uint32)0U << 3U)  /* DESYNC */
@@ -523,7 +523,7 @@ void spiInit(void)
                     | (uint32)((uint32)0U << 8U)  /* ENA */
                     | (uint32)((uint32)0U << 9U)  /* CLK */
                     | (uint32)((uint32)0U << 10U)  /* SIMO[0] */
-                    | (uint32)((uint32)1U << 11U)  /* SOMI[0] */
+                    | (uint32)((uint32)0U << 11U)  /* SOMI[0] */
                     | (uint32)((uint32)0U << 17U)  /* SIMO[1] */
                     | (uint32)((uint32)0U << 18U)  /* SIMO[2] */
                     | (uint32)((uint32)0U << 19U)  /* SIMO[3] */
@@ -539,7 +539,7 @@ void spiInit(void)
                     | (uint32)((uint32)0U << 8U)  /* ENA */
                     | (uint32)((uint32)1U << 9U)  /* CLK */
                     | (uint32)((uint32)1U << 10U)  /* SIMO[0] */
-                    | (uint32)((uint32)1U << 11U)  /* SOMI[0] */
+                    | (uint32)((uint32)0U << 11U)  /* SOMI[0] */
                     | (uint32)((uint32)0U << 17U)  /* SIMO[1] */
                     | (uint32)((uint32)0U << 18U)  /* SIMO[2] */
                     | (uint32)((uint32)0U << 19U)  /* SIMO[3] */
@@ -571,7 +571,7 @@ void spiInit(void)
                     | (uint32)((uint32)1U << 3U)  /* SCS[3] */
                     | (uint32)((uint32)1U << 8U)  /* ENA */
                     | (uint32)((uint32)1U << 9U)  /* CLK */
-                    | (uint32)((uint32)0U << 10U)  /* SIMO[0] */
+                    | (uint32)((uint32)1U << 10U)  /* SIMO[0] */
                     | (uint32)((uint32)1U << 11U)  /* SOMI[0] */
                     | (uint32)((uint32)1U << 17U)  /* SIMO[1] */
                     | (uint32)((uint32)1U << 18U)  /* SIMO[2] */
@@ -598,19 +598,19 @@ void spiInit(void)
 
     /* SPI5 set all pins to functional */
     spiREG5->PC0  =   (uint32)((uint32)0U << 0U)  /* SCS[0] */
-                    | (uint32)((uint32)1U << 1U)  /* SCS[1] */
-                    | (uint32)((uint32)1U << 2U)  /* SCS[2] */
-                    | (uint32)((uint32)1U << 3U)  /* SCS[3] */
+                    | (uint32)((uint32)0U << 1U)  /* SCS[1] */
+                    | (uint32)((uint32)0U << 2U)  /* SCS[2] */
+                    | (uint32)((uint32)0U << 3U)  /* SCS[3] */
                     | (uint32)((uint32)1U << 8U)  /* ENA */
-                    | (uint32)((uint32)0U << 9U)  /* CLK */
-                    | (uint32)((uint32)0U << 10U)  /* SIMO[0] */
-                    | (uint32)((uint32)0U << 11U)  /* SOMI[0] */
-                    | (uint32)((uint32)0U << 17U)  /* SIMO[1] */
-                    | (uint32)((uint32)0U << 18U)  /* SIMO[2] */
-                    | (uint32)((uint32)0U << 19U)  /* SIMO[3] */
-                    | (uint32)((uint32)0U << 25U)  /* SOMI[1] */
-                    | (uint32)((uint32)0U << 26U)  /* SOMI[2] */
-                    | (uint32)((uint32)0U << 27U); /* SOMI[3] */
+                    | (uint32)((uint32)1U << 9U)  /* CLK */
+                    | (uint32)((uint32)1U << 10U)  /* SIMO[0] */
+                    | (uint32)((uint32)1U << 11U)  /* SOMI[0] */
+                    | (uint32)((uint32)1U << 17U)  /* SIMO[1] */
+                    | (uint32)((uint32)1U << 18U)  /* SIMO[2] */
+                    | (uint32)((uint32)1U << 19U)  /* SIMO[3] */
+                    | (uint32)((uint32)1U << 25U)  /* SOMI[1] */
+                    | (uint32)((uint32)1U << 26U)  /* SOMI[2] */
+                    | (uint32)((uint32)1U << 27U); /* SOMI[3] */
 
     /** - Initialize TX and RX data buffer Status */
     g_spiPacket_t[4U].tx_data_status  = SPI_READY;
@@ -825,7 +825,7 @@ void spiSendData(spiBASE_t *spi, spiDAT1_t *dataconfig_t, uint32 blocksize, uint
         uint32 index = (spi == spiREG1) ? 0U :((spi==spiREG2) ? 1U : ((spi==spiREG3) ? 2U:((spi==spiREG4) ? 3U:4U)));
 
 /* USER CODE BEGIN (12) */
-/* USER CODE END */
+ /* USER CODE END */
 
      g_spiPacket_t[index].tx_length = blocksize;
      g_spiPacket_t[index].txdata_ptr   = srcbuff;

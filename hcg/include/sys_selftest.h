@@ -10,7 +10,7 @@
 */
 
 /* 
-* Copyright (C) 2009-2018 Texas Instruments Incorporated - www.ti.com  
+* Copyright (C) 2009-2018 Texas Instruments Incorporated - www.ti.com 
 * 
 * 
 *  Redistribution and use in source and binary forms, with or without 
@@ -109,7 +109,7 @@
 enum pbistPort
 {
     PBIST_PORT0 = 0U, /**< Alias for PBIST Port 0 */
-    PBIST_PORT1 = 1U  /**< Alias for PBIST Port 1 */
+    PBIST_PORT1 = 1U  /**< Alias for PBIST Port 1 < Check datasheet for Port 1 availability > */
 };
 /** @enum pbistAlgo
 *   @brief Alias names for pbist Algorithm
@@ -444,6 +444,7 @@ void checkRAMECC(void);
 void checkClockMonitor(void);
 void checkFlashEEPROMECC(void);
 void checkPLL1Slip(void);
+void checkPLL2Slip(void);
 void checkRAMAddrParity(void);
 void checkRAMUERRTest(void);
 

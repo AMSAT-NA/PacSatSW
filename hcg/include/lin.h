@@ -268,7 +268,7 @@ typedef struct lin_config_reg
 #define LIN_MASK_CONFIGVALUE       ((uint32)((uint32)0xFFU << 16U) | 0xFFU)
 #define LIN_MBRSR_CONFIGVALUE      (3600U)
 #define LIN_FUN_CONFIGVALUE        (4U | 2U | 0U)
-#define LIN_DIR_CONFIGVALUE        (0U | 0U | 0U)
+#define LIN_DIR_CONFIGVALUE        (4U | 0U | 0U)
 #define LIN_ODR_CONFIGVALUE        (0U | 0U | 0U)
 #define LIN_PD_CONFIGVALUE         (0U | 0U | 0U)
 #define LIN_PSL_CONFIGVALUE        (4U | 2U | 1U)
