@@ -95,27 +95,33 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
         status = WaitInterTask(ToRxTask, CENTISECONDS(10), &messageReceived);  // This is triggered when there is RX data on the FIFO
         ReportToWatchdog(CurrentTaskWD);
 
-        uint8_t rssi = 0;
-        rssi = get_rssi(AX5043Dev0);  // TODO - Need to do this on all devices?
         if (monitorPackets) {
-            if (rssi > 180) { // this magic value is supposed to be above the background noise, so we only see actual transmissions
-                rssi = get_rssi(AX5043Dev0);
+            uint8_t rssi = get_rssi(AX5043Dev0);
+            // this magic value is supposed to be above the background
+            // noise, so we only see actual transmissions
+            if (rssi > 180) {
                 int16_t dbm = rssi - 255;
-                debug_print("RSSI-0: %d dBm ",dbm);
+                debug_print("RSSI-0: %d dBm\n",dbm);
+            }
 #if NUM_AX5043_RX_DEVICES == 4
-                rssi = get_rssi(AX5043Dev1);
+            rssi = get_rssi(AX5043Dev1);
+            if (rssi > 180) {
                 dbm = rssi - 255;
-                debug_print("RSSI-1: %d dBm ",dbm);
-                rssi = get_rssi(AX5043Dev2);
+                debug_print("RSSI-1: %d dBm\n",dbm);
+            }
+            rssi = get_rssi(AX5043Dev2);
+            if (rssi > 180) {
                 dbm = rssi - 255;
-                debug_print("RSSI-2: %d dBm ",dbm);
-                rssi = get_rssi(AX5043Dev3);
+                debug_print("RSSI-2: %d dBm\n",dbm);
+            }
+            rssi = get_rssi(AX5043Dev3);
+            if (rssi > 180) {
                 dbm = rssi - 255;
-                debug_print("RSSI-3: %d dBm \n",dbm);
+                debug_print("RSSI-3: %d dBm\n",dbm);
+            }
 #endif
 ////                debug_print("FRMRX: %d   ",ax5043ReadReg(device, AX5043_FRAMING) & 0x80 ); // FRAMING Pkt start bit detected - will print 128
 ////                debug_print("RADIO: %d ",ax5043ReadReg(device, AX5043_RADIOSTATE) & 0xF ); // Radio State bits 0-3
-            }
         }
 
         if (status==1) { // We received a message
@@ -144,7 +150,7 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
                 process_fifo(AX5043Dev3);
                 break;
 #endif
-	    }
+            }
         }
     }
 }
