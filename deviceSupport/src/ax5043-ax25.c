@@ -113,7 +113,7 @@ static void ax5043_ax25_set_registers(AX5043Device device,
          * 0x08 with BT = 0.5.  This works better than 0.3 for RX.
          * More testing needed for TX, which may work best with
          * GMSK */
-        // AFSK.  0x04 is PSK. GMSK for 9600 is 0x07
+        // GMSK for 9600 is 0x07.  0x04 is PSK.
         ax5043WriteReg(device, AX5043_MODULATION, 0x08);
         // Differential encoding, bit inversion, no scrambler.  Use
         // 0x07 for G3RUH scrambler
@@ -1291,7 +1291,7 @@ static unsigned int calc_flags(AX5043Device device, uint32_t freq,
 
 #ifdef BLINKY_HARDWARE
     /*
-     * Only the blinky hardware uses differential inputs, and only on some
+     * The blinky hardware uses non- differential inputs on some
      * AX5043s.
      */
     switch (device) {
@@ -1305,6 +1305,12 @@ static unsigned int calc_flags(AX5043Device device, uint32_t freq,
     case AX5043Dev4:
         break;
     }
+#else
+    /*
+     * On the Launchpad and AFSK boards the antenna connection is
+     * always differential.
+     */
+    flags |= AX5043_FLAG_ANT_DIFFER;
 #endif
 
     return flags;
