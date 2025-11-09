@@ -1100,6 +1100,7 @@ static uint8_t axradio_init(AX5043Device device, int32_t freq,
     //debug_print("Starting ranging from: %d\n", r); //RBG DEBUG
 
     //printf("INFO: Waiting for PLL ranging process\n");
+    // TODO - add a timeout for this loop.
     while ((ax5043ReadReg(device, AX5043_PLLRANGINGA) & 0x10) != 0) {
         vTaskDelay(CENTISECONDS(1));
     }
