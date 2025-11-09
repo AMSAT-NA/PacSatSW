@@ -148,6 +148,8 @@ enum {
     ,GetCommands
     ,GetGpios
     ,getax5043
+    ,readax5043
+    ,writeax5043
     ,getRSSI
     ,testRxFreq
     ,testPLLrange
@@ -312,6 +314,8 @@ commandPairs commonCommands[] = {
                                  ,{"get commands","Get a list the last 4 s/w commands",GetCommands}
                                  ,{"get gpios","Display the values of all GPIOS",GetGpios}
                                  ,{"get ax","Get ax5043 status",getax5043}
+                                 ,{"read axreg","Read ax5043 reg n from device",readax5043}
+                                 ,{"write axreg","write ax5043 value to reg n on device",writeax5043}
                                  //,{"health mode","Set health mode",healthMode}
                                  //,{"set dct drive power","Set drive power for high and low power",SetDCTDrivePower}
                                  //,{"select dct power","Set rf power used in safe or normal modes",SelectRFPowerLevels}
@@ -1043,6 +1047,42 @@ void RealConsoleTask(void)
                 break;
             }
             ax5043Dump((AX5043Device) devb);
+            break;
+        }
+
+        case readax5043:{
+            uint8_t devb = parseNumber(afterCommand);
+            if (devb >= InvalidAX5043Device) {
+                printf("Give a device number between 0 and %d\n", NUM_AX5043_SPI_DEVICES - 1);
+                break;
+            }
+            uint8_t regstart = parseNextNumber();
+            uint8_t regend = parseNextNumber();
+	    uint8_t i;
+
+	    if (regend <= regstart)
+		regend = regstart;
+
+	    for (i = regstart; i <= regend; i++) {
+		unsigned int val = ax5043ReadReg((AX5043Device) devb, i);
+
+		printf("ax5043 %d reg 0x%3.3x = %3d (0x%2.2x)\n",
+		       devb, i, val, val);
+	    }
+            break;
+        }
+
+        case writeax5043:{
+            uint8_t devb = parseNumber(afterCommand);
+            if (devb >= InvalidAX5043Device) {
+                printf("Give a device number between 0 and %d\n", NUM_AX5043_SPI_DEVICES - 1);
+                break;
+            }
+            uint8_t reg = parseNextNumber();
+            uint8_t val = parseNextNumber();
+
+	    ax5043WriteReg((AX5043Device) devb, reg, val);
+	    printf("ax5043 %d reg %d = %d (0x%2.2x)\n", devb, reg, val, val);
             break;
         }
 
