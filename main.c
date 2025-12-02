@@ -147,6 +147,11 @@ void startup(void)
     rtiInit();
     rtiStartCounter(rtiCOUNTER_BLOCK0);
 
+    I2cInit(I2C1);
+#ifdef LAUNCHPAD_HARDWARE
+    I2cInit(I2C2);
+#endif
+
     /*
      * Many of the devices that are working now only via the HalCoGen routines still use interrupt...
      * they just don't use any of the OS features till later.
@@ -244,13 +249,10 @@ void ConsoleTask(void *pvParameters){
 #endif
     }
     initMET();
-    I2cInit(I2C1);
 
     GPIOInit(AX5043_Rx1_Interrupt, ToRxTask, AX5043_Rx1_InterruptMsg);
     GPIOInit(AX5043_Tx_Interrupt, ToTxTask, AX5043_Tx_InterruptMsg);
-#ifdef LAUNCHPAD_HARDWARE
-    I2cInit(I2C2);
-#else
+#ifndef LAUNCHPAD_HARDWARE
     GPIOInit(AX5043_Rx2_Interrupt, ToRxTask, AX5043_Rx2_InterruptMsg);
     GPIOInit(AX5043_Rx3_Interrupt, ToRxTask, AX5043_Rx3_InterruptMsg);
     GPIOInit(AX5043_Rx4_Interrupt, ToRxTask, AX5043_Rx4_InterruptMsg);
