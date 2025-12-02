@@ -55,9 +55,9 @@
 MEMORY
 {
     VECTORS (X)  : origin=0x00000000 length=0x00000020
-    FLASH0  (RX) : origin=0x00000020 length=0x0013FFE0
+    FLASH0  (RX) : origin=0x00000020 length=0x000BFFE0
     STACKS  (RW) : origin=0x08000000 length=0x00001500
-    RAM     (RW) : origin=0x08001500 length=0x0002EB00
+    RAM     (RW) : origin=0x08001500 length=0x0001EB00
 
 /* USER CODE BEGIN (2) */
 /* USER CODE END */

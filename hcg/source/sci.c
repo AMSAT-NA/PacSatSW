@@ -220,12 +220,12 @@ void sciInit(void)
     scilinREG->SETINT = (uint32)((uint32)0U << 26U)  /* Framing error */
                       | (uint32)((uint32)0U << 25U)  /* Overrun error */
                       | (uint32)((uint32)0U << 24U)  /* Parity error */
-                      | (uint32)((uint32)1U << 9U)  /* Receive */
+                      | (uint32)((uint32)0U << 9U)  /* Receive */
                       | (uint32)((uint32)0U << 1U)  /* Wakeup */
                       | (uint32)((uint32)0U);  /* Break detect */
 
     /** - initialize global transfer variables */
-    g_sciTransfer_t[1U].mode   = (uint32)1U << 8U;
+    g_sciTransfer_t[1U].mode   = (uint32)0U << 8U;
     g_sciTransfer_t[1U].tx_length = 0U;
 	g_sciTransfer_t[1U].rx_length = 0U;
 
@@ -810,13 +810,6 @@ void sciHighLevelInterrupt(void)
     uint32 vec = sciREG->INTVECT0;
 	uint8 byte;
 /* USER CODE BEGIN (28) */
-	void SerialRxCharacterInterrupt(sciBASE_t *sci,uint8_t byte);
-
-	if(vec==11){
-        byte = (uint8)(sciREG->RD & 0x000000FFU);
-	    SerialRxCharacterInterrupt(sciREG,byte);
-	    return;
-	}
 /* USER CODE END */
 
     switch (vec)
