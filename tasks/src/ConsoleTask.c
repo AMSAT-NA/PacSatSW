@@ -147,6 +147,7 @@ enum {
     ,TestMemScrub
     ,GetCommands
     ,GetGpios
+    ,SetGpio
     ,getax5043
     ,readax5043
     ,writeax5043
@@ -313,6 +314,7 @@ commandPairs commonCommands[] = {
                                  //,{"get rf power","Print the RF power settings",GetRfPower}
                                  ,{"get commands","Get a list the last 4 s/w commands",GetCommands}
                                  ,{"get gpios","Display the values of all GPIOS",GetGpios}
+                                 ,{"set gpio","Set the value of a GPIO",SetGpio}
                                  ,{"get ax","Get ax5043 status",getax5043}
                                  ,{"read axreg","Read ax5043 reg n from device",readax5043}
                                  ,{"write axreg","write ax5043 value to reg n on device",writeax5043}
@@ -526,9 +528,31 @@ void RealConsoleTask(void)
                 if (count % 4 == 0) {
                     printf("\n");
                 }
-                printf("%s:%d ", GPIOToName(i), GPIOIsOn(i));
+                printf("%s(%d):%d ", GPIOToName(i), i, GPIOIsOn(i));
             }
             printf("\n");
+            break;
+        }
+        case SetGpio:{
+            Gpio_Use i;
+            int val;
+
+            i = (Gpio_Use) parseNumber(afterCommand);
+            if (i >= NumberOfGPIOs) {
+                printf("Invalid GPIO number %d, use 'get gpios' to find the number\n",
+                       i);
+                break;
+            }
+            val = parseNextNumber();
+            if (val < 0 || val > 1) {
+                printf("Invalid GPIO value %d, must be 0 or 1\n", val);
+                break;
+            }
+            if (val)
+                GPIOSetOn(i);
+            else
+                GPIOSetOff(i);
+            printf("Set %s(%d) to %d\n", GPIOToName(i), i, GPIOIsOn(i));
             break;
         }
 #endif
