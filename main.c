@@ -169,6 +169,7 @@ void startup(void)
 
 #ifdef AFSK_HARDWARE
     /* Just power everything up on the AFSK board for now. */
+#if 0
     GPIOSetOn(LNAPower);
     GPIOSetOn(MeasurePower);
     GPIOSetOn(AX5043Power);
@@ -182,6 +183,7 @@ void startup(void)
 
     /* Enable this board to transmit if the loopback is in place. */
     GPIOSetOn(ImActive);
+#endif
 #endif
 
     xTaskCreate(ConsoleTask, "Console", CONSOLE_STACK_SIZE,

@@ -40,7 +40,7 @@
  * watchdog periodically.  It also waits for all of the tasks to confirm they are still running.  If any
  * tasks fail to report then it does not reset the hardware watchdog and we are rebooted.   If you enable this
  * and get resets in a loop then make sure all tasks are setup to report into the watchdog periodically. */
-#define WATCHDOG_ENABLE
+//#define WATCHDOG_ENABLE
 
 /* */
 #define SOFTWARE_TYPE "X" // Always X if undefine_before_flight is on.  Do not change this one

@@ -78,46 +78,58 @@ SPIBusData bus1Data,bus2Data,bus3Data,bus4Data,bus5Data;
 #error Work required here
 #endif
 
+#ifdef AFSK_HARDWARE
+#define SPI_MRAM_BUS bus3Data
+#else
+#define SPI_MRAM_BUS bus1Data
+#endif
+
+#ifdef AFSK_HARDWARE
+#define SPI_AX5043_BUS bus1Data
+#else
+#define SPI_AX5043_BUS bus3Data
+#endif
+
 static SPIDevInfo SPIMram0Device={
     .thisBus     = SPI_MRAM_Reg,
     .selGPIO     = MRAM0_Sel,
     .thisDat1    = {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
-    .thisBusData = &bus1Data,
+    .thisBusData = &SPI_MRAM_BUS,
 };
 
 static SPIDevInfo SPIMram1Device={
     .thisBus     = SPI_MRAM_Reg,
     .selGPIO     = MRAM1_Sel,
     .thisDat1    = {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
-    .thisBusData = &bus1Data,
+    .thisBusData = &SPI_MRAM_BUS,
 };
 
 static SPIDevInfo SPIMram2Device={
     .thisBus     = SPI_MRAM_Reg,
     .selGPIO     = MRAM2_Sel,
     .thisDat1    = {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
-    .thisBusData = &bus1Data,
+    .thisBusData = &SPI_MRAM_BUS,
 };
 
 static SPIDevInfo SPIMram3Device={
     .thisBus     = SPI_MRAM_Reg,
     .selGPIO     = MRAM3_Sel,
     .thisDat1    = {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
-    .thisBusData = &bus1Data,
+    .thisBusData = &SPI_MRAM_BUS,
 };
 
 static SPIDevInfo SPIRx1AX5043Device={
     .thisBus     = SPI_AX5043_Reg,
     .selGPIO     = AX5043_Rx1_Sel,
     .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
-    .thisBusData = &bus3Data,
+    .thisBusData = &SPI_AX5043_BUS,
 };
 
 static SPIDevInfo SPITxAX5043Device={
     .thisBus     = SPI_AX5043_Reg,
     .selGPIO     = AX5043_Tx_Sel,
     .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
-    .thisBusData = &bus3Data,
+    .thisBusData = &SPI_AX5043_BUS,
 };
 
 #ifdef LAUNCHPAD_HARDWARE
@@ -133,21 +145,21 @@ static SPIDevInfo SPIRx2AX5043Device={
     .thisBus     = SPI_AX5043_Reg,
     .selGPIO     = AX5043_Rx2_Sel,
     .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
-    .thisBusData = &bus3Data,
+    .thisBusData = &SPI_AX5043_BUS,
 };
 
 static SPIDevInfo SPIRx3AX5043Device={
     .thisBus     = SPI_AX5043_Reg,
     .selGPIO     = AX5043_Rx3_Sel,
     .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
-    .thisBusData = &bus3Data,
+    .thisBusData = &SPI_AX5043_BUS,
 };
 
 static SPIDevInfo SPIRx4AX5043Device={
     .thisBus     = SPI_AX5043_Reg,
     .selGPIO     = AX5043_Rx4_Sel,
     .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
-    .thisBusData = &bus3Data,
+    .thisBusData = &SPI_AX5043_BUS,
 };
 
 static const SPIDevInfo *SPIDevInfoStructures[] = {
@@ -454,7 +466,7 @@ void spiEndNotification(spiBASE_t *spiDev)
         {
             repeatSwitch = false;
             /* We should not get these states */
-            ReportError(UnexpectedBehavior,true,ReturnAddr,(int)__builtin_return_address(0));
+            //ReportError(UnexpectedBehavior,true,ReturnAddr,(int)__builtin_return_address(0));
             break;
         }
         }
