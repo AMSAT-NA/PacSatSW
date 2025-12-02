@@ -151,6 +151,9 @@ void startup(void)
 #ifdef LAUNCHPAD_HARDWARE
     I2cInit(I2C2);
 #endif
+#ifdef AFSK_HARDWARE
+    canInit();
+#endif
 
     /*
      * Many of the devices that are working now only via the HalCoGen routines still use interrupt...

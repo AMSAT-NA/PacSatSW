@@ -85,6 +85,29 @@ void canInit(void)
 {
 /* USER CODE BEGIN (4) */
 /* USER CODE END */
+    /** @b Initialize @b CAN1: */
+
+
+    /** - Setup control register
+    *     - Enter initialization mode
+    */
+    canREG1->CTL = 0x00000001U;
+				 
+     /** - CAN1 Port output values */
+    canREG1->TIOC =  (uint32)((uint32)1U  << 18U )
+                   | (uint32)((uint32)0U  << 17U )
+                   | (uint32)((uint32)0U  << 16U )                
+                   | (uint32)((uint32)0U  << 3U )  
+                   | (uint32)((uint32)1U  << 2U )    
+                   | (uint32)((uint32)1U << 1U );
+                   
+    canREG1->RIOC =  (uint32)((uint32)1U  << 18U )    
+                   | (uint32)((uint32)0U  << 17U )  
+                   | (uint32)((uint32)0U  << 16U )   
+                   | (uint32)((uint32)0U  << 3U )  
+                   | (uint32)((uint32)1U  << 2U )
+                   | (uint32)((uint32)1U <<1U );        
+
 
     /** @b Initialize @b CAN2: */
 
@@ -1300,6 +1323,57 @@ uint32 canIoRxGetBit(canBASE_t *node)
     return (node->RIOC & 1U);
 }
 
+
+/** @fn void can1GetConfigValue(can_config_reg_t *config_reg, config_value_type_t type)
+*   @brief Get the initial or current values of the CAN1 configuration registers
+*
+*    @param[in] *config_reg: pointer to the struct to which the initial or current 
+*                           value of the configuration registers need to be stored
+*    @param[in] type:     whether initial or current value of the configuration registers need to be stored
+*                        - InitialValue: initial value of the configuration registers will be stored 
+*                                       in the struct pointed by config_reg
+*                        - CurrentValue: initial value of the configuration registers will be stored 
+*                                       in the struct pointed by config_reg
+*
+*   This function will copy the initial or current value (depending on the parameter 'type') 
+*   of the configuration registers to the struct pointed by config_reg
+*
+*/
+/* SourceId : CAN_SourceId_017 */
+/* DesignId : CAN_DesignId_017 */
+/* Requirements : HL_SR224 */
+void can1GetConfigValue(can_config_reg_t *config_reg, config_value_type_t type)
+{
+    if (type == InitialValue)
+    {
+        config_reg->CONFIG_CTL     = CAN1_CTL_CONFIGVALUE;    
+        config_reg->CONFIG_ES      = CAN1_ES_CONFIGVALUE;     
+        config_reg->CONFIG_BTR     = CAN1_BTR_CONFIGVALUE;    
+        config_reg->CONFIG_TEST    = CAN1_TEST_CONFIGVALUE;   
+        config_reg->CONFIG_ABOTR   = CAN1_ABOTR_CONFIGVALUE;  
+        config_reg->CONFIG_INTMUX0 = CAN1_INTMUX0_CONFIGVALUE;
+        config_reg->CONFIG_INTMUX1 = CAN1_INTMUX2_CONFIGVALUE;
+        config_reg->CONFIG_INTMUX2 = CAN1_INTMUX2_CONFIGVALUE;
+        config_reg->CONFIG_INTMUX3 = CAN1_INTMUX3_CONFIGVALUE;
+        config_reg->CONFIG_TIOC    = CAN1_TIOC_CONFIGVALUE;   
+        config_reg->CONFIG_RIOC    = CAN1_RIOC_CONFIGVALUE;    
+    }
+    else
+    {
+    /*SAFETYMCUSW 134 S MR:12.2 <APPROVED> "LDRA Tool issue" */
+        config_reg->CONFIG_CTL     = canREG1->CTL;   
+        config_reg->CONFIG_ES      = canREG1->ES;     
+        config_reg->CONFIG_BTR     = canREG1->BTR;    
+        config_reg->CONFIG_TEST    = canREG1->TEST;   
+        config_reg->CONFIG_ABOTR   = canREG1->ABOTR;  
+        config_reg->CONFIG_INTMUX0 = canREG1->INTMUXx[0];
+        config_reg->CONFIG_INTMUX1 = canREG1->INTMUXx[1];
+        config_reg->CONFIG_INTMUX2 = canREG1->INTMUXx[2];
+        config_reg->CONFIG_INTMUX3 = canREG1->INTMUXx[3];
+        config_reg->CONFIG_TIOC    = canREG1->TIOC;
+        config_reg->CONFIG_RIOC    = canREG1->RIOC;   
+    }
+}
 /** @fn void can2GetConfigValue(can_config_reg_t *config_reg, config_value_type_t type)
 *   @brief Get the initial or current values of the CAN2 configuration registers
 *
@@ -1400,6 +1474,7 @@ void can3GetConfigValue(can_config_reg_t *config_reg, config_value_type_t type)
         config_reg->CONFIG_RIOC    = canREG3->RIOC;   
     }
 }
+
 
 
 
