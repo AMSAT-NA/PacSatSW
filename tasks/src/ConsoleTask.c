@@ -1056,9 +1056,9 @@ void RealConsoleTask(void)
                 printf("Give a device number between 0 and %d\n", NUM_AX5043_SPI_DEVICES - 1);
                 break;
             }
-            uint8_t regstart = parseNextNumber();
-            uint8_t regend = parseNextNumber();
-	    uint8_t i;
+            uint16_t regstart = parseNextNumber();
+            uint16_t regend = parseNextNumber();
+	    uint16_t i;
 
 	    if (regend <= regstart)
 		regend = regstart;
@@ -1078,11 +1078,11 @@ void RealConsoleTask(void)
                 printf("Give a device number between 0 and %d\n", NUM_AX5043_SPI_DEVICES - 1);
                 break;
             }
-            uint8_t reg = parseNextNumber();
+            uint16_t reg = parseNextNumber();
             uint8_t val = parseNextNumber();
 
 	    ax5043WriteReg((AX5043Device) devb, reg, val);
-	    printf("ax5043 %d reg %d = %d (0x%2.2x)\n", devb, reg, val, val);
+	    printf("ax5043 %d reg 0x%3.3x = %3d (0x%2.2x)\n", devb, reg, val, val);
             break;
         }
 
