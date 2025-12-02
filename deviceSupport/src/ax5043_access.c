@@ -166,6 +166,18 @@ void ax5043Dump(AX5043Device dev)
  * for safe mode
  */
 
+#ifdef AFSK_HARDWARE
+static Gpio_Use ax5043_power_gpio[NUM_AX5043_SPI_DEVICES] = {
+    AX5043_Rx1_Power,
+#if NUM_AX5043_SPI_DEVICES > 2
+    AX5043_Rx2_Power,
+    AX5043_Rx3_Power,
+    AX5043_Rx4_Power,
+#endif
+    AX5043_Tx_Power,
+};
+#endif
+
 void ax5043PowerOn(AX5043Device device)
 {
     struct AX5043Info *info = ax5043_get_info(device);
@@ -173,7 +185,9 @@ void ax5043PowerOn(AX5043Device device)
     if (!info)
         return;
 
-    //GPIOSetOn(AX5043Power);
+#ifdef AFSK_HARDWARE
+    GPIOSetOn(ax5043_power_gpio[device]);
+#endif
     info->on = true;
     vTaskDelay(CENTISECONDS(1)); // Don't try to mess with it for a bit
 }
@@ -185,9 +199,12 @@ void ax5043PowerOff(AX5043Device device)
     if (!info)
         return;
 
-    // Make sure the PA is off if we are turning off the 5043.
-    //GPIOSetOff(SPPAPower);
-    //GPIOSetOff(AX5043Power);
+#ifdef AFSK_HARDWARE
+    if (device == TX_DEVICE)
+	// Make sure the PA is off if we are turning off the TX 5043.
+	GPIOSetOff(SSPAPower);
+    GPIOSetOff(ax5043_power_gpio[device]);
+#endif
 
     info->on = false;
     info->rxing = false;

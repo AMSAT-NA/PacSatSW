@@ -171,20 +171,16 @@ void startup(void)
 #endif
 
 #ifdef AFSK_HARDWARE
-    /* Just power everything up on the AFSK board for now. */
+    /* Just turn on the main 5043 power for now. */
+    GPIOSetOn(AX5043Power);
+
 #if 0
     GPIOSetOn(LNAPower);
     GPIOSetOn(MeasurePower);
-    GPIOSetOn(AX5043Power);
-    GPIOSetOn(AX5043_Rx1_Power);
-    GPIOSetOn(AX5043_Rx2_Power);
-    GPIOSetOn(AX5043_Rx3_Power);
-    GPIOSetOn(AX5043_Rx4_Power);
-    GPIOSetOn(AX5043_Tx_Power);
     GPIOSetOn(CANAPower);
     GPIOSetOn(CANBPower);
 
-    /* Enable this board to transmit if the loopback is in place. */
+    /* Leave this off for now so the board is in RF loopback. */
     GPIOSetOn(ImActive);
 #endif
 #endif
