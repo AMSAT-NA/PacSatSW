@@ -216,8 +216,8 @@
 #define SPI_Rx2AX5043_Select_Pin 24
 #define SPI_Rx3AX5043_Select_Port hetPort1GPIO
 #define SPI_Rx3AX5043_Select_Pin 26
-#define SPI_Rx4AX5043_Select_Port hetPort1GPIO
-#define SPI_Rx4AX5043_Select_Pin 4
+#define SPI_Rx4AX5043_Select_Port spiPort1GPIO
+#define SPI_Rx4AX5043_Select_Pin SPI_PIN_ENA
 #define SPI_TxAX5043_Select_Port spiPort5GPIO
 #define SPI_TxAX5043_Select_Pin SPI_PIN_ENA
 #define SPI_AX5043_Data_Format SPI_FMT_0

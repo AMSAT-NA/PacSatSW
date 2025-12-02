@@ -808,7 +808,7 @@ void scilinGetConfigValue(sci_config_reg_t *config_reg, config_value_type_t type
 void sciHighLevelInterrupt(void)
 {
     uint32 vec = sciREG->INTVECT0;
-    uint8 byte;
+	uint8 byte;
 /* USER CODE BEGIN (28) */
     void SerialRxCharacterInterrupt(sciBASE_t *sci,uint8_t byte);
 

@@ -170,7 +170,7 @@ void spiInit(void)
                     | (uint32)((uint32)1U << 3U)  /* SCS[3] */
                     | (uint32)((uint32)1U << 4U)  /* SCS[4] */
                     | (uint32)((uint32)1U << 5U)  /* SCS[5] */
-                    | (uint32)((uint32)0U << 8U)  /* ENA */
+                    | (uint32)((uint32)1U << 8U)  /* ENA */
                     | (uint32)((uint32)0U << 9U)  /* CLK */
                     | (uint32)((uint32)0U << 10U)  /* SIMO[0] */
                     | (uint32)((uint32)0U << 11U)  /* SOMI[0] */
@@ -520,7 +520,7 @@ void spiInit(void)
                     | (uint32)((uint32)1U << 1U)  /* SCS[1] */
                     | (uint32)((uint32)1U << 2U)  /* SCS[2] */
                     | (uint32)((uint32)1U << 3U)  /* SCS[3] */
-                    | (uint32)((uint32)0U << 8U)  /* ENA */
+                    | (uint32)((uint32)1U << 8U)  /* ENA */
                     | (uint32)((uint32)0U << 9U)  /* CLK */
                     | (uint32)((uint32)0U << 10U)  /* SIMO[0] */
                     | (uint32)((uint32)1U << 11U)  /* SOMI[0] */
@@ -536,7 +536,7 @@ void spiInit(void)
                     | (uint32)((uint32)1U << 1U)  /* SCS[1] */
                     | (uint32)((uint32)1U << 2U)  /* SCS[2] */
                     | (uint32)((uint32)1U << 3U)  /* SCS[3] */
-                    | (uint32)((uint32)0U << 8U)  /* ENA */
+                    | (uint32)((uint32)1U << 8U)  /* ENA */
                     | (uint32)((uint32)1U << 9U)  /* CLK */
                     | (uint32)((uint32)1U << 10U)  /* SIMO[0] */
                     | (uint32)((uint32)1U << 11U)  /* SOMI[0] */
@@ -598,10 +598,10 @@ void spiInit(void)
 
     /* SPI5 set all pins to functional */
     spiREG5->PC0  =   (uint32)((uint32)0U << 0U)  /* SCS[0] */
-                    | (uint32)((uint32)1U << 1U)  /* SCS[1] */
-                    | (uint32)((uint32)1U << 2U)  /* SCS[2] */
-                    | (uint32)((uint32)1U << 3U)  /* SCS[3] */
-                    | (uint32)((uint32)1U << 8U)  /* ENA */
+                    | (uint32)((uint32)0U << 1U)  /* SCS[1] */
+                    | (uint32)((uint32)0U << 2U)  /* SCS[2] */
+                    | (uint32)((uint32)0U << 3U)  /* SCS[3] */
+                    | (uint32)((uint32)0U << 8U)  /* ENA */
                     | (uint32)((uint32)0U << 9U)  /* CLK */
                     | (uint32)((uint32)0U << 10U)  /* SIMO[0] */
                     | (uint32)((uint32)0U << 11U)  /* SOMI[0] */
