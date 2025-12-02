@@ -879,7 +879,7 @@ static void ax5043_ax25_set_registers_tx(AX5043Device device,
     switch (mode) {
     case AX5043_MODE_AFSK_1200:
         /* For AFSK we need another pair of registers for MARK / SPACE
-         * AFSK(Mark/Space) = Freq*2^18/Fxtal + 1/2
+         * AFSK(Mark/Space) = Freq * 2^18 / Fxtal + 1/2
          * Freq Space = 2200Hz
          * Freq Mark = 1200Hz
          */
@@ -947,7 +947,7 @@ static void ax5043_ax25_set_registers_rx(AX5043Device device,
     switch (mode) {
     case AX5043_MODE_AFSK_1200:
         /* For AFSK we need another pair of registers for MARK / SPACE
-         * AFSK(Mark/Space) = Freq*DECIMATION*2^18/Fxtal + 1/2
+         * AFSK(Mark/Space) = Freq * DECIMATION * 2^16 / Fxtal + 1/2
          * Freq Space = 2200Hz
          * Freq Mark = 1200Hz
          */
