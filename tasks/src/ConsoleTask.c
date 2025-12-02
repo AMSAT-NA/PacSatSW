@@ -136,10 +136,6 @@ enum {
     ,ignoreUmb
     ,noticeUmb
     ,initSaved
-    ,DisablePA
-    ,EnablePA
-    ,DisableAx
-    ,EnableAx
     ,StartADC1
     ,StartADC2
     ,ReadADC1
@@ -322,10 +318,6 @@ commandPairs commonCommands[] = {
                                  //,{"set dct drive power","Set drive power for high and low power",SetDCTDrivePower}
                                  //,{"select dct power","Set rf power used in safe or normal modes",SelectRFPowerLevels}
                                  ,{"set mram sr","Set the MRAM status register",writeMRAMsr}
-                                 ,{"set pa on","Turn on the RF power amp",EnablePA}
-                                 ,{"set pa off","Turn off the RF power amp",DisablePA}
-                                 //,{"set ax on","Turn on the RF power amp",EnableAx}
-                                 //,{"set ax off","Turn off the RF power amp",DisableAx}
                                  ,{"start watchdog","Start the watchdog",startWD}
                                  ,{"preflight init","Initialize MRAM etc for flight",preflight}
                                 // ,{"clear minmax","Clear the min, max, and CIU counts",clrMinMax}
@@ -445,22 +437,6 @@ void RealConsoleTask(void)
 
         case nada: {
             printf("Unknown command\n");
-            break;
-        }
-        case DisablePA:{
-            GPIOSetOff(SSPAPower);
-            break;
-        }
-        case EnablePA:{
-            GPIOSetOn(SSPAPower);
-            break;
-        }
-        case DisableAx:{
-            GPIOSetOff(AX5043Power);
-            break;
-        }
-        case EnableAx:{
-            GPIOSetOn(AX5043Power);
             break;
         }
 
