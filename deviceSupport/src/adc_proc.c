@@ -140,6 +140,7 @@ handle_adc_temp(unsigned int pin, unsigned int millivolts)
 {
     int temp = millivolts_to_temp(millivolts);
 
+    // TODO - Add handling for the values going out of range.
     switch (pin) {
     case ADC_PIN_PA_TEMP:
         board_temps[TEMPERATURE_VAL_PA] = temp;
@@ -155,6 +156,64 @@ handle_adc_temp(unsigned int pin, unsigned int millivolts)
 
     default:
         break;
+    }
+}
+
+int board_voltages[NUM_VOLTAGE_VALUES];
+
+static void
+handle_adc_voltage(unsigned int pin, unsigned int millivolts)
+{
+    // TODO - Add handling for the values going out of range.
+    switch (pin) {
+    case ADC_PIN_VOLTAGE_3v3:
+	millivolts *= 2;
+	board_voltages[VOLTAGE_VAL_3v3] = millivolts;
+	break;
+
+    case ADC_PIN_VOLTAGE_5v:
+	millivolts *= 2;
+	board_voltages[VOLTAGE_VAL_5v] = millivolts;
+	break;
+    
+    case ADC_PIN_VOLTAGE_1v2:
+	board_voltages[VOLTAGE_VAL_1v2] = millivolts;
+	break;
+
+    case ADC_PIN_VOLTAGE_BATTERY:
+	board_voltages[VOLTAGE_VAL_BATTERY] = millivolts;
+	break;
+
+    default:
+	break;
+    }
+}
+
+bool board_power_flags[NUM_POWER_FLAG_VALUES];
+
+static void
+handle_adc_power_flag(unsigned int pin, unsigned int millivolts)
+{
+    // TODO - Add handling for the the flags going bad.
+    switch (pin) {
+    case ADC_PIN_PWR_FLAG_5V:
+	board_power_flags[POWER_FLAG_5V] = millivolts > 1650;
+	break;
+
+    case ADC_PIN_PWR_FLAG_LNA:
+	board_power_flags[POWER_FLAG_LNA] = millivolts > 1650;
+	break;
+
+    case ADC_PIN_PWR_FLAG_SSPA:
+	board_power_flags[POWER_FLAG_SSPA] = millivolts > 1650;
+	break;
+
+    case ADC_PIN_PWR_FLAG_AX5043:
+	board_power_flags[POWER_FLAG_AX5043] = millivolts > 1650;
+	break;
+
+    default:
+	break;
     }
 }
 
@@ -186,8 +245,8 @@ init_adc_proc(void)
             return false;
     }
 
-    read_adc_board_version();
     adc_process_data();
+    read_adc_board_version();
 
     adcEnableNotification(adcREG1, adcGROUP1);
 
@@ -195,6 +254,16 @@ init_adc_proc(void)
     adc_install_handler(ADC_PIN_CPU_TEMP, handle_adc_temp);
     adc_install_handler(ADC_PIN_POWER_TEMP, handle_adc_temp);
     adc_install_handler(ADC_PIN_PA_TEMP, handle_adc_temp);
+
+    adc_install_handler(ADC_PIN_VOLTAGE_3v3, handle_adc_voltage);
+    adc_install_handler(ADC_PIN_VOLTAGE_1v2, handle_adc_voltage);
+    adc_install_handler(ADC_PIN_VOLTAGE_5v, handle_adc_voltage);
+    //adc_install_handler(ADC_PIN_VOLTAGE_BATTERY, handle_adc_voltage);
+
+    adc_install_handler(ADC_PIN_PWR_FLAG_5V, handle_adc_power_flag);
+    adc_install_handler(ADC_PIN_PWR_FLAG_LNA, handle_adc_power_flag);
+    adc_install_handler(ADC_PIN_PWR_FLAG_SSPA, handle_adc_power_flag);
+    adc_install_handler(ADC_PIN_PWR_FLAG_AX5043, handle_adc_power_flag);
 #endif
 
     return true;

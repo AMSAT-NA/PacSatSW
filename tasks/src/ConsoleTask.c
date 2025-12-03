@@ -94,6 +94,8 @@ enum {
     nada=0
 
     ,getTemp
+    ,getVoltages
+    ,getPowerFlags
     ,getBoardVersion
     ,reset
     ,resetBoth
@@ -294,6 +296,8 @@ commandPairs commonCommands[] = {
                                  ,{"get status","Get some general status info",telem0}
                                  ,{"get rssi","Get the current RSSI reading from the AX5043 Rx",getRSSI}
                                  ,{"get temp","Get RT-IHU board temperature",getTemp}
+                                 ,{"get voltages","Get RT-IHU board voltages",getVoltages}
+                                 ,{"get power flags","Get RT-IHU board voltages",getPowerFlags}
                                  ,{"get board version","Get board version number",getBoardVersion}
                                  ,{"get state","Mainly for debug: Get the current state of the downlink state machine",getState}
                                  ,{"get version","Get the software version number and build time",version}
@@ -1064,6 +1068,28 @@ void RealConsoleTask(void)
 	    printf("Power temp: %d\n", board_temps[TEMPERATURE_VAL_POWER]);
 #else
 	    printf("\nNo temperature available\n");
+#endif
+            break;
+        }
+        case getVoltages:{
+#ifdef AFSK_HARDWARE
+	    printf("3.3V: %d\n", board_voltages[VOLTAGE_VAL_3v3]);
+	    printf("1.2V: %d\n", board_voltages[VOLTAGE_VAL_1v2]);
+	    printf("5V: %d\n", board_voltages[VOLTAGE_VAL_5v]);
+	    printf("Battery: %d\n", board_voltages[VOLTAGE_VAL_BATTERY]);
+#else
+	    printf("\nNo voltages available\n");
+#endif
+            break;
+        }
+        case getPowerFlags:{
+#ifdef AFSK_HARDWARE
+	    printf("5V: %d\n", board_power_flags[POWER_FLAG_5V]);
+	    printf("LNA: %d\n", board_power_flags[POWER_FLAG_LNA]);
+	    printf("SSPA: %d\n", board_power_flags[POWER_FLAG_SSPA]);
+	    printf("AX5043: %d\n", board_power_flags[POWER_FLAG_AX5043]);
+#else
+	    printf("\nNo power flags available\n");
 #endif
             break;
         }

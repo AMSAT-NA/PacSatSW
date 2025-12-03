@@ -47,6 +47,19 @@ enum adc_pins {
     ADC_PIN_PA_TEMP = 23,
     ADC_PIN_POWER_TEMP = 8,
     ADC_PIN_CPU_TEMP = 16,
+
+    ADC_PIN_PWR_FLAG_5V = 10,
+    ADC_PIN_PWR_FLAG_LNA = 11,
+    ADC_PIN_PWR_FLAG_SSPA = 4,
+    ADC_PIN_PWR_FLAG_AX5043 = 7,
+
+    ADC_PIN_VOLTAGE_3v3 = 6, // Measures at half voltage
+    ADC_PIN_VOLTAGE_1v2 = 13,
+    ADC_PIN_VOLTAGE_5v = 12, // Measures at half voltage
+    ADC_PIN_VOLTAGE_BATTERY = 1, // Unknown for now, resistors not there.
+
+    ADC_PIN_EXTERN_CONTROL = 18,
+    ADC_PIN_BOARD_NUM = 17,
 };
 
 enum temperature_values {
@@ -57,6 +70,29 @@ enum temperature_values {
     NUM_TEMPERATURE_VALUES /* Must be last. */
 };
 extern int board_temps[NUM_TEMPERATURE_VALUES];
+
+enum voltage_values {
+    VOLTAGE_VAL_3v3,
+    VOLTAGE_VAL_1v2,
+    VOLTAGE_VAL_5v,
+    VOLTAGE_VAL_BATTERY,
+
+    NUM_VOLTAGE_VALUES /* Must be last. */
+};
+extern int board_voltages[NUM_VOLTAGE_VALUES];
+
+/*
+ * Power good flags from the various power control devices.
+ */
+enum power_flag_values {
+    POWER_FLAG_5V,
+    POWER_FLAG_LNA,
+    POWER_FLAG_SSPA,
+    POWER_FLAG_AX5043,
+
+    NUM_POWER_FLAG_VALUES /* Must be last. */
+};
+extern bool board_power_flags[NUM_POWER_FLAG_VALUES];
 
 extern unsigned int board_version;
 
