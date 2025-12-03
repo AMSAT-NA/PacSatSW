@@ -107,7 +107,7 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
                 dbm = rssi - 255;
                 debug_print("RSSI-0: %d dBm\n",dbm);
             }
-#if NUM_AX5043_RX_DEVICES == 4 && 0
+#if NUM_AX5043_RX_DEVICES == 4
             rssi = get_rssi(AX5043Dev1);
             if (rssi > ADJ_RX_RSSI_THRESHOLD) {
                 dbm = rssi - 255;

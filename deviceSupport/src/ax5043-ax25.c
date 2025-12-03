@@ -1283,10 +1283,8 @@ static unsigned int calc_flags(AX5043Device device, uint32_t freq,
 {
     if (freq < 150000000) {
         flags |= AX5043_FLAG_EXT_INDUCT;
-#if 0
 #ifdef AFSK_HARDWARE
         flags |= AX5043_FLAG_DIV2;
-#endif
 #endif
     } else {
         flags |= AX5043_FLAG_DIV2;
