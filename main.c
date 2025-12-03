@@ -174,8 +174,10 @@ void startup(void)
     /* Just turn on the main 5043 power for now. */
     GPIOSetOn(AX5043Power);
 
-#if 0
+    /* Turn on the LNA.  FIXME - do this when necessary. */
     GPIOSetOn(LNAPower);
+
+#if 0
     GPIOSetOn(MeasurePower);
     GPIOSetOn(CANAPower);
     GPIOSetOn(CANBPower);
