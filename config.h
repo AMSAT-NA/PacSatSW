@@ -12,6 +12,8 @@
 #ifndef CONFIG_H_
 #define CONFIG_H_
 
+#include <stdint.h>
+
 /* Set LAUNCHPAD_HARDWARE if this will run on the launchpad with the booster board rather than
  * on blinky.  You must also copy in the hcg files from the PacSatHardware project.  See the
  * instructions in the README file of PacSatHardware */

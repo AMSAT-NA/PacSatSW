@@ -19,6 +19,7 @@
  *
  */
 
+#include "hardwareConfig.h"
 #include "RxTask.h"
 #include "FreeRTOS.h"
 #include "os_task.h"
@@ -37,6 +38,8 @@ extern bool monitorPackets;
 
 /* Forward declarations */
 void process_fifo(AX5043Device device);
+
+#define ADJ_RX_RSSI_THRESHOLD (RX_RSSI_THRESHOLD + 255)
 
 portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
 
@@ -100,23 +103,23 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
 	    int16_t dbm;
             // this magic value is supposed to be above the background
             // noise, so we only see actual transmissions
-            if (rssi > 180) {
+            if (rssi > ADJ_RX_RSSI_THRESHOLD) {
                 dbm = rssi - 255;
                 debug_print("RSSI-0: %d dBm\n",dbm);
             }
 #if NUM_AX5043_RX_DEVICES == 4
             rssi = get_rssi(AX5043Dev1);
-            if (rssi > 180) {
+            if (rssi > ADJ_RX_RSSI_THRESHOLD) {
                 dbm = rssi - 255;
                 debug_print("RSSI-1: %d dBm\n",dbm);
             }
             rssi = get_rssi(AX5043Dev2);
-            if (rssi > 180) {
+            if (rssi > ADJ_RX_RSSI_THRESHOLD) {
                 dbm = rssi - 255;
                 debug_print("RSSI-2: %d dBm\n",dbm);
             }
             rssi = get_rssi(AX5043Dev3);
-            if (rssi > 180) {
+            if (rssi > ADJ_RX_RSSI_THRESHOLD) {
                 dbm = rssi - 255;
                 debug_print("RSSI-3: %d dBm\n",dbm);
             }

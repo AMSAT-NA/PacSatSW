@@ -14,6 +14,17 @@
 #define GPIO_IN 0
 #define GPIO_OUT 1
 
+/*
+ * The noise threshold, used in RxTask to know if a signal is present.
+ * The AFSK and blinky boards have LNAs, so they are more sensitive.
+ * Value is in dBm,
+ */
+#ifdef LAUNCHPAD_HARDWARE
+#define RX_RSSI_THRESHOLD -75
+#else
+#define RX_RSSI_THRESHOLD -70
+#endif
+
 #ifdef LAUNCHPAD_HARDWARE
 
 //GPIO Definitions
