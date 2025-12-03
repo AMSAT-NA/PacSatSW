@@ -370,7 +370,6 @@ static int findMRAMAddressSize(int mramNumber){
     mramAddr.byte[0] = FRAM_OP_READ;
     SPISendCommand(thisMRAM, mramAddr.word, 4, NULL,0, &value[0], (uint16_t) 8);
 /////////////////////////////////////////////
-    printf("Value = %x\n",value);
     if((value[0] & 0xffff)== 0x1234){
         // As we see above, only a 3-byte address will have this number in the least significant 2 bytes.
         // (Remember it is big endian)

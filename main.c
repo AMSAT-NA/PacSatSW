@@ -24,6 +24,7 @@
 #include "can.h"
 #include "rti.h"
 #include "adc.h"
+#include "adc_proc.h"
 #include "FreeRTOS.h"
 #include "os_task.h"
 #include "mram.h"
@@ -131,6 +132,7 @@ void startup(void)
     i2cInit();
     spiInit();
     adcInit();
+
     /*
      * A few things need to be started and initialized via HAL
      * routines before we get the OS and drivers running.  Here, SPI
@@ -227,6 +229,8 @@ void ConsoleTask(void *pvParameters){
 
     SerialInitPort(COM1,COM1_BAUD, 10,10);//Max of 38400 for the moment
     SerialInitPort(COM2,COM2_BAUD,10,10);
+
+    init_adc_proc();
 
     // Initialize the SPI driver for our SPI devices
 

@@ -86,7 +86,7 @@ void adcInit(void)
     adcREG1->CLOCKCR = 7U;
  
     /** - Setup memory boundaries */
-    adcREG1->BNDCR  = (uint32)((uint32)8U << 16U) | (8U + 8U);
+    adcREG1->BNDCR  = (uint32)((uint32)0U << 16U) | (0U + 12U);
     adcREG1->BNDEND = (adcREG1->BNDEND & 0xFFFF0000U) | (2U);
  
     /** - Setup event group conversion mode
@@ -121,7 +121,7 @@ void adcInit(void)
     *     - Enable/Disable continuous conversion
     */
     adcREG1->GxMODECR[1U] = (uint32)ADC_12_BIT
-                          | (uint32)0x00000000U
+                          | (uint32)0x00000020U
                           | (uint32)0x00000000U
                           | (uint32)0x00000000U;
 
@@ -232,30 +232,30 @@ static const uint32 s_adcSelect[2U][3U] =
     0x00000000U |
     0x00000000U |
     0x00000000U,
-    0x00000000U |
-    0x00000000U |
-    0x00000000U |
-    0x00000000U |
-    0x00000000U |
-    0x00000000U |
-    0x00000000U |
-    0x00000000U |
-    0x00000000U |
-    0x00000000U |
-    0x00000000U |
-    0x00000000U |
-    0x00000000U |
-    0x00000000U |
-    0x00000000U |
-    0x00000000U |
-    0x00000000U |
-    0x00000000U |
-    0x00000000U |
-    0x00000000U |
-    0x00000000U |
-    0x00000000U |
-    0x00000000U |
-    0x00000000U,
+    0x00000001U |
+    0x00000002U |
+    0x00000004U |
+    0x00000008U |
+    0x00000010U |
+    0x00000020U |
+    0x00000040U |
+    0x00000080U |
+    0x00000100U |
+    0x00000200U |
+    0x00000400U |
+    0x00000800U |
+    0x00001000U |
+    0x00002000U |
+    0x00004000U |
+    0x00008000U |
+    0x00010000U |
+    0x00020000U |
+    0x00040000U |
+    0x00080000U |
+    0x00100000U |
+    0x00200000U |
+    0x00400000U |
+    0x00800000U,
     0x00000000U |
     0x00000000U |
     0x00000000U |
@@ -334,7 +334,7 @@ static const uint32 s_adcSelect[2U][3U] =
 static const uint32 s_adcFiFoSize[2U][3U] =
 {
     {16U,
-    16U,
+    24U,
     16U},
     {16U,
     16U,
@@ -983,6 +983,29 @@ void adc1GetConfigValue(adc_config_reg_t *config_reg, config_value_type_t type)
 /* USER CODE END */
 
 
+/* USER CODE BEGIN (38) */
+/* USER CODE END */
+/** @fn void adc1Group1Interrupt(void)
+*   @brief ADC1 Group 1 Interrupt Handler
+*/
+#pragma CODE_STATE(adc1Group1Interrupt, 32)
+#pragma INTERRUPT(adc1Group1Interrupt, IRQ)
+
+/* SourceId : ADC_SourceId_015 */
+/* DesignId : ADC_DesignId_013 */
+/* Requirements : HL_SR197, HL_SR196 */
+void adc1Group1Interrupt(void)
+{
+/* USER CODE BEGIN (39) */
+/* USER CODE END */
+    
+    adcREG1->GxINTFLG[1U] = 9U;
+
+    adcNotification(adcREG1, adcGROUP1);
+
+/* USER CODE BEGIN (40) */
+/* USER CODE END */
+}
 
 
 

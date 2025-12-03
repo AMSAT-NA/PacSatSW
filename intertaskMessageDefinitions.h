@@ -73,6 +73,8 @@ typedef enum {
     TacMaintenanceMsg,
     TacSendErrorsResetMsg,
     TacSendErrorsPowerCycleMsg,
+    TacADCStartMsg,
+    TacADCProcessMsg,
 } IntertaskMessageType;
 
 

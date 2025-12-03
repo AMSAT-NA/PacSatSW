@@ -218,9 +218,12 @@ typedef enum {
 #define AX25_TIMER_T3_PERIOD SECONDS(30) /* Idle timeout if nothing heard */
 #define AX25_RETRIES_N2 10 /* Number of retries permitted by the Data Link State Machine */
 
-/* Default is to send telemetry every 2 mins */
+// Default is to send telemetry every 2 mins
 #define TAC_TIMER_SEND_TELEMETRY_PERIOD SECONDS(60) //SECONDS(120)
-#define TAC_TIMER_MAINTENANCE_PERIOD SECONDS(90*60)  // 90*60 every 1.5 hours or about once per orbit
+// 90*60 every 1.5 hours or about once per orbit 
+#define TAC_TIMER_MAINTENANCE_PERIOD SECONDS(90*60)
+// Every second for reading ADC values, probably reduce this.
+#define TAC_TIMER_ADC_PERIOD CENTISECONDS(100)
 
 #define DIR_MAX_FILE_AGE 5*24*60*60 // 5*24*60*60 5 days to keep files
 #define FTL0_MAX_UPLOAD_RECORD_AGE 3*60*60 // 3*24*60*60 3 days to keep upload records.  This is reset when a station uploads new data for a file.  Note that is should be long enough to make sure that files are not purged while a station is trying to upload it.  i.e. At least 3-5 mins

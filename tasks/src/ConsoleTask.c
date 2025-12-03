@@ -29,7 +29,7 @@
 #include "i2c.h"
 #include "rti.h"
 #include "esm.h"
-#include "adc.h"
+#include "adc_proc.h"
 #include "mram.h"
 
 //FreeRTOS headers
@@ -94,6 +94,7 @@ enum {
     nada=0
 
     ,getTemp
+    ,getBoardVersion
     ,reset
     ,resetBoth
     ,startWD
@@ -293,6 +294,7 @@ commandPairs commonCommands[] = {
                                  ,{"get status","Get some general status info",telem0}
                                  ,{"get rssi","Get the current RSSI reading from the AX5043 Rx",getRSSI}
                                  ,{"get temp","Get RT-IHU board temperature",getTemp}
+                                 ,{"get board version","Get board version number",getBoardVersion}
                                  ,{"get state","Mainly for debug: Get the current state of the downlink state machine",getState}
                                  ,{"get version","Get the software version number and build time",version}
                                  ,{"get mram size","Get the total size of all MRAMs",sizeMRAM}
@@ -1039,6 +1041,7 @@ void RealConsoleTask(void)
             ProcessorReset();
             break;
         }
+
         case getTemp:{
 #ifdef BLINKY_HARDWARE
             uint8_t temp8;
@@ -1055,11 +1058,19 @@ void RealConsoleTask(void)
             } else {
                 printf("\nTransmitter temp request failed\n");
             }
+#elif defined AFSK_HARDWARE
+	    printf("CPU temp: %d\n", board_temps[TEMPERATURE_VAL_CPU]);
+	    printf("PA temp: %d\n", board_temps[TEMPERATURE_VAL_PA]);
+	    printf("Power temp: %d\n", board_temps[TEMPERATURE_VAL_POWER]);
 #else
 	    printf("\nNo temperature available\n");
 #endif
             break;
         }
+        case getBoardVersion:{
+	    printf("Board version: %d\n", board_version);
+	    break;
+	}
         case testAX5043:{
             int i;
             for (i = 0; i < NUM_AX5043_SPI_DEVICES; i++)
