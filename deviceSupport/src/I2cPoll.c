@@ -11,7 +11,9 @@
 #include "I2cPoll.h"
 #include "FreeRTOS.h"
 #include "os_task.h"
+#ifdef BLINKY_HARDWARE
 #include "Max31725Temp.h"
+#endif
 #include "Max31331Rtc.h"
 
 static bool RTCStat=false,TxTempStat=false,CpuTempStat=false;
@@ -26,8 +28,10 @@ void I2CDevicePoll()  {
 	//ICRStat = I2cSendCommand(ICR_ADC_I2C_PORT,ICR_ADC_I2C_ADDRESS,&sendVal,1,&dummy,1);
     //CSSStat = I2cSendCommand(CSS_ADC_I2C_PORT,CSS_ADC_I2C_ADDRESS,&sendVal,1,&dummy,1);
     //SolarStat = I2cSendCommand(SOLAR_ADC_I2C_PORT,SOLAR_ADC_I2C_ADDRESS,&sendVal,1,&dummy,1);
+#ifdef BLINKY_HARDWARE
     TxTempStat = InitTemp31725(TxTemp);
     CpuTempStat = InitTemp31725(CpuTemp);
+#endif
     RTCStat = GetStatus31331(cfg);
 }
 bool RTCIsOk(void){

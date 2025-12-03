@@ -48,7 +48,6 @@
 #include "MET.h"
 #include "nonvol.h"
 #include "ax5043.h"
-#include "Max31725Temp.h"
 #include "Max31331Rtc.h"
 #include "GPIO9539.h"
 #include "inet.h"
@@ -57,6 +56,10 @@
 #include "LinearInterp.h"
 #include "Buzzer.h"
 #include "keyfile.h"
+
+#ifdef BLINKY_HARDWARE
+#include "Max31725Temp.h"
+#endif
 
 #include "TxTask.h" // for test routines
 #include "PbTask.h" // for test routines
@@ -1037,6 +1040,7 @@ void RealConsoleTask(void)
             break;
         }
         case getTemp:{
+#ifdef BLINKY_HARDWARE
             uint8_t temp8;
             if(Get8BitTemp31725(CpuTemp,&temp8)){
                 printf("Cpu temp: ");
@@ -1051,6 +1055,9 @@ void RealConsoleTask(void)
             } else {
                 printf("\nTransmitter temp request failed\n");
             }
+#else
+	    printf("\nNo temperature available\n");
+#endif
             break;
         }
         case testAX5043:{

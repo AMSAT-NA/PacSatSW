@@ -4,6 +4,7 @@
  *  Created on: Aug 20, 2019
  *      Author: bfisher
  */
+#ifdef BLINKY_HARDWARE
 #include <pacsat.h>
 #include "I2cAddresses.h"
 #include "Max31725Temp.h"
@@ -49,3 +50,4 @@ bool Get8BitTemp31725(TempSensor sensor,uint8_t *temp8){
     *temp8 = utemp | (fract ? 1:0);
     return stat;
 }
+#endif

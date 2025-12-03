@@ -31,10 +31,13 @@
 #include "pacsat_dir.h"
 #include "UplinkTask.h"
 #include "errors.h"
-#include "Max31725Temp.h"
 #include "ax5043_access.h"
 #include "ax5043-ax25.h"
 #include "inet.h"
+
+#ifdef BLINKY_HARDWARE
+#include "Max31725Temp.h"
+#endif
 
 #include "downlink.h"
 #include "rt1ErrorsDownlink.h"
@@ -58,16 +61,26 @@ void tac_collect_telemetry(telem_buffer_t *buffer);
 void tac_send_telemetry(telem_buffer_t *buffer);
 
 
-
 /* Local variables */
-static xTimerHandle timerTelemSend; /* timer to send the telemetry periodically */
-static xTimerHandle timerMaintenance; /* timer to perform maintenance periodically */
-static xTimerHandle timerPbStatus; /* timer to send the PB status periodically */
+
+/* timer to send the telemetry periodically */
+static xTimerHandle timerTelemSend;
+
+/* timer to perform maintenance periodically */
+static xTimerHandle timerMaintenance;
+
+/* timer to send the PB status periodically */
+static xTimerHandle timerPbStatus;
+
+/* timer to read the ADC periodically */
+static xTimerHandle TimerADC;
+
 int pvtPbStatusTimerID = 0; // pb timer id
 static xTimerHandle timerUplinkStatus;
 int pvtUplinkStatusTimerID = 0; // uplink timer id
 
-static Intertask_Message statusMsg; // Storage used to send messages to the Telemetry and Control task
+// Storage used to send messages to the Telemetry and Control task
+static Intertask_Message statusMsg;
 
 
 /* A buffer to store telemetry values as they are collected.  We do not need to double buffer as they are copied to
@@ -83,8 +96,10 @@ extern rt1Errors_t localErrorCollection;
  * The Telemetry and Control task ...
  *
  */
-portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)  {
-    vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)TelemetryAndControlWD );
+portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
+{
+    vTaskSetApplicationTaskTag((xTaskHandle) 0,
+			       (pdTASK_HOOK_CODE)TelemetryAndControlWD);
     InitInterTask(ToTelemetryAndControl, 10);
     localErrorCollection.valid = 1;
 
@@ -93,71 +108,107 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)  {
 
 
     /* Setup a timer to send the PB status periodically */
-    /* create a RTOS software timer - TODO period should be in MRAM and changeable from the ground using xTimerChangePeriod() */
-    timerPbStatus = xTimerCreate( "PB STATUS", PB_TIMER_SEND_STATUS_PERIOD, TRUE, &pvtPbStatusTimerID, tac_pb_status_callback); // auto reload timer
-    portBASE_TYPE timerStatus = xTimerStart(timerPbStatus, 0); // Block time of zero as this can not block
+
+    /*
+     * create a RTOS software timer - TODO period should be in MRAM
+     * and changeable from the ground using xTimerChangePeriod()
+     */
+    timerPbStatus = xTimerCreate("PB STATUS", PB_TIMER_SEND_STATUS_PERIOD,
+				 TRUE, &pvtPbStatusTimerID,
+				 tac_pb_status_callback); // auto reload timer
+    // Block time of zero as this can not block
+    portBASE_TYPE timerStatus = xTimerStart(timerPbStatus, 0);
     if (timerStatus != pdPASS) {
-        ReportError(RTOSfailure, FALSE, CharString, (int)"ERROR: Failed in starting PB Status Timer"); /* failed to start the RTOS timer */
-        // TODO - it's possible this might fail.  Somehow we should recover from that.
+        ReportError(RTOSfailure, FALSE, CharString,
+		    (int)"ERROR: Failed in starting PB Status Timer");
+        // TODO - it's possible this might fail.  Somehow we should
+        // recover from that.
     }
 
     /* Setup a timer to send the uplink status periodically */
-     /* create a RTOS software timer - TODO period should be in MRAM and changeable from the ground using xTimerChangePeriod() */
-     timerUplinkStatus = xTimerCreate( "UPLINK STATUS", UPLINK_TIMER_SEND_STATUS_PERIOD, TRUE, &pvtUplinkStatusTimerID, tac_ftl0_status_callback); // auto reload timer
-     timerStatus = xTimerStart(timerUplinkStatus, 0); // Block time of zero as this can not block
+    /*
+     * create a RTOS software timer - TODO period should be in MRAM
+     * and changeable from the ground using xTimerChangePeriod()
+     */
+     timerUplinkStatus = xTimerCreate("UPLINK STATUS",
+				      UPLINK_TIMER_SEND_STATUS_PERIOD, TRUE,
+				      &pvtUplinkStatusTimerID,
+				      tac_ftl0_status_callback);
+     // Block time of zero as this can not block
+     timerStatus = xTimerStart(timerUplinkStatus, 0);
      if (timerStatus != pdPASS) {
-         ReportError(RTOSfailure, FALSE, CharString, (int)"ERROR: Failed in starting Uplink Status Timer"); /* failed to start the RTOS timer */
+         ReportError(RTOSfailure, FALSE, CharString,
+		     (int)"ERROR: Failed in starting Uplink Status Timer");
          debug_print("ERROR: Failed in init PB Status Timer\n");
-         // TODO - it's possible this might fail.  Somehow we should recover from that.
+         // TODO - it's possible this might fail.  Somehow we should
+         // recover from that.
      }
 
     /* Create a periodic timer to send telemetry */
-    timerTelemSend = xTimerCreate( "TelemSend", TAC_TIMER_SEND_TELEMETRY_PERIOD, TRUE, (void *)0, tac_telem_timer_callback);
-    timerStatus = xTimerStart(timerTelemSend, 0); // Block time of zero as this can not block
+    timerTelemSend = xTimerCreate("TelemSend",
+				  TAC_TIMER_SEND_TELEMETRY_PERIOD, TRUE,
+				  NULL, tac_telem_timer_callback);
+    // Block time of zero as this can not block
+    timerStatus = xTimerStart(timerTelemSend, 0);
     if (timerStatus != pdPASS) {
-        ReportError(RTOSfailure, FALSE, CharString, (int)"ERROR: Failed in starting Telem Timer"); /* failed to start the RTOS timer */
+        ReportError(RTOSfailure, FALSE, CharString,
+		    (int)"ERROR: Failed in starting Telem Timer");
     }
 
     /* Create a periodic timer for maintenance */
-    timerMaintenance = xTimerCreate( "Maintenance", TAC_TIMER_MAINTENANCE_PERIOD, TRUE, (void *)0, tac_maintenance_timer_callback);
-    timerStatus = xTimerStart(timerMaintenance, 0); // Block time of zero as this can not block
+    timerMaintenance = xTimerCreate("Maintenance",
+				    TAC_TIMER_MAINTENANCE_PERIOD, TRUE,
+				    NULL, tac_maintenance_timer_callback);
+    // Block time of zero as this can not block
+    timerStatus = xTimerStart(timerMaintenance, 0);
     if (timerStatus != pdPASS) {
-        ReportError(RTOSfailure, FALSE, CharString, (int)"ERROR: Failed in starting Maintenance Timer"); /* failed to start the RTOS timer */
+        ReportError(RTOSfailure, FALSE, CharString,
+		    (int)"ERROR: Failed in starting Maintenance Timer");
     }
 
-    /* After a short delay for things to settle, send the status to indicate we have rebooted */
+    /*
+     * After a short delay for things to settle, send the status to
+     * indicate we have rebooted
+     */
     vTaskDelay(WATCHDOG_SHORT_WAIT_TIME);
     pb_send_status();
-    ReportToWatchdog(TelemetryAndControlWD); /* Tell the WD we are ok after that delay */
+
+    ReportToWatchdog(TelemetryAndControlWD);
 
     /* Wait a bit longer and then send uplink status */
     vTaskDelay(WATCHDOG_SHORT_WAIT_TIME);
     ax25_send_status();
-    ReportToWatchdog(TelemetryAndControlWD); /* Tell the WD we are ok after that delay */
+    ReportToWatchdog(TelemetryAndControlWD);
 
     //TODO - include any checks needed here to make sure hardware is available
-   // I2CDevicePoll(); /* verify that ICR, CIU, etc are communicating over I2c */
-    ReportToWatchdog(TelemetryAndControlWD); /* Tell the WD we are ok after that delay */
+    // I2CDevicePoll(); // verify that ICR, CIU, etc are communicating over I2c
+    //ReportToWatchdog(TelemetryAndControlWD);
 
-    /* When everything is settled after boot we can start collecting telemetry.  We don't want uninitialized values
-     * to corrupt the telemetry, especially WOD or min/max */
+    /*
+     * When everything is settled after boot we can start collecting
+     * telemetry.  We don't want uninitialized values to corrupt the
+     * telemetry, especially WOD or min/max.
+     */
     METTelemetryReady();
-
 
     while(1) {
         Intertask_Message messageReceived;
         int status;
+
         ReportToWatchdog(CurrentTaskWD);
-        status = WaitInterTask(ToTelemetryAndControl, WATCHDOG_SHORT_WAIT_TIME, &messageReceived);
+        status = WaitInterTask(ToTelemetryAndControl,
+			       WATCHDOG_SHORT_WAIT_TIME, &messageReceived);
         ReportToWatchdog(CurrentTaskWD);
-        if (status == pdFAIL){
-            ReportError(RTOSfailure, false, ReturnAddr,(int) TelemAndControlTask);
+        if (status == pdFAIL) {
+            ReportError(RTOSfailure, false, ReturnAddr,
+			(int) TelemAndControlTask);
         } else {
-            //            int waiting=WaitingInterTask(ToTelemetryAndControl);
-            //            if(waiting != 0){
-            //                debug_print("MessagesWaiting=%d\n",WaitingInterTask(ToTelemetryAndControl));
-            //            }
-            switch(messageReceived.MsgType){
+            //int waiting=WaitingInterTask(ToTelemetryAndControl);
+            //if(waiting != 0){
+            //debug_print("MessagesWaiting=%d\n",
+	    //            WaitingInterTask(ToTelemetryAndControl));
+
+            switch(messageReceived.MsgType) {
             case TacSendPbStatus:
                 //debug_print("Telem & Control: Send the PB Status\n");
                 pb_send_status();
@@ -180,7 +231,10 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)  {
                 break;
 
             case TacSendRealtimeMsg:
-                /* For real time telemetry we collect it and send it at the same time */
+                /*
+		 * For real time telemetry we collect it and send it
+		 * at the same time.
+		 */
                 tac_collect_telemetry(&telem_buffer);
                 tac_send_telemetry(&telem_buffer);
                 break;
@@ -193,13 +247,15 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)  {
 /**
  * tac_pb_status_callback()
  *
- * This is called from a timer whenever the status of the PB should be sent.  The actual status is assembled and
- * sent to the TX by the Telemetry and Control task
+ * This is called from a timer whenever the status of the PB should be
+ * sent.  The actual status is assembled and sent to the TX by the
+ * Telemetry and Control task
  *
  */
-void tac_pb_status_callback() {
+void tac_pb_status_callback()
+{
     statusMsg.MsgType = TacSendPbStatus;
-    NotifyInterTaskFromISR(ToTelemetryAndControl,&statusMsg);
+    NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
 }
 
 /**
@@ -209,9 +265,10 @@ void tac_pb_status_callback() {
  * sent to the TX by the Telemetry and Control task
  *
  */
-void tac_ftl0_status_callback() {
+void tac_ftl0_status_callback()
+{
     statusMsg.MsgType = TacSendUplinkStatus;
-    NotifyInterTaskFromISR(ToTelemetryAndControl,&statusMsg);
+    NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
 }
 
 /**
@@ -219,9 +276,10 @@ void tac_ftl0_status_callback() {
  *
  * This is called from a timer whenever the telemetry should be sent.
  */
-void tac_telem_timer_callback() {
+void tac_telem_timer_callback()
+{
     statusMsg.MsgType = TacSendRealtimeMsg;
-    NotifyInterTaskFromISR(ToTelemetryAndControl,&statusMsg);
+    NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
 }
 
 /**
@@ -229,19 +287,21 @@ void tac_telem_timer_callback() {
  *
  * This is called from a timer whenever directory and upload table maintenance should be run.
  */
-void tac_maintenance_timer_callback() {
+void tac_maintenance_timer_callback()
+{
     statusMsg.MsgType = TacMaintenanceMsg;
-    NotifyInterTaskFromISR(ToTelemetryAndControl,&statusMsg);
+    NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
 }
 
+void tac_collect_telemetry(telem_buffer_t *buffer)
+{
+    logicalTime_t time;
 
-void tac_collect_telemetry(telem_buffer_t *buffer) {
     //debug_print("Telem & Control: Collect RT telem\n");
 
+    if (!IsStabilizedAfterBoot())
+	return;
 
-    if(!IsStabilizedAfterBoot()) return;
-
-    logicalTime_t time;
     getTimestamp(&time);
     buffer->header.uptime = time.METcount;
     buffer->header.resetCnt = time.IHUresetCnt;
@@ -270,10 +330,14 @@ void tac_collect_telemetry(telem_buffer_t *buffer) {
     REDSTATFS redstatfs;
     bool rc = red_statvfs("/", &redstatfs);
     if (rc != 0) {
-        printf("TAC: Unable to check disk space with statvfs: %s\n", red_strerror(red_errno));
+        printf("TAC: Unable to check disk space with statvfs: %s\n",
+	       red_strerror(red_errno));
     } else {
-        //printf("Free blocks: %d of %d.  Free Bytes: %d\n",redstatfs.f_bfree, redstatfs.f_blocks, redstatfs.f_frsize * redstatfs.f_bfree);
-        //printf("Available File Ids: %d of %d.  \n",redstatfs.f_ffree, redstatfs.f_files);
+        //printf("Free blocks: %d of %d.  Free Bytes: %d\n",
+	//       redstatfs.f_bfree, redstatfs.f_blocks,
+	//       redstatfs.f_frsize * redstatfs.f_bfree);
+        //printf("Available File Ids: %d of %d.  \n",
+	//       redstatfs.f_ffree, redstatfs.f_files);
         buffer->rtHealth.common.FSAvailable = redstatfs.f_bfree;
         buffer->rtHealth.common.FSTotalFiles = redstatfs.f_files - redstatfs.f_ffree;
     }
@@ -283,16 +347,20 @@ void tac_collect_telemetry(telem_buffer_t *buffer) {
     buffer->rtHealth.common2.pbEnabled = ReadMRAMBoolState(StatePbEnabled);
     buffer->rtHealth.common2.uplinkEnabled = ReadMRAMBoolState(StateUplinkEnabled);
 
+#ifdef BLINKY_HARDWARE
     uint8_t temp8;
-    if(Get8BitTemp31725(CpuTemp,&temp8)) {
+    if (Get8BitTemp31725(CpuTemp, &temp8)) {
         buffer->rtHealth.common.IHUTemp = temp8;
     } else {
         //debug_print("TAC: ERROR I2C temp request failed\n");
     }
+#else
+    buffer->rtHealth.common.IHUTemp = 0;
+#endif
 
     /* TX Telemetry */
-    uint16_t rf_pwr = ax5043ReadReg(TX_DEVICE, AX5043_TXPWRCOEFFB0)
-            + (ax5043ReadReg(TX_DEVICE, AX5043_TXPWRCOEFFB1) << 8);
+    uint16_t rf_pwr = (ax5043ReadReg(TX_DEVICE, AX5043_TXPWRCOEFFB0)
+		       + (ax5043ReadReg(TX_DEVICE, AX5043_TXPWRCOEFFB1) << 8));
     buffer->rtHealth.common.TXPower = rf_pwr;
     buffer->rtHealth.common.TXPwrMode = ax5043ReadReg(TX_DEVICE, AX5043_PWRMODE);
 
@@ -305,7 +373,6 @@ void tac_collect_telemetry(telem_buffer_t *buffer) {
     buffer->rtHealth.primaryErrors = localErrorCollection;
 
     // TODO - calculate min max and store in MRAM
-
 }
 
 /**
@@ -317,32 +384,38 @@ void tac_collect_telemetry(telem_buffer_t *buffer) {
  * The telemetry to send is determined by the mode that we are in.
  *
  */
-void tac_send_telemetry(telem_buffer_t *buffer) {
-    if(!IsStabilizedAfterBoot()) return;
+void tac_send_telemetry(telem_buffer_t *buffer)
+{
+    if (!IsStabilizedAfterBoot())
+	return;
 
     int len = 0;
     uint8_t *frame;
-    if (ReadMRAMBoolState(StateCommandedSafeMode) || ReadMRAMBoolState(StateAutoSafe)) {
+    if (ReadMRAMBoolState(StateCommandedSafeMode)
+		|| ReadMRAMBoolState(StateAutoSafe)) {
         /* Setup Type 1 frame - This will copy the buffer into the frame */
         realtimeFrame.header = buffer->header;
         realtimeFrame.rtHealth = buffer->rtHealth;
         len = sizeof(realtimeFrame);
 
         frame = (uint8_t *)&realtimeFrame;
-//        debug_print("Sending Type 1 Frame %d:%d\n",realtimeFrame.header.resetCnt, realtimeFrame.header.uptime);
-//        debug_print("Bytes sent:");
-//        int i=0;
-//        for (i=0; i<11; i++) {
-//            debug_print("%0x ",frame[i]);
-//        }
-//        debug_print("\n");
+	//debug_print("Sending Type 1 Frame %d:%d\n",
+	//            realtimeFrame.header.resetCnt,
+	//            realtimeFrame.header.uptime);
+	//debug_print("Bytes sent:");
+	//int i=0;
+	//for (i=0; i<11; i++) {
+	//    debug_print("%0x ",frame[i]);
+	//}
+	//debug_print("\n");
     }
     if (len == 0 || len > AX25_MAX_INFO_BYTES_LEN) {
         debug_print("ERROR: Telemetry frame length of %d is not valid.  Frame not sent\n",len);
         return;
-
     }
-    int rc = tx_send_ui_packet(BROADCAST_CALLSIGN, TLMP1, PID_NO_PROTOCOL, frame, len, BLOCK);
+
+    tx_send_ui_packet(BROADCAST_CALLSIGN, TLMP1, PID_NO_PROTOCOL,
+		      frame, len, BLOCK);
 
     uint32_t t = getUnixTime();
     //uint8_t time_frame[11];
@@ -352,9 +425,9 @@ void tac_send_telemetry(telem_buffer_t *buffer) {
     len = 4;
     t = htotl(t);
     uint8_t *time_frame;
-    time_frame = (uint8_t *)&t;
+    time_frame = (uint8_t *) &t;
 
-    rc = tx_send_ui_packet(BROADCAST_CALLSIGN, TIME, PID_NO_PROTOCOL, time_frame, len, BLOCK);
-
+    tx_send_ui_packet(BROADCAST_CALLSIGN, TIME, PID_NO_PROTOCOL,
+		      time_frame, len, BLOCK);
 }
 

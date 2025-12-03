@@ -14,14 +14,16 @@ typedef enum {
     /* These messages are for the downlink task.
      * The explicit values are required since they index a table
      */
-    DwnlnkIdleTimeout=1,DwnlnkBeaconTimeout,DwnlnkTelemetryFrameComplete,
-    DwnlnkEnterSafeMode,DwnlnkEnterHealthMode,DwnlnkEnterAutoSafeMode,DwnlnkInhibitTransmit,
+    DwnlnkIdleTimeout=1, DwnlnkBeaconTimeout, DwnlnkTelemetryFrameComplete,
+    DwnlnkEnterSafeMode, DwnlnkEnterHealthMode, DwnlnkEnterAutoSafeMode,
+    DwnlnkInhibitTransmit,
     DwnlnkEnableTransmit,
     DwnlnkEnterScienceMode,
     DwnlnkEnterEclipseSafeMode,
     DWNLNK_NUMBER_OF_STATE_MESSAGES,
     //End of table indices
-    DwnlnkCollectTelemetry,DwnlnkProgramModulator,DwnlnkControlChange,
+    DwnlnkCollectTelemetry, DwnlnkProgramModulator, DwnlnkControlChange,
+
     /*
      * These are for the command task
      */
@@ -31,11 +33,13 @@ typedef enum {
     CmdTypeValidatedSoftwareCAN,
     CmdTypeRawSoftwareCAN,
     CmdControlHasChanged,
+
     /*
      * These are for the CAN task
      */
     CANMessageReceived,
-//    /*
+
+    //    /*
 //     * These are for RIHU Coordination
 //     */
 //    CoordLIHU0IntMsg,
@@ -58,6 +62,7 @@ typedef enum {
     AX5043PowerFlagMsg,
     PAPowerFlagMsg,
     AX5043InitMessage,
+
     /*
      * Messages to the telemetry and Control task
      */
@@ -67,9 +72,8 @@ typedef enum {
     TacSendRealtimeMsg,
     TacMaintenanceMsg,
     TacSendErrorsResetMsg,
-    TacSendErrorsPowerCycleMsg
-
-}IntertaskMessageType;
+    TacSendErrorsPowerCycleMsg,
+} IntertaskMessageType;
 
 
 #endif /* INTERTASKMESSAGEDEFINITIONS_H_ */
