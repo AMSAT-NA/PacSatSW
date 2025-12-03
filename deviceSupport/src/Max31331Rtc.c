@@ -72,20 +72,27 @@ void to_12hr(uint8_t hr, uint8_t *hr_12, uint8_t *pm);
  * POSIX definition of seconds since the Epoch
  * https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap04.html#tag_04_15
  *
- * The last three terms of the expression add in a day for each year that follows a leap year
- * starting with the first leap year since the Epoch. The first term adds a day every 4 years
- * starting in 1973, the second subtracts a day back out every 100 years starting in 2001, and
- * the third adds a day back in every 400 years starting in 2001. The divisions in the formula
- * are integer divisions; that is, the remainder is discarded leaving only the integer quotient.
+ * The last three terms of the expression add in a day for each year
+ * that follows a leap year starting with the first leap year since
+ * the Epoch. The first term adds a day every 4 years starting in
+ * 1973, the second subtracts a day back out every 100 years starting
+ * in 2001, and the third adds a day back in every 400 years starting
+ * in 2001. The divisions in the formula are integer divisions; that
+ * is, the remainder is discarded leaving only the integer quotient.
  *
  * This is tested to produce the same result as the TI function call:
  * mktime(&tm_time) - 2208988800L + 6 * 60 * 60
  *
  */
-uint32_t rtc_mktime(struct rtc_tm *tm_time) {
-    uint32_t t = tm_time->tm_sec + tm_time->tm_min*60 + tm_time->tm_hour*3600 + tm_time->tm_yday*86400 +
-        (tm_time->tm_year-70)*31536000 + ((tm_time->tm_year-69)/4)*86400 -
-        ((tm_time->tm_year-1)/100)*86400 + ((tm_time->tm_year+299)/400)*86400;
+uint32_t rtc_mktime(struct rtc_tm *tm_time)
+{
+    uint32_t t = (tm_time->tm_sec + tm_time->tm_min * 60
+                  + tm_time->tm_hour * 3600
+                  + tm_time->tm_yday * 86400 +
+                  (tm_time->tm_year - 70) * 31536000
+                  + ((tm_time->tm_year - 69) / 4) * 86400
+                  - ((tm_time->tm_year - 1) / 100) * 86400
+                  + ((tm_time->tm_year + 299) / 400) * 86400);
     return t;
 }
 
@@ -93,10 +100,11 @@ uint32_t rtc_mktime(struct rtc_tm *tm_time) {
  * Need to clear the reset bit and enable the oscillator or it will not tick
  *
  */
-bool InitRtc31331(void){
+bool InitRtc31331(void)
+{
     buf[0] = MAX31331_RTC_RESET;
     buf[1] = 0x00; // reset bit cleared
-    if (!I2cSendCommand(MAX31331_PORT,MAX31331_ADDR,buf,2,0,0)) {
+    if (!I2cSendCommand(MAX31331_PORT, MAX31331_ADDR, buf, 2, NULL, 0)) {
         debug_print("Error clearing reset of RTC\n");
         return FALSE;
     }
@@ -105,36 +113,57 @@ bool InitRtc31331(void){
 
     buf[0] = MAX31331_RTC_CONFIG1;
     buf[1] = 0x03; // Disable DIN pin, enable oscillator and timeout
-    if (!I2cSendCommand(MAX31331_PORT,MAX31331_ADDR,buf,2,0,0)) return FALSE;
+    if (!I2cSendCommand(MAX31331_PORT, MAX31331_ADDR, buf, 2, NULL, 0))
+        return FALSE;
 
     vTaskDelay(CENTISECONDS(1));
 
     buf[0] = MAX31331_RTC_CONFIG2;
-    buf[1] = 0x04; // set INTB/CLKOUT pin to Clockout and set Clock out to 1Hz
-    if (!I2cSendCommand(MAX31331_PORT,MAX31331_ADDR,buf,2,0,0)) return FALSE;
+    buf[1] = 0x00; // Disable clkout
+    if (!I2cSendCommand(MAX31331_PORT, MAX31331_ADDR, buf, 2, NULL, 0))
+        return FALSE;
 
     vTaskDelay(CENTISECONDS(1));
 
+    buf[0] = MAX31331_PWR_MGMT;
+    buf[1] = 0x03; // Always power the chip from Vbat.
+    /*
+     * If you don't always power the chip from Vbat, then when the
+     * power fails it loses the time.
+     */
+    if (!I2cSendCommand(MAX31331_PORT, MAX31331_ADDR, buf, 2, NULL, 0))
+        return FALSE;
+
     buf[0] = MAX31331_TRICKLE_REG;
-    buf[1] = 0x01; // Enable trickle charge through 3k and schottky diode
-    if (!I2cSendCommand(MAX31331_PORT,MAX31331_ADDR,buf,2,0,0)) return FALSE;
+    buf[1] = 0x00; // Disable trickle charge
+    if (!I2cSendCommand(MAX31331_PORT,MAX31331_ADDR, buf, 2, NULL, 0))
+        return FALSE;
 
     return TRUE;
-    }
-
-bool GetStatus31331(uint8_t *cfg){
-    buf[0] = MAX31331_STATUS;
-    return I2cSendCommand(MAX31331_PORT,MAX31331_ADDR,buf,1,cfg,1);
 }
-bool GetRtcTime31331(uint32_t *time){
+
+bool GetStatus31331(uint8_t *cfg)
+{
+    buf[0] = MAX31331_STATUS;
+    return I2cSendCommand(MAX31331_PORT, MAX31331_ADDR, buf, 1, cfg, 1);
+}
+
+bool GetRtcTime31331(uint32_t *time)
+{
     int8_t regs[20];
-    send = 0;//MAX31331_SECONDS;
-    if (!I2cSendCommand(MAX31331_PORT,MAX31331_ADDR,&send,1,&regs,20)) return FALSE;
-//    int j;
-//    debug_print("Time: ");
-//    for (j=0;j<20;j++)
-//    debug_print("%0x ",regs[j]);
-//    debug_print("\n");
+
+    send = 0; //MAX31331_SECONDS;
+    if (!I2cSendCommand(MAX31331_PORT, MAX31331_ADDR, &send, 1, &regs, 20))
+        return FALSE;
+
+    if (0) {
+        int j;
+
+        debug_print("Time: ");
+        for (j = 0; j < 20; j++)
+            debug_print("%0x ", regs[j]);
+        debug_print("\n");
+    }
 
     max3133x_rtc_time_regs_t *time_regs = (max3133x_rtc_time_regs_t*) &regs[MAX31331_SECONDS_1_128]; // offset to the first time register
 
@@ -151,19 +180,25 @@ bool GetRtcTime31331(uint32_t *time){
     return TRUE;
 }
 
-bool SetRtcTime31331(uint32_t *unixtime) {
+bool SetRtcTime31331(uint32_t *unixtime)
+{
     max3133x_rtc_time_regs_t regs;
     struct tm *time;
 
-    if (*unixtime < 1691675756) { // 10 Aug 2023 because that is when I wrote this line
+    if (*unixtime < 1691675756) {
+        // 10 Aug 2023 because that is when I wrote this line
         debug_print("Unix time seems to be in the past!");
         return FALSE;
     }
-    time_t t  = (time_t)(*unixtime + 2208988800L - 6 * 60 * 60); // Adjust because TI Time library used Epoch of 1-1-1900 UTC - 6
+    time_t t  = (time_t)(*unixtime + 2208988800L - 6 * 60 * 60);
+    // Adjust because TI Time library used Epoch of 1-1-1900 UTC - 6
     time = gmtime(&t);
-    if (time == NULL) return FALSE;
+    if (time == NULL)
+        return FALSE;
 
-    debug_print("Setting to Date: %d-%d-%d %02d:%02d:%02d UTC\n",(time->tm_year+1900), time->tm_mon+1, time->tm_mday, time->tm_hour, time->tm_min, time->tm_sec);
+    debug_print("Setting to Date: %d-%d-%d %02d:%02d:%02d UTC\n",
+                (time->tm_year+1900), time->tm_mon+1, time->tm_mday,
+                time->tm_hour, time->tm_min, time->tm_sec);
 
 //    char buf[30];
 //    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", time);
@@ -171,20 +206,25 @@ bool SetRtcTime31331(uint32_t *unixtime) {
 
 
     int rc = time_to_rtc_regs(&regs, time, HOUR24);
-    if (rc != MAX3133X_NO_ERR) return FALSE;
+    if (rc != MAX3133X_NO_ERR)
+        return FALSE;
 
     /* TODO - this is a bit of a hack to use our I2C function.  We don't use sub seconds and it is the
      * first register in the structure.  So we write the address of the SECONDS register as the raw
      * value.  This will be sent as the first byte and the address.  Then the seconds value and all
      * subsequent values will follow.  */
     regs.seconds_1_128_reg.raw = MAX31331_SECONDS;
-    if (!I2cSendCommand(MAX31331_PORT,MAX31331_ADDR,&regs,sizeof(max3133x_rtc_time_regs_t),0,0)) return FALSE;
+    if (!I2cSendCommand(MAX31331_PORT, MAX31331_ADDR,
+                        &regs, sizeof(max3133x_rtc_time_regs_t), 0, 0))
+        return FALSE;
 
     return TRUE;
 }
 
-int8_t hours_reg_to_hour(const max3133x_hours_reg_t *hours_reg) {
+int8_t hours_reg_to_hour(const max3133x_hours_reg_t *hours_reg)
+{
     hour_format_t format = hours_reg->bits_24hr.f_24_12 == 1 ? HOUR12 : HOUR24;
+
     if (format == HOUR24) {
         return BCD2BIN(hours_reg->bcd_24hr.value);
     } else {
@@ -200,7 +240,9 @@ int8_t hours_reg_to_hour(const max3133x_hours_reg_t *hours_reg) {
 }
 
 
-void rtc_regs_to_time(struct tm *time, const max3133x_rtc_time_regs_t *regs, uint16_t *sub_sec) {
+void rtc_regs_to_time(struct tm *time, const max3133x_rtc_time_regs_t *regs,
+                      uint16_t *sub_sec)
+{
     if (sub_sec != NULL)
         *sub_sec = (1000 * regs->seconds_1_128_reg.raw) / 128.0;
 
@@ -242,7 +284,9 @@ void rtc_regs_to_time(struct tm *time, const max3133x_rtc_time_regs_t *regs, uin
     time->tm_isdst = 0; /* TODO */
 }
 
-int time_to_rtc_regs(max3133x_rtc_time_regs_t *regs, const struct tm *time, hour_format_t format) {
+int time_to_rtc_regs(max3133x_rtc_time_regs_t *regs, const struct tm *time,
+                     hour_format_t format)
+{
     /*********************************************************
      * +----------+------+---------------------------+-------+
      * | Member   | Type | Meaning                   | Range |
@@ -298,7 +342,8 @@ int time_to_rtc_regs(max3133x_rtc_time_regs_t *regs, const struct tm *time, hour
     return MAX3133X_NO_ERR;
 }
 
-void to_12hr(uint8_t hr, uint8_t *hr_12, uint8_t *pm) {
+void to_12hr(uint8_t hr, uint8_t *hr_12, uint8_t *pm)
+{
     if (hr == 0) {
         *hr_12 = 12;
         *pm = 0;
