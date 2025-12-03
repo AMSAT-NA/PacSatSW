@@ -273,7 +273,8 @@ void ax5043StopRx(AX5043Device device)
 
     //printf("StopRx: Power=%d,Txing=%d,Rxing=%d\n",PowerOn,Txing,Rxing);
     if (info->rxing & info->on) {
-        ax5043_off(device);  // Do not turn off power, just stop receiving
+        ax5043PowerOff(device);
+        info->on = false;
         info->txing = false;
         info->rxing = false;
     }
