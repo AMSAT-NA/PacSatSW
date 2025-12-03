@@ -33,6 +33,7 @@
 #include "ax5043_access.h"
 #include "ax5043-ax25.h"
 #include "inet.h"
+#include "adc_proc.h"
 
 #ifdef BLINKY_HARDWARE
 #include "Max31725Temp.h"
@@ -52,11 +53,11 @@ realTimeFrame_t realtimeFrame;
 
 
 /* Forward declarations */
-void tac_pb_status_callback(void);
-void tac_ftl0_status_callback(void);
-void tac_telem_timer_callback(void);
-void tac_adc_timer_callback(void);
-void tac_maintenance_timer_callback(void);
+void tac_pb_status_callback(TimerHandle_t xTimer);
+void tac_ftl0_status_callback(TimerHandle_t xTimer);
+void tac_telem_timer_callback(TimerHandle_t xTimer);
+void tac_adc_timer_callback(TimerHandle_t xTimer);
+void tac_maintenance_timer_callback(TimerHandle_t xTimer);
 void tac_collect_telemetry(telem_buffer_t *buffer);
 void tac_send_telemetry(telem_buffer_t *buffer);
 
@@ -271,7 +272,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
  * Telemetry and Control task
  *
  */
-void tac_pb_status_callback(void)
+void tac_pb_status_callback(TimerHandle_t xTimer)
 {
     statusMsg.MsgType = TacSendPbStatus;
     NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
@@ -284,7 +285,7 @@ void tac_pb_status_callback(void)
  * sent to the TX by the Telemetry and Control task
  *
  */
-void tac_ftl0_status_callback(void)
+void tac_ftl0_status_callback(TimerHandle_t xTimer)
 {
     statusMsg.MsgType = TacSendUplinkStatus;
     NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
@@ -295,7 +296,7 @@ void tac_ftl0_status_callback(void)
  *
  * This is called from a timer whenever the telemetry should be sent.
  */
-void tac_telem_timer_callback(void)
+void tac_telem_timer_callback(TimerHandle_t xTimer)
 {
     statusMsg.MsgType = TacSendRealtimeMsg;
     NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
@@ -307,7 +308,7 @@ void tac_telem_timer_callback(void)
  * This is called from a timer whenever the ADC conversion process
  * needs to start.
  */
-void tac_adc_timer_callback(void)
+void tac_adc_timer_callback(TimerHandle_t xTimer)
 {
     statusMsg.MsgType = TacADCStartMsg;
     NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
@@ -319,7 +320,7 @@ void tac_adc_timer_callback(void)
  * This is called from a timer whenever directory and upload table
  * maintenance should be run.
  */
-void tac_maintenance_timer_callback(void)
+void tac_maintenance_timer_callback(TimerHandle_t xTimer)
 {
     statusMsg.MsgType = TacMaintenanceMsg;
     NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
