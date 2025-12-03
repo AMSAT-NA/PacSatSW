@@ -288,7 +288,7 @@ int getMRAMSize(int mramNum)
      * it just returns the (known) size.  For FRAM, it checks to see that there
      * is a non-0 status return before returning the known FRAM size.
      */
-    int i, sizeMultiple = 16*1024; //Assume smallest is 16K increasing in multiples of 16K.
+    int i;
     uint32_t saveVal0, saveValTest;
     uint32_t addr0Val = 0x1f2f3f97, testAddrVal = 0x994499ab;
     SPIDevice dev;
@@ -309,31 +309,36 @@ int getMRAMSize(int mramNum)
     writeMRAMWord(dev, 0, addr0Val);
     saveValTest = readMRAMWord(dev,0);
     if (saveValTest != addr0Val) {
+        printf("mram%d does not appear to work\n", dev);
         return 0;  //Chip does not work or exist
     }
 
     /*
-     * Now write a different number every "sizeMultiple" bytes and see if it wraps.
+     * Go up by powers of 2, assume MRAMs come in power of 2 multiples.
      */
 
-    for (i=1; i<32; i++) {
+    for (i = 8; i < 32; i++) {
         uint32_t readBack;
-        uint32_t testAddr = i * sizeMultiple;
+        uint32_t testAddr = 1 << i;
+
         saveValTest = readMRAMWord(dev, testAddr);
         writeMRAMWord(dev, testAddr, testAddrVal);
         readBack = readMRAMWord(dev, 0);
         if (readBack != addr0Val) {
-            //printf("Address 0 has changed to %x writing to addr %x\n",readBack,testAddr);
+            //printf("mram%d: Address 0 has changed to %x writing to addr %x\n",
+            //       dev, readBack, testAddr);
             break;
         } else {
-            //printf("Address 0 is unchanged writing to addr %x\n",testAddr);
-            writeMRAMWord(dev, testAddr, saveValTest); //Restore the test address value
+            //printf("mram%d: Address 0 is unchanged writing to addr %x\n",
+            //       dev, testAddr);
+	    //Restore the test address value
+            writeMRAMWord(dev, testAddr, saveValTest);
         }
     }
     writeMRAMWord(dev, 0, saveVal0);  //Restore original address 0
-    return i * sizeMultiple;
-
+    return 1 << i;
 }
+
 #ifdef UNDEFINE_BEFORE_FLIGHT
 static int findMRAMAddressSize(int mramNumber){
     /*
@@ -418,10 +423,10 @@ int initMRAM(bool newDevice)
 #ifdef UNDEFINE_BEFORE_FLIGHT
     MRAMAddressBytes = getMRAMAddressSize();
 #endif
-    size=0;
-    for (i=0; i<PACSAT_MAX_MRAMS; i++) {
-
-        size += MRAMSize[i] = getMRAMSize(MRAM_Devices[i]); //GetMRAMSize also write enables them
+    size = 0;
+    for (i = 0; i < PACSAT_MAX_MRAMS; i++) {
+        //GetMRAMSize also write enables them
+        size += MRAMSize[i] = getMRAMSize(MRAM_Devices[i]);
         if (MRAMSize[i] != 0)
             numberOfMRAMs++;
     }
@@ -436,6 +441,7 @@ int initMRAM(bool newDevice)
         printf("\n\n\n\n*****MRAM layout has changed.  You must issue clear mram******\n\n\n\n");
         return -1;
     }
+
     return totalMRAMSize;
 }
 
