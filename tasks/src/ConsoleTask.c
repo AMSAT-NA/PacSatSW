@@ -162,6 +162,7 @@ enum {
     ,mramSleep
     ,mramAwake
     ,startRx
+    ,stopRx
 #ifdef DEBUG
     ,testPacsat
     ,testCallsigns
@@ -251,6 +252,7 @@ commandPairs debugCommands[] = {
                                 ,{"test ax","Read the revision and scratch registers",testAX5043}
                                 ,{"test pll", "test ax5043 PLL frequency range",testPLLrange}
                                 ,{"start rx","Start up the 5043 receiver",startRx}
+                                ,{"stop rx","Stop the 5043 receiver",stopRx}
                                 ,{"clear mram","Initializes MRAM state,WOD,Min/max but does not clear InOrbit--testing only",
                                   doClearMRAM}
                                 //,{"reset both","Reset both primary and secondary processor",resetBoth}
@@ -972,7 +974,24 @@ void RealConsoleTask(void)
         }
 
         case startRx:{
-            ax5043StartRx(AX5043Dev0);
+            uint8_t devb = parseNumber(afterCommand);
+	    // -1 to remove the TX device.
+            if (devb >= InvalidAX5043Device - 1) {
+                printf("Give a device number between 0 and %d\n", NUM_AX5043_SPI_DEVICES - 1);
+                break;
+            }
+            ax5043StartRx((AX5043Device) devb);
+            break;
+        }
+
+        case stopRx:{
+            uint8_t devb = parseNumber(afterCommand);
+	    // -1 to remove the TX device.
+            if (devb >= InvalidAX5043Device - 1) {
+                printf("Give a device number between 0 and %d\n", NUM_AX5043_SPI_DEVICES - 1);
+                break;
+            }
+            ax5043StopRx((AX5043Device) devb);
             break;
         }
 
