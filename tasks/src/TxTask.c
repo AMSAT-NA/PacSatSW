@@ -72,7 +72,8 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
     // Add seletable Tx power levels  N5BRG  240516
     //set_tx_power(1); // minimum power to test RF output on AX5043
     //set_tx_power(50); // midrange power to test RF output on AX5043
-    set_tx_power(device, 100); // maximum power to test RF output on AX5043
+    //set_tx_power(device, 100); // maximum power to test RF output on AX5043
+    set_tx_power(device, 5); // Low power, in case it's not plugged in.
 
     /* Set Power state to FULL_TX */
     ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_FULL_TX);
