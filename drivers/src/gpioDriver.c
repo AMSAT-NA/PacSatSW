@@ -753,6 +753,14 @@ static const GPIOInfo ActiveInfo = {
     .PinNum               = 1,
     .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
+    .NegativeLogic        = true,
+    /*
+     * TODO - This is a temporary fix, the ACTIVE_N line can't go
+     * above 2.75V because it's driving the control input of the RF
+     * switch.  So use the voltage divider to get the high to the
+     * right level.
+     */
+    .OpenCollector        = true,
 };
 
 static const GPIOInfo UmbilicalAttachedInfo = {
@@ -944,7 +952,8 @@ bool GPIOInit(Gpio_Use whichGpio, DestinationTask task, IntertaskMessageType msg
 	 */
         thisGPIO->info->funcs->setOpenCollector(thisGPIO->info, pinNum, 
                                                 thisGPIO->OpenCollector);
-	thisGPIO->info->funcs->setDirectionOut(thisGPIO->info, thisGPIO->PinNum, true);
+	thisGPIO->info->funcs->setDirectionOut(thisGPIO->info,
+					       thisGPIO->PinNum, true);
     } else {
 
         /*
