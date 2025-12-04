@@ -27,6 +27,8 @@ uint16_t parseNextNumber(void);
 uint16_t parseNumber(char *afterCommand);
 uint32_t parseNumber32(char *afterCommand);
 uint32_t parseNextNumber32(void);
+void skip_command_spaces(char **str);
+
 bool AntennaAsk(void);
 void receiveLine(COM_NUM ioCom, char *commandString, char prompt, bool echo);
 

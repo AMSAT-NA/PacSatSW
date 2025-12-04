@@ -573,16 +573,6 @@ commandPairs commonCommands[] = {
       Help},
 };
 
-static void
-skip_command_spaces(char **str)
-{
-    char *s = *str;
-
-    while (*s && *s == ' ')
-        s++;
-    *str = s;
-}
-
 struct command_table {
     const char *name;
     commandPairs *pairs;
