@@ -33,7 +33,6 @@
 #include "gpioDriver.h"
 
 
-void radio_set_power(uint32_t regVal);
 bool tx_make_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid, uint8_t *bytes, int len, rx_radio_buffer_t *tx_radio_buffer);
 bool tx_make_packet(AX25_PACKET *packet, rx_radio_buffer_t *tx_radio_buffer);
 
@@ -71,9 +70,9 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
 
     ax5043StartTx(device);
     // Add seletable Tx power levels  N5BRG  240516
-    //radio_set_power(0x020); // minimum power to test RF output on AX5043
-    //radio_set_power(0x0800); // midrange power to test RF output on AX5043
-    radio_set_power(0x0fff); // maximum power to test RF output on AX5043
+    //set_tx_power(1); // minimum power to test RF output on AX5043
+    //set_tx_power(50); // midrange power to test RF output on AX5043
+    set_tx_power(device, 100); // maximum power to test RF output on AX5043
 
     /* Set Power state to FULL_TX */
     ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_FULL_TX);
@@ -145,18 +144,6 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
 	GPIOSetOff(SSPAPower);
 	//       printf("INFO: Transmission complete\n");
     }
-}
-
-/**
- * Pout = Pmax * txpwrcoeffb / (2^12 - 1)
- * Where Pmax = 0dBm
- *
- * FFF is max
- *
- */
-void radio_set_power(uint32_t regVal) {
-    ax5043WriteReg(device, AX5043_TXPWRCOEFFB0, regVal);
-    ax5043WriteReg(device, AX5043_TXPWRCOEFFB1, regVal >> 8);
 }
 
 /**

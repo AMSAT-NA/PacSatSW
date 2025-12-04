@@ -138,6 +138,8 @@ enum {
     LowerFreq,
     SetFreq,
     ReadFreqs,
+    SetTxPower,
+    GetTxPower,
     SaveFreq,
     LoadKey,
     showDownlinkSize,
@@ -215,38 +217,44 @@ enum {
  * configure it.
  */
 commandPairs setupCommands[] = {
-    {"init new proc",
-     "Init DCT and MRAM stuff that will be set once for each unit",
-     initSaved},
-    {"raise freq",
-     "Raise the frequency by n Hz",
-     RaiseFreq},
-    {"lower freq",
-     "Lower the frequency by n Hz",
-     LowerFreq},
-    {"set freq",
-     "Set the frequency by n kHz",
-     SetFreq},
-    {"save freq",
-     "Save the current frequency in MRAM",
-     SaveFreq},
-    {"read freq",
-     "Read all the frequencies from MRAM",
-     ReadFreqs},
-    {"test freq",
-     "xmit on receive frequency of specified device",
-     testRxFreq},
-    {"test internal wd",
-     "Force internal watchdog to reset CPU",
-     internalWDTimeout},
-    {"test external wd",
-     "Force external watchdog to reset CPU",
-     externalWDTimeout},
-    {"test leds",
-     "Flash the LEDs in order",
-     testLED},
-    {"test mram",
-     "Write and read mram with n blocksize (4,8,16,32,64,128)",testAllMRAM},
+    { "init new proc",
+      "Init DCT and MRAM stuff that will be set once for each unit",
+      initSaved},
+    { "raise freq",
+      "Raise the frequency by n Hz",
+      RaiseFreq},
+    { "lower freq",
+      "Lower the frequency by n Hz",
+      LowerFreq},
+    { "set freq",
+      "Set the frequency by n kHz",
+      SetFreq},
+    { "save freq",
+      "Save the current frequency in MRAM",
+      SaveFreq},
+    { "read freq",
+      "Read all the frequencies from MRAM",
+      ReadFreqs},
+    { "test freq",
+      "xmit on receive frequency of specified device",
+      testRxFreq},
+    { "set tx power",
+      "Set the tx power to a percentage 0-100",
+      SetTxPower },
+    { "get tx power",
+      "Get the tx power as a percentage 0-100",
+      GetTxPower },
+    { "test internal wd",
+      "Force internal watchdog to reset CPU",
+      internalWDTimeout},
+    { "test external wd",
+      "Force external watchdog to reset CPU",
+      externalWDTimeout},
+    { "test leds",
+      "Flash the LEDs in order",
+      testLED},
+    { "test mram",
+      "Write and read mram with n blocksize (4,8,16,32,64,128)",testAllMRAM},
     {"load key",
      "Load an authorization key for uplink commands",
      LoadKey},
@@ -257,51 +265,51 @@ commandPairs setupCommands[] = {
  * through the console.
  */
 commandPairs pacsatCommands[] = {
-    {"monitor on",
-     "Monitor sent and received packets",
-     monitorOn},
-    {"monitor off",
-     "Stop monitoring packets",
-     monitorOff},
-    {"shut pb",
-     "Shut the PB",
-     pbShut},
-    {"open pb",
-     "Open the PB for use",
-     pbOpen},
-    {"shut uplink",
-     "Shut the FTL0 Uplink",
-     uplinkShut},
-    {"open uplink",
-     "Open the FTL0 Uplink for use",
-     uplinkOpen},
-    {"shut digi",
-     "Disable the Digipeater",
-     digiShut},
-    {"open digi",
-     "Enable the Digipeater",
-     digiOpen},
-    {"send pb status",
-     "Immediately transmit the status of the PB",
-     testPbStatus},
-    {"hxd",
-     "Display Hex for file number",
-     mramHxd},
-    {"load dir",
-     "Load the directory from MRAM",
-     dirLoad},
-    {"clear dir",
-     "Clear the directory but leave the files in MRAM",
-     dirClear},
-    {"list dir",
-     "List the Pacsat Directory.",
-     listDir},
-    {"next filenumber",
-     "Show the next file number that the Dir will assign to an uploaded file",
-     getNextFileNumber},
-    {"reset filenumber",
-     "Reset the next Dir file number to zero.",
-     resetNextFileNumber},
+    { "monitor on",
+      "Monitor sent and received packets",
+      monitorOn},
+    { "monitor off",
+      "Stop monitoring packets",
+      monitorOff},
+    { "shut pb",
+      "Shut the PB",
+      pbShut},
+    { "open pb",
+      "Open the PB for use",
+      pbOpen},
+    { "shut uplink",
+      "Shut the FTL0 Uplink",
+      uplinkShut},
+    { "open uplink",
+      "Open the FTL0 Uplink for use",
+      uplinkOpen},
+    { "shut digi",
+      "Disable the Digipeater",
+      digiShut},
+    { "open digi",
+      "Enable the Digipeater",
+      digiOpen},
+    { "send pb status",
+      "Immediately transmit the status of the PB",
+      testPbStatus},
+    { "hxd",
+      "Display Hex for file number",
+      mramHxd},
+    { "load dir",
+      "Load the directory from MRAM",
+      dirLoad},
+    { "clear dir",
+      "Clear the directory but leave the files in MRAM",
+      dirClear},
+    { "list dir",
+      "List the Pacsat Directory.",
+      listDir},
+    { "next filenumber",
+      "Show the next file number that the Dir will assign to an uploaded file",
+      getNextFileNumber},
+    { "reset filenumber",
+      "Reset the next Dir file number to zero.",
+      resetNextFileNumber},
 };
 
 /*
@@ -864,7 +872,7 @@ void RealConsoleTask(void)
         case SetFreq: {
             uint8_t devb = parseNumber(afterCommand);
 
-            if(devb >= InvalidAX5043Device){
+            if (devb >= InvalidAX5043Device){
                 printf("Give a device number between 0 and 4\n");
                 break;
             }
@@ -905,6 +913,37 @@ void RealConsoleTask(void)
                 printf("Saving Rx%d frequency %d to MRAM\n", i, DCTRxFreq[i]);
                 WriteMRAMReceiveFreq(i, DCTRxFreq[i]);
             }
+            break;
+        }
+
+        case SetTxPower: {
+            uint8_t power, devb = parseNumber(afterCommand);
+
+            if (devb >= InvalidAX5043Device){
+                printf("Give a device number between 0 and 4\n");
+                break;
+            }
+
+            power = parseNextNumber();
+            if (power > 100) {
+                printf("Give a power between 0 and 100\n");
+                break;
+            }
+
+            set_tx_power((AX5043Device) devb, power);
+            break;
+        }
+
+        case GetTxPower: {
+            uint8_t power, devb = parseNumber(afterCommand);
+
+            if (devb >= InvalidAX5043Device){
+                printf("Give a device number between 0 and 4\n");
+                break;
+            }
+
+            power = get_tx_power((AX5043Device) devb);
+            printf("%u%%\n", power);
             break;
         }
 

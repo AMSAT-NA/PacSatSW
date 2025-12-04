@@ -615,9 +615,9 @@ static void ax5043_ax25_set_registers(AX5043Device device,
     //ax5043WriteReg(device, AX5043_TXPWRCOEFFB1, 0x00); // -10dBm output pwr
     //ax5043WriteReg(device, AX5043_TXPWRCOEFFB0, 0xb3); // -10dBm output pwr
 
-    // Start it out with totally minimum pwr
-    ax5043WriteReg(device, AX5043_TXPWRCOEFFB1, 0x00);
-    ax5043WriteReg(device, AX5043_TXPWRCOEFFB0, 0x20);
+    // Start it out with totally minimum pwr, 1% full power.  Note
+    // that full power is ~15mw out of the ax5043.
+    set_tx_power(device, 1);
 
     /**
      * PLL VCO Current GOLF sets this to 97, which is half the radio
@@ -807,7 +807,7 @@ static uint8_t axradio_get_pllvcoi(AX5043Device device)
         if (x & 0x80) {
             if (!(axradio_phy_chanpllrnginit & 0xF0)) {
                 x += ((axradio_phy_chanpllrng[device] & 0x0F)
-		      - (axradio_phy_chanpllrnginit & 0x0F));
+                      - (axradio_phy_chanpllrnginit & 0x0F));
                 x &= 0x3f;
                 x |= 0x80;
             }
@@ -982,8 +982,8 @@ static void ax5043_ax25_set_registers_rx(AX5043Device device,
  * This is called once the ranging is complete.  It finalizes the registers for receive
  */
 static uint8_t ax5043_ax25_init_registers_rx(AX5043Device device,
-					     enum ax5043_mode mode,
-					     unsigned int flags)
+                                             enum ax5043_mode mode,
+                                             unsigned int flags)
 {
     ax5043_ax25_set_registers_rx(device, mode, flags);
     return ax5043_ax25_init_registers_common(device);
@@ -1139,7 +1139,7 @@ static uint8_t axradio_init(AX5043Device device, int32_t freq,
             uint8_t j = 2;
             axradio_phy_chanvcoi[device] = 0;
             ax5043WriteReg(device, AX5043_PLLRANGINGA,
-			   axradio_phy_chanpllrng[device] & 0x0F);
+                           axradio_phy_chanpllrng[device] & 0x0F);
             {
                 uint32_t f = axradio_phy_chanfreq[0];
                 ax5043WriteReg(device, AX5043_FREQA0, f);
@@ -1152,7 +1152,7 @@ static uint8_t axradio_init(AX5043Device device, int32_t freq,
                     uint8_t x = axradio_phy_chanvcoiinit;
                     if (!(axradio_phy_chanpllrnginit & 0xF0))
                         x += ((axradio_phy_chanpllrng[device] & 0x0F)
-			      - (axradio_phy_chanpllrnginit & 0x0F));
+                              - (axradio_phy_chanpllrnginit & 0x0F));
                     axradio_phy_chanvcoi[device] = axradio_adjustvcoi(x);
                 } else {
                     axradio_phy_chanvcoi[device] = axradio_calvcoi();
@@ -1169,7 +1169,7 @@ static uint8_t axradio_init(AX5043Device device, int32_t freq,
     // TODO - G0KLA - why is this RX?  Both TX and RX ranging is run??
     ax5043_ax25_set_registers_rx(device, mode, flags);
     ax5043WriteReg(device, AX5043_PLLRANGINGA,
-		   axradio_phy_chanpllrng[device] & 0x0F);
+                   axradio_phy_chanpllrng[device] & 0x0F);
 
 #if 0
 
@@ -1194,7 +1194,7 @@ static uint8_t axradio_init(AX5043Device device, int32_t freq,
 
 
 static uint8_t mode_tx(AX5043Device device,
-		       enum ax5043_mode mode, unsigned int flags)
+                       enum ax5043_mode mode, unsigned int flags)
 {
     int retVal;
 
@@ -1213,7 +1213,7 @@ static uint8_t mode_tx(AX5043Device device,
 
 
 static uint8_t mode_rx(AX5043Device device,
-		       enum ax5043_mode mode, unsigned int flags)
+                       enum ax5043_mode mode, unsigned int flags)
 {
     int retVal;
 
@@ -1529,6 +1529,28 @@ void quick_setfreq(AX5043Device device, int32_t f)
     ax5043WriteReg(device, AX5043_FREQA3, f1 >> 24);
 }
 
+/* Takes a power as a percentage of full power. */
+void set_tx_power(AX5043Device device, uint32_t power)
+{
+    power = ((power * 4095) + 50) / 100;
+    if (power > 0xfff)
+        power = 0xfff;
+
+    ax5043WriteReg(device, AX5043_TXPWRCOEFFB1, power >> 8);
+    ax5043WriteReg(device, AX5043_TXPWRCOEFFB0, power & 0xff);
+}
+
+/* Returns current power as a percentage of full power. */
+uint16_t get_tx_power(AX5043Device device)
+{
+    uint32_t power;
+
+    power = ax5043ReadReg(device, AX5043_TXPWRCOEFFB1) << 8;
+    power |= ax5043ReadReg(device, AX5043_TXPWRCOEFFB0);
+
+    return ((power * 100) + 2048) / 4095;
+}
+
 void test_rx_freq(AX5043Device device, uint32_t freq,
                   enum ax5043_mode mode, unsigned int flags)
 {
@@ -1572,4 +1594,3 @@ void test_pll_2m_range(AX5043Device device, enum ax5043_mode mode,
 
     ax5043PowerOff(device);
 }
-

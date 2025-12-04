@@ -1,7 +1,9 @@
 Things that need to be done
 ===========================
 
-# Write a CAN bus driver
+# Pending
+
+## Write a CAN bus driver
 
 From Chris:
 
@@ -20,10 +22,17 @@ With that being said, I cant remember if the automatic adding of files
 was fully implemented.  I worked on it, but I can't remember it's
 state.  I would have to check the commits or branches.
 
-# Create telemetry interfaces
+## Create telemetry interfaces
 
-# Convert to thermsistor temperature measurement
+## Allow PA output to be controlled from the ground station
 
-# Allow PA output to be controlled from the ground station
+## Telemetry
 
-# Telemetry
+## RX LED handling needs some work
+
+LED2 is turned off by starting RX and is disabled on each received
+packet, but is never re-enabled.  Probably not optimal.
+
+# Done
+
+## Convert to thermsistor temperature measurement
