@@ -22,7 +22,7 @@
 #ifdef LAUNCHPAD_HARDWARE
 #define RX_RSSI_THRESHOLD -75
 #else
-#define RX_RSSI_THRESHOLD -70
+#define RX_RSSI_THRESHOLD -65
 #endif
 
 #ifdef LAUNCHPAD_HARDWARE
