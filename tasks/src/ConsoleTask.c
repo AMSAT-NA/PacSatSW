@@ -68,306 +68,564 @@
 #include "redposix.h"
 #include "Ax25Task.h"
 #include "UplinkTask.h"
+
+
 //Extern definition
-extern uint8_t SWCmdRing[SW_CMD_RING_SIZE],SWCmdIndex;
+extern uint8_t SWCmdRing[SW_CMD_RING_SIZE], SWCmdIndex;
 
+/* Must be long enough for worst case: Uploadtest20xxxxxx  which is 86 */
+static char commandString[COM_STRING_SIZE];
 
-static char commandString[COM_STRING_SIZE]; /* Must be long enough for worst case: Uploadtest20xxxxxx  which is 86 */
+/* Current and default frequencies. */
 static uint32_t DCTTxFreq, DCTRxFreq[4];
-
 const uint32_t DCT_DEFAULT_RX_FREQ[4] =
-    {145780000, 145810000, 145840000, 145870000};
+    { 145780000, 145810000, 145840000, 145870000 };
 
-// default all ch
-const uint8_t DCT_DEFAULT_RX_MODE[4] = { 0x15, 0x15, 0x15, 0x15};
+// default all channels
+const uint8_t DCT_DEFAULT_RX_MODE[4] = { 0x15, 0x15, 0x15, 0x15 };
 
-extern bool InSafeMode,InScienceMode,InHealthMode;
-extern bool TransponderEnabled,onOrbit,SimDoppler;
+extern bool InSafeMode, InScienceMode, InHealthMode;
+extern bool TransponderEnabled, onOrbit, SimDoppler;
 extern resetMemory_t SaveAcrossReset;
 extern char *ErrMsg[];
 extern bool monitorPackets;
 
-bool TestPlayDead=false;
+bool TestPlayDead = false;
 
 
 enum {
-    nada=0
+    nada=0,
 
-    ,getTemp
-    ,getVoltages
-    ,getPowerFlags
-    ,toggleRfPowPrint
-    ,getBoardVersion
-    ,reset
-    ,resetBoth
-    ,startWD
-    ,preflight
-    ,time
-    ,version
-    ,clrMinMax
-    ,getI2cState
-    ,internalWDTimeout
-    ,externalWDTimeout
-    ,telem0
-    ,pollI2c
-    ,readMRAMsr
-    ,writeMRAMsr
-    ,dropBus
-    ,healthMode
-    ,inhibitTx
-    ,getState
-    ,testLED
-    ,restartCAN
-    ,doClearMRAM
-    ,enbCanPrint
-    ,dsbCanPrint
-    ,EnableComPr
-    ,DisableComPr
-    ,MountFS
-    ,UnMountFS
-    ,FormatFS
-    ,LsFS
-    ,RmFS
-    ,mkdirFS
-    ,rmdirFS
-    ,GetRfPower
-    ,SelectRFPowerLevels
-    ,SetDCTDrivePower
-    ,RaiseFreq
-    ,LowerFreq
-    ,SetFreq
-    ,ReadFreqs
-    ,SaveFreq
-    ,LoadKey
-    ,showDownlinkSize
-    ,ignoreUmb
-    ,noticeUmb
-    ,initSaved
-    ,StartADC1
-    ,StartADC2
-    ,ReadADC1
-    ,ReadADC2
-    ,TestMemScrub
-    ,GetCommands
-    ,GetGpios
-    ,SetGpio
-    ,getax5043
-    ,readax5043
-    ,writeax5043
-    ,getRSSI
-    ,testRxFreq
-    ,testPLLrange
-    ,testAX5043
-    ,HelpAll
-    ,HelpDevo
-    ,HelpSetup
-    ,HelpPacsat
-    ,Help
-    ,MRAMWrEn
-    ,testAllMRAM
-    ,sizeMRAM
-    ,mramSleep
-    ,mramAwake
-    ,startRx
-    ,stopRx
+    getTemp,
+    getVoltages,
+    getPowerFlags,
+    toggleRfPowPrint,
+    getBoardVersion,
+    reset,
+    startWD,
+    preflight,
+    time,
+    version,
+    clrMinMax,
+    getI2cState,
+    internalWDTimeout,
+    externalWDTimeout,
+    telem0,
+    pollI2c,
+    readMRAMsr,
+    writeMRAMsr,
+    dropBus,
+    healthMode,
+    inhibitTx,
+    getState,
+    testLED,
+    restartCAN,
+    doClearMRAM,
+    enbCanPrint,
+    dsbCanPrint,
+    EnableComPr,
+    DisableComPr,
+    MountFS,
+    UnMountFS,
+    FormatFS,
+    LsFS,
+    RmFS,
+    mkdirFS,
+    rmdirFS,
+    SelectRFPowerLevels,
+    SetDCTDrivePower,
+    RaiseFreq,
+    LowerFreq,
+    SetFreq,
+    ReadFreqs,
+    SaveFreq,
+    LoadKey,
+    showDownlinkSize,
+    ignoreUmb,
+    noticeUmb,
+    initSaved,
+    TestMemScrub,
+    GetCommands,
+    GetGpios,
+    SetGpio,
+    getax5043,
+    readax5043,
+    writeax5043,
+    getRSSI,
+    testRxFreq,
+    testPLLrange,
+    testAX5043,
+    HelpAll,
+    HelpDevo,
+    HelpSetup,
+    HelpPacsat,
+    Help,
+    MRAMWrEn,
+    testAllMRAM,
+    sizeMRAM,
+    mramSleep,
+    mramAwake,
+    startRx,
+    stopRx,
 #ifdef DEBUG
-    ,testPacsat
-    ,testCallsigns
-    ,testTx
-    ,testPbOk
-    ,testPbStatus
-    ,testPbList
-    ,testPbClearList
-    ,testPfh
-    ,testPfhFile
-    ,testDecode
-    ,makePfhFiles
-    ,testDir
-    ,sendUplinkStatus
-    ,testRetransmission
-    ,testUploadTable
-    ,listUploadTable
+    testPacsat,
+    testCallsigns,
+    testTx,
+    testPbOk,
+    testPbStatus,
+    testPbList,
+    testPbClearList,
+    testPfh,
+    testPfhFile,
+    testDecode,
+    makePfhFiles,
+    testDir,
+    sendUplinkStatus,
+    testRetransmission,
+    testUploadTable,
+    listUploadTable,
 #endif
-    ,monitorOn
-    ,monitorOff
-    ,pbShut
-    ,pbOpen
-    ,uplinkShut
-    ,uplinkOpen
-    ,digiShut
-    ,digiOpen
-    ,mramHxd
-    ,dirLoad
-    ,dirClear
-    ,listDir
-    ,getNextFileNumber
-    ,resetNextFileNumber
-    ,heapFree
-    ,setUnxTime
-    ,getUnxTime
-    ,setRate9600
-    ,setRate1200
-    ,getRtc
-    ,setRtc
-    ,regRtc
-    ,setDigi
+    monitorOn,
+    monitorOff,
+    pbShut,
+    pbOpen,
+    uplinkShut,
+    uplinkOpen,
+    digiShut,
+    digiOpen,
+    mramHxd,
+    dirLoad,
+    dirClear,
+    listDir,
+    getNextFileNumber,
+    resetNextFileNumber,
+    heapFree,
+    setUnxTime,
+    getUnxTime,
+    setRate9600,
+    setRate1200,
+    getRtc,
+    setRtc,
+    regRtc,
+    setDigi,
 };
 
-/* These commands should only be required to setup a new board and configure it. */
+/*
+ * These commands should only be required to setup a new board and
+ * configure it.
+ */
 commandPairs setupCommands[] = {
-                                {"init new proc","Init DCT and MRAM stuff that will be set once for each unit",initSaved}
-                                ,{"raise freq","Raise the frequency by n Hz",RaiseFreq}
-                                ,{"lower freq","Lower the frequency by n Hz",LowerFreq}
-                                ,{"set freq","Set the frequency by n kHz",SetFreq}
-                                ,{"save freq","Save the current frequency in MRAM",SaveFreq}
-                                ,{"read freq","Read all the frequencies from MRAM",ReadFreqs}
-                                ,{"test freq", "xmit on receive frequency of specified device",testRxFreq}
-                                ,{"test internal wd","Force internal watchdog to reset CPU",internalWDTimeout}
-                                ,{"test external wd","Force external watchdog to reset CPU",externalWDTimeout}
-                                ,{"test leds","Flash the LEDs in order",testLED}
-                                // ADCs not implemented on the test blinky board?
-                                //                                ,{"test adc1","Read group 1 of ADC",StartADC1}
-                                //                                ,{"test adc2","Read group 2 of ADC",StartADC2}
-                                ,{"test mram","Write and read mram with n blocksize (4,8,16,32,64,128)",testAllMRAM}
-                                ,{"load key","Load an authorization key for uplink commands",LoadKey}
-
+    {"init new proc",
+     "Init DCT and MRAM stuff that will be set once for each unit",
+     initSaved},
+    {"raise freq",
+     "Raise the frequency by n Hz",
+     RaiseFreq},
+    {"lower freq",
+     "Lower the frequency by n Hz",
+     LowerFreq},
+    {"set freq",
+     "Set the frequency by n kHz",
+     SetFreq},
+    {"save freq",
+     "Save the current frequency in MRAM",
+     SaveFreq},
+    {"read freq",
+     "Read all the frequencies from MRAM",
+     ReadFreqs},
+    {"test freq",
+     "xmit on receive frequency of specified device",
+     testRxFreq},
+    {"test internal wd",
+     "Force internal watchdog to reset CPU",
+     internalWDTimeout},
+    {"test external wd",
+     "Force external watchdog to reset CPU",
+     externalWDTimeout},
+    {"test leds",
+     "Flash the LEDs in order",
+     testLED},
+    {"test mram",
+     "Write and read mram with n blocksize (4,8,16,32,64,128)",testAllMRAM},
+    {"load key",
+     "Load an authorization key for uplink commands",
+     LoadKey},
 };
 
-/* These commands are used to operate the PB and the FTL0 system through the console */
+/*
+ * These commands are used to operate the PB and the FTL0 system
+ * through the console.
+ */
 commandPairs pacsatCommands[] = {
-                                 {"monitor on","Monitor sent and received packets",monitorOn}
-                                 ,{"monitor off","Stop monitoring packets",monitorOff}
-                                 ,{"shut pb","Shut the PB",pbShut}
-                                 ,{"open pb","Open the PB for use",pbOpen}
-                                 ,{"shut uplink","Shut the FTL0 Uplink",uplinkShut}
-                                 ,{"open uplink","Open the FTL0 Uplink for use",uplinkOpen}
-                                 ,{"shut digi","Disable the Digipeater",digiShut}
-                                 ,{"open digi","Enable the Digipeater",digiOpen}
-                                 ,{"send pb status","Immediately transmit the status of the PB",testPbStatus}
-                                 ,{"hxd","Display Hex for file number",mramHxd}
-                                 ,{"load dir","Load the directory from MRAM",dirLoad}
-                                 ,{"clear dir","Clear the directory but leave the files in MRAM",dirClear}
-                                 ,{"list dir","List the Pacsat Directory.",listDir}
-                                 ,{"next filenumber","Show the next file number that the Dir will assign to an uploaded file",getNextFileNumber}
-                                 ,{"reset filenumber","Reset the next Dir file number to zero.",resetNextFileNumber}
+    {"monitor on",
+     "Monitor sent and received packets",
+     monitorOn},
+    {"monitor off",
+     "Stop monitoring packets",
+     monitorOff},
+    {"shut pb",
+     "Shut the PB",
+     pbShut},
+    {"open pb",
+     "Open the PB for use",
+     pbOpen},
+    {"shut uplink",
+     "Shut the FTL0 Uplink",
+     uplinkShut},
+    {"open uplink",
+     "Open the FTL0 Uplink for use",
+     uplinkOpen},
+    {"shut digi",
+     "Disable the Digipeater",
+     digiShut},
+    {"open digi",
+     "Enable the Digipeater",
+     digiOpen},
+    {"send pb status",
+     "Immediately transmit the status of the PB",
+     testPbStatus},
+    {"hxd",
+     "Display Hex for file number",
+     mramHxd},
+    {"load dir",
+     "Load the directory from MRAM",
+     dirLoad},
+    {"clear dir",
+     "Clear the directory but leave the files in MRAM",
+     dirClear},
+    {"list dir",
+     "List the Pacsat Directory.",
+     listDir},
+    {"next filenumber",
+     "Show the next file number that the Dir will assign to an uploaded file",
+     getNextFileNumber},
+    {"reset filenumber",
+     "Reset the next Dir file number to zero.",
+     resetNextFileNumber},
 };
 
-/* These commands should only be required when writing the software.  They should not be required for setting up new boards,
- * configuring the flight unit or an other task performed once the software is complete. */
+/*
+ * These commands should only be required when writing the software.
+ * They should not be required for setting up new boards, configuring
+ * the flight unit or an other task performed once the software is
+ * complete.
+ */
 commandPairs debugCommands[] = {
-                                {"test scrub","Run the memory scrub routine once",TestMemScrub}
-                                ,{"test ax","Read the revision and scratch registers",testAX5043}
-                                ,{"test pll", "test ax5043 PLL frequency range",testPLLrange}
-                                ,{"start rx","Start up the 5043 receiver",startRx}
-                                ,{"stop rx","Stop the 5043 receiver",stopRx}
-                                ,{"clear mram","Initializes MRAM state,WOD,Min/max but does not clear InOrbit--testing only",
-                                  doClearMRAM}
-                                //,{"reset both","Reset both primary and secondary processor",resetBoth}
-           //                     ,{"reset can","Reset the CAN devices",restartCAN}
-                                ,{"poll i2c","Poll to see which I2c devices are there",pollI2c}
-                                ,{"inhibit tx","Simulate FCC command to turn off tx",inhibitTx}
-                                ,{"get mram sr","Get the MRAM status register",readMRAMsr}
-                                ,{"get downlink size","Debug-get sizes of downlink payloads and frames",showDownlinkSize}
-                                ,{"mram wren","Write enable MRAM",MRAMWrEn}
-                                ,{"mram wake","Send wake command to MRAM",mramAwake}
-                                ,{"mram sleep","Send sleep command to MRAM",mramSleep}
-#ifdef DEBUG
-                                ,{"test pacsat","Run all of the PACSAT self tst routines",testPacsat}
-                                ,{"test callsigns","Test the AX25 callsign routines",testCallsigns}
-                                ,{"test tx","Test the Pacsat TX Packet routines",testTx}
-                                ,{"test pb ok","Test the Pacsat Broadcast by sending OK packet",testPbOk}
-                                ,{"test pb list","Test the PB List add and remove functions",testPbList}
-                                ,{"clear pb list","Clear the PB List add remove all stations",testPbClearList}
-                                ,{"test pfh","Test the Pacsat File Header Routines",testPfh}
-                                ,{"test psf","Test the Pacsat Files in MRAM",testPfhFile}
-                                ,{"test decode","Test decode of AX25 packets",testDecode}
-                                ,{"make psf","Make a set of test Pacsat Files in MRAM",makePfhFiles}
-                                ,{"test dir","Test the Pacsat Directory.  The command 'make psf' must already have been run",testDir}
-                                ,{"send uplink status","Send Uplink status",sendUplinkStatus}
-                                ,{"test retransmission","Test the AX25 I frame retransmission",testRetransmission}
-                                ,{"test upload table","Test the storage of Upload records in the MRAM table",testUploadTable}
-                                ,{"list upload table","List the Upload records in the MRAM table",listUploadTable}
-                                ,{"set digi","Set the digipeater mode",setDigi}
+    { "test scrub",
+      "Run the memory scrub routine once",
+      TestMemScrub},
+    { "test ax",
+      "Read the revision and scratch registers",
+      testAX5043},
+    { "test pll",
+      "test ax5043 PLL frequency range",
+      testPLLrange},
+    { "start rx",
+      "Start up the 5043 receiver",
+      startRx},
+    { "stop rx",
+      "Stop the 5043 receiver",
+      stopRx},
+    { "clear mram",
+      "Initializes MRAM state,WOD,Min/max but does not clear InOrbit--testing only",
+     doClearMRAM},
+#if 0
+    { "reset can",
+      "Reset the CAN devices",
+      restartCAN},
 #endif
-
+    { "poll i2c",
+      "Poll to see which I2c devices are there",
+      pollI2c},
+    { "inhibit tx",
+      "Simulate FCC command to turn off tx",
+      inhibitTx},
+    { "get mram sr",
+      "Get the MRAM status register",
+      readMRAMsr},
+    { "get downlink size",
+      "Debug-get sizes of downlink payloads and frames",
+      showDownlinkSize},
+    { "mram wren",
+      "Write enable MRAM",
+      MRAMWrEn},
+    { "mram wake",
+      "Send wake command to MRAM",
+      mramAwake},
+    { "mram sleep",
+      "Send sleep command to MRAM",
+      mramSleep},
+#ifdef DEBUG
+    { "test pacsat",
+      "Run all of the PACSAT self tst routines",
+      testPacsat},
+    { "test callsigns",
+      "Test the AX25 callsign routines",
+      testCallsigns},
+    { "test tx",
+      "Test the Pacsat TX Packet routines",
+      testTx},
+    { "test pb ok",
+      "Test the Pacsat Broadcast by sending OK packet",
+      testPbOk},
+    { "test pb list",
+      "Test the PB List add and remove functions",
+      testPbList},
+    { "clear pb list",
+      "Clear the PB List add remove all stations",
+      testPbClearList},
+    { "test pfh",
+      "Test the Pacsat File Header Routines",
+      testPfh},
+    { "test psf",
+      "Test the Pacsat Files in MRAM",
+      testPfhFile},
+    { "test decode",
+      "Test decode of AX25 packets",
+      testDecode},
+    { "make psf",
+      "Make a set of test Pacsat Files in MRAM",
+      makePfhFiles},
+    { "test dir",
+      "Test the Pacsat Directory.  The command 'make psf' must already have been run",
+     testDir},
+    { "send uplink status",
+      "Send Uplink status",
+      sendUplinkStatus},
+    { "test retransmission",
+      "Test the AX25 I frame retransmission",
+      testRetransmission},
+    { "test upload table",
+      "Test the storage of Upload records in the MRAM table",
+      testUploadTable},
+    { "list upload table",
+      "List the Upload records in the MRAM table",
+      listUploadTable},
+    { "set digi",
+      "Set the digipeater mode",
+      setDigi},
+#endif
 };
+
 commandPairs commonCommands[] = {
-                                 {"reset ihu","Reset this processor",reset}
-                                 ,{"get time","Display reset number and seconds",time}
-                                 ,{"get status","Get some general status info",telem0}
-                                 ,{"get rssi","Get the current RSSI reading from the AX5043 Rx",getRSSI}
-                                 ,{"get temp","Get RT-IHU board temperature",getTemp}
-                                 ,{"get voltages","Get RT-IHU board voltages",getVoltages}
-                                 ,{"get power flags","Get RT-IHU board voltages",getPowerFlags}
-                                 ,{"toggle rf power print","Toggle printing RF power",toggleRfPowPrint}
-                                 ,{"get board version","Get board version number",getBoardVersion}
-                                 ,{"get state","Mainly for debug: Get the current state of the downlink state machine",getState}
-                                 ,{"get version","Get the software version number and build time",version}
-                                 ,{"get mram size","Get the total size of all MRAMs",sizeMRAM}
-                                 ,{"get i2c","What I2c devices are working?",getI2cState}
-                                 ,{"heap free","Show free bytes in the heap.",heapFree}
-                                 ,{"get unix time","Get the number of seconds since the Unix epoch",getUnxTime}
-                                 ,{"set unix time","Set the Real Time Clock and update the IHU Unix time",setUnxTime}
-                                 ,{"set rate 1200","Set the radio to 1200 bps AFSK packets",setRate1200}
-                                 ,{"set rate 9600","Set the radio to 9600 bps GMSK packets",setRate9600}
-                                 ,{"get rtc","Get the status and time from the Real Time Clock",getRtc}
-                                 ,{"set rtc","Set the Real Time Clock and update the IHU Unix time",setRtc}
-                                 ,{"get regrtc","Read the specified register in the rtc",regRtc}
-                                 ,{"mount fs","Mount the filesystem",MountFS}
-                                 ,{"unmount fs","unmount the filesystem",UnMountFS}
-                                 ,{"format fs","Format the filesystem",FormatFS}
-                                 ,{"ls","List files and directories in the filesystem",LsFS}
-                                 ,{"rm","Remove a file from the filesystem",RmFS}
-                                 ,{"mkdir","Make a directory in the filesystem",mkdirFS}
-                                 ,{"rmdir","Remove a directory from the filesystem",rmdirFS}
-                                 //,{"get rf power","Print the RF power settings",GetRfPower}
-                                 ,{"get commands","Get a list the last 4 s/w commands",GetCommands}
-                                 ,{"get gpios","Display the values of all GPIOS",GetGpios}
-                                 ,{"set gpio","Set the value of a GPIO",SetGpio}
-                                 ,{"get ax","Get ax5043 status",getax5043}
-                                 ,{"read axreg","Read ax5043 reg n from device",readax5043}
-                                 ,{"write axreg","write ax5043 value to reg n on device",writeax5043}
-                                 //,{"health mode","Set health mode",healthMode}
-                                 //,{"set dct drive power","Set drive power for high and low power",SetDCTDrivePower}
-                                 //,{"select dct power","Set rf power used in safe or normal modes",SelectRFPowerLevels}
-                                 ,{"set mram sr","Set the MRAM status register",writeMRAMsr}
-                                 ,{"start watchdog","Start the watchdog",startWD}
-                                 ,{"preflight init","Initialize MRAM etc for flight",preflight}
-                                // ,{"clear minmax","Clear the min, max, and CIU counts",clrMinMax}
-                                // ,{"drop bus","Assert a fail briefly so the bus switches drop out",dropBus}
-                                // ,{"ignore umbilical","Allow radios to go on with umbilical connected",ignoreUmb}
-                                // ,{"heed umbilical","Reverse effects of ignore umbilical",noticeUmb}
-       //                          ,{"enable canprint","Debug can--number follows",enbCanPrint}
-       //                          ,{"disable canprint","Debug can--number follows",dsbCanPrint}
-                                 ,{"enable comprint","Show uplink commands",EnableComPr}
-                                 ,{"disable comprint","Turn off uplink command print",DisableComPr}
-                                 ,{"helpall","List all commands",HelpAll}
-                                 ,{"helpdevo","List commands for software devlopers",HelpDevo}
-                                 ,{"helpsetup","List commands for setting up new board",HelpSetup}
-                                 ,{"helppacsat","List commands for controlling the PB and Uploads (FTL0)",HelpPacsat}
-                                 ,{"help","List common commands",Help}
-                                 ,{"","",0}
+    { "reset ihu",
+      "Reset this processor",
+      reset},
+    { "get time",
+      "Display reset number and seconds",
+      time},
+    { "get status",
+      "Get some general status info",
+      telem0},
+    { "get rssi",
+      "Get the current RSSI reading from the AX5043 Rx",
+      getRSSI},
+    { "get temp",
+      "Get RT-IHU board temperature",
+      getTemp},
+    { "get voltages",
+      "Get RT-IHU board voltages",
+      getVoltages},
+    { "get power flags",
+      "Get RT-IHU board voltages",
+      getPowerFlags},
+    { "toggle rf power print",
+      "Toggle printing RF power",
+      toggleRfPowPrint},
+    { "get board version",
+      "Get board version number",
+      getBoardVersion},
+    { "get state",
+      "Mainly for debug: Get the current state of the downlink state machine",
+      getState},
+    { "get version",
+      "Get the software version number and build time",
+      version},
+    { "get mram size",
+      "Get the total size of all MRAMs",
+      sizeMRAM},
+    { "get i2c",
+      "What I2c devices are working?",
+      getI2cState},
+    { "heap free",
+      "Show free bytes in the heap.",
+      heapFree},
+    { "get unix time",
+      "Get the number of seconds since the Unix epoch",
+      getUnxTime},
+    { "set unix time",
+      "Set the Real Time Clock and update the IHU Unix time",
+      setUnxTime},
+    { "set rate 1200",
+      "Set the radio to 1200 bps AFSK packets",
+      setRate1200},
+    { "set rate 9600",
+      "Set the radio to 9600 bps GMSK packets",
+      setRate9600},
+    { "get rtc",
+      "Get the status and time from the Real Time Clock",
+      getRtc},
+    { "set rtc",
+      "Set the Real Time Clock and update the IHU Unix time",
+      setRtc},
+    { "get regrtc",
+      "Read the specified register in the rtc",
+      regRtc},
+    { "mount fs",
+      "Mount the filesystem",
+      MountFS},
+    { "unmount fs",
+      "unmount the filesystem",
+      UnMountFS},
+    { "format fs",
+      "Format the filesystem",
+      FormatFS},
+    { "ls",
+      "List files and directories in the filesystem",
+      LsFS},
+    { "rm",
+      "Remove a file from the filesystem",
+      RmFS},
+    { "mkdir",
+      "Make a directory in the filesystem",
+      mkdirFS},
+    { "rmdir",
+      "Remove a directory from the filesystem",
+      rmdirFS},
+    { "get commands",
+      "Get a list the last 4 s/w commands",
+      GetCommands},
+    { "get gpios",
+      "Display the values of all GPIOS",
+      GetGpios},
+    { "set gpio",
+      "Set the value of a GPIO",
+      SetGpio},
+    { "get ax",
+      "Get ax5043 status",
+      getax5043},
+    { "read axreg",
+      "Read ax5043 reg n from device",
+      readax5043},
+    { "write axreg",
+      "write ax5043 value to reg n on device",
+      writeax5043},
+    { "health mode",
+      "Set health mode",
+      healthMode},
+#if 0
+     { "set dct drive power",
+       // "Set drive power for high and low power",
+       SetDCTDrivePower},
+    { "select dct power",
+      "Set rf power used in safe or normal modes",
+      SelectRFPowerLevels},
+#endif
+    { "set mram sr",
+      "Set the MRAM status register",
+      writeMRAMsr},
+    { "start watchdog",
+      "Start the watchdog",
+      startWD},
+    { "preflight init",
+      "Initialize MRAM etc for flight",
+      preflight},
+#if 0
+    { "clear minmax",
+      "Clear the min, max, and CIU counts",
+      clrMinMax},
+    { "drop bus",
+      "Assert a fail briefly so the bus switches drop out",
+      dropBus},
+    { "ignore umbilical",
+      "Allow radios to go on with umbilical connected",
+      ignoreUmb},
+    { "heed umbilical",
+      "Reverse effects of ignore umbilical",
+      noticeUmb},
+    { "enable canprint",
+      "Debug can--number follows",
+      enbCanPrint},
+    { "disable canprint",
+      "Debug can--number follows",
+      dsbCanPrint},
+#endif
+    { "enable comprint",
+      "Show uplink commands",
+      EnableComPr},
+    { "disable comprint",
+      "Turn off uplink command print",
+      DisableComPr},
+    { "helpall",
+      "List all commands",
+      HelpAll},
+    { "helpdevo",
+      "List commands for software developers",
+      HelpDevo},
+    { "helpsetup",
+      "List commands for setting up new board",
+      HelpSetup},
+    { "helppacsat",
+      "List commands for controlling the PB and Uploads (FTL0)",
+      HelpPacsat},
+    { "help",
+      "List common commands",
+      Help},
 };
 
-char * ResetReasons[] = {
-                         0,0,0,
-                         "External",
-                         "Software",
-                         "CPU Reset",
-                         0,0,0,0,0,0,0,
-                         "Watchdog",
-                         "Oscillator",
-                         "Power On"
+static void
+skip_command_spaces(char **str)
+{
+    char *s = *str;
+
+    while (*s && *s == ' ')
+        s++;
+    *str = s;
+}
+
+struct command_table {
+    const char *name;
+    commandPairs *pairs;
+    unsigned int num_cmds;
+} command_tables[] = {
+#define HELP_COMMON_INDEX 0
+    { "COMMON COMMANDS",
+      commonCommands, sizeof(commonCommands) / sizeof(commandPairs) },
+#define HELP_SETUP_INDEX 1
+    { "SETUP COMMANDS",
+      setupCommands, sizeof(setupCommands) / sizeof(commandPairs) },
+#define HELP_PACSAT_INDEX 2
+    { "PACSAT PB and Upload COMMANDS",
+      pacsatCommands, sizeof(pacsatCommands) / sizeof(commandPairs) },
+#define HELP_DEBUG_INDEX 3
+    { "DEBUG COMMANDS",
+      debugCommands, sizeof(debugCommands) / sizeof(commandPairs) },
+    {}
+};
+
+char *ResetReasons[] = {
+    NULL,
+    NULL,
+    NULL,
+    "External",
+    "Software",
+    "CPU Reset",
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    "Watchdog",
+    "Oscillator",
+    "Power On"
 };
 
 void RealConsoleTask(void)
 {
     /* Block for 500ms. */
-    int numberOfCommonCommands = sizeof(commonCommands)/sizeof(commandPairs);
-    int numberOfSetupCommands = sizeof(setupCommands)/sizeof(commandPairs);
-    int numberOfPacsatCommands = sizeof(pacsatCommands)/sizeof(commandPairs);
-    int numberOfDebugCommands = sizeof(debugCommands)/sizeof(commandPairs);
-    char * afterCommand;
+    char *afterCommand;
     bool DoEcho = true;
 
     DCTTxFreq = ReadMRAMTelemFreq();
@@ -375,10 +633,10 @@ void RealConsoleTask(void)
     DCTRxFreq[1] = ReadMRAMReceiveFreq(1);
     DCTRxFreq[2] = ReadMRAMReceiveFreq(2);
     DCTRxFreq[3] = ReadMRAMReceiveFreq(3);
-    if((DCTTxFreq < 999000) || (DCTTxFreq > 600000000)){
+    if ((DCTTxFreq < 999000) || (DCTTxFreq > 600000000)){
         DCTTxFreq = DCT_DEFAULT_TX_FREQ;
     }
-    if((DCTRxFreq[0] < 999000) || (DCTRxFreq[0] > 600000000)){
+    if ((DCTRxFreq[0] < 999000) || (DCTRxFreq[0] > 600000000)){
         DCTRxFreq[0] = DCT_DEFAULT_RX_FREQ[0];
     }
     quick_setfreq(RX1_DEVICE, DCTRxFreq[0]);
@@ -389,76 +647,64 @@ void RealConsoleTask(void)
 #endif
     quick_setfreq(TX_DEVICE, DCTTxFreq);
 
-    vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)ConsoleTsk); // For watchdog when it is called with "current task"
+    // For watchdog when it is called with "current task"
+    vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE) ConsoleTsk);
 
     while (true) {
-        int commandNumber,index=0;
-        if(DoEcho){
-            SerialPutString(PRINTF_COM,"Pacsat",0);
+        int tablenum, commandNumber, index = 0;
+
+        if (DoEcho) {
+            SerialPutString(PRINTF_COM, "Pacsat", 0);
         }
         receiveLine(PRINTF_COM, commandString, '>', DoEcho);
         if (commandString[0] == 0)
             continue; /* Ignore blank lines */
-        /*
-         * Start of command parsing.  First search the array of command string for one that
-         * matches the beginning of the typed line.  When it is found, dispatch on the string
-         * number.  There are enums which match the strings to use for the case statements.
-         */
-        for (commandNumber = 0; commandNumber < numberOfCommonCommands; commandNumber++) {
-            /* If a command is found at the start of the type commands, leave the loop */
-            if (strstr(commandString, commonCommands[commandNumber].typedCommand) == commandString){
-                index = commonCommands[commandNumber].indexVal;
-                afterCommand = commandString + strlen(commonCommands[commandNumber].typedCommand);
 
-                break;
-            }
-        };
-        if(index==0){
-            for (commandNumber = 0; commandNumber < numberOfDebugCommands; commandNumber++) {
-                /* If a command is found at the start of the type commands, leave the loop */
-                if (strstr(commandString, debugCommands[commandNumber].typedCommand) == commandString){
-                    index = debugCommands[commandNumber].indexVal;
-                    afterCommand = commandString + strlen(debugCommands[commandNumber].typedCommand);
-                    break;
-                }
-            }
-        };
-        if(index==0){
-            for (commandNumber = 0; commandNumber < numberOfSetupCommands; commandNumber++) {
-                /* If a command is found at the start of the type commands, leave the loop */
-                if (strstr(commandString, setupCommands[commandNumber].typedCommand) == commandString){
-                    index = setupCommands[commandNumber].indexVal;
-                    afterCommand = commandString + strlen(setupCommands[commandNumber].typedCommand);
-                    break;
-                }
-            }
-        };
-        if(index==0){
-            for (commandNumber = 0; commandNumber < numberOfPacsatCommands; commandNumber++) {
-                /* If a command is found at the start of the type commands, leave the loop */
-                if (strstr(commandString, pacsatCommands[commandNumber].typedCommand) == commandString){
-                    index = pacsatCommands[commandNumber].indexVal;
-                    afterCommand = commandString + strlen(pacsatCommands[commandNumber].typedCommand);
-                    break;
-                }
-            }
-        };
         /*
-         * Here is the main command dispatch based on which command number was found above.
+         * Start of command parsing.  Go through each table, then
+         * search the array of command string for one that matches the
+         * beginning of the typed line.  When it is found, dispatch on
+         * the string number.  There are enums which match the strings
+         * to use for the case statements.
+         */
+        for (tablenum = 0;
+             index == 0 && command_tables[tablenum].pairs;
+             tablenum++) {
+            struct command_table *table = &command_tables[tablenum];
+
+            for (commandNumber = 0;
+                 index == 0 && commandNumber < table->num_cmds;
+                 commandNumber++) {
+                commandPairs *cmd = &table->pairs[commandNumber];
+
+                /*
+                 * If a command is found at the start of the type
+                 * commands, leave the loop.
+                 */
+                if (strstr(commandString, cmd->typedCommand) == commandString) {
+                    index = cmd->indexVal;
+                    afterCommand = commandString + strlen(cmd->typedCommand);
+                }
+            }
+        }
+
+        /*
+         * Here is the main command dispatch based on which command
+         * number was found above.
          */
         switch (index) {
-
         case nada: {
             printf("Unknown command\n");
             break;
         }
 
-        case sizeMRAM:{
+        case sizeMRAM: {
             int i;
-            printf("MRAM Address Size=%d\n",getMRAMAddressSize());
-            printf("Partition 0 size=%d, partition 1=%d\n",getMRAMPartitionSize(0),getMRAMPartitionSize(1));
-            for (i=0;i<PACSAT_MAX_MRAMS;){
-                printf("MRAM%d size is %dKBytes",i,getMRAMSize(i)/1024);
+            printf("MRAM Address Size=%d\n", getMRAMAddressSize());
+            printf("Partition 0 size=%d, partition 1=%d\n",
+                   getMRAMPartitionSize(0), getMRAMPartitionSize(1));
+            for (i = 0; i < PACSAT_MAX_MRAMS;) {
+                printf("MRAM%d size is %dKBytes", i, getMRAMSize(i) / 1024);
                 i++;
                 if(i%2 == 0){
                     printf("\n");
@@ -466,38 +712,50 @@ void RealConsoleTask(void)
                     printf(", ");
                 }
             }
-
-            //           printf("Size of MRAM0 is %dKB\n",getMRAMSize(0)/1024);
-            //           printf("Size of MRAM1 is %dKB\n",getMRAMSize(1)/1024);
-            //           printf("Size of MRAM2 is %dKB\n",getMRAMSize(MRAM2Dev)/1024);
-            //           printf("Size of MRAM3 is %dKB\n",getMRAMSize(MRAM3Dev)/1024);
+#if 0
+            printf("Size of MRAM0 is %dKB\n",getMRAMSize(0)/1024);
+            printf("Size of MRAM1 is %dKB\n",getMRAMSize(1)/1024);
+            printf("Size of MRAM2 is %dKB\n",getMRAMSize(MRAM2Dev)/1024);
+            printf("Size of MRAM3 is %dKB\n",getMRAMSize(MRAM3Dev)/1024);
+#endif
             break;
         }
-        case regRtc:{
-            uint8_t readReg=parseNumber(afterCommand);
+
+        case regRtc: {
+            uint8_t readReg = parseNumber(afterCommand);
             bool status;
-            //uint8_t data[8];
             uint8_t data;
-            status = I2cSendCommand(MAX31331_PORT,MAX31331_ADDR,&readReg,1,&data,1);
-            //           printf("Status=%d,reg values from %d are: %x %x %x %x %x %x %x %x\n",
-            //                   status,readReg,data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7]);
+
+            status = I2cSendCommand(MAX31331_PORT,MAX31331_ADDR,
+                                    &readReg, 1, &data, 1);
+#if 0
+            uint8_t data[8];
+            printf("Status=%d,reg values from %d are: %x %x %x %x %x %x %x %x\n",
+                   status, readReg, data[0], data[1], data[2], data[3],
+                   data[4], data[5], data[6], data[7]);
+#endif
             printf("Status=%d,reg %d value: 0x%x\n",
                    status,readReg,data);
             break;
         }
+
         case testAllMRAM:{
             int add = parseNumber(afterCommand);
             int secret = parseNextNumber();
-            if (add == 0)add=4;
+
+            if (add == 0)
+                add = 4;
             printf("NOTE:  This test will wipe out the file system and configuration values in MRAM.\n\n");
-            if(secret!=42){
-                printf("  To confirm you must give the command with a second argument of 42, for example 'test mram %d 42'\n",add);
+
+            if (secret != 42) {
+                printf("  To confirm you must give the command with a second argument of 42, for example 'test mram %d 42'\n", add);
                 break;
             }
             testMRAM(add);
             break;
         }
-        case MRAMWrEn:{
+
+        case MRAMWrEn: {
             bool stat;
             int num = parseNumber(afterCommand);
 
@@ -508,8 +766,9 @@ void RealConsoleTask(void)
             //printf("MRAM at address 0 and 1 are now now %d and %d\n",data[0],data[1]);
             break;
         }
+
 #ifdef DEBUG
-        case GetGpios:{
+        case GetGpios: {
             Gpio_Use i;
             int count;
 
@@ -522,7 +781,7 @@ void RealConsoleTask(void)
             printf("\n");
             break;
         }
-        case SetGpio:{
+        case SetGpio: {
             Gpio_Use i;
             int val;
 
@@ -547,53 +806,33 @@ void RealConsoleTask(void)
 #endif
         case GetCommands: {
             extern uint8_t SWCmdRing[SW_CMD_RING_SIZE];
-            int i=0;
-            printf("Commands received since reset: Hw=%d,Sw=%d\n\r",GetHWCmdCount(),GetSWCmdCount());
+            int i = 0;
+
+            printf("Commands received since reset: Hw=%d,Sw=%d\n\r",
+                   GetHWCmdCount(), GetSWCmdCount());
 
             printf("\n\rSoftware Commands received:\n\r");
-            for (i=0;i<SW_CMD_RING_SIZE;i++){
-                printf("%d/%d ",SWCmdRing[i]>>5,SWCmdRing[i] & 0x1f);
+            for (i = 0; i < SW_CMD_RING_SIZE; i++){
+                printf("%d/%d ", SWCmdRing[i]>>5, SWCmdRing[i] & 0x1f);
             }
 
             printf("\n\r");
             break;
         }
-        case TestMemScrub:{
-            ScrubECCMemory((uint64_t *)0x08000000,0x20000);
-            break;
-        }
-        case StartADC1:{
-            //            adcData_t data;
-            //            adcStartConversion(adcREG1,adcGROUP1);
-            //            vTaskDelay(SECONDS(1));
-            //            adcGetData(adcREG1,adcGROUP1,&data);
-            //            printf("Group 1 id=%d,value=%d\n",data.id,data.value);
-            break;
-        }
-        case StartADC2:{
-            //            adcData_t data[4];
-            //            int i=0;
-            //            adcResetFiFo(adcREG1,adcGROUP2);
-            //            adcStartConversion(adcREG1,adcGROUP2);
-            //            while(adcIsConversionComplete(adcREG1,adcGROUP2)==0){
-            //                i++;
-            //                vTaskDelay(1);
-            //            }
-            //            adcStopConversion(adcREG1,adcGROUP2);
-            //            adcGetData(adcREG1,adcGROUP2,data);
-            //            printf("Delay=%d\n",i);
-            //            for(i=0;i<4;i++){
-            //                printf("Group 2.%d id=%d,value=%d\n",i,data[i].id,data[i].value);
-            //            }
-            break;
 
+        case TestMemScrub:{
+            ScrubECCMemory((uint64_t *) 0x08000000, 0x20000);
+            break;
         }
-        case RaiseFreq:{
+
+        case RaiseFreq: {
             uint8_t devb = parseNumber(afterCommand);
-            if(devb >= InvalidAX5043Device){
+
+            if (devb >= InvalidAX5043Device){
                 printf("Give a device number between 0 and 4\n");
                 break;
             }
+
             AX5043Device dev = (AX5043Device)devb;
             int number = parseNextNumber();
 
@@ -608,13 +847,16 @@ void RealConsoleTask(void)
             }
             break;
         }
-        case LowerFreq:{
+
+        case LowerFreq: {
             uint8_t devb = parseNumber(afterCommand);
-            if(devb >= InvalidAX5043Device){
+
+            if (devb >= InvalidAX5043Device) {
                 printf("Give a device number between 0 and 4\n");
                 break;
             }
-            AX5043Device dev = (AX5043Device)devb;
+
+            AX5043Device dev = (AX5043Device) devb;
             int number = parseNextNumber();
 
             if (dev == TX_DEVICE) {
@@ -629,12 +871,14 @@ void RealConsoleTask(void)
             break;
         }
 
-        case SetFreq:{
+        case SetFreq: {
             uint8_t devb = parseNumber(afterCommand);
+
             if(devb >= InvalidAX5043Device){
                 printf("Give a device number between 0 and 4\n");
                 break;
             }
+
             AX5043Device dev = (AX5043Device)devb;
             uint32_t freq = parseNextNumber32() * 1000;
 
@@ -650,49 +894,53 @@ void RealConsoleTask(void)
             break;
         }
 
-        case ReadFreqs:{
+        case ReadFreqs: {
             int i;
 
             printf("Tx--MRAM: %d, Memory: %d\n",
-		   ReadMRAMTelemFreq(), DCTTxFreq);
+                   ReadMRAMTelemFreq(), DCTTxFreq);
             for (i = 0; i < NUM_AX5043_RX_DEVICES; i++) {
                 printf("Rx%d--MRAM: %d Memory: %d\n", i,
-		       ReadMRAMReceiveFreq(i), DCTRxFreq[i]);
+                       ReadMRAMReceiveFreq(i), DCTRxFreq[i]);
             }
             break;
         }
 
-        case SaveFreq:{
+        case SaveFreq: {
             int i;
 
             printf("Saving Tx frequency %d to MRAM\n", DCTTxFreq);
             WriteMRAMTelemFreq(DCTTxFreq);
             for (i = 0; i < NUM_AX5043_RX_DEVICES; i++) {
-		printf("Saving Rx%d frequency %d to MRAM\n",i, DCTRxFreq[i]);
+                printf("Saving Rx%d frequency %d to MRAM\n", i, DCTRxFreq[i]);
                 WriteMRAMReceiveFreq(i, DCTRxFreq[i]);
             }
             break;
         }
 
-        case initSaved:{
-            initMRAM(true); //Init this thing from scratch (address size, data size, partitions etc)
+        case initSaved: {
+            // Init this thing from scratch (address size, data size,
+            // partitions etc).
+            initMRAM(true);
             IHUInitSaved(); //Init stuff that we won't want to change on reboot
             SetupMRAM();    //Init stuff that do change (epoch number etc)
             break;
         }
 
-        case LoadKey:{
-            uint8_t key[AUTH_KEY_SIZE],i;
-            uint32_t magic = ENCRYPTION_KEY_MAGIC_VALUE,checksum;
+        case LoadKey: {
+            uint8_t key[AUTH_KEY_SIZE], i;
+            uint32_t magic = ENCRYPTION_KEY_MAGIC_VALUE, checksum;
             const MRAMmap_t *LocalFlash = 0;
             char *str = afterCommand;
             bool stat;
-            for(i=0;i<sizeof(key);i++){
+
+            for (i = 0; i < sizeof(key); i++) {
                 char *next = strtok(str," ,\n");
+
                 str = NULL;
-                if (next != NULL){
-                    key[i] = (uint8_t)strtol(next,0,16);
-                    printf("%d=0x%x ",i,key[i]);
+                if (next != NULL) {
+                    key[i] = (uint8_t) strtol(next, 0, 16);
+                    printf("%d=0x%x ", i, key[i]);
                 } else {
                     printf("Not enough numbers...");
                     break;
@@ -700,29 +948,34 @@ void RealConsoleTask(void)
             }
             checksum = key_checksum(key);
             printf("\n");
-            if(i==sizeof(key)){
+            if (i == sizeof(key)) {
                 printf("Writing key...");
-                stat = writeNV(key,sizeof(LocalFlash->AuthenticateKey.key),NVConfigData,(int)&LocalFlash->AuthenticateKey.key);
+                stat = writeNV(key, sizeof(LocalFlash->AuthenticateKey.key),
+                               NVConfigData,
+                               (int) &LocalFlash->AuthenticateKey.key);
             } else {
                 stat = false;
             }
-            if(stat){
+            if (stat) {
                 printf("Writing checksum=%x...",checksum);
-                stat = writeNV(&checksum,sizeof(LocalFlash->AuthenticateKey.keyChecksum),NVConfigData,
-                               (int)&LocalFlash->AuthenticateKey.keyChecksum);
+                stat = writeNV(&checksum,
+                               sizeof(LocalFlash->AuthenticateKey.keyChecksum),
+                               NVConfigData,
+                               (int) &LocalFlash->AuthenticateKey.keyChecksum);
             }
-            if(stat){
+            if (stat) {
                 printf("Writing valid\n");
             } else {
                 magic = 0;
                 printf("Invalidating stored key\n");
             }
-            stat = writeNV(&magic,sizeof(LocalFlash->AuthenticateKey.magic),NVConfigData,(int)&LocalFlash->AuthenticateKey.magic);
+            stat = writeNV(&magic, sizeof(LocalFlash->AuthenticateKey.magic),
+                           NVConfigData,
+                           (int) &LocalFlash->AuthenticateKey.magic);
             break;
         }
 
-        case MountFS:
-        {
+        case MountFS: {
             if (red_mount("/") == -1) {
                 printf("Unable to mount filesystem: %s\n",
                        red_strerror(red_errno));
@@ -732,8 +985,7 @@ void RealConsoleTask(void)
             break;
         }
 
-        case UnMountFS:
-        {
+        case UnMountFS: {
             if (red_umount("/") == -1) {
                 printf("Unable to unmount filesystem: %s\n",
                        red_strerror(red_errno));
@@ -743,8 +995,7 @@ void RealConsoleTask(void)
             break;
         }
 
-        case FormatFS:
-        {
+        case FormatFS: {
             if (red_format("/") == -1) {
                 printf("Unable to format filesystem: %s\n",
                        red_strerror(red_errno));
@@ -754,165 +1005,203 @@ void RealConsoleTask(void)
             break;
         }
 
-        case LsFS:
-        {
-            int numSpace=0;
-            char *srchStrng;
-            while(afterCommand[numSpace] == ' ') numSpace++;
-            srchStrng = &afterCommand[numSpace];
+        case LsFS: {
             REDDIR *pDir;
-            printf("%s:\n",srchStrng);
+
+            skip_command_spaces(&afterCommand);
+
+            printf("%s:\n", afterCommand);
             printf("Name       Blks  Size \n");
             printf("---------- ----- --------\n");
-            if(strlen(srchStrng)== 0){
+            if (strlen(afterCommand) == 0){
                 pDir = red_opendir("//");
             } else {
-                pDir = red_opendir(srchStrng);
+                pDir = red_opendir(afterCommand);
             }
             if (pDir == NULL) {
                 printf("Unable to open dir: %s\n", red_strerror(red_errno));
                 printf("Make sure the path is fully qualified and starts with //\n");
                 break;
             }
+
             uint32_t total_bytes = 0;
             uint32_t total_blocks = 0;
             REDDIRENT *pDirEnt;
-            red_errno = 0; /* Set error to zero so we can distinguish between a real error and the end of the DIR */
+
+            /*
+             * Set error to zero so we can distinguish between a real
+             * error and the end of the DIR,
+             */
+            red_errno = 0;
             pDirEnt = red_readdir(pDir);
             while (pDirEnt != NULL) {
-                printf("%10s %5d %8d\n", pDirEnt->d_name, pDirEnt->d_stat.st_blocks, (int)pDirEnt->d_stat.st_size );
+                printf("%10s %5d %8d\n", pDirEnt->d_name,
+                       pDirEnt->d_stat.st_blocks,
+                       (int) pDirEnt->d_stat.st_size);
                 total_bytes += pDirEnt->d_stat.st_size;
                 total_blocks += pDirEnt->d_stat.st_blocks;
                 pDirEnt = red_readdir(pDir);
             }
             if (red_errno != 0) {
-                printf("Error reading directory: %s\n", red_strerror(red_errno));
-
+                printf("Error reading directory: %s\n",
+                       red_strerror(red_errno));
             }
+
             int32_t rc = red_closedir(pDir);
             if (rc != 0) {
                 printf("Unable to close dir: %s\n", red_strerror(red_errno));
             }
-            printf("Total File Blocks: %d Bytes: %d\n",total_blocks, total_bytes);
+            printf("Total File Blocks: %d Bytes: %d\n",
+                   total_blocks, total_bytes);
 
             // Now check and print the available disk space
             REDSTATFS redstatfs;
             rc = red_statvfs("/", &redstatfs);
             if (rc != 0) {
-                printf("Unable to check disk space with statvfs: %s\n", red_strerror(red_errno));
+                printf("Unable to check disk space with statvfs: %s\n",
+                       red_strerror(red_errno));
             } else {
-                printf("Free blocks: %d of %d.  Free Bytes: %d\n",redstatfs.f_bfree, redstatfs.f_blocks, redstatfs.f_frsize * redstatfs.f_bfree);
-                printf("Available File Ids: %d of %d.  \n",redstatfs.f_ffree, redstatfs.f_files);
+                printf("Free blocks: %d of %d.  Free Bytes: %d\n",
+                       redstatfs.f_bfree, redstatfs.f_blocks,
+                       redstatfs.f_frsize * redstatfs.f_bfree);
+                printf("Available File Ids: %d of %d.  \n",
+                       redstatfs.f_ffree, redstatfs.f_files);
             }
             break;
         }
+
         case RmFS:
         {
-            int numSpace=0;
-            char *srchStrng;
-            while(afterCommand[numSpace] == ' ') numSpace++;
-            srchStrng = &afterCommand[numSpace];
-            if(strlen(srchStrng)== 0){
+            skip_command_spaces(&afterCommand);
+
+            if (strlen(afterCommand) == 0) {
                 printf("Usage: rm <file name with path>\n");
                 break;
             }
-            int32_t fp = red_unlink(srchStrng);
+
+            int32_t fp = red_unlink(afterCommand);
+
             if (fp == -1) {
-                printf("Unable to remove file %s : %s\n", srchStrng, red_strerror(red_errno));
+                printf("Unable to remove file %s : %s\n",
+                       afterCommand, red_strerror(red_errno));
             }
-
             break;
-
         }
-
-        case GetRfPower:
-            //printf("Safe Rf Power Level is %s\n",GetSafeRfPowerLevel()?"HIGH":"LOW");
-            //printf("Normal Rf Power Level is %s\n",GetNormalRfPowerLevel()?"HIGH":"LOW");
-            break;
 
         case SelectRFPowerLevels:
         {
             uint16_t args[4];
+
             args[0] = parseNumber(afterCommand);
             args[1] = parseNextNumber();
             args[2] = parseNextNumber();
             args[3] = parseNextNumber();
 
-            printf("Select %s power for safe, %s power for normal on primary\n",args[0]?"HIGH":"LOW",args[1]?"HIGH":"LOW");
-            printf("Select %s power for safe, %s power for normal on secondary\n",args[2]?"HIGH":"LOW",args[3]?"HIGH":"LOW");
+            printf("Select %s power for safe, %s power for normal on primary\n",
+                   args[0] ? "HIGH" : "LOW", args[1] ? "HIGH" : "LOW");
+            printf("Select %s power for safe, %s power for normal on secondary\n",
+                   args[2] ? "HIGH" : "LOW", args[3] ? "HIGH" : "LOW");
             SimulateSwCommand(SWCmdNSSpaceCraftOps,SWCmdOpsSelectDCTRFPower,args,4); //Send to others
             break;
         }
         case SetDCTDrivePower:
         {
             uint16_t args[4];
+
             args[0] = parseNumber(afterCommand);
             args[1] = parseNextNumber();
             args[2] = parseNextNumber();
             args[3] = parseNextNumber();
-            printf("Set primary low power to %d, secondary low power to %d\n",args[0],args[1]);
-            printf("Set primary high power to %d, secondary high power to %d\n",args[2],args[3]);
+            printf("Set primary low power to %d, secondary low power to %d\n",
+                   args[0], args[1]);
+            printf("Set primary high power to %d, secondary high power to %d\n",
+                   args[2], args[3]);
             //SimulateSwCommand(SWCmdNSTelemetry,SWCmdTlmDCTDrivePwr,args,4);
             break;
         }
 
         case showDownlinkSize:{
 #define memberSize(type, member) sizeof(((type *)0)->member)
-            printf("\nPayload Sizes: Header=%d,RTHealth=%d (common=%d,common2=%d,specific=%d),\nmin=%d,max=%d,WODHealth=%d\n",
-                   sizeof(header_t),sizeof(realTimePayload_t),
-                   sizeof(commonRtMinmaxWodPayload_t),sizeof(commonRtWodPayload_t),sizeof(realtimeSpecific_t),
-                   sizeof(minValuesPayload_t),sizeof(maxValuesPayload_t),
+            printf("\nPayload Sizes: Header=%d,"
+                   "RTHealth=%d (common=%d,common2=%d,specific=%d),"
+                   "\nmin=%d,max=%d,WODHealth=%d\n",
+                   sizeof(header_t), sizeof(realTimePayload_t),
+                   sizeof(commonRtMinmaxWodPayload_t),
+                   sizeof(commonRtWodPayload_t),
+                   sizeof(realtimeSpecific_t),
+                   sizeof(minValuesPayload_t),
+                   sizeof(maxValuesPayload_t),
                    sizeof(WODHousekeepingPayload_t));
 
             printf("Frame sizes: \n"
                     "      Payload Only,   Current Filler   Current Size\n");
 
             printf("RT1        %03d           \n",
-                   //"RT2        %03d          \n",
-                   //sizeof(realTimeFrame_t),
+#if 0
+                   "RT2        %03d          \n",
+                   sizeof(realTimeFrame_t),
+#endif
                    sizeof(realTimeFrame_t));
-            //                    sizeof(realTimeMinFrame_t)-memberSize(realTimeMinFrame_t,filler),memberSize(realTimeMinFrame_t,filler),sizeof(realTimeMinFrame_t),
-            //                    sizeof(realTimeMaxFrame_t)-memberSize(realTimeMaxFrame_t,filler),memberSize(realTimeMaxFrame_t,filler),sizeof(realTimeMaxFrame_t));
-
+#if 0
+            sizeof(realTimeMinFrame_t) - memberSize(realTimeMinFrame_t, filler),
+            memberSize(realTimeMinFrame_t, filler), sizeof(realTimeMinFrame_t),
+            sizeof(realTimeMaxFrame_t) - memberSize(realTimeMaxFrame_t, filler),
+            memberSize(realTimeMaxFrame_t, filler), sizeof(realTimeMaxFrame_t)
+#endif
             printf("AllWOD1    %03d       \n",
-                   sizeof(allWOD1Frame_t)
-                   //                    sizeof(allWOD1Frame_t)-memberSize(allWOD1Frame_t,filler),memberSize(allWOD1Frame_t,filler),sizeof(allWOD1Frame_t),
-                   //                    sizeof(allWOD2Frame_t)-memberSize(allWOD2Frame_t,filler),memberSize(allWOD2Frame_t,filler),sizeof(allWOD2Frame_t),
-                   //                    sizeof(allWOD3Frame_t)-memberSize(allWOD3Frame_t,filler),memberSize(allWOD3Frame_t,filler),sizeof(allWOD3Frame_t)
-            );
+                   sizeof(allWOD1Frame_t));
+#if 0
+            sizeof(allWOD1Frame_t) - memberSize(allWOD1Frame_t, filler),
+            memberSize(allWOD1Frame_t, filler), sizeof(allWOD1Frame_t),
+            sizeof(allWOD2Frame_t) - memberSize(allWOD2Frame_t, filler),
+            memberSize(allWOD2Frame_t, filler), sizeof(allWOD2Frame_t),
+            sizeof(allWOD3Frame_t) - memberSize(allWOD3Frame_t, filler),
+            memberSize(allWOD3Frame_t, filler), sizeof(allWOD3Frame_t)
+#endif
             printf("SafeData1  %03d       \n"
-                    "SafeWOD    %03d      \n"
-                    ,sizeof(safeData1Frame_t)
-                    ,sizeof(safeWODFrame_t)
-                    //                    ,sizeof(safeData1Frame_t)-memberSize(safeData1Frame_t,filler),memberSize(safeData1Frame_t,filler),sizeof(safeData1Frame_t)
-                    //                    ,sizeof(safeWODFrame_t)-memberSize(safeWODFrame_t,filler),memberSize(safeWODFrame_t,filler),sizeof(safeWODFrame_t)
-            );
+                   "SafeWOD    %03d      \n",
+                   sizeof(safeData1Frame_t),
+                   sizeof(safeWODFrame_t));
+#if 0
+            sizeof(safeData1Frame_t) - memberSize(safeData1Frame_t, filler),
+            memberSize(safeData1Frame_t, filler), sizeof(safeData1Frame_t),
+            sizeof(safeWODFrame_t) - memberSize(safeWODFrame_t, filler),
+            memberSize(safeWODFrame_t, filler), sizeof(safeWODFrame_t)
+#endif
 
             break;
         }
-        case mramSleep:{
+
+        case mramSleep: {
             int num = parseNumber(afterCommand);
+
             MRAMSleep(num);
             break;
         }
-        case mramAwake:{
+
+        case mramAwake: {
             int num = parseNumber(afterCommand);
+
             MRAMWake(num);
             break;
         }
+
         case doClearMRAM:{
             SetupMRAM();
-            WriteMRAMBoolState(StateInOrbit,true); // Don't get confused by in orbit state!
+            // Don't get confused by in orbit state!
+            WriteMRAMBoolState(StateInOrbit, true);
             break;
         }
+
         case ignoreUmb:
             //OverrideUmbilical(true);
             break;
+
         case noticeUmb:
             //OverrideUmbilical(false);
             break;
 
-        case testLED:{
+        case testLED: {
             GPIOSetOn(LED1);
             GPIOSetOn(LED2);
             vTaskDelay(SECONDS(2));
@@ -925,24 +1214,30 @@ void RealConsoleTask(void)
             break;
         }
 
-        case inhibitTx:{
+        case inhibitTx: {
             SimulateHWCommand(CMD_TX_OFF);
             break;
         }
+
         case EnableComPr:
             EnableCommandPrint(true);
             break;
+
         case DisableComPr:
             EnableCommandPrint(false);
             break;
+
         case healthMode:{
-            SimulateSwCommand(SWCmdNSSpaceCraftOps,SWCmdOpsHealthMode,NULL,0);
+            SimulateSwCommand(SWCmdNSSpaceCraftOps,SWCmdOpsHealthMode,
+                              NULL, 0);
             break;
         }
-        case readMRAMsr:{
+
+        case readMRAMsr: {
             int i;
-            for (i=0;i<PACSAT_MAX_MRAMS;){
-                printf("MRAM%d: status %x",i,readMRAMStatus(i));
+
+            for (i = 0; i < PACSAT_MAX_MRAMS; ) {
+                printf("MRAM%d: status %x", i, readMRAMStatus(i));
                 i++;
                 if(i%2 == 0){
                     printf("\n");
@@ -952,54 +1247,65 @@ void RealConsoleTask(void)
             }
             break;
         }
-        case writeMRAMsr:{
+
+        case writeMRAMsr: {
             uint8_t stat = parseNumber(afterCommand);
             int i;
-            for (i=0;i<PACSAT_MAX_MRAMS;i++){
+
+            for (i = 0; i < PACSAT_MAX_MRAMS; i++){
                 writeMRAMStatus(i,stat);
             }
             break;
         }
-        case internalWDTimeout:{
+
+        case internalWDTimeout: {
             ForceInternalWatchdogTrigger();
             break;
         }
-        case externalWDTimeout:{
+
+        case externalWDTimeout: {
             ForceExternalWatchdogTrigger();
             break;
         }
-        case pollI2c:{
+
+        case pollI2c: {
             I2CDevicePoll();
             break;
         }
-        case getI2cState:{
+
+        case getI2cState: {
 
             printf("I2c device state: (1 is ok)\n"
                     "   PacSat CPU Temp: %d, Tx Temp: %d    RTC: %d\n",
                     CpuTempIsOk(),TxTempIsOk(),RTCIsOk());
             break;
         }
-        case telem0:{
+
+        case telem0: {
             DisplayTelemetry(0);
             break;
         }
 
         case startRx:{
             uint8_t devb = parseNumber(afterCommand);
-	    // -1 to remove the TX device.
+
+            // -1 to remove the TX device.
             if (devb >= InvalidAX5043Device - 1) {
-                printf("Give a device number between 0 and %d\n", NUM_AX5043_SPI_DEVICES - 1);
+                printf("Give a device number between 0 and %d\n",
+                       NUM_AX5043_SPI_DEVICES - 1);
                 break;
             }
             ax5043StartRx((AX5043Device) devb);
             break;
         }
 
-        case stopRx:{
+        case stopRx: {
             uint8_t devb = parseNumber(afterCommand);
-	    // -1 to remove the TX device.
+
+            // -1 to remove the TX device.
             if (devb >= InvalidAX5043Device - 1) {
-                printf("Give a device number between 0 and %d\n", NUM_AX5043_SPI_DEVICES - 1);
+                printf("Give a device number between 0 and %d\n",
+                       NUM_AX5043_SPI_DEVICES - 1);
                 break;
             }
             ax5043StopRx((AX5043Device) devb);
@@ -1010,51 +1316,51 @@ void RealConsoleTask(void)
             printID();
             break;
         }
-        case time:{
+
+        case time: {
             logicalTime_t time;
+
             getTime(&time);
-            printf("IHU time:  Resets=%i,seconds=%i\n",time.IHUresetCnt,time.METcount);
+            printf("IHU time:  Resets=%i,seconds=%i\n",
+                   time.IHUresetCnt,time.METcount);
             getTimestamp(&time);
-            printf("Timestamp time:  Epoch=%i,seconds=%i\n",time.IHUresetCnt,time.METcount);
-            printf("Poweron Time since preflight: %d seconds\n",getSecondsInOrbit());
-            printf("Unix time in secs: %d\n",getUnixTime());
+            printf("Timestamp time:  Epoch=%i,seconds=%i\n",
+                   time.IHUresetCnt, time.METcount);
+            printf("Poweron Time since preflight: %d seconds\n",
+                   getSecondsInOrbit());
+            printf("Unix time in secs: %d\n",
+                   getUnixTime());
 
             printf("Short boot count: %d, short boot flag %d\n\r",
                    SaveAcrossReset.fields.earlyResetCount,
-                   SaveAcrossReset.fields.wasStillEarlyInBoot
-            );
-
+                   SaveAcrossReset.fields.wasStillEarlyInBoot);
             break;
         }
-        case preflight:{
-            PreflightInitNow(Any_Node); //We will take Any_Node to mean send to everyone
+        case preflight: {
+            // We will take Any_Node to mean send to everyone
+            PreflightInitNow(Any_Node);
             break;
 
         }
-        case startWD:{
+        case startWD: {
             SWISetWDTimer();
             dwdReset();
             SWIStartWatchdog();
             break;
         }
-        case resetBoth:{
-            //            uint16_t args[]={0,1,1};
-            //            SimulateSwCommand(SWCmdNSSpaceCraftOps,SWCmdOpsResetSpecified,args,3);
-            break;
-        }
-        case reset:{
+        case reset: {
             vTaskDelay(CENTISECONDS(50));
             ProcessorReset();
             break;
         }
 
-        case toggleRfPowPrint:{
-	    extern bool print_rf_power;
-	    print_rf_power = !print_rf_power;
-	    break;
-	}
+        case toggleRfPowPrint: {
+            extern bool print_rf_power;
+            print_rf_power = !print_rf_power;
+            break;
+        }
 
-        case getTemp:{
+        case getTemp: {
 #ifdef BLINKY_HARDWARE
             uint8_t temp8;
             if(Get8BitTemp31725(CpuTemp,&temp8)){
@@ -1071,112 +1377,131 @@ void RealConsoleTask(void)
                 printf("\nTransmitter temp request failed\n");
             }
 #elif defined AFSK_HARDWARE
-	    printf("CPU temp: %d\n", board_temps[TEMPERATURE_VAL_CPU]);
-	    printf("PA temp: %d\n", board_temps[TEMPERATURE_VAL_PA]);
-	    printf("Power temp: %d\n", board_temps[TEMPERATURE_VAL_POWER]);
+            printf("CPU temp: %d\n", board_temps[TEMPERATURE_VAL_CPU]);
+            printf("PA temp: %d\n", board_temps[TEMPERATURE_VAL_PA]);
+            printf("Power temp: %d\n", board_temps[TEMPERATURE_VAL_POWER]);
 #else
-	    printf("\nNo temperature available\n");
+            printf("\nNo temperature available\n");
 #endif
             break;
         }
-        case getVoltages:{
+
+        case getVoltages: {
 #ifdef AFSK_HARDWARE
-	    printf("3.3V: %d\n", board_voltages[VOLTAGE_VAL_3v3]);
-	    printf("1.2V: %d\n", board_voltages[VOLTAGE_VAL_1v2]);
-	    printf("5V: %d\n", board_voltages[VOLTAGE_VAL_5v]);
-	    printf("Battery: %d\n", board_voltages[VOLTAGE_VAL_BATTERY]);
+            printf("3.3V: %d\n", board_voltages[VOLTAGE_VAL_3v3]);
+            printf("1.2V: %d\n", board_voltages[VOLTAGE_VAL_1v2]);
+            printf("5V: %d\n", board_voltages[VOLTAGE_VAL_5v]);
+            printf("Battery: %d\n", board_voltages[VOLTAGE_VAL_BATTERY]);
 #else
-	    printf("\nNo voltages available\n");
+            printf("\nNo voltages available\n");
 #endif
             break;
         }
-        case getPowerFlags:{
+
+        case getPowerFlags: {
 #ifdef AFSK_HARDWARE
-	    printf("5V: %d\n", board_power_flags[POWER_FLAG_5V]);
-	    printf("LNA: %d\n", board_power_flags[POWER_FLAG_LNA]);
-	    printf("SSPA: %d\n", board_power_flags[POWER_FLAG_SSPA]);
-	    printf("AX5043: %d\n", board_power_flags[POWER_FLAG_AX5043]);
+            printf("5V: %d\n", board_power_flags[POWER_FLAG_5V]);
+            printf("LNA: %d\n", board_power_flags[POWER_FLAG_LNA]);
+            printf("SSPA: %d\n", board_power_flags[POWER_FLAG_SSPA]);
+            printf("AX5043: %d\n", board_power_flags[POWER_FLAG_AX5043]);
 #else
-	    printf("\nNo power flags available\n");
+            printf("\nNo power flags available\n");
 #endif
             break;
         }
-        case getBoardVersion:{
-	    printf("Board version: %d\n", board_version);
-	    break;
-	}
-        case testAX5043:{
+
+        case getBoardVersion: {
+            printf("Board version: %d\n", board_version);
+            break;
+        }
+
+        case testAX5043: {
             int i;
+
             for (i = 0; i < NUM_AX5043_SPI_DEVICES; i++)
                 ax5043Test((AX5043Device)i);
             break;
         }
-        case getax5043:{
+
+        case getax5043: {
             uint8_t devb = parseNumber(afterCommand);
+
             if (devb >= InvalidAX5043Device) {
-                printf("Give a device number between 0 and %d\n", NUM_AX5043_SPI_DEVICES - 1);
+                printf("Give a device number between 0 and %d\n",
+                       NUM_AX5043_SPI_DEVICES - 1);
                 break;
             }
             ax5043Dump((AX5043Device) devb);
             break;
         }
 
-        case readax5043:{
+        case readax5043: {
             uint8_t devb = parseNumber(afterCommand);
+
             if (devb >= InvalidAX5043Device) {
-                printf("Give a device number between 0 and %d\n", NUM_AX5043_SPI_DEVICES - 1);
+                printf("Give a device number between 0 and %d\n",
+                       NUM_AX5043_SPI_DEVICES - 1);
                 break;
             }
+
             uint16_t regstart = parseNextNumber();
             uint16_t regend = parseNextNumber();
-	    uint16_t i;
+            uint16_t i;
 
-	    if (regend <= regstart)
-		regend = regstart;
+            if (regend <= regstart)
+                regend = regstart;
 
-	    for (i = regstart; i <= regend; i++) {
-		unsigned int val = ax5043ReadReg((AX5043Device) devb, i);
+            for (i = regstart; i <= regend; i++) {
+                unsigned int val = ax5043ReadReg((AX5043Device) devb, i);
 
-		printf("ax5043 %d reg 0x%3.3x = %3d (0x%2.2x)\n",
-		       devb, i, val, val);
-	    }
+                printf("ax5043 %d reg 0x%3.3x = %3d (0x%2.2x)\n",
+                       devb, i, val, val);
+            }
             break;
         }
 
-        case writeax5043:{
+        case writeax5043: {
             uint8_t devb = parseNumber(afterCommand);
+
             if (devb >= InvalidAX5043Device) {
-                printf("Give a device number between 0 and %d\n", NUM_AX5043_SPI_DEVICES - 1);
+                printf("Give a device number between 0 and %d\n",
+                       NUM_AX5043_SPI_DEVICES - 1);
                 break;
             }
+
             uint16_t reg = parseNextNumber();
             uint8_t val = parseNextNumber();
 
-	    ax5043WriteReg((AX5043Device) devb, reg, val);
-	    printf("ax5043 %d reg 0x%3.3x = %3d (0x%2.2x)\n", devb, reg, val, val);
+            ax5043WriteReg((AX5043Device) devb, reg, val);
+            printf("ax5043 %d reg 0x%3.3x = %3d (0x%2.2x)\n",
+                   devb, reg, val, val);
             break;
         }
 
-        case getRSSI:{
+        case getRSSI: {
             uint8_t devb = parseNumber(afterCommand);
-            if(devb >= InvalidAX5043Device){
+
+            if (devb >= InvalidAX5043Device) {
                 printf("Give a device number between 0 and 4\n");
                 break;
             }
-            AX5043Device dev = (AX5043Device)devb;
+            AX5043Device dev = (AX5043Device) devb;
             int rssi = get_rssi(dev);
-            printf("AX5043 Dev: %d RSSI is %02x = %d dBm\n",dev,rssi,((int16_t)rssi) - 255);
+            printf("AX5043 Dev: %d RSSI is %02x = %d dBm\n",
+                   dev, rssi, ((int16_t)rssi) - 255);
             break;
         }
 
         case testRxFreq: {
-            //This is so we can find what the receive frequency is on first build
+            // This is so we can find what the receive frequency is on
+            // first build
             uint8_t devb = parseNumber(afterCommand);
-            if(devb >= InvalidAX5043Device){
+
+            if (devb >= InvalidAX5043Device) {
                 printf("Give a device number between 0 and 4\n");
                 break;
             }
-            AX5043Device device = (AX5043Device)devb;
+            AX5043Device device = (AX5043Device) devb;
             uint32_t freq = DCTRxFreq[device];
 
             printf("Testing TX/RX for AX5043 Dev: %d\n", device);
@@ -1184,13 +1509,14 @@ void RealConsoleTask(void)
             break;
         }
 
-        case testPLLrange:{
+        case testPLLrange: {
             uint8_t devb = parseNumber(afterCommand);
-            if(devb >= InvalidAX5043Device){
+
+            if (devb >= InvalidAX5043Device) {
                 printf("Give a device number between 0 and 4\n");
                 break;
             }
-            AX5043Device device = (AX5043Device)devb;
+            AX5043Device device = (AX5043Device) devb;
 
             printf("Testing the PLL range for device: %d\n", device);
 
@@ -1204,196 +1530,248 @@ void RealConsoleTask(void)
          * This is a subset of the self tests.  They do not cause a transmission
          * It does create a test file in the directory that needs to be removed manually
          */
-        case testPacsat:{
-
-            if(! pb_test_callsigns()) {  debug_print("### Callsign TEST FAILED\n"); break; }
-            if(!test_ax25_util_decode_packet()) {  debug_print("### Packet Decode TEST FAILED\n"); break; }
-            if(! pb_test_list()) {  debug_print("### pb list TEST FAILED.  ** was PB Enabled?? Use 'open pb' to enable it ** \n"); break; }
-            if(! pb_clear_list()) {  debug_print("### pb list clear TEST FAILED\n"); break; }
-            if(! tx_test_make_packet()) {  debug_print("### tx make packet TEST FAILED\n"); break; }
-            if(! test_pfh()) {  debug_print("### pfh TEST FAILED\n"); break; }
-            if(! test_pfh_file()) {  debug_print("### pfh TEST FILE FAILED\n"); break; }
-
-            if(! test_ftl0_upload_table()) {  debug_print("### FTL0 Upload Table TEST FAILED\n"); break; }
-
+        case testPacsat: {
+            if (!pb_test_callsigns()) {
+                debug_print("### Callsign TEST FAILED\n");
+                break;
+            }
+            if (!test_ax25_util_decode_packet()) {
+                debug_print("### Packet Decode TEST FAILED\n");
+                break;
+            }
+            if (! pb_test_list()) {
+                debug_print("### pb list TEST FAILED.  ** was PB Enabled?? Use 'open pb' to enable it ** \n");
+                break;
+            }
+            if (!pb_clear_list()) {
+                debug_print("### pb list clear TEST FAILED\n");
+                break;
+            }
+            if (!tx_test_make_packet()) {
+                debug_print("### tx make packet TEST FAILED\n");
+                break;
+            }
+            if (!test_pfh()) {
+                debug_print("### pfh TEST FAILED\n");
+                break;
+            }
+            if (!test_pfh_file()) {
+                debug_print("### pfh TEST FILE FAILED\n");
+                break;
+            }
+            if (!test_ftl0_upload_table()) {
+                debug_print("### FTL0 Upload Table TEST FAILED\n");
+                break;
+            }
 
             debug_print("### ALL TESTS PASSED\n");
             break;
         }
-        case testCallsigns:{
+
+        case testCallsigns: {
             bool rc = pb_test_callsigns();
             break;
         }
-        case testPbOk:{
+
+        case testPbOk: {
             bool rc = pb_test_ok();
             break;
         }
-        case testPbStatus:{
+
+        case testPbStatus: {
             pb_send_status();
             break;
         }
-        case testPbList:{
+
+        case testPbList: {
             bool rc = pb_test_list();
-            if (rc != TRUE) debug_print (".. was PB Enabled?? Use 'open pb' to enable it \n");
+            if (rc != TRUE)
+                debug_print (".. was PB Enabled?? Use 'open pb' to enable it \n");
             break;
         }
-        case testPbClearList:{
+
+        case testPbClearList: {
             bool rc = pb_clear_list();
             break;
         }
-        case testTx:{
+
+        case testTx: {
             bool rc = tx_test_make_packet();
             break;
         }
-        case testPfh:{
+
+        case testPfh: {
             bool rc = test_pfh();
             break;
         }
-        case testPfhFile:{
+
+        case testPfhFile: {
             bool rc = test_pfh_file();
             break;
         }
-        case makePfhFiles:{
+
+        case makePfhFiles: {
             bool rc = test_pfh_make_files();
             break;
         }
-        case testDir:{
+
+        case testDir: {
             bool rc = test_pacsat_dir();
             break;
         }
-        case testDecode:{
+
+        case testDecode: {
             bool rc = test_ax25_util_decode_packet();
             break;
         }
-        case sendUplinkStatus:{
+
+        case sendUplinkStatus: {
             ax25_send_status();
             break;
         }
-        case testRetransmission:{
+
+        case testRetransmission: {
             bool rc = test_ax25_retransmission();
             break;
         }
-        case testUploadTable:{
+
+        case testUploadTable: {
             bool rc = test_ftl0_upload_table();
             break;
         }
-        case listUploadTable:{
+
+        case listUploadTable: {
             bool rc = ftl0_debug_list_upload_table();
             break;
         }
 
 #endif /* DEBUG */
 
-        case monitorOn:{
-            monitorPackets=true;
+        case monitorOn: {
+            monitorPackets = true;
             printf("monitorPackets = true\n");
             break;
         }
-        case monitorOff:{
-            monitorPackets=false;
+
+        case monitorOff: {
+            monitorPackets = false;
             printf("monitorPackets = false\n");
             break;
         }
-        case pbShut:{
-            WriteMRAMBoolState(StatePbEnabled,false);
+
+        case pbShut: {
+            WriteMRAMBoolState(StatePbEnabled, false);
             printf("PB SHUT\n");
             break;
         }
-        case pbOpen:{
-            WriteMRAMBoolState(StatePbEnabled,true);
+
+        case pbOpen: {
+            WriteMRAMBoolState(StatePbEnabled, true);
             printf("PB OPEN\n");
             break;
         }
-        case uplinkShut:{
-            WriteMRAMBoolState(StateUplinkEnabled,false);
+
+        case uplinkShut: {
+            WriteMRAMBoolState(StateUplinkEnabled, false);
             printf("UPLINK SHUT\n");
             break;
         }
-        case uplinkOpen:{
-            WriteMRAMBoolState(StateUplinkEnabled,true);
+
+        case uplinkOpen: {
+            WriteMRAMBoolState(StateUplinkEnabled, true);
             printf("UPLINK OPEN\n");
             break;
         }
-        case digiShut:{
-            WriteMRAMBoolState(StateDigiEnabled,false);
+
+        case digiShut: {
+            WriteMRAMBoolState(StateDigiEnabled, false);
             printf("Digipeater Disabled\n");
             break;
         }
-        case digiOpen:{
-            WriteMRAMBoolState(StateDigiEnabled,true);
+
+        case digiOpen: {
+            WriteMRAMBoolState(StateDigiEnabled, true);
             printf("Digipeater Enabled\n");
             break;
         }
+
         case mkdirFS: {
-            int numSpace=0;
-            char *srchStrng;
-            while(afterCommand[numSpace] == ' ') numSpace++;
-            srchStrng = &afterCommand[numSpace];
-            if(strlen(srchStrng)== 0){
+            skip_command_spaces(&afterCommand);
+
+            if (strlen(afterCommand) == 0) {
                 printf("Usage: mkdir <file name with path>\n");
                 break;
             }
-            int32_t rc = red_mkdir(srchStrng);
+
+            int32_t rc = red_mkdir(afterCommand);
             if (rc == -1) {
-                printf("Unable make dir %s: %s\n", srchStrng, red_strerror(red_errno));
+                printf("Unable make dir %s: %s\n",
+                       afterCommand, red_strerror(red_errno));
             }
             break;
         }
 
         case rmdirFS: {
-            int numSpace=0;
-            char *srchStrng;
-            while(afterCommand[numSpace] == ' ') numSpace++;
-            srchStrng = &afterCommand[numSpace];
-            if(strlen(srchStrng)== 0){
+            skip_command_spaces(&afterCommand);
+
+            if(strlen(afterCommand)== 0){
                 printf("Usage: rmdir <file name with path>\n");
                 break;
             }
-            int32_t rc = red_rmdir(srchStrng);
+
+            int32_t rc = red_rmdir(afterCommand);
+
             if (rc == -1) {
                 if (red_errno == RED_EBUSY)
-                    printf("Unable remove dir that contains other files or directories: %s\n", srchStrng, red_strerror(red_errno));
+                    printf("Unable remove dir that contains other files or directories: %s\n",
+                           afterCommand, red_strerror(red_errno));
                 else
-                    printf("Unable remove dir %s: %s\n", srchStrng, red_strerror(red_errno));
+                    printf("Unable remove dir %s: %s\n",
+                           afterCommand, red_strerror(red_errno));
             }
             break;
         }
 
 
         case mramHxd: {
-            int numSpace=0;
-            char *srchStrng;
-            while(afterCommand[numSpace] == ' ') numSpace++;
-            srchStrng = &afterCommand[numSpace];
-            if(strlen(srchStrng)== 0){
+            skip_command_spaces(&afterCommand);
+
+            if (strlen(afterCommand) == 0){
                 printf("Usage: hxd <file name with path>\n");
                 break;
             }
+
             char read_buffer[512];
-            int32_t fp = red_open(srchStrng, RED_O_RDONLY);
+            int32_t fp = red_open(afterCommand, RED_O_RDONLY);
+
             if (fp != -1) {
-                int32_t numOfBytesRead = red_read(fp, read_buffer, sizeof(read_buffer));
+                int32_t numOfBytesRead = red_read(fp, read_buffer,
+                                                  sizeof(read_buffer));
+
                 printf("Read returned: %d\n",numOfBytesRead);
                 if (numOfBytesRead == -1) {
-                    printf("Unable to read file: %s\n", red_strerror(red_errno));
+                    printf("Unable to read file: %s\n",
+                           red_strerror(red_errno));
                 } else {
                     int q;
-                    for (q=0; q< numOfBytesRead; q++) {
+
+                    for (q = 0; q < numOfBytesRead; q++) {
                         printf("%02x ", read_buffer[q]);
-                        if (q != 0 && q % 20 == 0 ) printf("\n");
+                        if (q != 0 && q % 20 == 0)
+                            printf("\n");
                     }
                 }
 
                 int32_t rc = red_close(fp);
                 if (rc != 0) {
-                    printf("Unable to close file: %s\n", red_strerror(red_errno));
+                    printf("Unable to close file: %s\n",
+                           red_strerror(red_errno));
                 }
             } else {
-                printf("Unable to open %s for reading: %s\n", srchStrng, red_strerror(red_errno));
+                printf("Unable to open %s for reading: %s\n",
+                       afterCommand, red_strerror(red_errno));
             }
             printf("\n");
-
-
             break;
         }
 
@@ -1401,32 +1779,37 @@ void RealConsoleTask(void)
             bool rc = dir_load();
             break;
         }
+
         case dirClear:{
             dir_free();
             break;
         }
 
         case listDir:{
-            dir_debug_print(NULL); // pass NULL to print from the head of the list
+            // pass NULL to print from the head of the list
+            dir_debug_print(NULL);
             break;
         }
-        case getNextFileNumber:{
+
+        case getNextFileNumber: {
             uint32_t next_file_id = dir_next_file_number();
-            printf("Next File Number from the Dir will be: %04x\n",next_file_id);
+            printf("Next File Number from the Dir will be: %04x\n",
+                   next_file_id);
             break;
         }
-        case resetNextFileNumber:{
+
+        case resetNextFileNumber: {
             WriteMRAMHighestFileNumber(0);
             printf("Next file number reset to zero\n");
             break;
         }
 
-        case heapFree:{
+        case heapFree: {
             printf("Free heap size: %d\n",xPortGetFreeHeapSize());
             break;
         }
 
-        case getUnxTime:{
+        case getUnxTime: {
             printf("Unix time in secs: %d\n",getUnixTime());
             break;
         }
@@ -1450,7 +1833,7 @@ void RealConsoleTask(void)
         }
 
         case setRate1200:
-        case setRate9600:{
+        case setRate9600: {
             printf("Setting Radio to %sbps.\n",
                    index == setRate9600 ? "9600" : "1200");
             WriteMRAMBoolState(StateAx25Rate9600, index == setRate9600);
@@ -1474,7 +1857,7 @@ void RealConsoleTask(void)
             break;
         }
 
-        case getRtc:{
+        case getRtc: {
             bool rc = false;
 
             uint32_t time;
@@ -1487,77 +1870,52 @@ void RealConsoleTask(void)
             break;
         }
 
-        case HelpAll:{
-            int numSpace=0;
-            char *srchStrng;
-            while(afterCommand[numSpace] == ' ') numSpace++;
-            srchStrng = &afterCommand[numSpace];
-            if(strlen(srchStrng)== 0){
-                printf("\n***LIST OF ALL COMMANDS:\n\n");
-            } else {
-                printf("\n***LIST OF ALL COMMANDS CONTAINING %s:\n\n",srchStrng);
-            }
-            printf("COMMON COMMANDS:\n");
-            printHelp(srchStrng,commonCommands,numberOfCommonCommands);
-            printf("PACSAT PB and Upload COMMANDS:\n");
-            printHelp(srchStrng,pacsatCommands,numberOfPacsatCommands);
-            printf("\nSETUP COMMANDS:\n");
-            printHelp(srchStrng,setupCommands,numberOfSetupCommands);
-            printf("\nDEBUG COMMANDS:\n");
-            printHelp(srchStrng,debugCommands,numberOfDebugCommands);
-            break;
-        }
-        case HelpDevo:{
-            int numSpace=0;
-            char *srchStrng;
-            while(afterCommand[numSpace] == ' ') numSpace++;
-            srchStrng = &afterCommand[numSpace];
-            if(strlen(srchStrng)== 0){
-                printf("\n***LIST OF DEBUG/DEVELOPER COMMANDS:\n\n");
-            } else {
-                printf("\n***LIST OF DEBUG/DEVELOPER COMMANDS CONTAINING %s:\n\n",srchStrng);
-            }
-            printHelp(srchStrng,debugCommands,numberOfDebugCommands);
-            break;
-        }
-        case HelpSetup:{
-            int numSpace=0;
-            char *srchStrng;
-            while(afterCommand[numSpace] == ' ') numSpace++;
-            srchStrng = &afterCommand[numSpace];
-            if(strlen(srchStrng)== 0){
-                printf("\n***LIST OF NEW BOARD SETUP/TEST COMMANDS:\n\n");
-            } else {
-                printf("\n***LIST OF NEW BOARD SETUP/TEST COMMANDS CONTAINING %s:\n\n",srchStrng);
-            }
-            printHelp(srchStrng,setupCommands,numberOfSetupCommands);
-            break;
-        }
-        case HelpPacsat:{
-            int numSpace=0;
-            char *srchStrng;
-            while(afterCommand[numSpace] == ' ') numSpace++;
-            srchStrng = &afterCommand[numSpace];
-            if(strlen(srchStrng)== 0){
-                printf("\n***LIST OF PACSAT PB and BBS COMMANDS:\n\n");
-            } else {
-                printf("\n***LIST OF PACSAT PB and BBS COMMANDS CONTAINING %s:\n\n",srchStrng);
-            }
-            printHelp(srchStrng,pacsatCommands,numberOfPacsatCommands);
-            break;
-        }
-        case Help: {
-            int numSpace=0;
-            char *srchStrng;
-            while(afterCommand[numSpace] == ' ') numSpace++;
-            srchStrng = &afterCommand[numSpace];
-            if(strlen(srchStrng)== 0){
-                printf("***List of common commands:\n\n");
-            } else {
-                printf("***List of common commands containing %s:\n\n",srchStrng);
-            }
+        case HelpAll: {
+            int i;
 
-            printHelp(srchStrng,commonCommands,numberOfCommonCommands);
+            skip_command_spaces(&afterCommand);
+
+            if (strlen(afterCommand) == 0){
+                printf("\n***LIST OF ALL COMMANDS:\n");
+            } else {
+                printf("\n***LIST OF ALL COMMANDS CONTAINING %s:\n",
+                       afterCommand);
+            }
+            for (i = 0; command_tables[i].pairs; i++) {
+                printf("\n%s:\n", command_tables[i].name);
+                printHelp(afterCommand, command_tables[i].pairs,
+                          command_tables[i].num_cmds);
+            }
+            break;
+        }
+
+        case Help:
+        case HelpPacsat:
+        case HelpSetup:
+        case HelpDevo: {
+            struct command_table *table = NULL;
+
+            if (index == Help)
+                table = &command_tables[HELP_COMMON_INDEX];
+            else if (index == HelpPacsat)
+                table = &command_tables[HELP_PACSAT_INDEX];
+            else if (index == HelpSetup)
+                table = &command_tables[HELP_SETUP_INDEX];
+            else if (index == HelpDevo)
+                table = &command_tables[HELP_DEBUG_INDEX];
+
+            if (!table)
+                break;
+
+            skip_command_spaces(&afterCommand);
+
+            if (strlen(afterCommand) == 0){
+                printf("\n***LIST OF %s COMMANDS:\n\n", table->name);
+            } else {
+                printf("\n***LIST OF %s COMMANDS CONTAINING %s:\n\n",
+                       table->name, afterCommand);
+            }
+            printHelp(afterCommand, table->pairs, table->num_cmds);
             break;
         }
 

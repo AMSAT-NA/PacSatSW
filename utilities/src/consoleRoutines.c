@@ -265,22 +265,27 @@ void printID(void){
     //            ErrMsg[localErrorCollection.LegErrorCode],
     //            localErrorCollection.LegWdReports,localErrorCollection.LegTaskNumber);
 }
-void printHelp(char *search,commandPairs *commands, int numberOfCommands){
+
+void printHelp(char *search,commandPairs *commands, int numberOfCommands)
+{
     int commandNum,sizeCmd,numSpace,space;
+
     for (commandNum = 0; commandNum < numberOfCommands; commandNum++) {
         char *command = commands[commandNum].typedCommand;
         char *helpText = commands[commandNum].help;
-        if(strstr(command,search)==NULL &&
-                strstr(helpText,search) ==  NULL){
+
+        if (strstr(command, search) == NULL &&
+                strstr(helpText, search) == NULL) {
             continue;
         }
+
         sizeCmd = strlen(command);
-        numSpace = 20-sizeCmd;
-        printf("%s",command);
-        for(space=0; space<numSpace;space++){
+        numSpace = 20 - sizeCmd;
+        printf("%s", command);
+        for(space=0; space < numSpace; space++){
             printf(" ");
         }
-        printf("%s\n",commands[commandNum].help);
+        printf("%s\n", commands[commandNum].help);
     }
 }
 
