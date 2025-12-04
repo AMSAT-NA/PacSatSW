@@ -217,6 +217,24 @@ handle_adc_power_flag(unsigned int pin, unsigned int millivolts)
     }
 }
 
+bool print_rf_power;
+
+static void
+handle_adc_rf_power(unsigned int pin, unsigned int millivolts)
+{
+    switch (pin) {
+    case ADC_PIN_FORWARD_POWER:
+	if (print_rf_power)
+	    printf("Forward power: %d\n", millivolts);
+	break;
+
+    case ADC_PIN_REVERSE_POWER:
+	if (print_rf_power)
+	    printf("Reverse power: %d\n", millivolts);
+	break;
+    }
+}
+
 unsigned int board_version;
 
 static void
@@ -264,6 +282,9 @@ init_adc_proc(void)
     adc_install_handler(ADC_PIN_PWR_FLAG_LNA, handle_adc_power_flag);
     adc_install_handler(ADC_PIN_PWR_FLAG_SSPA, handle_adc_power_flag);
     adc_install_handler(ADC_PIN_PWR_FLAG_AX5043, handle_adc_power_flag);
+
+    adc_install_handler(ADC_PIN_FORWARD_POWER, handle_adc_rf_power);
+    adc_install_handler(ADC_PIN_REVERSE_POWER, handle_adc_rf_power);
 #endif
 
     return true;

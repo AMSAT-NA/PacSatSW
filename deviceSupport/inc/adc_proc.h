@@ -58,6 +58,9 @@ enum adc_pins {
     ADC_PIN_VOLTAGE_5v = 12, // Measures at half voltage
     ADC_PIN_VOLTAGE_BATTERY = 1, // Unknown for now, resistors not there.
 
+    ADC_PIN_FORWARD_POWER = 3,
+    ADC_PIN_REVERSE_POWER = 2,
+
     ADC_PIN_EXTERN_CONTROL = 18,
     ADC_PIN_BOARD_NUM = 17,
 };

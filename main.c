@@ -179,8 +179,10 @@ void startup(void)
     /* Turn on the LNA.  FIXME - do this when necessary. */
     GPIOSetOn(LNAPower);
 
-#if 0
+    /* Start off with power measurements on. */
     GPIOSetOn(MeasurePower);
+
+#if 0
     GPIOSetOn(CANAPower);
     GPIOSetOn(CANBPower);
 

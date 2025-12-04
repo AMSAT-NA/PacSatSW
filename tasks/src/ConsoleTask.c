@@ -96,6 +96,7 @@ enum {
     ,getTemp
     ,getVoltages
     ,getPowerFlags
+    ,toggleRfPowPrint
     ,getBoardVersion
     ,reset
     ,resetBoth
@@ -298,6 +299,7 @@ commandPairs commonCommands[] = {
                                  ,{"get temp","Get RT-IHU board temperature",getTemp}
                                  ,{"get voltages","Get RT-IHU board voltages",getVoltages}
                                  ,{"get power flags","Get RT-IHU board voltages",getPowerFlags}
+                                 ,{"toggle rf power print","Toggle printing RF power",toggleRfPowPrint}
                                  ,{"get board version","Get board version number",getBoardVersion}
                                  ,{"get state","Mainly for debug: Get the current state of the downlink state machine",getState}
                                  ,{"get version","Get the software version number and build time",version}
@@ -1045,6 +1047,12 @@ void RealConsoleTask(void)
             ProcessorReset();
             break;
         }
+
+        case toggleRfPowPrint:{
+	    extern bool print_rf_power;
+	    print_rf_power = !print_rf_power;
+	    break;
+	}
 
         case getTemp:{
 #ifdef BLINKY_HARDWARE
