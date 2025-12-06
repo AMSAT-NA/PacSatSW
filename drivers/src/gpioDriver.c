@@ -662,9 +662,7 @@ static const GPIOInfo SSPAPowerInfo = {
     .PinNum               = GPIOsspaPowerPin,
     .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
-#ifdef BLINKY_HARDWARE
     .NegativeLogic        = true,
-#endif
 };
 
 static const GPIOInfo Ax5043PowerInfo = {
