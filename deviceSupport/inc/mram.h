@@ -28,6 +28,10 @@
 #define MRAM_OP_WAKE  0b10101011 /* Wake up from sleep--only on MRAM, not FRAM*/
 #define FRAM_OP_RDID  0b10011111 /* Read Device ID */
 
+
+#define MRAM_OP_RCRS  0x46 /* Read config registers */
+#define MRAM_OP_WCRS  0x87 /* Write config registers */
+
 #define FRAM_1M_ID 0x24
 #define FRAM_512K_ID 0x23
 #define FRAM_1M_ADDRESS_LENGTH 3    /* This is for the M-RAM */
@@ -45,6 +49,8 @@
 #define MRAM_STATUS_ADDR_3 0x32
 #define MRAM_STATUS_WEL 0x2 /*Pay attention to write protect bits*/
 #define MRAM_STATUS_WPROT 0xC /*These bits clear to enable all banks in MRAM */
+
+#define MRAM_MFG_ID_AVALANCHE 0xe6
 
 /*
  * Size of partition 0.  This is the partition used by non-volatile

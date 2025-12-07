@@ -30,6 +30,7 @@ static uint32_t MRAMAddressBytes=0;
 static const SPIDevice MRAM_Devices[PACSAT_MAX_MRAMS] =
     {MRAM0Dev, MRAM1Dev, MRAM2Dev, MRAM3Dev};
 static uint32_t MRAMSize[PACSAT_MAX_MRAMS];
+static uint8_t MRAMMfgId[PACSAT_MAX_MRAMS];
 static int numberOfMRAMs = 0;
 static int totalMRAMSize = 0;
 
@@ -103,10 +104,15 @@ bool writeEnableMRAM(int mramNum)
     /* Allow writing to the status register */
     retVal = SPISendCommand(MRAM_Devices[mramNum], command.word,
                           1, NULL, 0, NULL, 0);
-    status = MRAM_STATUS_ADDR_MASK & readMRAMStatus(mramNum);
-    status |= MRAM_STATUS_WEL;  // Pay attention to write enable bits
-    status &= ~MRAM_STATUS_WPROT; // Clear the write protect bits
-    writeMRAMStatus(mramNum,status);
+    if (MRAMMfgId[mramNum] == MRAM_MFG_ID_AVALANCHE) {
+	/* Nothing to do here, it's already set up. */
+    } else {
+	/* These are default values, may or may not work. */
+	status = readMRAMStatus(mramNum) & MRAM_STATUS_ADDR_MASK;
+	status |= MRAM_STATUS_WEL;  // Pay attention to write enable bits
+	status &= ~MRAM_STATUS_WPROT; // Clear the write protect bits
+	writeMRAMStatus(mramNum, status);
+    }
     return retVal;
 }
 
@@ -280,6 +286,52 @@ static uint32_t readMRAMWord(SPIDevice dev, uint32_t inAddr)
     return value;
 }
 
+void getMRAMMfgId(int mramNum, SPIDevice dev)
+{
+    ByteToWord command;
+    uint8_t buf[4];
+
+    command.byte[0] = FRAM_OP_RDID;
+    SPISendCommand(dev, command.word, 1, NULL, 0, buf, 4);
+    MRAMMfgId[mramNum] = buf[0];
+}
+
+#if 0
+void dumpMRAMRegisters(SPIDevice dev)
+{
+    ByteToWord command;
+    uint8_t buf[4];
+
+    command.byte[0] = FRAM_OP_RDSR;
+    SPISendCommand(dev, command.word, 1, NULL, 0, buf, 1);
+    printf("SR = 0x%2.2x\n", buf[0]);
+    command.byte[0] = MRAM_OP_RCRS;
+    SPISendCommand(dev, command.word, 1, NULL, 0, buf, 4);
+    printf("CRs = 0x%2.2x %2.2x %2.2x %2.2x\n", buf[0], buf[1], buf[2], buf[3]);
+    command.byte[0] = FRAM_OP_RDID;
+    SPISendCommand(dev, command.word, 1, NULL, 0, buf, 4);
+    printf("devid = 0x%2.2x%2.2x%2.2x%2.2x\n", buf[0], buf[1], buf[2], buf[3]);
+}
+#endif
+
+void setupAvalancheMRAM(int mramNum, SPIDevice dev)
+{
+    /* Make sure to set all the configuration registers. */
+    ByteToWord command;
+
+    /* FIXME - need to double-check all these values. */
+    uint8_t buf[4] = { 0, 0, 0, 5 };
+
+    command.byte[0] = MRAM_OP_WCRS;
+    SPISendCommand(dev, command.word, 1, buf, 4, NULL, 0);
+
+    /*
+     * Turn off special protection for blocks and arrays and the hardware
+     * write protection.  Enable serial number write protection.
+     */
+    writeMRAMStatus(mramNum, 0x40);
+}
+
 int getMRAMSize(int mramNum)
 {
     /*
@@ -297,6 +349,11 @@ int getMRAMSize(int mramNum)
         return 0;
 
     dev = MRAM_Devices[mramNum];
+
+    getMRAMMfgId(mramNum, dev);
+
+    if (MRAMMfgId[mramNum] == MRAM_MFG_ID_AVALANCHE)
+	setupAvalancheMRAM(mramNum, dev);
 
     writeEnableMRAM(mramNum);
 

@@ -107,7 +107,6 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
                 dbm = rssi - 255;
                 debug_print("RSSI-0: %d dBm\n",dbm);
             }
-#if NUM_AX5043_RX_DEVICES == 4
             rssi = get_rssi(AX5043Dev1);
             if (rssi > ADJ_RX_RSSI_THRESHOLD) {
                 dbm = rssi - 255;
@@ -123,7 +122,6 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
                 dbm = rssi - 255;
                 debug_print("RSSI-3: %d dBm\n",dbm);
             }
-#endif
 ////                debug_print("FRMRX: %d   ",ax5043ReadReg(device, AX5043_FRAMING) & 0x80 ); // FRAMING Pkt start bit detected - will print 128
 ////                debug_print("RADIO: %d ",ax5043ReadReg(device, AX5043_RADIOSTATE) & 0xF ); // Radio State bits 0-3
         }
