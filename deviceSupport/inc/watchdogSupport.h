@@ -30,6 +30,7 @@ typedef enum {
     PBTaskWD,
     CommandWD,
     IdleWD,
+    CANTaskWD,
     /* Add any new tasks to watch in here.  Maximum number of tasks is 9. */
     /* The nine limit is the number of bits available in the downlink */
     LastWD,
@@ -40,7 +41,7 @@ typedef enum {
      * golf_task_name.tab file.
      */
 }WdReporters_t;
-#if LastWD > 9
+#if LastWD > 10
 #error Too many watchdog tasks
 #endif
 

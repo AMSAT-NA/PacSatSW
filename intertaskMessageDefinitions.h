@@ -75,6 +75,12 @@ typedef enum {
     TacSendErrorsPowerCycleMsg,
     TacADCStartMsg,
     TacADCProcessMsg,
+
+    /*
+     * Messages to the CAN task
+     */
+    CANRxDataMsg,
+    CANUpdateIDMsg,
 } IntertaskMessageType;
 
 

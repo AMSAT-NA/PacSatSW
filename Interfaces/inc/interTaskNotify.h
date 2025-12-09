@@ -19,15 +19,15 @@
 
 typedef enum {
     ToNone=-1,
-	ToDownlinkControl=0,
-	ToCommand,
-	ToRxTask,
+    ToDownlinkControl=0,
+    ToCommand,
+    ToRxTask,
     ToTxTask,
-	ToTelemetryAndControl,
+    ToTelemetryAndControl,
+    ToCANTask,
     // New message destinations go above here
-	ToCAN,
-	ToCoordinate,
-	NumberOfDestinations
+    ToCoordinate,
+    NumberOfDestinations
 } DestinationTask;
 
 

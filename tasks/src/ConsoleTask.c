@@ -61,6 +61,7 @@
 #include "Max31725Temp.h"
 #endif
 
+#include "CANTask.h" // For test routines
 #include "TxTask.h" // for test routines
 #include "PbTask.h" // for test routines
 #include "pacsat_header.h" // for test routines
@@ -150,6 +151,8 @@ enum {
     GetCommands,
     GetGpios,
     SetGpio,
+    SendCANMsg,
+    SetCANLoopback,
     getax5043,
     readax5043,
     writeax5043,
@@ -509,6 +512,12 @@ commandPairs commonCommands[] = {
     { "set gpio",
       "Set the value of a GPIO",
       SetGpio},
+    { "send can",
+      "Send a CAN bus message",
+      SendCANMsg },
+    { "set can loopback",
+      "Enable/Disable the CAN loopback",
+      SetCANLoopback },
     { "get ax",
       "Get ax5043 status",
       getax5043},
@@ -799,6 +808,42 @@ void RealConsoleTask(void)
             else
                 GPIOSetOff(i);
             printf("Set %s(%d) to %d\n", GPIOToName(i), i, GPIOIsOn(i));
+            break;
+        }
+
+        case SendCANMsg: {
+            uint8_t canNum = parseNumber(afterCommand);
+            int priority = parseNextNumber();
+            int type = parseNextNumber();
+            uint32_t id = parseNextNumber32();
+            int dest = parseNextNumber();
+            int msglen = parseNextNumber();
+            uint8_t msg[24];
+            unsigned int i;
+
+            if (canNum >= NUM_CAN_BUSSES) {
+                printf("Invalid can bus: %d\n", canNum);
+                break;
+            }
+
+	    if (msglen > 24)
+		msglen = 24;
+	    for (i = 0; i < msglen; i++)
+		msg[i] = 0x10 + i;
+            CANSend(canNum, priority, type, id, dest, msg, msglen);
+            break;
+        }
+
+        case SetCANLoopback: {
+            uint8_t canNum = parseNumber(afterCommand);
+            uint8_t enable = parseNextNumber();
+
+            if (canNum >= NUM_CAN_BUSSES) {
+                printf("Invalid can bus: %d\n", canNum);
+                break;
+            }
+
+            CANEnableLoopback(canNum, enable);
             break;
         }
 #endif

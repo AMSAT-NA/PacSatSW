@@ -44,6 +44,7 @@
 #include "Max31331Rtc.h"
 #include "ConsoleTask.h"
 #include "CommandTask.h"
+#include "CANTask.h"
 #include "TxTask.h"
 #include "RxTask.h"
 #include "Ax25Task.h"
@@ -133,6 +134,7 @@ void startup(void)
     i2cInit();
     spiInit();
     adcInit();
+    canInit();
 
     /*
      * A few things need to be started and initialized via HAL
@@ -220,6 +222,7 @@ void startup(void)
     while (1); // Just in case, this will hit the watchdog
 
 }
+
 void ConsoleTask(void *pvParameters){
     bool haveWaited,umbilicalAttached; //todo: Fix charger when we get that line in V1.2
     //GPIOInit(WatchdogFeed,NO_TASK,NO_MESSAGE);
@@ -234,6 +237,8 @@ void ConsoleTask(void *pvParameters){
     SerialInitPort(COM2,COM2_BAUD,10,10);
 
     init_adc_proc();
+
+    CANInit();
 
     // Initialize the SPI driver for our SPI devices
 
@@ -338,13 +343,21 @@ void ConsoleTask(void *pvParameters){
     }
 
     xTaskCreate(CommandTask, "Command", COMMAND_STACK_SIZE,
-                NULL,COMMAND_PRIORITY, NULL);
-    xTaskCreate(RxTask,"RxTask",RX_STACK_SIZE, NULL, RX_PRIORITY,NULL);
-    xTaskCreate(Ax25Task,"Ax25Task",AX25_STACK_SIZE, NULL, AX25_PRIORITY,NULL);
-    xTaskCreate(PbTask,"PbTask",PB_STACK_SIZE, NULL, PB_PRIORITY,NULL);
-    xTaskCreate(UplinkTask,"UplinkTask",UPLINK_STACK_SIZE, NULL, UPLINK_PRIORITY,NULL);
-    xTaskCreate(TxTask,"TxTask",RADIO_STACK_SIZE, NULL,TX_PRIORITY,NULL);
-    xTaskCreate(TelemAndControlTask,"Telem and Control Task",TELEMETRY_STACK_SIZE, NULL,TELEMETRY_PRIORITY,NULL);
+                NULL, COMMAND_PRIORITY, NULL);
+    xTaskCreate(CANTask, "CANTask", CAN_STACK_SIZE, NULL,
+                CAN_PRIORITY, NULL);
+    xTaskCreate(RxTask, "RxTask", RX_STACK_SIZE, NULL,
+                RX_PRIORITY, NULL);
+    xTaskCreate(Ax25Task, "Ax25Task", AX25_STACK_SIZE, NULL,
+                AX25_PRIORITY, NULL);
+    xTaskCreate(PbTask, "PbTask", PB_STACK_SIZE, NULL,
+                PB_PRIORITY, NULL);
+    xTaskCreate(UplinkTask, "UplinkTask", UPLINK_STACK_SIZE, NULL,
+                UPLINK_PRIORITY, NULL);
+    xTaskCreate(TxTask, "TxTask", RADIO_STACK_SIZE, NULL,
+                TX_PRIORITY, NULL);
+    xTaskCreate(TelemAndControlTask, "Telem and Control Task",
+                TELEMETRY_STACK_SIZE, NULL, TELEMETRY_PRIORITY, NULL);
 #endif
     debug_print("Free heap size after tasks launched: %d\n",xPortGetFreeHeapSize());
 
