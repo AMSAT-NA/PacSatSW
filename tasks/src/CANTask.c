@@ -88,6 +88,8 @@
  * the number of receive buffers somehow.
  */
 
+bool trace_can;
+
 #define CAN_TRANSMIT_BOX 1
 #define CAN_RECEIVE_FIRST_BOX 2
 #define CAN_RECEIVE_NUM_BOXES 8
@@ -134,33 +136,40 @@ typedef volatile struct canIfRegs {
  * and CAN bus 3 is 1.
  */
 struct CANInfo {
-    bool TxWaiting;
+    volatile bool TxWaiting;
 
     /* Controls access to the transmit function. */
     xSemaphoreHandle TxSemaphore;
 
-        /* Used to signal that the transmit of a message is finished. */
+    /* Used to signal that the transmit of a message is finished. */
     xSemaphoreHandle TxDoneSemaphore;
+
+    /* Used to control access to IF2. */
+    xSemaphoreHandle IFSemaphore;
 
     int myID; /* Source ID. */
     canBASE_t *regs;
+
+    volatile int tx_error;
+
+    /* Receive lengths for the long messages, indexed by ID1. */
+    uint16_t *id1_lengths;
+
+    CANReceiveHandler rxhandler;
 
     /* Used when receiving a message >8 bytes long. */
     uint8_t *long_rx_msg;
     uint16_t max_rx_msg_len;
     uint16_t long_rx_msg_len;
+    bool long_rx_msg_var; /* Variable length. */
     uint8_t long_rx_src;
+    uint8_t long_rx_type;
     uint8_t long_rx_id;
+    int next_seq;
 };
 
 static uint8_t can_bus1_rx_data[CAN1_MAX_RECV];
 static uint8_t can_bus2_rx_data[CAN2_MAX_RECV];
-
-static struct CANInfo can[NUM_CAN_BUSSES] = {
-    { .long_rx_msg = can_bus1_rx_data, .max_rx_msg_len = CAN1_MAX_RECV },
-    { .long_rx_msg = can_bus2_rx_data, .max_rx_msg_len = CAN2_MAX_RECV },
-};
-
 
 /*
  * For messages with id1 != 0, it's a multi-message send and this
@@ -169,25 +178,45 @@ static struct CANInfo can[NUM_CAN_BUSSES] = {
  * value of 4096-6143 says it's a variable-length message and the
  * maximum length is val-4096.
  */
-static uint16_t id1_lengths[16] = {
+static uint16_t id1_lengths1[16] = {
     0,      0,      0,      0,
     0,      0,      0,      0,
     0,      0,      0,      0,
-    0,      0,      0,   4608,
+    0,      0,      0,   4096 + CAN1_MAX_RECV,
 };
+static uint16_t id1_lengths2[16] = {
+    0,      0,      0,      0,
+    0,      0,      0,      0,
+    0,      0,      0,      0,
+    0,      0,      0,   4096 + CAN2_MAX_RECV,
+};
+
+static struct CANInfo can[NUM_CAN_BUSSES] = {
+    { .long_rx_msg = can_bus1_rx_data, .max_rx_msg_len = CAN1_MAX_RECV,
+      .id1_lengths = id1_lengths1 },
+    { .long_rx_msg = can_bus2_rx_data, .max_rx_msg_len = CAN2_MAX_RECV,
+      .id1_lengths = id1_lengths2 },
+};
+
 
 void CANInit(void)
 {
     unsigned int i;
 
-    for (i = 0; i < NUM_CAN_BUSSES; i++) {
-        vSemaphoreCreateBinary(can[i].TxSemaphore);
-        vSemaphoreCreateBinary(can[i].TxDoneSemaphore);
-        can[i].myID = 15;
-    }
     /* CAN bus 1 is not used. */
     can[0].regs = canREG2;
     can[1].regs = canREG3;
+    for (i = 0; i < NUM_CAN_BUSSES; i++) {
+        vSemaphoreCreateBinary(can[i].TxSemaphore);
+        vSemaphoreCreateBinary(can[i].TxDoneSemaphore);
+        vSemaphoreCreateBinary(can[i].IFSemaphore);
+        canEnableErrorNotification(can[i].regs);
+        canEnableStatusChangeNotification(can[i].regs);
+      }
+    can[0].myID = 15;
+    can[1].myID = 14;
+    GPIOSetOn(CANAPower);
+    GPIOSetOn(CANBPower);
 }
 
 void CANEnableLoopback(int canNum, bool enable)
@@ -202,16 +231,25 @@ void CANEnableLoopback(int canNum, bool enable)
 }
 
 /*
- * For transmit we use IF1 to set data.  For receive we use IF1 to
- * get/set data.
+ * We use IF2, IF1 is reserved for the interrupt handler.
  */
-static canIfRegs *CANGetIfRegs(int canNum, int transmit)
+static canIfRegs *CANGetIfRegs(int canNum)
 {
-    int offset = 0x100;
+    int offset = 0x120;
 
-    if (!transmit)
-        offset += 0x20;
+    if (xSemaphoreTake(can[canNum].IFSemaphore,
+                       WATCHDOG_SHORT_WAIT_TIME) != pdTRUE) {
+        /* If we can't get it within a few seconds...trouble */
+        ReportToWatchdog(CurrentTaskWD);
+        ReportError(CANInUse, false, TaskNumber, 0);
+        return NULL;
+    }
     return (struct canIfRegs *) (((uint8_t *) can[canNum].regs) + offset);
+}
+
+static void CANPutIFRegs(int canNum)
+{
+    xSemaphoreGive(can[canNum].IFSemaphore);
 }
 
 /*
@@ -248,7 +286,9 @@ static bool CANSetOneBox(int canNum, int box, int enable, int transmit,
     enable = !!enable;
     transmit = !!transmit;
 
-    regs = CANGetIfRegs(canNum, transmit);
+    regs = CANGetIfRegs(canNum);
+    if (!regs)
+        return false;
 
     /* Wait for the register to be free. */
     while ((regs->STAT & 0x80U) == 0x80U)
@@ -289,6 +329,9 @@ static bool CANSetOneBox(int canNum, int box, int enable, int transmit,
 
     /* Transfer the data. */
     regs->NO = box;
+
+    CANPutIFRegs(canNum);
+
     return true;
 }
 
@@ -317,9 +360,11 @@ static bool CANGetOneBox(int canNum, int box, uint32_t *id,
     if (box == 0 || box > 64)
         return false;
 
-    regs = CANGetIfRegs(canNum, CAN_BOX_RECEIVE);
-
     if ((can[canNum].regs->NWDATx[regIndex] & bitIndex) == 0)
+        return false;
+
+    regs = CANGetIfRegs(canNum);
+    if (!regs)
         return false;
 
     while ((regs->STAT & 0x80U) == 0x80U)
@@ -342,7 +387,7 @@ static bool CANGetOneBox(int canNum, int box, uint32_t *id,
     *id = regs->ARB & 0x1fffffff;
     *msglen = regs->MCTL & 0xf;
     if (*msglen > 8)
-	*msglen = 8;
+        *msglen = 8;
     for (i = 0; i < *msglen; i++) {
 #if ((__little_endian__ == 1) || (__LITTLE_ENDIAN__ == 1))
         msg[i] = regs->DATx[i];
@@ -352,7 +397,61 @@ static bool CANGetOneBox(int canNum, int box, uint32_t *id,
     }
     *msglost = !!(regs->MCTL & 0x4000U);
 
+    CANPutIFRegs(canNum);
+
     return true;
+}
+
+static bool CANSendOneMessage(int canNum, uint32_t id,
+                              uint8_t *msg, unsigned int msglen)
+{
+    bool rv = true;
+
+    if (trace_can) {
+        unsigned int i;
+
+        printf("Sending CAN message on CAN %d to id 0x%8.8x:\n",
+               canNum, id);
+        if (msglen > 0) {
+            for (i = 0; i < msglen; i++)
+                printf(" %2.2x", msg[i]);
+            printf("\n");
+        }
+    }
+
+    ReportToWatchdog(CurrentTaskWD);
+    if (xSemaphoreTake(can[canNum].TxDoneSemaphore,
+                       WATCHDOG_SHORT_WAIT_TIME) != pdTRUE) {
+        /* If we can't get it within a few seconds...trouble */
+        ReportToWatchdog(CurrentTaskWD);
+        ReportError(CANInUse, false, TaskNumber, 0);
+        return false;
+    }
+    ReportToWatchdog(CurrentTaskWD);
+
+    can[canNum].tx_error = 0;
+    can[canNum].TxWaiting = true;
+
+    CANSetOneBox(canNum, CAN_TRANSMIT_BOX,
+                 CAN_BOX_ENABLE, CAN_BOX_TRANSMIT,
+                 id, 0, msg, msglen);
+
+    /* Wait for the message to be sent. */
+    if (xSemaphoreTake(can[canNum].TxDoneSemaphore,
+                       WATCHDOG_SHORT_WAIT_TIME) != pdTRUE) {
+        /* If we can't get it within a few seconds...trouble */
+        ReportToWatchdog(CurrentTaskWD);
+        ReportError(CANInUse, false, TaskNumber, 0);
+        return false;
+    }
+    ReportToWatchdog(CurrentTaskWD);
+
+    if (can[canNum].tx_error)
+        rv = false;
+
+    xSemaphoreGive(can[canNum].TxDoneSemaphore);
+
+    return rv;
 }
 
 /*
@@ -363,6 +462,7 @@ bool CANSend(int canNum, int priority, int type, uint32_t id, int dest,
 {
     uint32_t id1, id2;
     unsigned int i, left, dlc;
+    bool rv = true, variable = false;
 
     if (canNum >= NUM_CAN_BUSSES)
         return false;
@@ -379,15 +479,25 @@ bool CANSend(int canNum, int priority, int type, uint32_t id, int dest,
     if (msglen > 8) {
         if (id >= 16 || id == 0)
             return false;
-        if (id1_lengths[id] == 0)
+        if (can[canNum].id1_lengths[id] == 0)
             return false;
-        if (id1_lengths[id] >= 4096) {
-            if (msglen > id1_lengths[id] - 4096)
+        if (can[canNum].id1_lengths[id] >= 4096) {
+            if (msglen > can[canNum].id1_lengths[id] - 4096)
                 /* See the notes above on variable-length messages. */
                 return false;
-        } else if (id1_lengths[id] != msglen) {
+	    variable = true;
+        } else if (can[canNum].id1_lengths[id] != msglen) {
             return false;
         }
+        id1 = id;
+        id2 = 0;
+    } else if (msglen == 8 && id > 0 && id < 16) {
+	/*
+	 * Special case, a variable-length 8-byte message must be sent
+	 * as two messages.
+	 */
+        if (can[canNum].id1_lengths[id] >= 4096)
+	    variable = true;
         id1 = id;
         id2 = 0;
     } else {
@@ -412,34 +522,24 @@ bool CANSend(int canNum, int priority, int type, uint32_t id, int dest,
               | (can[canNum].myID << 8)
               | (id1 << 4)
               | dest);
+
         if (left > 8)
             dlc = 8;
         else
             dlc = left;
 
-        ReportToWatchdog(CurrentTaskWD);
-        if (xSemaphoreTake(can[canNum].TxDoneSemaphore,
-                           WATCHDOG_SHORT_WAIT_TIME) != pdTRUE) {
-            /* If we can't get it within a few seconds...trouble */
-            ReportToWatchdog(CurrentTaskWD);
-            ReportError(CANInUse, false, TaskNumber, 0);
-            return false;
+        if (!CANSendOneMessage(canNum, id, msg + i, dlc)) {
+            rv = false;
+            break;
         }
-        ReportToWatchdog(CurrentTaskWD);
-
-        can[canNum].TxWaiting = true;
-
-        CANSetOneBox(canNum, CAN_TRANSMIT_BOX,
-                     CAN_BOX_ENABLE, CAN_BOX_TRANSMIT,
-                     id, 0, msg + i, dlc);
         id2++;
     }
 
-    if (msglen == 0 || (msglen > 8 && dlc == 8)) { 
+    if (rv && (msglen == 0 || (variable && msglen >= 8 && dlc == 8))) {
        /*
-         * If it was an empty message, or if it was a multi-message
-         * send and the last message was 8 bytes, we send an empty
-         * message to mark the end of the send.
+         * If it was an empty message, or if it was a variable sized
+         * multi-message send and the last message was 8 bytes, we
+         * send an empty message to mark the end of the send.
          */
         id = ((priority << 24)
               | (id2 << 16)
@@ -448,52 +548,152 @@ bool CANSend(int canNum, int priority, int type, uint32_t id, int dest,
               | (id1 << 4)
               | dest);
 
-        ReportToWatchdog(CurrentTaskWD);
-        if (xSemaphoreTake(can[canNum].TxDoneSemaphore,
-                           WATCHDOG_SHORT_WAIT_TIME) != pdTRUE) {
-            /* If we can't get it within a few seconds...trouble */
-            ReportToWatchdog(CurrentTaskWD);
-            ReportError(CANInUse, false, TaskNumber, 0);
-            return false;
-        }
-        ReportToWatchdog(CurrentTaskWD);
-
-        can[canNum].TxWaiting = true;
-
-        CANSetOneBox(canNum, CAN_TRANSMIT_BOX,
-                     CAN_BOX_ENABLE, CAN_BOX_TRANSMIT,
-                     id, 0, NULL, 0);
+        if (!CANSendOneMessage(canNum, id, NULL, 0))
+            rv = false;
     }
 
     xSemaphoreGive(can[canNum].TxSemaphore);
 
+    return rv;
+}
+
+static bool CANSetupNewRxMsg(struct CANInfo *ci,
+                             int type, int src, int msgid)
+{
+    if (ci->id1_lengths[msgid] == 0)
+        /* Not a supported long message. */
+        return false;
+
+    if (ci->id1_lengths[msgid] >= 4096) {
+        ci->max_rx_msg_len = ci->id1_lengths[msgid] - 4096;
+        ci->long_rx_msg_var = true;
+    } else {
+        ci->max_rx_msg_len = ci->id1_lengths[msgid];
+        ci->long_rx_msg_var = false;
+    }
+    ci->next_seq = 0;
+    ci->long_rx_msg_len = 0;
+    ci->long_rx_src = src;
+    ci->long_rx_type = type;
+    ci->long_rx_id = msgid;
     return true;
 }
 
 static void CANHandleReceive(int canNum, int box)
 {
     uint32_t id;
-    uint8_t msg[8];
-    unsigned int msglen, i;
+    uint8_t msg[8], *msgp;
+    unsigned int msglen;
     bool msglost;
+    int id1, id2, type, src, msgid;
+    struct CANInfo *ci = &can[canNum];
 
-    while (canIsRxMessageArrived(can[canNum].regs, box)) {
+    while (canIsRxMessageArrived(ci->regs, box)) {
         if (!CANGetOneBox(canNum, box, &id, msg, &msglen, &msglost))
             break;
 
-        printf("Got CAN message from CAN %d box %d id 0x%8.8x:\n",
-               canNum, box, id);
-        for (i = 0; i < msglen; i++)
-            printf(" %2.2x", msg[i]);
-        printf("\n");
+        if (trace_can) {
+            unsigned int i;
 
-        if (msglost) {
-            /* FIXME - report CAN message lost. */
-            printf("CAN message lost\n");
+            printf("Got CAN message from CAN %d box %d id 0x%8.8x:\n",
+                   canNum, box, id);
+            if (msglen > 0) {
+                for (i = 0; i < msglen; i++)
+                    printf(" %2.2x", msg[i]);
+                printf("\n");
+            }
         }
 
-        /* Handle data here. */
+        if (msglost && trace_can)
+            printf("CAN message lost\n");
+
+        id2 = (id >> 16) & 0xff;
+        id1 = (id >> 4) & 0xf;
+        src = (id >> 8) & 0xf;
+        type = (id >> 12) & 0xf;
+        if (id1 == 0)
+            msgid = id2;
+        else
+            msgid = id1;
+
+        if (id1 == 0 || (id2 == 0 && msglen < 8)) {
+            /* Single-buffer message. */
+            if (ci->rxhandler)
+                ci->rxhandler(canNum,
+                              (id >> 24) & 0x1f, /* priority */
+                              type,
+                              msgid,
+                              id & 0xf, /* dest */
+                              src,
+                              msg, msglen);
+        } else {
+            if (src != ci->long_rx_src || msgid != ci->long_rx_id ||
+                    type != ci->long_rx_type) {
+                /*
+                 * Got a new source for a long message, abort the
+                 * previous one.
+                 */
+                if (id2 != 0)
+                    /* Ignore if not the first message. */
+                    continue;
+                if (!CANSetupNewRxMsg(ci, type, src, msgid))
+                    continue;
+            } else if (id2 == 0) {
+                /* Start of a new message. */
+                if (!CANSetupNewRxMsg(ci, type, src, msgid))
+                    continue;
+            } else if (ci->next_seq != id2 ||
+                    ci->long_rx_msg_len + msglen > ci->max_rx_msg_len) {
+                /* Sequence mismatch or message too long, just abort. */
+                ci->next_seq = 0;
+                ci->long_rx_msg_len = 0;
+                continue;
+            }
+            /* Next message of a send. */
+            ci->next_seq++;
+            memcpy(ci->long_rx_msg + ci->long_rx_msg_len, msg, msglen);
+            ci->long_rx_msg_len += msglen;
+
+            if ((!ci->long_rx_msg_var &&
+                 ci->long_rx_msg_len == ci->max_rx_msg_len)
+                || (ci->long_rx_msg_var && msglen < 8)) {
+
+                msgp = ci->long_rx_msg;
+                msglen = ci->long_rx_msg_len;
+
+                if (trace_can) {
+                    unsigned int i;
+
+                    printf("Long CAN message from CAN %d box %d id 0x%8.8x:",
+                           canNum, box, id);
+                    for (i = 0; i < msglen; i++) {
+                        if (i % 16 == 0)
+                            printf("\n");
+                        printf(" %2.2x", msgp[i]);
+                    }
+                    printf("\n");
+                }
+
+                if (ci->rxhandler)
+                    ci->rxhandler(canNum,
+                                  (id >> 24) & 0x1f, /* priority */
+                                  type,
+                                  msgid,
+                                  id & 0xf, /* dest */
+                                  src,
+                                  msgp, msglen);
+                ci->next_seq = 0;
+                ci->long_rx_msg_len = 0;
+            }
+        }
     }
+}
+
+void CANRegisterReceiveHandler(int canNum, CANReceiveHandler rxhandler)
+{
+    if (canNum >= NUM_CAN_BUSSES)
+        return;
+    can[canNum].rxhandler = rxhandler;
 }
 
 static void CANSetupRxBoxes(int canNum)
@@ -537,8 +737,8 @@ portTASK_FUNCTION_PROTO(CANTask, pvParameters)
     unsigned int i;
 
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)CANTaskWD);
-    /* Enough for all message boxes. */
-    InitInterTask(ToCANTask, 64 * NUM_CAN_BUSSES);
+    /* Enough for all message boxes and some for other purposes. */
+    InitInterTask(ToCANTask, CAN_RECEIVE_NUM_BOXES * NUM_CAN_BUSSES + 5);
     ReportToWatchdog(CANTaskWD);
 
     for (i = 0; i < NUM_CAN_BUSSES; i++)
@@ -564,18 +764,115 @@ portTASK_FUNCTION_PROTO(CANTask, pvParameters)
         case CANUpdateIDMsg:
             can[msg.argument].myID = msg.argument2;
             CANSetupRxBoxes(msg.argument);
+            break;
+
+        case CANErrorMsg:
+            if (trace_can)
+                printf("CAN %d Error %x\n", msg.argument, msg.argument2);
+            break;
+
+        case CANStatusMsg:
+            if (trace_can)
+                printf("CAN %d Status %x\n", msg.argument, msg.argument2);
+            break;
         }
     }
 }
 
+/*
+ * Handle an "error".  Note that you can get here in a non-error
+ * situation if there are too many pending errors or the CAN bus is in
+ * passive state.  That is generally ok, we handle it gracefully here.
+ *
+ * Note: This depends on some customization in the lower level
+ * interrupt handler to pass all the ES bits.
+ */
 void canErrorNotification(canBASE_t *node, uint32 notification)
 {
-    /* FIXME - handle this. */
+    int canNum;
+    static Intertask_Message msg;
+    BaseType_t higherPrioTaskWoken;
+
+    if (!(notification & ((1 << 7) | (1 << 6))))
+        /*
+         * Only handle something on a bus off or too many error situation.
+         * Thus ignore parity errors only.
+         */
+        return;
+
+    if (node == canREG2)
+        canNum = 0;
+    else if (node == canREG3)
+        canNum = 1;
+    else
+        return;
+
+    if (notification & 0x7) {
+        /*
+         * There was an actual error.  Abort the TX operation.
+         */
+        while ((node->IF1STAT & 0x80) == 0x80)
+            ;
+
+        node->IF1MCTL = 0x00;
+        node->IF1ARB = 0x00;
+        node->IF1CMD = 0xb0;
+        node->IF1NO  = CAN_TRANSMIT_BOX;
+
+        while ((node->IF1STAT & 0x80) == 0x80)
+            ;
+    }
+
+    if (notification & (1 << 6)) { /* Too many errors (EWarn) */
+        /*
+         * Clear the counters by asserting Init, waiting for the ack
+         * then deasserting Init.
+         *
+         * FIXME - this doesn't work.  Query done on the TI forum.
+         */
+        node->CTL |= 1;
+        while ((node->CTL & 1) != 1)
+            ;
+        node->CTL &= ~1;
+    }
+
+    /* Now tell the user, if they are waiting. */
+    if (can[canNum].TxWaiting) {
+        can[canNum].tx_error = notification & 0x7;
+        can[canNum].TxWaiting = false;
+        xSemaphoreGiveFromISR(can[canNum].TxDoneSemaphore,
+                              &higherPrioTaskWoken);
+    }
+
+    if (trace_can) {
+        /* Send status up to be printed. */
+        msg.MsgType = CANErrorMsg;
+        msg.argument = canNum;
+        msg.argument2 = notification;
+        NotifyInterTaskFromISR(ToCANTask, &msg);
+    }
 }
 
 void canStatusChangeNotification(canBASE_t *node, uint32 notification)  
 {
-    /* FIXME - handle this. */
+    int canNum;
+    static Intertask_Message msg;
+
+    /* This function just sends status up to be printed. */
+    if (!trace_can)
+        return;
+
+    if (node == canREG2)
+        canNum = 0;
+    else if (node == canREG3)
+        canNum = 1;
+    else
+        return;
+
+    msg.MsgType = CANStatusMsg;
+    msg.argument = canNum;
+    msg.argument2 = notification;
+    NotifyInterTaskFromISR(ToCANTask, &msg);
 }
 
 void canMessageNotification(canBASE_t *node, uint32 messageBox)  

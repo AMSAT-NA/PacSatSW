@@ -81,6 +81,8 @@ typedef enum {
      */
     CANRxDataMsg,
     CANUpdateIDMsg,
+    CANErrorMsg,
+    CANStatusMsg,
 } IntertaskMessageType;
 
 

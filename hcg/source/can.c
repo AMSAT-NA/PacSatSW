@@ -236,10 +236,10 @@ void canInit(void)
     *     - Setup baud rate prescaler
     */
     canREG2->BTR = (uint32)((uint32)0U << 16U) |
-                   (uint32)((uint32)(2U - 1U) << 12U) |
-                   (uint32)((uint32)((3U + 2U) - 1U) << 8U) |
-                   (uint32)((uint32)(2U - 1U) << 6U) |
-                   (uint32)19U;		
+                   (uint32)((uint32)(3U - 1U) << 12U) |
+                   (uint32)((uint32)((1U + 3U) - 1U) << 8U) |
+                   (uint32)((uint32)(3U - 1U) << 6U) |
+                   (uint32)9U;		
 
 
    /** - CAN2 Port output values */
@@ -279,9 +279,9 @@ void canInit(void)
     *     - Disable status interrupts
     *     - Enter initialization mode
     */
-    canREG3->CTL = (uint32)0x00000000U 
+    canREG3->CTL = (uint32)0x00000200U 
                  | (uint32)0x00000000U 
-                 | (uint32)((uint32)0x00000005U << 10U)
+                 | (uint32)((uint32)0x0000000AU << 10U)
                  | 0x00020043U;
 
     /** - Clear all pending error flags and reset current status */
@@ -355,7 +355,7 @@ void canInit(void)
                          | (uint32)0x00000000U;
 
     /** - Setup auto bus on timer period */
-    canREG3->ABOTR = (uint32)0U;
+    canREG3->ABOTR = (uint32)1U;
 
     /** - Setup IF1 for data transmission 
     *     - Wait until IF1 is ready for use 
@@ -385,10 +385,10 @@ void canInit(void)
     *     - Setup baud rate prescaler
     */
     canREG3->BTR = (uint32)((uint32)0U << 16U) |
-                   (uint32)((uint32)(2U - 1U) << 12U) |
-                   (uint32)((uint32)((3U + 2U) - 1U) << 8U) |
-                   (uint32)((uint32)(2U - 1U) << 6U) |
-                   (uint32)(uint32)19U;
+                   (uint32)((uint32)(1U - 1U) << 12U) |
+                   (uint32)((uint32)((7U + 1U) - 1U) << 8U) |
+                   (uint32)((uint32)(1U - 1U) << 6U) |
+                   (uint32)(uint32)7U;
 
 
     /** - CAN3 Port output values */
@@ -1495,6 +1495,28 @@ void can2HighLevelInterrupt(void)
 	uint32 ES_value;
     
 /* USER CODE BEGIN (47) */
+    /*
+     * Our own code here, don't clear out the other bits when calling the
+     * notifications, as those bits may be important and we can't get them
+     * again.
+     */
+    if (value == 0x8000U)
+    {
+        /* Read Error and Status Register*/
+        ES_value = canREG2->ES;
+        
+        /* Check for Error (PES, Boff, EWarn & EPass) captured */
+        if((ES_value & 0x1E0U) != 0U)
+        {
+            canErrorNotification(canREG2, ES_value);
+        }
+        else
+        {   
+            /* Call General Can notification incase of RxOK, TxOK, PDA, WakeupPnd Interrupt */
+            canStatusChangeNotification(canREG2, ES_value);
+        }
+	return;
+    }
 /* USER CODE END */
 
     if (value == 0x8000U)
@@ -1599,6 +1621,28 @@ void can3HighLevelInterrupt(void)
 	uint32 ES_value;
     
 /* USER CODE BEGIN (53) */
+    /*
+     * Our own code here, don't clear out the other bits when calling the
+     * notifications, as those bits may be important and we can't get them
+     * again.
+     */
+    if (value == 0x8000U)
+    {
+        /* Read Error and Status Register*/
+        ES_value = canREG3->ES;
+        
+        /* Check for Error (PES, Boff, EWarn & EPass) captured */
+        if((ES_value & 0x1E0U) != 0U)
+        {
+            canErrorNotification(canREG3, ES_value);
+        }
+        else
+        {   
+            /* Call General Can notification incase of RxOK, TxOK, PDA, WakeupPnd Interrupt */
+            canStatusChangeNotification(canREG3, ES_value);
+        }
+	return;
+    }
 /* USER CODE END */
 
     if (value == 0x8000U)

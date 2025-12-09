@@ -728,9 +728,9 @@ typedef struct can_config_reg
                                  | (uint32)((uint32)0x00000005U  << 10U) | 0x00020002U)
 #define CAN2_ES_CONFIGVALUE      0x00000007U 
 #define CAN2_BTR_CONFIGVALUE      ((uint32)((uint32)0U << 16U) \
-                                 | (uint32)((uint32)(2U - 1U) << 12U) \
-                                 | (uint32)((uint32)((3U + 2U) - 1U) << 8U) \
-                                 | (uint32)((uint32)(2U - 1U) << 6U) | (uint32)19U)
+                                 | (uint32)((uint32)(3U - 1U) << 12U) \
+                                 | (uint32)((uint32)((1U + 3U) - 1U) << 8U) \
+                                 | (uint32)((uint32)(3U - 1U) << 6U) | (uint32)9U)
 #define CAN2_TEST_CONFIGVALUE    0x00000080U 
 #define CAN2_ABOTR_CONFIGVALUE    ((uint32)(0U))
 #define CAN2_INTMUX0_CONFIGVALUE  ((uint32)0x00000000U \
@@ -815,16 +815,16 @@ typedef struct can_config_reg
                                  |(uint32)((uint32)0U << 1U ))
 
 /* Configuration registers initial value for CAN3*/
-#define CAN3_CTL_CONFIGVALUE      ((uint32)0x00000000U \
+#define CAN3_CTL_CONFIGVALUE      ((uint32)0x00000200U \
                                  | (uint32)0x00000000U \
-								 | (uint32)((uint32)0x00000005U  << 10U) | 0x00020002U)
+								 | (uint32)((uint32)0x0000000AU  << 10U) | 0x00020002U)
 #define CAN3_ES_CONFIGVALUE      0x00000007U 
 #define CAN3_BTR_CONFIGVALUE      ((uint32)((uint32)0U << 16U) \
-                                 | (uint32)((uint32)(2U - 1U) << 12U) \
-                                 | (uint32)((uint32)((3U + 2U) - 1U) << 8U) \
-                                 | (uint32)((uint32)(2U - 1U) << 6U) | (uint32)19U)
+                                 | (uint32)((uint32)(1U - 1U) << 12U) \
+                                 | (uint32)((uint32)((7U + 1U) - 1U) << 8U) \
+                                 | (uint32)((uint32)(1U - 1U) << 6U) | (uint32)7U)
 #define CAN3_TEST_CONFIGVALUE    0x00000080U 
-#define CAN3_ABOTR_CONFIGVALUE    ((uint32)(0U))
+#define CAN3_ABOTR_CONFIGVALUE    ((uint32)(1U))
 #define CAN3_INTMUX0_CONFIGVALUE  ((uint32)0x00000000U \
                                  | (uint32)0x00000000U \
                                  | (uint32)0x00000000U \

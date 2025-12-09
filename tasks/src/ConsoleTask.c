@@ -153,6 +153,7 @@ enum {
     SetGpio,
     SendCANMsg,
     SetCANLoopback,
+    TraceCAN,
     getax5043,
     readax5043,
     writeax5043,
@@ -518,6 +519,9 @@ commandPairs commonCommands[] = {
     { "set can loopback",
       "Enable/Disable the CAN loopback",
       SetCANLoopback },
+    { "trace can",
+      "Enable/Disable printing CAN messages",
+      TraceCAN },
     { "get ax",
       "Get ax5043 status",
       getax5043},
@@ -818,7 +822,7 @@ void RealConsoleTask(void)
             uint32_t id = parseNextNumber32();
             int dest = parseNextNumber();
             int msglen = parseNextNumber();
-            uint8_t msg[24];
+            uint8_t msg[64];
             unsigned int i;
 
             if (canNum >= NUM_CAN_BUSSES) {
@@ -826,11 +830,12 @@ void RealConsoleTask(void)
                 break;
             }
 
-	    if (msglen > 24)
-		msglen = 24;
-	    for (i = 0; i < msglen; i++)
-		msg[i] = 0x10 + i;
-            CANSend(canNum, priority, type, id, dest, msg, msglen);
+            if (msglen > 64)
+                msglen = 64;
+            for (i = 0; i < msglen; i++)
+                msg[i] = 0x10 + i;
+            if (!CANSend(canNum, priority, type, id, dest, msg, msglen))
+		printf("Error sending CAN message.\n");
             break;
         }
 
@@ -844,6 +849,14 @@ void RealConsoleTask(void)
             }
 
             CANEnableLoopback(canNum, enable);
+            break;
+        }
+
+        case TraceCAN: {
+            extern bool trace_can;
+            uint8_t enable = parseNumber(afterCommand);
+
+            trace_can = enable;
             break;
         }
 #endif

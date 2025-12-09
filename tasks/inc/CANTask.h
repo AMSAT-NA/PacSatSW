@@ -34,4 +34,11 @@ int CANGetMyID(int canNum);
 
 void CANEnableLoopback(int canNum, bool enable);
 
+typedef void (*CANReceiveHandler)(int canNum,
+				  int priority, int type, int id,
+				  int dest, int src,
+				  uint8_t *msg, unsigned int msglen);
+
+void CANRegisterReceiveHandler(int canNum, CANReceiveHandler rxhandler);
+
 #endif /* CANTASK_H */
