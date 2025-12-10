@@ -82,10 +82,8 @@
  * long, since the sequence would not be valid for the zero-length
  * message after 2048 bytes.
  *
- * FIXME - long messages need a buffer to receive them, and you can be
- * receiving up to 15 of them at a time, theoretically.  That's way
- * too much buffer space to leave lying around.  We will have to limit
- * the number of receive buffers somehow.
+ * Each CAN bus has a single buffer for receiving long messages, any
+ * new long message that comes in will abort any current long message.
  */
 
 /* How many time to we try to send a message before giving up. */
@@ -93,7 +91,13 @@
 
 bool trace_can;
 
+/* We only use one message box for sending. */
 #define CAN_TRANSMIT_BOX 1
+
+/*
+ * We use a number of message boxes for receiving, but they should
+ * stay in order from the hardware, so that's ok.
+ */
 #define CAN_RECEIVE_FIRST_BOX 2
 #define CAN_RECEIVE_NUM_BOXES 8
 
@@ -102,6 +106,10 @@ bool trace_can;
 #define CAN_BOX_TRANSMIT 1
 #define CAN_BOX_RECEIVE 0
 
+/*
+ * Maximum long message sizes.  This should not exceed 2047, though
+ * that's pretty big.
+ */
 #define CAN1_MAX_RECV 512
 #define CAN2_MAX_RECV 512
 
@@ -130,7 +138,7 @@ typedef volatile struct canIfRegs {
 
 #if ((__little_endian__ == 1) || (__LITTLE_ENDIAN__ == 1))
 #else
-    static const uint8_t s_canByteOrder[8U] = {3U, 2U, 1U, 0U, 7U, 6U, 5U, 4U};
+static const uint8_t s_canByteOrder[8U] = {3U, 2U, 1U, 0U, 7U, 6U, 5U, 4U};
 #endif
 
 /*
@@ -160,7 +168,7 @@ struct CANInfo {
     struct can_counts counts;
 
     /* Receive lengths for the long messages, indexed by ID1. */
-    uint16_t *id1_lengths;
+    const uint16_t *id1_lengths;
 
     CANReceiveHandler rxhandler;
 
@@ -185,13 +193,13 @@ static uint8_t can_bus2_rx_data[CAN2_MAX_RECV];
  * value of 4096-6143 says it's a variable-length message and the
  * maximum length is val-4096.
  */
-static uint16_t id1_lengths1[16] = {
+static const uint16_t id1_lengths1[16] = {
     0,      0,      0,      0,
     0,      0,      0,      0,
     0,      0,      0,      0,
     0,      0,      0,   4096 + CAN1_MAX_RECV,
 };
-static uint16_t id1_lengths2[16] = {
+static const uint16_t id1_lengths2[16] = {
     0,      0,      0,      0,
     0,      0,      0,      0,
     0,      0,      0,      0,
@@ -466,7 +474,9 @@ static bool CANSendOneMessage(int canNum, uint32_t id,
 }
 
 /*
- * Send a CAN message on the given CAN bus.
+ * Send a CAN message on the given CAN bus.  This handles long messages
+ * and splits them up into individual messages.  See the top of the
+ * file for the meaning of the various parameters.
  */
 bool CANSend(int canNum, int priority, int type, uint32_t id, int dest,
              uint8_t *msg, unsigned int msglen)
@@ -571,6 +581,9 @@ bool CANSend(int canNum, int priority, int type, uint32_t id, int dest,
     return rv;
 }
 
+/*
+ * Used to set up information for a new long message.
+ */
 static bool CANSetupNewRxMsg(struct CANInfo *ci,
                              int type, int src, int msgid)
 {
@@ -595,6 +608,11 @@ static bool CANSetupNewRxMsg(struct CANInfo *ci,
     return true;
 }
 
+/*
+ * Called when a message comes in, extract and handle it, piecing
+ * together long messages as required and delivering them to a
+ * user-defined function.
+ */
 static void CANHandleReceive(int canNum, int box)
 {
     uint32_t id;
@@ -720,6 +738,10 @@ static void CANHandleReceive(int canNum, int box)
     }
 }
 
+/*
+ * Register a handler to be called when a message comes in on a CAN
+ * bus.
+ */
 void CANRegisterReceiveHandler(int canNum, CANReceiveHandler rxhandler)
 {
     if (canNum >= NUM_CAN_BUSSES)
@@ -739,6 +761,11 @@ static void CANSetupRxBoxes(int canNum)
     }
 }
 
+/*
+ * Set the CAN bus id of the given can bus.  This is used for
+ * transmission and reception.  See the top of the file for what these
+ * mean.
+ */
 void CANSetMyID(int canNum, int id)
 {
     static Intertask_Message msg;
@@ -830,7 +857,12 @@ void CANGetCounts(int canNum, struct can_counts *counts)
  *
  * HALCoGen must be configured to Disable Automatic Retransmission, we
  * handle that here.  And it must not enable Auto Bus On.
- */
+ *
+ * The way the chip handles auto-retry on its own also leaves
+ * something to be desired.  There no way to control the number of
+ * retries or anything like that.  So we do all the error recovery
+ * here.
+  */
 void canStatusChangeNotification(canBASE_t *node, uint32 box)
 {
     int canNum;
