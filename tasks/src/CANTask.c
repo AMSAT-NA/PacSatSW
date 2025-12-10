@@ -88,6 +88,9 @@
  * the number of receive buffers somehow.
  */
 
+/* How many time to we try to send a message before giving up. */
+#define CAN_MAX_TX_ERRORS 8
+
 bool trace_can;
 
 #define CAN_TRANSMIT_BOX 1
@@ -908,7 +911,7 @@ void canStatusChangeNotification(canBASE_t *node, uint32 box)
             ci->counts.tx_err_no_ack_count++;
         handle_tx_err:
             ci->num_tx_errors++;
-            if (ci->num_tx_errors < 50) {
+            if (ci->num_tx_errors < CAN_MAX_TX_ERRORS) {
                 /* Retry the write operation. */
                 while ((node->IF1STAT & 0x80) == 0x80)
                     ;
