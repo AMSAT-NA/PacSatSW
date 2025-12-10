@@ -128,8 +128,8 @@ void canInit(void)
     *     - Disable status interrupts
     *     - Enter initialization mode
     */
-    canREG2->CTL = (uint32)0x00000200U 
-                 | (uint32)0x00000000U 
+    canREG2->CTL = (uint32)0x00000000U 
+                 | (uint32)0x00000020U 
                  | (uint32)((uint32)0x00000005U << 10U)
                  | 0x00020043U;
 
@@ -279,9 +279,9 @@ void canInit(void)
     *     - Disable status interrupts
     *     - Enter initialization mode
     */
-    canREG3->CTL = (uint32)0x00000200U 
-                 | (uint32)0x00000000U 
-                 | (uint32)((uint32)0x0000000AU << 10U)
+    canREG3->CTL = (uint32)0x00000000U 
+                 | (uint32)0x00000020U 
+                 | (uint32)((uint32)0x00000005U << 10U)
                  | 0x00020043U;
 
     /** - Clear all pending error flags and reset current status */
@@ -1496,27 +1496,14 @@ void can2HighLevelInterrupt(void)
     
 /* USER CODE BEGIN (47) */
     /*
-     * Our own code here, don't clear out the other bits when calling the
-     * notifications, as those bits may be important and we can't get them
-     * again.
+     * The code below is completely broken, you can't handle messages
+     * properly when in an error situation.  Handle it all ourselves,
+     * abuse canStatusChangeNotification for this.
      */
-    if (value == 0x8000U)
-    {
-        /* Read Error and Status Register*/
-        ES_value = canREG2->ES;
-        
-        /* Check for Error (PES, Boff, EWarn & EPass) captured */
-        if((ES_value & 0x1E0U) != 0U)
-        {
-            canErrorNotification(canREG2, ES_value);
-        }
-        else
-        {   
-            /* Call General Can notification incase of RxOK, TxOK, PDA, WakeupPnd Interrupt */
-            canStatusChangeNotification(canREG2, ES_value);
-        }
-	return;
-    }
+    ES_value = 0; /* Work around warning about ES_value not being used. */
+    canStatusChangeNotification(canREG2, value | ES_value);
+    return;
+#if 0
 /* USER CODE END */
 
     if (value == 0x8000U)
@@ -1556,6 +1543,7 @@ void can2HighLevelInterrupt(void)
         canMessageNotification(canREG2, value);
     }
 /* USER CODE BEGIN (48) */
+#endif
 /* USER CODE END */
 	
 }
@@ -1622,27 +1610,14 @@ void can3HighLevelInterrupt(void)
     
 /* USER CODE BEGIN (53) */
     /*
-     * Our own code here, don't clear out the other bits when calling the
-     * notifications, as those bits may be important and we can't get them
-     * again.
+     * The code below is completely broken, you can't handle messages
+     * properly when in an error situation.  Handle it all ourselves,
+     * abuse canStatusChangeNotification for this.
      */
-    if (value == 0x8000U)
-    {
-        /* Read Error and Status Register*/
-        ES_value = canREG3->ES;
-        
-        /* Check for Error (PES, Boff, EWarn & EPass) captured */
-        if((ES_value & 0x1E0U) != 0U)
-        {
-            canErrorNotification(canREG3, ES_value);
-        }
-        else
-        {   
-            /* Call General Can notification incase of RxOK, TxOK, PDA, WakeupPnd Interrupt */
-            canStatusChangeNotification(canREG3, ES_value);
-        }
-	return;
-    }
+    ES_value = 0; /* Work around warning about ES_value not being used. */
+    canStatusChangeNotification(canREG3, value | ES_value);
+    return;
+#if 0
 /* USER CODE END */
 
     if (value == 0x8000U)
@@ -1681,6 +1656,7 @@ void can3HighLevelInterrupt(void)
         canMessageNotification(canREG3, value);
     }
 /* USER CODE BEGIN (54) */
+#endif
 /* USER CODE END */
 
 }

@@ -41,4 +41,26 @@ typedef void (*CANReceiveHandler)(int canNum,
 
 void CANRegisterReceiveHandler(int canNum, CANReceiveHandler rxhandler);
 
+struct can_counts {
+    uint32_t rx_msgs;
+    uint32_t rx_long_msgs;
+    uint32_t rx_msgs_lost;
+    uint32_t rx_msgs_invalid_start_seq;
+    uint32_t rx_msgs_unsupported_long_msg;
+    uint32_t rx_msgs_sequence_mismatch;
+    uint32_t rx_msgs_long_msg_too_long;
+    uint32_t rx_msgs_new_source_in_long_msg;
+    uint32_t rx_err_bit_stuff_count;
+    uint32_t rx_err_form_count;
+    uint32_t rx_err_crc_count;
+
+    uint32_t tx_msgs;
+    uint32_t tx_long_msgs;
+    uint32_t tx_err_bit0_count;
+    uint32_t tx_err_bit1_count;
+    uint32_t tx_err_no_ack_count;
+};
+
+void CANGetCounts(int canNum, struct can_counts *counts);
+
 #endif /* CANTASK_H */

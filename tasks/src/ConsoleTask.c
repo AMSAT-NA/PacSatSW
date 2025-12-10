@@ -120,7 +120,6 @@ enum {
     inhibitTx,
     getState,
     testLED,
-    restartCAN,
     doClearMRAM,
     enbCanPrint,
     dsbCanPrint,
@@ -154,6 +153,7 @@ enum {
     SendCANMsg,
     SetCANLoopback,
     TraceCAN,
+    GetCANCounts,
     getax5043,
     readax5043,
     writeax5043,
@@ -341,11 +341,6 @@ commandPairs debugCommands[] = {
     { "clear mram",
       "Initializes MRAM state,WOD,Min/max but does not clear InOrbit--testing only",
      doClearMRAM},
-#if 0
-    { "reset can",
-      "Reset the CAN devices",
-      restartCAN},
-#endif
     { "poll i2c",
       "Poll to see which I2c devices are there",
       pollI2c},
@@ -522,6 +517,9 @@ commandPairs commonCommands[] = {
     { "trace can",
       "Enable/Disable printing CAN messages",
       TraceCAN },
+    { "get can counts",
+      "Display can message and error counts",
+      GetCANCounts },
     { "get ax",
       "Get ax5043 status",
       getax5043},
@@ -835,7 +833,7 @@ void RealConsoleTask(void)
             for (i = 0; i < msglen; i++)
                 msg[i] = 0x10 + i;
             if (!CANSend(canNum, priority, type, id, dest, msg, msglen))
-		printf("Error sending CAN message.\n");
+                printf("Error sending CAN message.\n");
             break;
         }
 
@@ -857,6 +855,36 @@ void RealConsoleTask(void)
             uint8_t enable = parseNumber(afterCommand);
 
             trace_can = enable;
+            break;
+        }
+
+        case GetCANCounts: {
+            uint8_t canNum = parseNumber(afterCommand);
+            struct can_counts c;
+
+            if (canNum >= NUM_CAN_BUSSES) {
+                printf("Invalid can bus: %d\n", canNum);
+                break;
+            }
+
+            CANGetCounts(canNum, &c);
+            printf(" RX messages: %u\n", c.rx_msgs);
+            printf(" RX long messages: %u\n", c.rx_long_msgs);
+            printf(" RX messages lost: %u\n", c.rx_msgs_lost);
+            printf(" RX invalid start seq: %u\n", c.rx_msgs_invalid_start_seq);
+            printf(" RX invalid long msg: %u\n", c.rx_msgs_unsupported_long_msg);
+            printf(" RX sequence mismatch: %u\n", c.rx_msgs_sequence_mismatch);
+            printf(" RX msg too long: %u\n", c.rx_msgs_long_msg_too_long);
+            printf(" RX new msg in msg: %u\n", c.rx_msgs_new_source_in_long_msg);
+            printf(" RX bit stuff: %u\n", c.rx_err_bit_stuff_count);
+            printf(" RX form: %u\n", c.rx_err_form_count);
+            printf(" RX crc: %u\n", c.rx_err_crc_count);
+
+            printf(" TX message: %u\n", c.tx_msgs);
+            printf(" TX long : %u\n", c.tx_long_msgs);
+            printf(" TX bit0: %u\n", c.tx_err_bit0_count);
+            printf(" TX bit1: %u\n", c.tx_err_bit1_count);
+            printf(" TX no ack: %u\n", c.tx_err_no_ack_count);
             break;
         }
 #endif
