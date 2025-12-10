@@ -723,7 +723,7 @@ typedef struct can_config_reg
 
 
 /* Configuration registers initial value for CAN2*/
-#define CAN2_CTL_CONFIGVALUE      ((uint32)0x00000000U \
+#define CAN2_CTL_CONFIGVALUE      ((uint32)0x00000200U \
                                  | (uint32)0x00000000U \
                                  | (uint32)((uint32)0x00000005U  << 10U) | 0x00020002U)
 #define CAN2_ES_CONFIGVALUE      0x00000007U 
@@ -732,7 +732,7 @@ typedef struct can_config_reg
                                  | (uint32)((uint32)((1U + 3U) - 1U) << 8U) \
                                  | (uint32)((uint32)(3U - 1U) << 6U) | (uint32)9U)
 #define CAN2_TEST_CONFIGVALUE    0x00000080U 
-#define CAN2_ABOTR_CONFIGVALUE    ((uint32)(0U))
+#define CAN2_ABOTR_CONFIGVALUE    ((uint32)(1U))
 #define CAN2_INTMUX0_CONFIGVALUE  ((uint32)0x00000000U \
                                  | (uint32)0x00000000U \
                                  | (uint32)0x00000000U \

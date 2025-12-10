@@ -128,7 +128,7 @@ void canInit(void)
     *     - Disable status interrupts
     *     - Enter initialization mode
     */
-    canREG2->CTL = (uint32)0x00000000U 
+    canREG2->CTL = (uint32)0x00000200U 
                  | (uint32)0x00000000U 
                  | (uint32)((uint32)0x00000005U << 10U)
                  | 0x00020043U;
@@ -205,7 +205,7 @@ void canInit(void)
 
 
     /** - Setup auto bus on timer period */
-    canREG2->ABOTR = (uint32)0U;
+    canREG2->ABOTR = (uint32)1U;
 
 
     /** - Setup IF1 for data transmission 
