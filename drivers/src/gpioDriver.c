@@ -937,19 +937,25 @@ bool GPIOInit(Gpio_Use whichGpio, DestinationTask task, IntertaskMessageType msg
         uint16_t pinNum = thisGPIO->PinNum;
 
 	GPIOUsable[whichGpio] = true;
+
+	/*
+	 * Set open collector first to avoid driving the output high
+	 * if it shouldn't be driven.
+	 */
+        thisGPIO->info->funcs->setOpenCollector(thisGPIO->info, pinNum, 
+                                                thisGPIO->OpenCollector);
+
 	if (thisGPIO->InitialStateOn)
 	    GPIOSetOn(whichGpio);
 	else
 	    GPIOSetOff(whichGpio);
 
 	/*
-	 * Delay setting the output type and direction until here to
-	 * avoid glitching the GPIO.  Setting these before the output
-	 * value is set could cause whatever happened to be there to
-	 * go out for a little.
+	 * Delay setting the direction until here to avoid glitching
+	 * the GPIO.  Setting these before the output value is set
+	 * could cause whatever happened to be there to go out for a
+	 * little.
 	 */
-        thisGPIO->info->funcs->setOpenCollector(thisGPIO->info, pinNum, 
-                                                thisGPIO->OpenCollector);
 	thisGPIO->info->funcs->setDirectionOut(thisGPIO->info,
 					       thisGPIO->PinNum, true);
     } else {
