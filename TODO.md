@@ -3,7 +3,13 @@ Things that need to be done
 
 # Pending
 
-## Write a CAN bus driver
+## Write code to put the CAN bus messages someplace
+
+The base CAN bus driver is written; it will call a function when a CAN
+bus message comes in, and can send CAN bus messages.  It does not do
+the file I/O as described below.  For active/standby, CAN bus messages
+will be used to keep the MRAMs in sync between two board.  So the
+below is not valid for those messages.
 
 From Chris:
 
@@ -26,6 +32,8 @@ state.  I would have to check the commits or branches.
 
 ## Allow PA output to be controlled from the ground station
 
+## Read hardware watchdog reboot flag from the RTC
+
 ## Telemetry
 
 ## RX LED handling needs some work
@@ -33,6 +41,10 @@ state.  I would have to check the commits or branches.
 LED2 is turned off by starting RX and is disabled on each received
 packet, but is never re-enabled.  Probably not optimal.
 
+# Add missing PC104 GPIOs
+
 # Done
 
 ## Convert to thermsistor temperature measurement
+
+## Base CAN bus driver written
