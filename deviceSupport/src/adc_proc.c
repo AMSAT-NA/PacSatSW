@@ -236,6 +236,7 @@ handle_adc_rf_power(unsigned int pin, unsigned int millivolts)
 }
 
 unsigned int board_version;
+unsigned int board_num;
 
 static void
 read_adc_board_version(void)
@@ -245,7 +246,13 @@ read_adc_board_version(void)
         | ((adc_data[ADC_PIN_VER1].value > 2048) << 1)
         | ((adc_data[ADC_PIN_VER2].value > 2048) << 2)
         | ((adc_data[ADC_PIN_VER3].value > 2048) << 3);
-    printf("Board version is %d\n", board_version);
+
+#ifdef AFSK_HARDWARE
+    if (GPIOIsOn(OtherPresense))
+	board_num = (adc_data[ADC_PIN_BOARD_NUM].value > 2048) + 1;
+#endif
+
+    printf("Board version is %d, board number %d\n", board_version, board_num);
 }
 
 bool

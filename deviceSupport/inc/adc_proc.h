@@ -97,6 +97,13 @@ enum power_flag_values {
 };
 extern bool board_power_flags[NUM_POWER_FLAG_VALUES];
 
+/* The version number of the board read from the version resistors. */
 extern unsigned int board_version;
+
+/*
+ * The board number for fault tolerance (0, 1 or 2).  Zero means it is
+ * a simplex board, no mate board was detected.
+ */
+extern unsigned int board_num;
 
 #endif
