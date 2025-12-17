@@ -167,25 +167,25 @@ handle_adc_voltage(unsigned int pin, unsigned int millivolts)
     // TODO - Add handling for the values going out of range.
     switch (pin) {
     case ADC_PIN_VOLTAGE_3v3:
-	millivolts *= 2;
-	board_voltages[VOLTAGE_VAL_3v3] = millivolts;
-	break;
+        millivolts *= 2;
+        board_voltages[VOLTAGE_VAL_3v3] = millivolts;
+        break;
 
     case ADC_PIN_VOLTAGE_5v:
-	millivolts *= 2;
-	board_voltages[VOLTAGE_VAL_5v] = millivolts;
-	break;
+        millivolts *= 2;
+        board_voltages[VOLTAGE_VAL_5v] = millivolts;
+        break;
     
     case ADC_PIN_VOLTAGE_1v2:
-	board_voltages[VOLTAGE_VAL_1v2] = millivolts;
-	break;
+        board_voltages[VOLTAGE_VAL_1v2] = millivolts;
+        break;
 
     case ADC_PIN_VOLTAGE_BATTERY:
-	board_voltages[VOLTAGE_VAL_BATTERY] = millivolts;
-	break;
+        board_voltages[VOLTAGE_VAL_BATTERY] = millivolts;
+        break;
 
     default:
-	break;
+        break;
     }
 }
 
@@ -197,23 +197,23 @@ handle_adc_power_flag(unsigned int pin, unsigned int millivolts)
     // TODO - Add handling for the the flags going bad.
     switch (pin) {
     case ADC_PIN_PWR_FLAG_5V:
-	board_power_flags[POWER_FLAG_5V] = millivolts > 1650;
-	break;
+        board_power_flags[POWER_FLAG_5V] = millivolts > 1650;
+        break;
 
     case ADC_PIN_PWR_FLAG_LNA:
-	board_power_flags[POWER_FLAG_LNA] = millivolts > 1650;
-	break;
+        board_power_flags[POWER_FLAG_LNA] = millivolts > 1650;
+        break;
 
     case ADC_PIN_PWR_FLAG_SSPA:
-	board_power_flags[POWER_FLAG_SSPA] = millivolts > 1650;
-	break;
+        board_power_flags[POWER_FLAG_SSPA] = millivolts > 1650;
+        break;
 
     case ADC_PIN_PWR_FLAG_AX5043:
-	board_power_flags[POWER_FLAG_AX5043] = millivolts > 1650;
-	break;
+        board_power_flags[POWER_FLAG_AX5043] = millivolts > 1650;
+        break;
 
     default:
-	break;
+        break;
     }
 }
 
@@ -224,14 +224,14 @@ handle_adc_rf_power(unsigned int pin, unsigned int millivolts)
 {
     switch (pin) {
     case ADC_PIN_FORWARD_POWER:
-	if (print_rf_power)
-	    printf("Forward power: %d\n", millivolts);
-	break;
+        if (print_rf_power)
+            printf("Forward power: %d\n", millivolts);
+        break;
 
     case ADC_PIN_REVERSE_POWER:
-	if (print_rf_power)
-	    printf("Reverse power: %d\n", millivolts);
-	break;
+        if (print_rf_power)
+            printf("Reverse power: %d\n", millivolts);
+        break;
     }
 }
 
@@ -249,7 +249,7 @@ read_adc_board_version(void)
 
 #ifdef AFSK_HARDWARE
     if (GPIOIsOn(OtherPresense))
-	board_num = (adc_data[ADC_PIN_BOARD_NUM].value > 2048) + 1;
+        board_num = (adc_data[ADC_PIN_BOARD_NUM].value > 2048) + 1;
 #endif
 
     printf("Board version is %d, board number %d\n", board_version, board_num);
