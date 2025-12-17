@@ -1005,8 +1005,6 @@ bool GPIOInit(Gpio_Use whichGpio, DestinationTask task, IntertaskMessageType msg
                 gioPortB_Interrupts[thisGPIO->PinNum] = whichGpio;
             }
 
-	    GPIOUsable[whichGpio] = true;
-
             if (thisGPIO->InterruptBothEdges) {
                 uint32_t mask = 1 << thisGPIO->PinNum;
 
@@ -1020,6 +1018,8 @@ bool GPIOInit(Gpio_Use whichGpio, DestinationTask task, IntertaskMessageType msg
             }
             gioEnableNotification(port, thisGPIO->PinNum);
         }
+
+	GPIOUsable[whichGpio] = true;
     }
 
     return true;
