@@ -1551,24 +1551,27 @@ uint16_t get_tx_power(AX5043Device device)
     return ((power * 100) + 2048) / 4095;
 }
 
-void test_rx_freq(AX5043Device device, uint32_t freq,
-                  enum ax5043_mode mode, unsigned int flags)
+void test_freq(AX5043Device device, uint32_t freq,
+	       enum ax5043_mode mode, unsigned int flags)
 {
-    ax5043PowerOn(device);
-    flags = calc_flags(device, freq, flags);
+    printf("Transmitting on freq: %d\n", freq);
 
-    printf("Transmitting on receive freq: %d\n", freq);
+    if (device != TX_DEVICE) {
+	/* Need to re-initialize a receive device to transmit. */
+	ax5043PowerOn(device);
+	flags = calc_flags(device, freq, flags);
 
-    uint8_t retVal = axradio_init(device, freq, mode, flags);
-    printf("axradio_init: %d\n",retVal);
+	uint8_t retVal = axradio_init(device, freq, mode, flags);
+	printf("axradio_init: %d\n",retVal);
 
-    retVal = mode_tx(device, mode, flags);
-    printf("mode_tx: %d\n",retVal);
+	retVal = mode_tx(device, mode, flags);
+	printf("mode_tx: %d\n",retVal);
 
-    ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_FULL_TX);
-    printf("Powerstate is FULL_TX\n");
+	ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_FULL_TX);
+	printf("Powerstate is FULL_TX\n");
 
-    printf("AX5043_XTALCAP: %d\n", ax5043ReadReg(device, AX5043_XTALCAP));
+	printf("AX5043_XTALCAP: %d\n", ax5043ReadReg(device, AX5043_XTALCAP));
+    }
 
     int i = 0;
     while (i < 500) {

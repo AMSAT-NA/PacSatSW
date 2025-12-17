@@ -158,7 +158,7 @@ enum {
     readax5043,
     writeax5043,
     getRSSI,
-    testRxFreq,
+    testFreq,
     testPLLrange,
     testAX5043,
     HelpAll,
@@ -240,8 +240,8 @@ commandPairs setupCommands[] = {
       "Read all the frequencies from MRAM",
       ReadFreqs},
     { "test freq",
-      "xmit on receive frequency of specified device",
-      testRxFreq},
+      "xmit on frequency of specified device",
+      testFreq},
     { "set tx power",
       "Set the tx power to a percentage 0-100",
       SetTxPower },
@@ -1608,7 +1608,7 @@ void RealConsoleTask(void)
             break;
         }
 
-        case testRxFreq: {
+        case testFreq: {
             // This is so we can find what the receive frequency is on
             // first build
             uint8_t devb = parseNumber(afterCommand);
@@ -1618,10 +1618,15 @@ void RealConsoleTask(void)
                 break;
             }
             AX5043Device device = (AX5043Device) devb;
-            uint32_t freq = DCTRxFreq[device];
+            uint32_t freq;
 
-            printf("Testing TX/RX for AX5043 Dev: %d\n", device);
-            test_rx_freq(device, freq, AX5043_MODE_AFSK_1200, 0);
+	    if (device != TX_DEVICE)
+		freq = DCTRxFreq[device];
+	    else
+		freq = DCTTxFreq;
+
+            printf("Testing TX for AX5043 Dev: %d\n", device);
+            test_freq(device, freq, AX5043_MODE_AFSK_1200, 0);
             break;
         }
 

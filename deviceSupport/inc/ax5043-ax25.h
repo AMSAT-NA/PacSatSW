@@ -434,7 +434,7 @@ uint16_t fifo_free(AX5043Device device);
 uint8_t get_rssi(AX5043Device device);
 void set_tx_power(AX5043Device device, uint32_t power);
 uint16_t get_tx_power(AX5043Device device);
-void test_rx_freq(AX5043Device device, uint32_t freq, enum ax5043_mode mode,
-		  unsigned int flags);
+void test_freq(AX5043Device device, uint32_t freq, enum ax5043_mode mode,
+	       unsigned int flags);
 void test_pll_2m_range(AX5043Device device, enum ax5043_mode mode,
 		       unsigned int flags);
