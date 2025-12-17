@@ -10,6 +10,7 @@
 
 //Flight software headers
 #include "CommandTask.h"
+#include "TxTask.h"
 #include "gpioDriver.h"
 #include "serialDriver.h"
 #include "het.h"
@@ -367,9 +368,11 @@ bool OpsSWCommands(CommandAndArgs *comarg){
     case SWCmdOpsDCTTxInhibit:
         // TODO - not implemented
         if(comarg->arguments[0] != 0) { // True means to inhibit it
-            command_print("NOT IMPLEMENTED   SW:Inhibit transmitting\n");
+            command_print("SW:Inhibit transmitting\n");
+            inhibitTransmit = true;
         } else {
-            command_print("NOT IMPLEMENTED   SW:Uninhibit transmitting\n");
+            command_print("SW:Uninhibit transmitting\n");
+            inhibitTransmit = false;
         }
         break;
     case SWCmdOpsSelectDCTRFPower: {

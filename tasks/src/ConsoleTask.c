@@ -1331,6 +1331,7 @@ void RealConsoleTask(void)
 
         case inhibitTx: {
             SimulateHWCommand(CMD_TX_OFF);
+            inhibitTransmit = true;
             break;
         }
 

@@ -27,4 +27,7 @@ bool tx_send_packet(AX25_PACKET *packet, bool expedited, bool block);
 
 bool tx_test_make_packet();
 
+/* TODO - This is a hack for inhibiting transmit. */
+bool inhibitTransmit;
+
 #endif /* TASKS_INC_TXTASK_H_ */

@@ -41,6 +41,8 @@ static rx_radio_buffer_t tmp_packet_buffer; /* Buffer used when constructing new
 static AX5043Device device = TX_DEVICE;
 extern bool monitorPackets;
 
+bool inhibitTransmit;
+
 /* Test Buffer PB Empty */
 //uint8_t byteBuf[] = {0xA0,0x84,0x98,0x92,0xA6,0xA8,0x00,0xA0,0x8C,0xA6,0x66,
 //                     0x40,0x40,0x17,0x03,0xF0,0x50,0x42,0x3A,0x20,0x45,0x6D,0x70,0x74,0x79,0x2E,0x0D};
@@ -101,6 +103,9 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
 	if (xStatus != pdPASS) {
 	    continue;
 	}
+
+	if (inhibitTransmit)
+	    continue;
 
 	GPIOSetOn(LED1);
 	GPIOSetOn(SSPAPower);
