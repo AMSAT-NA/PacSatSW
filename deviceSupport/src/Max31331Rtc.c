@@ -293,7 +293,7 @@ bool SetRtcTime31331(uint32_t *unixtime)
     /* Disable DIN pin when running on VBat (bit 0x40). */
     /* Enable the oscillator if we were able to set the time. */
     regbuf[1] = (0x02     /* I2C_TIMEOUT - Enable I2C timeout. */
-		 | 0x01); /* EN_OSC - Enable Oscillator. */
+                 | 0x01); /* EN_OSC - Enable Oscillator. */
     if (!I2cSendCommand(MAX31331_PORT, MAX31331_ADDR, regbuf, 2, NULL, 0))
         return false;
     rtc_time_valid = true;
