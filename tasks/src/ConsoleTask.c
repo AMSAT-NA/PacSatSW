@@ -1446,6 +1446,8 @@ void RealConsoleTask(void)
                    getSecondsInOrbit());
             printf("Unix time in secs: %d\n",
                    getUnixTime());
+            if (!time_valid)
+                printf("***Unix Time is not valid\n");
 
             printf("Short boot count: %d, short boot flag %d\n\r",
                    SaveAcrossReset.fields.earlyResetCount,
@@ -1620,10 +1622,10 @@ void RealConsoleTask(void)
             AX5043Device device = (AX5043Device) devb;
             uint32_t freq;
 
-	    if (device != TX_DEVICE)
-		freq = DCTRxFreq[device];
-	    else
-		freq = DCTTxFreq;
+            if (device != TX_DEVICE)
+                freq = DCTRxFreq[device];
+            else
+                freq = DCTTxFreq;
 
             printf("Testing TX for AX5043 Dev: %d\n", device);
             test_freq(device, freq, AX5043_MODE_AFSK_1200, 0);
@@ -1932,6 +1934,8 @@ void RealConsoleTask(void)
 
         case getUnxTime: {
             printf("Unix time in secs: %d\n",getUnixTime());
+            if (!time_valid)
+                printf("***Unix Time is not valid\n");
             break;
         }
 
@@ -1941,6 +1945,7 @@ void RealConsoleTask(void)
             uint32_t t = (uint32_t)strtol(afterCommand,&nextNum,0);
             printf("Setting unix time to: %d\n",t);
             setUnixTime(t);
+            time_valid = true;
             //printf("Setting RTC\n");
             if (RTCIsOk()) {
                 bool set = SetRtcTime31331(&t);
@@ -1986,7 +1991,9 @@ void RealConsoleTask(void)
             if (rc == FALSE)
                 printf(" Error, time unavailable\n");
             else {
-                printf("Time: %d vs IHU Unix time %d\n",time, getUnixTime());
+                printf("Time: %d vs IHU Unix time %d\n", time, getUnixTime());
+                if (!time_valid)
+                    printf("***Unix time is not valid\n");
             }
             break;
         }

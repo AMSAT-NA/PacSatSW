@@ -32,9 +32,19 @@ state.  I would have to check the commits or branches.
 
 ## Allow PA output to be controlled from the ground station
 
+## Use the time_valid
+
+There is a time_valid bool to know if the Unix time is set properly,
+but it's not used for anything but logging.  It probably needs to be
+used for something useful.
+
 ## Read hardware watchdog reboot flag from the RTC
 
+Only on board version 3 and greater.
+
 ## Telemetry
+
+## Commands (from the ground or CAN bus)
 
 ## RX LED handling needs some work
 

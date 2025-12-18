@@ -51,6 +51,7 @@ extern int sprintf(char* str, const char *fmt, ...);
 bool CreateHeader(int x,void *y);
 bool CreatePayload(int x, void *y);
 
-
+/* Is the time in the current clock valid? */
+extern bool time_valid;
 
 #endif /* PACSAT_H_ */

@@ -89,7 +89,7 @@ bool rate_9600; /* The rate for the AX25 link.  Loaded from MRAM.  */
 bool CANPrintTelemetry,CANPrintCoord,CANPrintCommands,CANPrintAny,CANPrintCount,CANPrintErrors,CANPrintEttus,
 monitorPackets;
 
-
+bool time_valid;
 
 /*
  * Diagnostic payload pieces for each processor
@@ -372,7 +372,12 @@ void ConsoleTask(void *pvParameters){
         debug_print("31331 RTC detected\n");
         uint32_t utime = 0;
         rtc = GetRtcTime31331(&utime);
-        setUnixTime(utime);
+	if (!rtc) {
+	    debug_print("*** Unable to get RTC time, it's probably invalid.\n");
+	} else {
+	    setUnixTime(utime);
+	    time_valid = true;
+	}
     }
 
     // Now head off to do the real work of the console task
