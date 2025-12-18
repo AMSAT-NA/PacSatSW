@@ -61,8 +61,6 @@
 #define BIN2BCD(val) ((((val) / 10) << 4) + (val) % 10)
 #define SWAPBYTES(val)  (((val & 0xFF) << 8) | ((val & 0xFF00) >> 8))
 
-static uint8_t buf[2],send;
-
 int8_t hours_reg_to_hour(const max3133x_hours_reg_t *hours_reg);
 void rtc_regs_to_time(struct tm *time, const max3133x_rtc_time_regs_t *regs, uint16_t *sub_sec);
 int time_to_rtc_regs(max3133x_rtc_time_regs_t *regs, const struct tm *time, hour_format_t format);
@@ -102,6 +100,8 @@ uint32_t rtc_mktime(struct rtc_tm *tm_time)
  */
 bool InitRtc31331(void)
 {
+    uint8_t buf[2];
+
     buf[0] = MAX31331_RTC_RESET;
     buf[1] = 0x00; // reset bit cleared
     if (!I2cSendCommand(MAX31331_PORT, MAX31331_ADDR, buf, 2, NULL, 0)) {
@@ -144,16 +144,19 @@ bool InitRtc31331(void)
 
 bool GetStatus31331(uint8_t *cfg)
 {
+    uint8_t buf[2];
+
     buf[0] = MAX31331_STATUS;
     return I2cSendCommand(MAX31331_PORT, MAX31331_ADDR, buf, 1, cfg, 1);
 }
 
 bool GetRtcTime31331(uint32_t *time)
 {
+    uint8_t buf[2];
     int8_t regs[20];
 
-    send = 0; //MAX31331_SECONDS;
-    if (!I2cSendCommand(MAX31331_PORT, MAX31331_ADDR, &send, 1, &regs, 20))
+    buf[0] = 0;
+    if (!I2cSendCommand(MAX31331_PORT, MAX31331_ADDR, buf, 1, regs, 20))
         return FALSE;
 
     if (0) {
