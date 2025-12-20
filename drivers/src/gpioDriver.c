@@ -712,7 +712,7 @@ static const char *GPIONames[NumberOfGPIOs] = {
 #else
 
 static const GPIOInfo OtherFaultInfo = {
-    .info                 = &gioPortAGPIO,
+    .info                 = &gioPortBGPIO,
     .PinNum               = 3,
     .DirectionIsOut       = GPIO_IN,
     .NegativeLogic        = true,
@@ -720,7 +720,7 @@ static const GPIOInfo OtherFaultInfo = {
 
 static const GPIOInfo OtherPowerOffStateInfo = {
     .info                 = &hetPort1GPIO,
-    .PinNum               = 1,
+    .PinNum               = 11,
     .DirectionIsOut       = GPIO_IN,
     .NegativeLogic        = true,
 };
