@@ -28,6 +28,12 @@ With that being said, I cant remember if the automatic adding of files
 was fully implemented.  I worked on it, but I can't remember it's
 state.  I would have to check the commits or branches.
 
+## For board version 3, fix the ACTIVE line
+
+The ACTIVE_N line on board version 2 was changed to ACTIVE due to an
+issue with the way the CPU pull lines at reset.  So the logic needs to
+be positive on board 3.
+
 ## Create telemetry interfaces
 
 ## Allow PA output to be controlled from the ground station
