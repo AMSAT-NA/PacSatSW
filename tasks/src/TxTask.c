@@ -85,6 +85,11 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
     GPIOSetOff(SSPAPower);
     ReportToWatchdog(CurrentTaskWD);
 
+    /*
+     * TODO - Add PA thermal management to this to keep the PA cool
+     * enough.  Probably add temperature monitoring and transmit
+     * limiting based on temperature.
+     */
     while (1) {
         uint8_t pktstart_flag = 0x01;
         uint8_t pktend_flag = 0x02;

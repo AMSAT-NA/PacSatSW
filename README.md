@@ -1,17 +1,22 @@
 Software for AMSAT PacSat project
 
 ## About
-This repository contains flight software for the PacSat project.  The documentation is under companion Repository "PacSatDocs.  The code is set up as a TI CCS (Eclipse) project.  You should be able to clone it into your own copy of CCS.
-
+This repository contains flight software for the PacSat project.  The
+documentation is under companion Repository "PacSatDocs.  The code is
+set up as a TI CCS (Eclipse) project.  You should be able to clone it
+into your own copy of CCS.
 
 ## Setup
 
 ### Connecting to the launchpad
-You connect the TI launchpad board with a USB cable.  No other hardware is needed.  Once you have installed TIs CCS it should be recognized.
+You connect the TI launchpad board with a USB cable.  No other
+hardware is needed.  Once you have installed TIs CCS it should be
+recognized.
 
-Downloaded the latest version (12) of TI CCS from Texas Instruments website.  You can downloaded the "on-demand" version.
-Extracted from the file.
-On linux you can pick an installation folder in ~/bin/ti/ccs, on windows probably use the default.
+Downloaded version 12.8.1 of TI CCS from Texas Instruments website.
+You can downloaded the "on-demand" version.  Extracted from the file.
+On linux you can pick an installation folder in ~/ti, on Windows
+probably use the default.
 
 Run the installer.  It may say some dependancies were missing, though. This is likely easier on Windows.
 On Linux, if necessary you can install missing dependancies with 

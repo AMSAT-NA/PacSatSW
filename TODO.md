@@ -28,11 +28,13 @@ With that being said, I cant remember if the automatic adding of files
 was fully implemented.  I worked on it, but I can't remember it's
 state.  I would have to check the commits or branches.
 
-## For board version 3, fix the ACTIVE line
+## For board version 3, fix the active/standby line logic
 
-The ACTIVE_N line on board version 2 was changed to ACTIVE due to an
-issue with the way the CPU pull lines at reset.  So the logic needs to
-be positive on board 3.
+The ACTIVE\_N line on board version 2 was changed to ACTIVE due to an
+issue with the way the CPU pull lines at reset.  The OTHER\_FAULT\_N
+lines was changed to OTHER\_FAULT.  And OTHER\_HW\_POWER\_OFF\_N was
+changed to OTHER\_HW\_POWER\_ST. So the logic needs to be positive on
+board 3 for those lines.
 
 ## Create telemetry interfaces
 

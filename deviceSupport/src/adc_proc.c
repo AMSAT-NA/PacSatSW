@@ -20,6 +20,7 @@
 
 #include "pacsat.h"
 #include "interTaskNotify.h"
+#include "gpioDriver.h"
 #include "adc.h"
 #include "adc_proc.h"
 
@@ -144,6 +145,10 @@ handle_adc_temp(unsigned int pin, unsigned int millivolts)
     switch (pin) {
     case ADC_PIN_PA_TEMP:
         board_temps[TEMPERATURE_VAL_PA] = temp;
+        if (temp > 50) {
+            debug_print("PA over temp, shutting down the PA\n");
+            GPIOSetOff(SSPAPower);
+        }
         break;
 
     case ADC_PIN_POWER_TEMP:
