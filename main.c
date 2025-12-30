@@ -185,13 +185,9 @@ void startup(void)
     /* Start off with power measurements on. */
     GPIOSetOn(MeasurePower);
 
-#if 0
-    GPIOSetOn(CANAPower);
-    GPIOSetOn(CANBPower);
-
-    /* Leave this off for now so the board is in RF loopback. */
-    GPIOSetOn(ImActive);
-#endif
+    /* Turn this on if there is no other board. */
+    if (!GPIOIsOn(OtherPresense))
+	GPIOSetOn(ImActive);
 #endif
 
     xTaskCreate(ConsoleTask, "Console", CONSOLE_STACK_SIZE,
