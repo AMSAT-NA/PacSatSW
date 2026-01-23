@@ -118,6 +118,7 @@ enum {
     dropBus,
     healthMode,
     inhibitTx,
+    allowTx,
     getState,
     testLED,
     doClearMRAM,
@@ -347,6 +348,9 @@ commandPairs debugCommands[] = {
     { "inhibit tx",
       "Simulate FCC command to turn off tx",
       inhibitTx},
+    { "allow tx",
+      "Simulate FCC command to turn on tx",
+      allowTx},
     { "get mram sr",
       "Get the MRAM status register",
       readMRAMsr},
@@ -1332,6 +1336,12 @@ void RealConsoleTask(void)
         case inhibitTx: {
             SimulateHWCommand(CMD_TX_OFF);
             inhibitTransmit = true;
+            break;
+        }
+
+        case allowTx: {
+            SimulateHWCommand(CMD_ALL_ON);
+            inhibitTransmit = false;
             break;
         }
 

@@ -1,7 +1,14 @@
 Things that need to be done
 ===========================
 
-# Pending
+# Bugs to fix
+
+I've noticed that if you tune all 4 receivers to the same frequency
+after receiving some messages all but one of them will stop receiving
+packets.  The RSSI values from the other channels are still showing,
+though.  It's kind of strange.
+
+# Pending enhancements
 
 ## Write code to put the CAN bus messages someplace
 
