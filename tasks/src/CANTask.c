@@ -228,8 +228,8 @@ void CANInit(void)
         canEnableErrorNotification(can[i].regs);
         canEnableStatusChangeNotification(can[i].regs);
       }
-    can[0].myID = 15;
-    can[1].myID = 14;
+    can[0].myID = CANA_ADDRESS;
+    can[1].myID = CANB_ADDRESS;
     GPIOSetOn(CANAPower);
     GPIOSetOn(CANBPower);
 }

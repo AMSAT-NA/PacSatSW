@@ -406,4 +406,16 @@ extern const uint8_t DCT_DEFAULT_RX_MODE[4];
  */
 #define SOLAR_VOLTS_IN_SUN_MIN 125
 
+/*
+ * Definitions for the CAN bus
+ */
+
+/*
+ * These are the 4-bit address fields used in the can messages to
+ * identify the source and destination.
+ * See tasks/src/CANTask.c for details on the CAN header.
+ */
+#define CANA_ADDRESS	15
+#define CANB_ADDRESS	14
+
 #endif /* CONFIG_H_ */
