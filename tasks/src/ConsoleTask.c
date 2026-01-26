@@ -859,6 +859,10 @@ void RealConsoleTask(void)
             uint8_t enable = parseNumber(afterCommand);
 
             trace_can = enable;
+	    if (enable)
+		printf("CAN tracing enabled\n");
+	    else
+		printf("CAN tracing disabled\n");
             break;
         }
 
