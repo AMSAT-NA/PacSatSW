@@ -201,8 +201,8 @@ void ax5043PowerOff(AX5043Device device)
 
 #ifdef AFSK_HARDWARE
     if (device == TX_DEVICE)
-	// Make sure the PA is off if we are turning off the TX 5043.
-	GPIOSetOff(SSPAPower);
+        // Make sure the PA is off if we are turning off the TX 5043.
+        GPIOSetOff(SSPAPower);
     GPIOSetOff(ax5043_power_gpio[device]);
 #endif
 
@@ -253,10 +253,14 @@ void ax5043StartRx(AX5043Device device)
         info->on = true;
     }
     if (!info->rxing) {
-        bool rate = ReadMRAMBoolState(StateAx25Rate9600);
-	/* FIXME - store the enum in MRAM. */
-	enum ax5043_mode mode = (rate ? AX5043_MODE_AFSK_9600
-				 : AX5043_MODE_AFSK_1200);
+        uint8_t speed = ReadMRAMReceiveSpeed(device);
+        /* FIXME - store the enum in MRAM. */
+        enum ax5043_mode mode;
+
+        if (speed == DCT_SPEED_9600)
+            mode = AX5043_MODE_AFSK_9600;
+        else
+            mode = AX5043_MODE_AFSK_1200;
 
         start_ax25_rx(device, mode, 0);
         info->rxing = true;
@@ -296,14 +300,19 @@ void ax5043StartTx(AX5043Device device)
     }
 
     if (!info->txing) {
-	bool rate = ReadMRAMBoolState(StateAx25Rate9600);
-	/* FIXME - store the enum in MRAM. */
-	enum ax5043_mode mode = (rate ? AX5043_MODE_AFSK_9600
-				 : AX5043_MODE_AFSK_1200);
+        uint8_t speed = ReadMRAMReceiveSpeed(device);
+        /* FIXME - store the enum in MRAM. */
+        enum ax5043_mode mode;
 
-	start_ax25_tx(device, mode, 0);
-	info->txing = true;
-	info->rxing = false;
+        if (speed == DCT_SPEED_9600)
+            mode = AX5043_MODE_AFSK_9600;
+        else
+            mode = AX5043_MODE_AFSK_1200;
+
+
+        start_ax25_tx(device, mode, 0);
+        info->txing = true;
+        info->rxing = false;
     }
 }
 

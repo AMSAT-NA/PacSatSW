@@ -35,6 +35,15 @@ uint16_t DecodeUint16(uint16_t *data,int failret){
     return failret;
 }
 
+void EncodeUint8(uint8_t number,uint8_t *data){
+    data[0] = number;
+    data[1] = ~number;
+}
+uint8_t DecodeUint8(uint8_t *data,int failret){
+    if(data[0] == (uint8_t)(~data[1]))return data[0];
+    return failret;
+}
+
 //===========================
 bool GetBooleanVal(uint8_t *data){
     int safeCount=0;
@@ -90,6 +99,18 @@ void SetBooleanVal(bool bit,uint8_t *data){
                      (int) &(ptr->StatesInMRAM));\
     if (NVstat == FALSE)\
         ReportError(MRAMwrite, FALSE, CharString, (int)#field);
+#define WRITE_UINT8(field,value) \
+    bool NVstat;\
+    StateSavingMRAM_t states;\
+    NVstat = readNV(&states, sizeof(StateSavingMRAM_t), NVConfigData,\
+                    (int) &(ptr->StatesInMRAM));\
+    if (NVstat == FALSE)\
+        ReportError(MRAMread, FALSE, ReturnAddr, (int) WriteMRAMWODFreq);\
+    EncodeUint8(value,states.field);\
+    NVstat = writeNV(&states, sizeof(StateSavingMRAM_t), NVConfigData,\
+                     (int) &(ptr->StatesInMRAM));\
+    if (NVstat == FALSE)\
+        ReportError(MRAMwrite, FALSE, CharString, (int)#field);
 
 #define READ_UINT32(field,defaultOnFail)\
     bool NVstat;\
@@ -117,6 +138,15 @@ void SetBooleanVal(bool bit,uint8_t *data){
     if (NVstat == FALSE)\
         ReportError(MRAMread, FALSE, ReturnAddr, (int)#field);\
     return (retType)DecodeUint16(states.field,defaultOnFail)
+
+#define READ_UINT8(field,defaultOnFail)\
+    { bool NVstat;\
+    StateSavingMRAM_t states;\
+    NVstat = readNV(&states, sizeof(StateSavingMRAM_t), NVConfigData,\
+                    (int) &(ptr->StatesInMRAM));\
+    if (NVstat == FALSE)\
+        ReportError(MRAMread, FALSE, ReturnAddr, (int)#field);\
+    return DecodeUint8(states.field,defaultOnFail);}
 
 void WriteMRAMWODHkDownlinkIndex(uint32_t index){
     WRITE_UINT32(WODHkDownlinkIndex,index);
@@ -310,18 +340,32 @@ uint32_t ReadMRAMTimeout(TimeoutType type){
 
 void WriteMRAMReceiveFreq(uint8_t rxNum,uint32_t freq){
     WRITE_UINT32(DCTRxFrequency[rxNum],freq);
- }
-
+}
 uint32_t ReadMRAMReceiveFreq(uint8_t rxNum){
     READ_UINT32(DCTRxFrequency[rxNum],DCT_DEFAULT_RX_FREQ[rxNum]);
 }
+
+void WriteMRAMReceiveSpeed(uint8_t rxNum, uint8_t speed){
+    WRITE_UINT8(DCTRxSpeed[rxNum], speed);
+}
+uint8_t ReadMRAMReceiveSpeed(uint8_t rxNum){
+    READ_UINT8(DCTRxSpeed[rxNum], DCT_DEFAULT_RX_SPEED[rxNum]);
+}
+
 void WriteMRAMTelemFreq(uint32_t freq){
     WRITE_UINT32(DCTTxFrequency,freq);
- }
-
+}
 uint32_t ReadMRAMTelemFreq(void){
     READ_UINT32(DCTTxFrequency,DCT_DEFAULT_TX_FREQ);
 }
+
+void WriteMRAMTelemSpeed(uint8_t speed){
+    WRITE_UINT8(DCTTxSpeed, speed);
+}
+uint8_t ReadMRAMTelemSpeed(void){
+    READ_UINT8(DCTTxSpeed, DCT_DEFAULT_TX_SPEED);
+}
+
 void WriteMRAMDCTDriveLowPower(uint32_t regVal){
     WRITE_UINT32(DCTDriveLowPower,regVal);
 }
@@ -393,7 +437,6 @@ void SetupMRAMStates() {
 #endif
 
     WriteMRAMBoolState(StateUplinkEnabled,false);
-    WriteMRAMBoolState(StateAx25Rate9600,false); // start this at 1200 bps, then it can be commanded higher
     WriteMRAMBoolState(StateDigiEnabled,false);
     WriteMRAMWODFreq(DEFAULT_WOD_FREQUENCY);
     WriteMRAMWODSaved(DEFAULT_NUM_WOD_SAVED);
@@ -411,7 +454,9 @@ void SetupMRAMStates() {
     int i;
     for(i=0;i<4;i++){
         WriteMRAMReceiverMode(i, DCT_DEFAULT_RX_MODE[i]);
+        WriteMRAMReceiveSpeed(i, DCT_DEFAULT_RX_SPEED[i]);
     }
+    WriteMRAMTelemSpeed(DCT_DEFAULT_TX_SPEED);
 
     /* These are like 'set internal schedule' but sets relative to startup, not to current time */
     WriteMRAMTimeout(NoCommandTimeout,NO_COMMAND_TIMEOUT);

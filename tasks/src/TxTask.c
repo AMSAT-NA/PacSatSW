@@ -49,10 +49,13 @@ bool inhibitTransmit;
 
 portTASK_FUNCTION_PROTO(TxTask, pvParameters)
 {
-    bool rate = ReadMRAMBoolState(StateAx25Rate9600);
-    /* FIXME - store the enum in MRAM. */
-    enum ax5043_mode mode = (rate ? AX5043_MODE_AFSK_9600
-			     : AX5043_MODE_AFSK_1200);
+    uint8_t speed = ReadMRAMTelemSpeed();
+    enum ax5043_mode mode;
+
+    if (speed == DCT_SPEED_9600)
+        mode = AX5043_MODE_AFSK_9600;
+    else
+        mode = AX5043_MODE_AFSK_1200;
 
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)TxTaskWD );
     InitInterTask(ToTxTask, 10);
@@ -105,19 +108,19 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
         xStatus = xQueueReceive(xTxPacketQueue, &tx_packet_buffer, CENTISECONDS(10));
         ReportToWatchdog(CurrentTaskWD);
 
-	if (xStatus != pdPASS) {
-	    continue;
-	}
+        if (xStatus != pdPASS) {
+            continue;
+        }
 
-	if (inhibitTransmit)
-	    continue;
+        if (inhibitTransmit)
+            continue;
 
-	GPIOSetOn(LED1);
-	GPIOSetOn(SSPAPower);
-	// FIXME - do we need a delay here?
-	//vTaskDelay(MILLISECONDS(1));
+        GPIOSetOn(LED1);
+        GPIOSetOn(SSPAPower);
+        // FIXME - do we need a delay here?
+        //vTaskDelay(MILLISECONDS(1));
 
-	/* Transmit until we have no more packets. */
+        /* Transmit until we have no more packets. */
         while (xStatus == pdPASS) {
             /* Data was successfully received from the queue */
             int numbytes = tx_packet_buffer.len;
@@ -141,19 +144,19 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
             // Setup the interrupt to tell us when the buffer is empty and we can check the TX status then
             while (ax5043ReadReg(device, AX5043_RADIOSTATE) != 0) {
                 // this will yield and allow other processing while it transmits
-		// FIXME - Can't we use an interrupt for this?
+                // FIXME - Can't we use an interrupt for this?
                 vTaskDelay(MILLISECONDS(1));
             }
 
-	    // See if we have another packet to send.
-	    xStatus = xQueueReceive(xTxPacketQueue, &tx_packet_buffer, NO_TIMEOUT);
-	    ReportToWatchdog(CurrentTaskWD);
-	}
+            // See if we have another packet to send.
+            xStatus = xQueueReceive(xTxPacketQueue, &tx_packet_buffer, NO_TIMEOUT);
+            ReportToWatchdog(CurrentTaskWD);
+        }
 
-	//       printf("Turn off TX LED1\n");
-	GPIOSetOff(LED1);
-	GPIOSetOff(SSPAPower);
-	//       printf("INFO: Transmission complete\n");
+        //       printf("Turn off TX LED1\n");
+        GPIOSetOff(LED1);
+        GPIOSetOff(SSPAPower);
+        //       printf("INFO: Transmission complete\n");
     }
 }
 

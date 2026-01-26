@@ -101,7 +101,7 @@ void receiveLine(COM_NUM ioCom, char *commandString, char prompt, bool echo)
 
     if (!CheckMRAMVersionNumber()) {
         printf("\n ***MRAM format has changed\n"
-	       "***Command 'preflight init' or 'init mram' or 'init new proc' required!\n");
+               "***Command 'preflight init' or 'init mram' or 'init new proc' required!\n");
     }
 
     if (echo)
@@ -116,13 +116,13 @@ void receiveLine(COM_NUM ioCom, char *commandString, char prompt, bool echo)
         dwdReset();
         if (gotChar) {
             receivedChar &= 0x7f; // 7-bit ASCII
-	    // Is it a delete character?
+            // Is it a delete character?
             if ((receivedChar == '\x7f') | (receivedChar == '\b')) {
                 escSeq=0;
                 if (charNum > 0) { // If there is a character, delete it...
                     commandString[--charNum] = 0; //...in the buffer and...
                     if (echo)
-			//...on the screen
+                        //...on the screen
                         SerialPutString(ioCom, deleteString, 0);
                 }
             } else if (escSeq==0 && receivedChar == 27) { /* Escape */
@@ -130,7 +130,7 @@ void receiveLine(COM_NUM ioCom, char *commandString, char prompt, bool echo)
             } else if ((escSeq==1) && receivedChar == '[') {
                 escSeq=2;
             }
-	    /* Here we got an up arrow */
+            /* Here we got an up arrow */
             else if ((escSeq == 2) && receivedChar == 'A') {
                 escSeq = 0;
                 strncpy(commandString, prevCommandString, COM_STRING_SIZE);
@@ -139,13 +139,13 @@ void receiveLine(COM_NUM ioCom, char *commandString, char prompt, bool echo)
                 printf("\r%c%s", prompt, commandString);
 
             } else if (receivedChar != '\n') {
-		/*Ignore line feed.  Only watch for CR*/
+                /*Ignore line feed.  Only watch for CR*/
                 /* Echo the received character and record it in the buffer */
                 escSeq = 0;
                 if (echo)
-		    // COM0, value, block time is unused
+                    // COM0, value, block time is unused
                     SerialPutChar(ioCom, receivedChar, 0);
-		/* Force it to be lower case, plus it won't change digits */
+                /* Force it to be lower case, plus it won't change digits */
                 commandString[charNum++] = receivedChar | 0x20;
             }
             /*
@@ -156,16 +156,16 @@ void receiveLine(COM_NUM ioCom, char *commandString, char prompt, bool echo)
              * much the rest of the routine.
              */
 
-	    // The user hit 'enter' or carriage return
+            // The user hit 'enter' or carriage return
             if (receivedChar == '\r') {
                 int dest = 0, src = 0;
 
                 if (echo)
                     SerialPutChar(ioCom, '\n', 0); // Also echo a line feed
                 /*
-		 * Ok, we have the end of the command line.  Decode it
-		 * and do the command.
-		 */
+                 * Ok, we have the end of the command line.  Decode it
+                 * and do the command.
+                 */
                 commandString[--charNum] = 0; // Replace the CR with a null terminator
                 /* Now squeeze out extra spaces */
                 while (commandString[src] != 0) {
@@ -174,7 +174,7 @@ void receiveLine(COM_NUM ioCom, char *commandString, char prompt, bool echo)
                      * If we have multiple spaces, only take the last one
                      */
                     if ((commandString[dest] != ' ')
-			    || (commandString[src] != ' '))
+                            || (commandString[src] != ' '))
                         dest++;
                 }
                 if (commandString[0]!= 0){
@@ -222,19 +222,19 @@ void DisplayTelemetry(uint32_t typeRequested)
         printf("MRAM State Values:\n\r"
                 " CommandedSafeMode=%d,Autosafe=%d\n\r"
                 " CommandRcvd=%d,AllowAutoSafe=%d\n\r"
-                " AX25 9600=%d,PB Enabled=%d,FTL0 Enabled=%d,Digi Enabled=%d\n\r",
+                " AX25 PB Enabled=%d,FTL0 Enabled=%d,Digi Enabled=%d\n\r",
 
-	       ReadMRAMBoolState(StateCommandedSafeMode),
-	       ReadMRAMBoolState(StateAutoSafe),
-	       ReadMRAMBoolState(StateCommandReceived),
-	       ReadMRAMBoolState(StateAutoSafeAllow),
-	       ReadMRAMBoolState(StateAx25Rate9600),
-	       ReadMRAMBoolState(StatePbEnabled),
-	       ReadMRAMBoolState(StateUplinkEnabled),
-	       ReadMRAMBoolState(StateDigiEnabled));
+               ReadMRAMBoolState(StateCommandedSafeMode),
+               ReadMRAMBoolState(StateAutoSafe),
+               ReadMRAMBoolState(StateCommandReceived),
+               ReadMRAMBoolState(StateAutoSafeAllow),
+               ReadMRAMBoolState(StatePbEnabled),
+               ReadMRAMBoolState(StateUplinkEnabled),
+               ReadMRAMBoolState(StateDigiEnabled));
         printf(" RX Modes:");
         for (i = 0; i < NUM_OF_RX_CHANNELS; i++)
-            printf(" [%d] %x",i, ReadMRAMReceiverMode(i));
+            printf(" [%d] %x %s", i, ReadMRAMReceiverMode(i),
+                   ReadMRAMReceiveSpeed(i) == DCT_SPEED_9600 ? "9600" : "1200");
         printf("\n Uncommanded Seconds in Orbit=%d\n\r",
                 (unsigned int) ReadMRAMSecondsOnOrbit());
         // todo:  Have to put the on-orbit flag somewhere
@@ -261,7 +261,7 @@ void DisplayTelemetry(uint32_t typeRequested)
 
         for (bit = 0; bit < 9; bit ++) {
             printf("%20s = %d\n",TaskNames[bit+1],
-		   (localErrorCollection.wdReports>>bit) & 0x01);
+                   (localErrorCollection.wdReports>>bit) & 0x01);
         }
 
         i = xPortGetFreeHeapSize();
@@ -312,7 +312,7 @@ void printID(void){
         kilos = value % 1024;
         printf("Flash memory size %dMb+%dKb\n",megs,kilos);
         printf("MRAM config data partition size=%d, file system size=%d\n",
-	       getSizeNV(NVConfigData), getSizeNV(NVFileSystem));
+               getSizeNV(NVConfigData), getSizeNV(NVFileSystem));
     }
 
     //    printf("Previous reboot reason=%d (%s), WD reports=%x,task=%d\n",localErrorCollection.LegErrorCode,

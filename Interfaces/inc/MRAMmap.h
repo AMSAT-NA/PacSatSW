@@ -17,16 +17,16 @@
 typedef uint32_t CRCtype_t;
 /* IHU reset counter */
 typedef struct {
-	uint16_t IHUresetCnt;			/* reset counter (part of time) */
-	uint16_t IHUresetCntComp;		/* complement of the reset counter */
-	CRCtype_t Crc;
+        uint16_t IHUresetCnt;                   /* reset counter (part of time) */
+        uint16_t IHUresetCntComp;               /* complement of the reset counter */
+        CRCtype_t Crc;
 } IHUReset_t;
 
 /* MRAM Min/Max Delta Times */
 typedef struct {
-	logicalTime_t deltaMin;
-	logicalTime_t deltaMax;
-	CRCtype_t Crc;
+        logicalTime_t deltaMin;
+        logicalTime_t deltaMax;
+        CRCtype_t Crc;
 } MinMaxDelta_t;
 
 enum _StateTypes {
@@ -43,36 +43,38 @@ enum _StateTypes {
     ,StateNormalRfPowerLevel=10
     ,StateSafeRfPowerLevel=11
     ,StateExp1Disabled
-    ,StateAx25Rate9600       // True if we are using 9600bps packet
     ,StateDigiEnabled=14
     ,StateSpare2
     ,MaxStates
 };
 
 typedef struct {
-	/* Each entry has two because we want extra bits for checking */
+        /* Each entry has two because we want extra bits for checking */
 // These we don't want to change with each MRAM change.  They are generally set only once
 // for each processor.
     uint32_t DCTRxFrequency[4][2];
     uint32_t DCTTxFrequency[2];
+    uint8_t  DCTRxSpeed[4][2];
+    uint8_t  DCTTxSpeed[2];
+    uint8_t  unused1[3][2];
     uint32_t DCTDriveLowPower[2];
     uint32_t DCTDriveHighPower[2];
 // These are initted by init mram or preflight init
-	uint32_t WODHkDownlinkIndex[2];
-	uint32_t WODSciDownlinkIndex[2];
-	uint32_t WODRagDownlinkIndex[2];
-	uint32_t WODHkStoreIndex[2];
-	uint32_t WODSciStoreIndex[2];
-	uint32_t WODRagStoreIndex[2];
-	uint32_t TimeSinceFirstBoot[2];
+        uint32_t WODHkDownlinkIndex[2];
+        uint32_t WODSciDownlinkIndex[2];
+        uint32_t WODRagDownlinkIndex[2];
+        uint32_t WODHkStoreIndex[2];
+        uint32_t WODSciStoreIndex[2];
+        uint32_t WODRagStoreIndex[2];
+        uint32_t TimeSinceFirstBoot[2];
     uint32_t MinMaxResetTimeSecs[2];
     uint16_t MinMaxResetTimeEpoch[2];
-	uint16_t WODFrequency[2];
-	uint16_t WODSize[2];
-	uint16_t NumberOfResets[2];
-	uint16_t TimestampResets[2];
-	uint16_t AutoSafeEnter[2];
-	uint16_t AutoSafeExit[2];
+        uint16_t WODFrequency[2];
+        uint16_t WODSize[2];
+        uint16_t NumberOfResets[2];
+        uint16_t TimestampResets[2];
+        uint16_t AutoSafeEnter[2];
+        uint16_t AutoSafeExit[2];
     uint32_t TimeoutTimes[MaxNumberOfTimeouts][2];
     uint32_t PostLVTimeout[2];
     uint16_t EclipseActionCommanded[2];
@@ -114,8 +116,8 @@ typedef struct {
         uint32_t testSize[2]; // This will be used to check the address size of the MRAM (it is stored in the status register)
         uint32_t MRAMVersion1; // This should always have the real version number
         StateSavingMRAM_t StatesInMRAM;
-		AuthKey_t AuthenticateKey;
-		InProcessFileUpload_t FileUploadsTable[MAX_IN_PROCESS_FILE_UPLOADS];
+                AuthKey_t AuthenticateKey;
+                InProcessFileUpload_t FileUploadsTable[MAX_IN_PROCESS_FILE_UPLOADS];
         uint32_t MRAMVersion2; // This is likely to be wrong if something above changed size
 } MRAMmap_t;
 
@@ -128,7 +130,7 @@ typedef struct {
  */
 #define MR25H40_SIZE ((1024*1024*4)/8) // 4 Megabits in bytes
 //struct _ASSERT {
-//	char x[(sizeof(MRAMmap_t) < MR25H40_SIZE)?1:-1];
+//      char x[(sizeof(MRAMmap_t) < MR25H40_SIZE)?1:-1];
 //};
 #define MRAM_MIN8 0
 #define MRAM_MIN12 0

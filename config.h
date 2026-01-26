@@ -335,8 +335,12 @@ typedef enum {
 /**
  * AX5043 radio constants
  */
+#define DCT_SPEED_1200 0
+#define DCT_SPEED_9600 1
+
 #define AX5043_USES_TCXO // If this is not defined then we are using an XTAL
 #define DCT_DEFAULT_TX_FREQ 435760000 // Actual frequency.  Converted later to ax5043 register value
+#define DCT_DEFAULT_TX_SPEED DCT_SPEED_1200
 //#define DCT_DEFAULT_RX_FREQ 145835000 //436800000 // The Flight frequency will be in 2m. e.g. 145835000
 /* Defined in ConsoleTask.c */
 extern const uint32_t DCT_DEFAULT_RX_FREQ[4];
@@ -347,6 +351,7 @@ extern const uint32_t DCT_DEFAULT_RX_FREQ[4];
 
 /* Defined in ConsoleTask.c */
 extern const uint8_t DCT_DEFAULT_RX_MODE[4];
+extern const uint8_t DCT_DEFAULT_RX_SPEED[4];
 
 /*
  * MET Constants.  The MET timer goes off every second.  Other time constants

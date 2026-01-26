@@ -85,6 +85,10 @@ const uint32_t DCT_DEFAULT_RX_FREQ[4] =
 // default all channels
 const uint8_t DCT_DEFAULT_RX_MODE[4] = { 0x15, 0x15, 0x15, 0x15 };
 
+const uint8_t DCT_DEFAULT_RX_SPEED[4] = {
+    DCT_SPEED_1200, DCT_SPEED_1200, DCT_SPEED_1200, DCT_SPEED_1200
+};
+
 extern bool InSafeMode, InScienceMode, InHealthMode;
 extern bool TransponderEnabled, onOrbit, SimDoppler;
 extern resetMemory_t SaveAcrossReset;
@@ -859,10 +863,10 @@ void RealConsoleTask(void)
             uint8_t enable = parseNumber(afterCommand);
 
             trace_can = enable;
-	    if (enable)
-		printf("CAN tracing enabled\n");
-	    else
-		printf("CAN tracing disabled\n");
+            if (enable)
+                printf("CAN tracing enabled\n");
+            else
+                printf("CAN tracing disabled\n");
             break;
         }
 
@@ -1974,26 +1978,32 @@ void RealConsoleTask(void)
 
         case setRate1200:
         case setRate9600: {
-            printf("Setting Radio to %sbps.\n",
+            uint8_t devb = parseNumber(afterCommand);
+            uint8_t speed;
+
+            if (devb >= InvalidAX5043Device) {
+                printf("Give a device number between 0 and %d\n",
+                       NUM_AX5043_SPI_DEVICES - 1);
+                break;
+            }
+
+            printf("Setting Radio %u to %sbps.\n", devb,
                    index == setRate9600 ? "9600" : "1200");
-            WriteMRAMBoolState(StateAx25Rate9600, index == setRate9600);
 
-            ax5043StopRx(RX1_DEVICE);
-#if NUM_AX5043_RX_DEVICES == 4
-            ax5043StopRx(RX2_DEVICE);
-            ax5043StopRx(RX3_DEVICE);
-            ax5043StopRx(RX4_DEVICE);
-#endif
-            ax5043StopTx(TX_DEVICE);
+            if (index == setRate9600)
+                speed = DCT_SPEED_9600;
+            else
+                speed = DCT_SPEED_1200;
 
-            ax5043StartRx(RX1_DEVICE);
-#if NUM_AX5043_SPI_DEVICES == 5
-            ax5043StartRx(RX2_DEVICE);
-            ax5043StartRx(RX3_DEVICE);
-            ax5043StartRx(RX4_DEVICE);
-#endif
-            ax5043StartTx(TX_DEVICE);
-            printf("RESET the IHU to complete the change ..\n");
+            if (devb == TX_DEVICE) {
+                WriteMRAMReceiveSpeed(devb, speed);
+                ax5043StopTx(TX_DEVICE);
+                ax5043StartTx(TX_DEVICE);
+            } else {
+                WriteMRAMTelemSpeed(speed);
+                ax5043StopRx((AX5043Device) devb);
+                ax5043StartRx((AX5043Device) devb);
+            }
             break;
         }
 
