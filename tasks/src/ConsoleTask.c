@@ -1996,11 +1996,11 @@ void RealConsoleTask(void)
                 speed = DCT_SPEED_1200;
 
             if (devb == TX_DEVICE) {
-                WriteMRAMReceiveSpeed(devb, speed);
+                WriteMRAMTelemSpeed(speed);
                 ax5043StopTx(TX_DEVICE);
                 ax5043StartTx(TX_DEVICE);
             } else {
-                WriteMRAMTelemSpeed(speed);
+                WriteMRAMReceiveSpeed(devb, speed);
                 ax5043StopRx((AX5043Device) devb);
                 ax5043StartRx((AX5043Device) devb);
             }
