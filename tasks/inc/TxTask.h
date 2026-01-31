@@ -28,6 +28,9 @@ bool tx_send_packet(AX25_PACKET *packet, bool expedited, bool block);
 bool tx_test_make_packet();
 
 /* TODO - This is a hack for inhibiting transmit. */
-bool inhibitTransmit;
+extern bool inhibitTransmit;
+
+/* Current transmit mode. */
+extern enum ax5043_mode tx_mode;
 
 #endif /* TASKS_INC_TXTASK_H_ */

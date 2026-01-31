@@ -2008,14 +2008,16 @@ void RealConsoleTask(void)
 
             if (devb == TX_DEVICE) {
                 WriteMRAMTelemSpeed(dspeed);
-                ax5043_ax25_set_mode((AX5043Device) devb, mode, true);
-                //ax5043StopTx(TX_DEVICE);
-                //ax5043StartTx(TX_DEVICE);
+                /*
+                 * Transmit task will set the mode as necessary so it
+                 * doesn't change while transmitting.
+                 */
+                tx_mode = mode;
             } else {
                 WriteMRAMReceiveSpeed(devb, dspeed);
+                ax5043StopRx((AX5043Device) devb);
                 ax5043_ax25_set_mode((AX5043Device) devb, mode, false);
-                //ax5043StopRx((AX5043Device) devb);
-                //ax5043StartRx((AX5043Device) devb);
+                ax5043StartRx((AX5043Device) devb);
             }
             break;
         }
