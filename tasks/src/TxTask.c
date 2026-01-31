@@ -34,13 +34,11 @@
 
 
 static bool tx_make_ui_packet(char *from_callsign, char *to_callsign,
-			      uint8_t pid, uint8_t *bytes, int len,
-			      rx_radio_buffer_t *tx_radio_buffer);
+                              uint8_t pid, uint8_t *bytes, int len,
+                              rx_radio_buffer_t *tx_radio_buffer);
 static bool tx_make_packet(AX25_PACKET *packet,
-			   rx_radio_buffer_t *tx_radio_buffer);
+                           rx_radio_buffer_t *tx_radio_buffer);
 
-static rx_radio_buffer_t tx_packet_buffer; /* Buffer used when data copied from tx queue */
-static rx_radio_buffer_t tmp_packet_buffer; /* Buffer used when constructing new packets. */
 static AX5043Device device = TX_DEVICE;
 extern bool monitorPackets;
 
@@ -54,6 +52,9 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
 {
     uint8_t speed = ReadMRAMTelemSpeed();
     enum ax5043_mode mode;
+    /* Buffer used when data copied from tx queue */
+    rx_radio_buffer_t tx_packet_buffer;
+
 
     if (speed == DCT_SPEED_9600)
         mode = AX5043_MODE_GMSK_9600;
@@ -185,8 +186,8 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
  *
  */
 static bool tx_make_ui_packet(char *from_callsign, char *to_callsign,
-			      uint8_t pid, uint8_t *bytes, int len,
-			      rx_radio_buffer_t *tx_radio_buffer)
+                              uint8_t pid, uint8_t *bytes, int len,
+                              rx_radio_buffer_t *tx_radio_buffer)
 {
     uint8_t packet_len;
     uint8_t header_len = 16;
@@ -235,7 +236,7 @@ static bool tx_make_ui_packet(char *from_callsign, char *to_callsign,
  * TODO - this should be in ax25_util and be called encode_packet()
  */
 static bool tx_make_packet(AX25_PACKET *packet,
-			   rx_radio_buffer_t *tx_radio_buffer)
+                           rx_radio_buffer_t *tx_radio_buffer)
 {
     uint8_t packet_len;
     uint8_t header_len = 15; // Assumes no PID
@@ -384,6 +385,7 @@ static bool tx_make_packet(AX25_PACKET *packet,
 bool tx_send_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid,
                        uint8_t *bytes, int len, bool block)
 {
+    rx_radio_buffer_t tmp_packet_buffer;
     //uint8_t raw_bytes[AX25_PKT_BUFFER_LEN];
     bool rc = tx_make_ui_packet(from_callsign, to_callsign, pid,
                                 bytes, len, &tmp_packet_buffer);
@@ -422,6 +424,7 @@ bool tx_send_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid,
  */
 bool tx_send_packet(AX25_PACKET *packet, bool expedited, bool block)
 {
+    rx_radio_buffer_t tmp_packet_buffer;
     bool rc = tx_make_packet(packet, &tmp_packet_buffer);
 
     if (rc == false) {
@@ -461,7 +464,6 @@ bool tx_send_packet(AX25_PACKET *packet, bool expedited, bool block)
 
 bool tx_test_make_packet()
 {
-    debug_print("## SELF TEST: tx_test_make_packet\n");
     bool rc = true;
     //uint8_t raw_bytes[AX25_PKT_BUFFER_LEN]; // position 0 will hold the number of bytes
     char *from_callsign = "PACSAT-12";
@@ -469,7 +471,9 @@ bool tx_test_make_packet()
     uint8_t pid = 0xbb;
     uint8_t bytes[] = {0,1,2,3,4,5,6,7,8,9};
     uint8_t len = 10;
+    rx_radio_buffer_t tmp_packet_buffer;
 
+    debug_print("## SELF TEST: tx_test_make_packet\n");
     rc = tx_make_ui_packet(from_callsign, to_callsign, pid, bytes, len,
                            &tmp_packet_buffer);
 
