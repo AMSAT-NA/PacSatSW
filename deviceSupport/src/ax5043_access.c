@@ -258,7 +258,7 @@ void ax5043StartRx(AX5043Device device)
         enum ax5043_mode mode;
 
         if (speed == DCT_SPEED_9600)
-            mode = AX5043_MODE_AFSK_9600;
+            mode = AX5043_MODE_GMSK_9600;
         else
             mode = AX5043_MODE_AFSK_1200;
 
@@ -305,7 +305,7 @@ void ax5043StartTx(AX5043Device device)
         enum ax5043_mode mode;
 
         if (speed == DCT_SPEED_9600)
-            mode = AX5043_MODE_AFSK_9600;
+            mode = AX5043_MODE_GMSK_9600;
         else
             mode = AX5043_MODE_AFSK_1200;
 

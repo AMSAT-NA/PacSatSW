@@ -102,7 +102,7 @@ static void ax5043_ax25_set_mode_base(AX5043Device device,
         ax5043WriteReg(device, AX5043_ENCODING, 0x03);
         break;
 
-    case AX5043_MODE_AFSK_9600:
+    case AX5043_MODE_GMSK_9600:
         /* NOTE that 0x07 GMSK does not work on receive.  Use GFSK
          * 0x08 with BT = 0.5.  This works better than 0.3 for RX.
          * More testing needed for TX, which may work best with
@@ -132,7 +132,7 @@ static void ax5043_ax25_set_mode_base(AX5043Device device,
         ax5043WriteReg(device, AX5043_IFFREQ0, 0xcd);
         break;
 
-    case AX5043_MODE_AFSK_9600:
+    case AX5043_MODE_GMSK_9600:
         ax5043WriteReg(device, AX5043_IFFREQ1, 0x04);
         ax5043WriteReg(device, AX5043_IFFREQ0, 0xcd);
         break;
@@ -165,7 +165,7 @@ static void ax5043_ax25_set_mode_base(AX5043Device device,
         ax5043WriteReg(device, AX5043_DECIMATION, 0x08);
         break;
 
-    case AX5043_MODE_AFSK_9600:
+    case AX5043_MODE_GMSK_9600:
         // Set to 0c18 per black magic and 0x11 for 9600 bps
         ax5043WriteReg(device, AX5043_DECIMATION, 0x0D);
         break;
@@ -182,7 +182,7 @@ static void ax5043_ax25_set_mode_base(AX5043Device device,
         ax5043WriteReg(device, AX5043_RXDATARATE0, 0x55);
         break;
 
-    case AX5043_MODE_AFSK_9600:
+    case AX5043_MODE_GMSK_9600:
         // 0x003106 for 9600
         ax5043WriteReg(device, AX5043_RXDATARATE2, 0x00);
         ax5043WriteReg(device, AX5043_RXDATARATE1, 0x40);
@@ -211,7 +211,7 @@ static void ax5043_ax25_set_mode_base(AX5043Device device,
         ax5043WriteReg(device, AX5043_MAXRFOFFSET0, 0x07);
         break;
 
-    case AX5043_MODE_AFSK_9600:
+    case AX5043_MODE_GMSK_9600:
         ax5043WriteReg(device, AX5043_MAXRFOFFSET1, 0x00);
         ax5043WriteReg(device, AX5043_MAXRFOFFSET0, 0x00);
         break;
@@ -227,7 +227,7 @@ static void ax5043_ax25_set_mode_base(AX5043Device device,
         ax5043WriteReg(device, AX5043_AFSKCTRL, 0x0C);
         break;
 
-    case AX5043_MODE_AFSK_9600:
+    case AX5043_MODE_GMSK_9600:
         // not needed for 9600, only 1200bps AFSK
         break;
     }
@@ -259,7 +259,7 @@ static void ax5043_ax25_set_mode_base(AX5043Device device,
         ax5043WriteReg(device, AX5043_AGCGAIN0, 0xE8); // RX Only
         break;
 
-    case AX5043_MODE_AFSK_9600:
+    case AX5043_MODE_GMSK_9600:
         ax5043WriteReg(device, AX5043_AGCGAIN0, 0xB5); // RX Only
         break;
     }
@@ -284,7 +284,7 @@ static void ax5043_ax25_set_mode_base(AX5043Device device,
         ax5043WriteReg(device, AX5043_TIMEGAIN0, 0xDC); // RX Only
         break;
 
-    case AX5043_MODE_AFSK_9600:
+    case AX5043_MODE_GMSK_9600:
         ax5043WriteReg(device, AX5043_TIMEGAIN0, 0x89); // RX Only
         break;
     }
@@ -309,7 +309,7 @@ static void ax5043_ax25_set_mode_base(AX5043Device device,
         ax5043WriteReg(device, AX5043_DRGAIN0, 0xD6); // RX Only
         break;
 
-    case AX5043_MODE_AFSK_9600:
+    case AX5043_MODE_GMSK_9600:
         ax5043WriteReg(device, AX5043_DRGAIN0, 0x83); // RX Only
         break;
     }
@@ -325,7 +325,7 @@ static void ax5043_ax25_set_mode_base(AX5043Device device,
         ax5043WriteReg(device, AX5043_FREQUENCYGAIND0, 0x0D);
         break;
 
-    case AX5043_MODE_AFSK_9600:
+    case AX5043_MODE_GMSK_9600:
         ax5043WriteReg(device, AX5043_FREQUENCYGAINA0, 0x26);
         ax5043WriteReg(device, AX5043_FREQUENCYGAINB0, 0x0A);
         ax5043WriteReg(device, AX5043_FREQUENCYGAINC0, 0x1F);
@@ -338,7 +338,7 @@ static void ax5043_ax25_set_mode_base(AX5043Device device,
         ax5043WriteReg(device, AX5043_AGCGAIN1, 0xE8); // RX Only?
         break;
 
-    case AX5043_MODE_AFSK_9600:
+    case AX5043_MODE_GMSK_9600:
         ax5043WriteReg(device, AX5043_AGCGAIN1, 0xB5); // RX Only?
         break;
     }
@@ -351,7 +351,7 @@ static void ax5043_ax25_set_mode_base(AX5043Device device,
         ax5043WriteReg(device, AX5043_DRGAIN1, 0xD5);
         break;
 
-    case AX5043_MODE_AFSK_9600:
+    case AX5043_MODE_GMSK_9600:
         // GOLF was 94, DA per radio lab
         ax5043WriteReg(device, AX5043_TIMEGAIN1, 0x87);
         // GOLF was 90, D5 per radio lab
@@ -371,7 +371,7 @@ static void ax5043_ax25_set_mode_base(AX5043Device device,
         ax5043WriteReg(device, AX5043_FREQUENCYGAIND1, 0x1D);
         break;
 
-    case AX5043_MODE_AFSK_9600:
+    case AX5043_MODE_GMSK_9600:
         // GOLF was 46, 0F per Radio lab
         ax5043WriteReg(device, AX5043_FREQUENCYGAINA1, 0x26);
         // GOLF was 0A, 1F per radio lab
@@ -388,7 +388,7 @@ static void ax5043_ax25_set_mode_base(AX5043Device device,
         ax5043WriteReg(device, AX5043_FREQDEV01, 0x00); // per radio lab
         break;
 
-    case AX5043_MODE_AFSK_9600:
+    case AX5043_MODE_GMSK_9600:
         ax5043WriteReg(device, AX5043_FREQDEV01, 0x2D); // per radio lab
         break;
     }
@@ -401,7 +401,7 @@ static void ax5043_ax25_set_mode_base(AX5043Device device,
         ax5043WriteReg(device, AX5043_DRGAIN3, 0xD4);
         break;
 
-    case AX5043_MODE_AFSK_9600:
+    case AX5043_MODE_GMSK_9600:
          // GOLF was 93, D9 per radio lab
         ax5043WriteReg(device, AX5043_TIMEGAIN3, 0x86);
         // GOLF was 90, D4 per radio lab
@@ -421,7 +421,7 @@ static void ax5043_ax25_set_mode_base(AX5043Device device,
         ax5043WriteReg(device, AX5043_FREQUENCYGAIND3, 0x0D);
         break;
 
-    case AX5043_MODE_AFSK_9600:
+    case AX5043_MODE_GMSK_9600:
         // GOLF was 46, 0F per radio lab
         ax5043WriteReg(device, AX5043_FREQUENCYGAINA3, 0x26);
         // GOLF was 0A, 1F per radio lab
@@ -438,7 +438,7 @@ static void ax5043_ax25_set_mode_base(AX5043Device device,
         ax5043WriteReg(device, AX5043_FREQDEV03, 0x00); // per radio lab
         break;
 
-    case AX5043_MODE_AFSK_9600:
+    case AX5043_MODE_GMSK_9600:
         ax5043WriteReg(device, AX5043_FREQDEV03, 0x2D); // per radio lab
         break;
     }
@@ -452,7 +452,7 @@ static void ax5043_ax25_set_mode_base(AX5043Device device,
         ax5043WriteReg(device, AX5043_MODCFGF, 0x03); // TX only
         break;
 
-    case AX5043_MODE_AFSK_9600:
+    case AX5043_MODE_GMSK_9600:
         // TX only TODO - radio lab says 00, but is that for FSK or
         // because I selected wrong.  Surely we want filtering
         ax5043WriteReg(device, AX5043_MODCFGF, 0x03);
@@ -475,7 +475,7 @@ static void ax5043_ax25_set_mode_base(AX5043Device device,
         ax5043WriteReg(device, AX5043_FSKDEV0, 0x8E);
         break;
 
-    case AX5043_MODE_AFSK_9600:
+    case AX5043_MODE_GMSK_9600:
         ax5043WriteReg(device, AX5043_FSKDEV2, 0x00);
         ax5043WriteReg(device, AX5043_FSKDEV1, 0x09);
         ax5043WriteReg(device, AX5043_FSKDEV0, 0xD5);
@@ -497,7 +497,7 @@ static void ax5043_ax25_set_mode_base(AX5043Device device,
         ax5043WriteReg(device, AX5043_TXRATE0, 0xEA);
         break;
 
-    case AX5043_MODE_AFSK_9600:
+    case AX5043_MODE_GMSK_9600:
         ax5043WriteReg(device, AX5043_TXRATE2, 0x00);
         ax5043WriteReg(device, AX5043_TXRATE1, 0x27);
         ax5043WriteReg(device, AX5043_TXRATE0, 0x52);
@@ -510,7 +510,7 @@ static void ax5043_ax25_set_mode_base(AX5043Device device,
         ax5043WriteReg(device, AX5043_MATCH1LEN, 0x8A);
         break;
 
-    case AX5043_MODE_AFSK_9600:
+    case AX5043_MODE_GMSK_9600:
         // Bit 7 - 1 = raw, 0 = scrambled
         ax5043WriteReg(device, AX5043_MATCH1LEN, 0x0A);
         break;
@@ -534,7 +534,7 @@ static void ax5043_ax25_set_mode_tx(AX5043Device device,
         ax5043WriteReg(device, AX5043_AFSKMARK0, 0x14);
         break;
 
-    case AX5043_MODE_AFSK_9600:
+    case AX5043_MODE_GMSK_9600:
         break;
     }
 }
@@ -555,7 +555,7 @@ static void ax5043_ax25_set_mode_rx(AX5043Device device,
         ax5043WriteReg(device, AX5043_AFSKMARK0, 0x27); // 76 per black magic
         break;
 
-    case AX5043_MODE_AFSK_9600:
+    case AX5043_MODE_GMSK_9600:
         break;
     }
 }
@@ -1352,7 +1352,7 @@ static char *ax5043_mode_to_str(enum ax5043_mode mode)
     case AX5043_MODE_AFSK_1200:
         return "afsk1200";
 
-    case AX5043_MODE_AFSK_9600:
+    case AX5043_MODE_GMSK_9600:
         return "afsk9600";
 
     default:

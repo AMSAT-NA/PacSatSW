@@ -1658,7 +1658,7 @@ void RealConsoleTask(void)
             printf("Testing the PLL range for device: %d\n", device);
 
             // test the range of the receiver on 2m
-            test_pll_2m_range(device, AX5043_MODE_AFSK_9600, 0);
+            test_pll_2m_range(device, AX5043_MODE_GMSK_9600, 0);
             break;
         }
 
@@ -1988,7 +1988,7 @@ void RealConsoleTask(void)
                 mode = AX5043_MODE_AFSK_1200;
             } else if (speed == 9600) {
                 dspeed = DCT_SPEED_9600;
-                mode = AX5043_MODE_AFSK_9600;
+                mode = AX5043_MODE_GMSK_9600;
             } else {
                 printf("Invalid mode %d, must be 1200 or 9600\n", speed);
                 break;

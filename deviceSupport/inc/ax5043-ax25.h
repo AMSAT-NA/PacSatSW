@@ -410,7 +410,7 @@ struct axradio_address {
 
 enum ax5043_mode {
     AX5043_MODE_AFSK_1200,
-    AX5043_MODE_AFSK_9600,
+    AX5043_MODE_GMSK_9600,
 };
 
 #define AX5043_FLAG_DIV2	(1 << 0) // Divide the frequency by 2.
