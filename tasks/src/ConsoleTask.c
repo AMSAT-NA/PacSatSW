@@ -735,7 +735,7 @@ void RealConsoleTask(void)
         }
 
         case regRtc: {
-            uint8_t readReg = parseNumber(afterCommand);
+            uint8_t readReg = parseNumber(&afterCommand);
             bool status;
             uint8_t data;
 
@@ -753,8 +753,8 @@ void RealConsoleTask(void)
         }
 
         case testAllMRAM:{
-            int add = parseNumber(afterCommand);
-            int secret = parseNextNumber();
+            int add = parseNumber(&afterCommand);
+            int secret = parseNumber(&afterCommand);
 
             if (add == 0)
                 add = 4;
@@ -770,7 +770,7 @@ void RealConsoleTask(void)
 
         case MRAMWrEn: {
             bool stat;
-            int num = parseNumber(afterCommand);
+            int num = parseNumber(&afterCommand);
 
             stat = writeEnableMRAM(num);
             printf("stat for MRAM %d is %d; sr is %x\n", num, stat,
@@ -798,15 +798,15 @@ void RealConsoleTask(void)
             Gpio_Use i;
             int val;
 
-            i = (Gpio_Use) parseNumber(afterCommand);
+            i = (Gpio_Use) parseNumber(&afterCommand);
             if (i >= NumberOfGPIOs) {
                 printf("Invalid GPIO number %d, use 'get gpios' to find the number\n",
                        i);
                 break;
             }
-            val = parseNextNumber();
+            val = parseNumber(&afterCommand);
             if (val < 0 || val > 1) {
-                printf("Invalid GPIO value %d, must be 0 or 1\n", val);
+                printf("Invalid <GPIO value %d, must be 0 or 1\n", val);
                 break;
             }
             if (val)
@@ -818,12 +818,12 @@ void RealConsoleTask(void)
         }
 
         case SendCANMsg: {
-            uint8_t canNum = parseNumber(afterCommand);
-            int priority = parseNextNumber();
-            int type = parseNextNumber();
-            uint32_t id = parseNextNumber32();
-            int dest = parseNextNumber();
-            int msglen = parseNextNumber();
+            uint8_t canNum = parseNumber(&afterCommand);
+            int priority = parseNumber(&afterCommand);
+            int type = parseNumber(&afterCommand);
+            uint32_t id = parseNumber32(&afterCommand);
+            int dest = parseNumber(&afterCommand);
+            int msglen = parseNumber(&afterCommand);
             uint8_t msg[64];
             unsigned int i;
 
@@ -842,34 +842,50 @@ void RealConsoleTask(void)
         }
 
         case SetCANLoopback: {
-            uint8_t canNum = parseNumber(afterCommand);
-            uint8_t enable = parseNextNumber();
+            uint16_t canNum;
+            int err = parse_uint16(&afterCommand, &canNum, 0);
+            bool enable;
 
+            err |= parse_bool(&afterCommand, &enable);
+
+            if (err) {
+                printf("Invalid format: set can loopback <num> 0|1\n");
+                break;
+            }
             if (canNum >= NUM_CAN_BUSSES) {
                 printf("Invalid can bus: %d\n", canNum);
                 break;
             }
 
             CANEnableLoopback(canNum, enable);
+	    printf("CAN loopback %s\n", enable ? "enabled" : "disabled");
             break;
         }
 
         case TraceCAN: {
             extern bool trace_can;
-            uint8_t enable = parseNumber(afterCommand);
+            bool enable;
+            int err = parse_bool(&afterCommand, &enable);
+
+            if (err) {
+                printf("Must specify on/off to enable/disable CAN trace\n");
+                break;
+            }
 
             trace_can = enable;
-            if (enable)
-                printf("CAN tracing enabled\n");
-            else
-                printf("CAN tracing disabled\n");
+	    printf("CAN tracing %s\n", enable ? "enabled" : "disabled");
             break;
         }
 
         case GetCANCounts: {
-            uint8_t canNum = parseNumber(afterCommand);
+            uint16_t canNum;
+            int err = parse_uint16(&afterCommand, &canNum, 0);
             struct can_counts c;
 
+            if (err) {
+                printf("No can bus number given\n", canNum);
+                break;
+            }
             if (canNum >= NUM_CAN_BUSSES) {
                 printf("Invalid can bus: %d\n", canNum);
                 break;
@@ -918,7 +934,7 @@ void RealConsoleTask(void)
         }
 
         case RaiseFreq: {
-            uint8_t devb = parseNumber(afterCommand);
+            uint8_t devb = parseNumber(&afterCommand);
 
             if (devb >= InvalidAX5043Device){
                 printf("Give a device number between 0 and 4\n");
@@ -926,7 +942,7 @@ void RealConsoleTask(void)
             }
 
             AX5043Device dev = (AX5043Device)devb;
-            int number = parseNextNumber();
+            int number = parseNumber(&afterCommand);
 
             if (dev == TX_DEVICE) {
                 DCTTxFreq += number;
@@ -941,7 +957,7 @@ void RealConsoleTask(void)
         }
 
         case LowerFreq: {
-            uint8_t devb = parseNumber(afterCommand);
+            uint8_t devb = parseNumber(&afterCommand);
 
             if (devb >= InvalidAX5043Device) {
                 printf("Give a device number between 0 and 4\n");
@@ -949,7 +965,7 @@ void RealConsoleTask(void)
             }
 
             AX5043Device dev = (AX5043Device) devb;
-            int number = parseNextNumber();
+            int number = parseNumber(&afterCommand);
 
             if (dev == TX_DEVICE) {
                 DCTTxFreq -= number;
@@ -964,7 +980,7 @@ void RealConsoleTask(void)
         }
 
         case SetFreq: {
-            uint8_t devb = parseNumber(afterCommand);
+            uint8_t devb = parseNumber(&afterCommand);
 
             if (devb >= InvalidAX5043Device){
                 printf("Give a device number between 0 and 4\n");
@@ -972,7 +988,7 @@ void RealConsoleTask(void)
             }
 
             AX5043Device dev = (AX5043Device)devb;
-            uint32_t freq = parseNextNumber32() * 1000;
+            uint32_t freq = parseNumber32(&afterCommand) * 1000;
 
             if (dev == TX_DEVICE) {
                 DCTTxFreq = freq;
@@ -1011,14 +1027,14 @@ void RealConsoleTask(void)
         }
 
         case SetTxPower: {
-            uint8_t power, devb = parseNumber(afterCommand);
+            uint8_t power, devb = parseNumber(&afterCommand);
 
             if (devb >= InvalidAX5043Device){
                 printf("Give a device number between 0 and 4\n");
                 break;
             }
 
-            power = parseNextNumber();
+            power = parseNumber(&afterCommand);
             if (power > 100) {
                 printf("Give a power between 0 and 100\n");
                 break;
@@ -1029,7 +1045,7 @@ void RealConsoleTask(void)
         }
 
         case GetTxPower: {
-            uint8_t power, devb = parseNumber(afterCommand);
+            uint8_t power, devb = parseNumber(&afterCommand);
 
             if (devb >= InvalidAX5043Device){
                 printf("Give a device number between 0 and 4\n");
@@ -1054,22 +1070,19 @@ void RealConsoleTask(void)
             uint8_t key[AUTH_KEY_SIZE], i;
             uint32_t magic = ENCRYPTION_KEY_MAGIC_VALUE, checksum;
             const MRAMmap_t *LocalFlash = 0;
-            char *str = afterCommand;
             bool stat;
 
             for (i = 0; i < sizeof(key); i++) {
-                char *next = strtok(str," ,\n");
-
-                str = NULL;
-                if (next != NULL) {
-                    key[i] = (uint8_t) strtol(next, 0, 16);
-                    printf("%d=0x%x ", i, key[i]);
-                } else {
-                    printf("Not enough numbers...");
-                    break;
-                }
+		if (!parse_uint8(&afterCommand, &key[i], 16)) {
+                    printf("Not enough numbers or invalid number on item %d",
+			   i);
+		    break;
+		}
             }
-            checksum = key_checksum(key);
+	    if (i < sizeof(key))
+		break;
+
+	    checksum = key_checksum(key);
             printf("\n");
             if (i == sizeof(key)) {
                 printf("Writing key...");
@@ -1130,16 +1143,15 @@ void RealConsoleTask(void)
 
         case LsFS: {
             REDDIR *pDir;
+            char *t = next_token(&afterCommand);
 
-            skip_command_spaces(&afterCommand);
-
-            printf("%s:\n", afterCommand);
+            printf("%s:\n", t);
             printf("Name       Blks  Size \n");
             printf("---------- ----- --------\n");
-            if (strlen(afterCommand) == 0){
+            if (strlen(t) == 0){
                 pDir = red_opendir("//");
             } else {
-                pDir = red_opendir(afterCommand);
+                pDir = red_opendir(t);
             }
             if (pDir == NULL) {
                 printf("Unable to open dir: %s\n", red_strerror(red_errno));
@@ -1195,18 +1207,18 @@ void RealConsoleTask(void)
 
         case RmFS:
         {
-            skip_command_spaces(&afterCommand);
+            char *t = next_token(&afterCommand);
 
-            if (strlen(afterCommand) == 0) {
+            if (!t || strlen(t) == 0) {
                 printf("Usage: rm <file name with path>\n");
                 break;
             }
 
-            int32_t fp = red_unlink(afterCommand);
+            int32_t fp = red_unlink(t);
 
             if (fp == -1) {
                 printf("Unable to remove file %s : %s\n",
-                       afterCommand, red_strerror(red_errno));
+                       t, red_strerror(red_errno));
             }
             break;
         }
@@ -1215,10 +1227,10 @@ void RealConsoleTask(void)
         {
             uint16_t args[4];
 
-            args[0] = parseNumber(afterCommand);
-            args[1] = parseNextNumber();
-            args[2] = parseNextNumber();
-            args[3] = parseNextNumber();
+            args[0] = parseNumber(&afterCommand);
+            args[1] = parseNumber(&afterCommand);
+            args[2] = parseNumber(&afterCommand);
+            args[3] = parseNumber(&afterCommand);
 
             printf("Select %s power for safe, %s power for normal on primary\n",
                    args[0] ? "HIGH" : "LOW", args[1] ? "HIGH" : "LOW");
@@ -1231,10 +1243,10 @@ void RealConsoleTask(void)
         {
             uint16_t args[4];
 
-            args[0] = parseNumber(afterCommand);
-            args[1] = parseNextNumber();
-            args[2] = parseNextNumber();
-            args[3] = parseNextNumber();
+            args[0] = parseNumber(&afterCommand);
+            args[1] = parseNumber(&afterCommand);
+            args[2] = parseNumber(&afterCommand);
+            args[3] = parseNumber(&afterCommand);
             printf("Set primary low power to %d, secondary low power to %d\n",
                    args[0], args[1]);
             printf("Set primary high power to %d, secondary high power to %d\n",
@@ -1296,14 +1308,14 @@ void RealConsoleTask(void)
         }
 
         case mramSleep: {
-            int num = parseNumber(afterCommand);
+            int num = parseNumber(&afterCommand);
 
             MRAMSleep(num);
             break;
         }
 
         case mramAwake: {
-            int num = parseNumber(afterCommand);
+            int num = parseNumber(&afterCommand);
 
             MRAMWake(num);
             break;
@@ -1379,7 +1391,7 @@ void RealConsoleTask(void)
         }
 
         case writeMRAMsr: {
-            uint8_t stat = parseNumber(afterCommand);
+            uint8_t stat = parseNumber(&afterCommand);
             int i;
 
             for (i = 0; i < PACSAT_MAX_MRAMS; i++){
@@ -1417,7 +1429,7 @@ void RealConsoleTask(void)
         }
 
         case startRx:{
-            uint8_t devb = parseNumber(afterCommand);
+            uint8_t devb = parseNumber(&afterCommand);
 
             // -1 to remove the TX device.
             if (devb >= InvalidAX5043Device - 1) {
@@ -1430,7 +1442,7 @@ void RealConsoleTask(void)
         }
 
         case stopRx: {
-            uint8_t devb = parseNumber(afterCommand);
+            uint8_t devb = parseNumber(&afterCommand);
 
             // -1 to remove the TX device.
             if (devb >= InvalidAX5043Device - 1) {
@@ -1556,7 +1568,7 @@ void RealConsoleTask(void)
         }
 
         case getax5043: {
-            uint8_t devb = parseNumber(afterCommand);
+            uint8_t devb = parseNumber(&afterCommand);
 
             if (devb >= InvalidAX5043Device) {
                 printf("Give a device number between 0 and %d\n",
@@ -1568,7 +1580,7 @@ void RealConsoleTask(void)
         }
 
         case readax5043: {
-            uint8_t devb = parseNumber(afterCommand);
+            uint8_t devb = parseNumber(&afterCommand);
 
             if (devb >= InvalidAX5043Device) {
                 printf("Give a device number between 0 and %d\n",
@@ -1576,8 +1588,8 @@ void RealConsoleTask(void)
                 break;
             }
 
-            uint16_t regstart = parseNextNumber();
-            uint16_t regend = parseNextNumber();
+            uint16_t regstart = parseNumber(&afterCommand);
+            uint16_t regend = parseNumber(&afterCommand);
             uint16_t i;
 
             if (regend <= regstart)
@@ -1593,7 +1605,7 @@ void RealConsoleTask(void)
         }
 
         case writeax5043: {
-            uint8_t devb = parseNumber(afterCommand);
+            uint8_t devb = parseNumber(&afterCommand);
 
             if (devb >= InvalidAX5043Device) {
                 printf("Give a device number between 0 and %d\n",
@@ -1601,8 +1613,8 @@ void RealConsoleTask(void)
                 break;
             }
 
-            uint16_t reg = parseNextNumber();
-            uint8_t val = parseNextNumber();
+            uint16_t reg = parseNumber(&afterCommand);
+            uint8_t val = parseNumber(&afterCommand);
 
             ax5043WriteReg((AX5043Device) devb, reg, val);
             printf("ax5043 %d reg 0x%3.3x = %3d (0x%2.2x)\n",
@@ -1611,7 +1623,7 @@ void RealConsoleTask(void)
         }
 
         case getRSSI: {
-            uint8_t devb = parseNumber(afterCommand);
+            uint8_t devb = parseNumber(&afterCommand);
 
             if (devb >= InvalidAX5043Device) {
                 printf("Give a device number between 0 and 4\n");
@@ -1627,7 +1639,7 @@ void RealConsoleTask(void)
         case testFreq: {
             // This is so we can find what the receive frequency is on
             // first build
-            uint8_t devb = parseNumber(afterCommand);
+            uint8_t devb = parseNumber(&afterCommand);
 
             if (devb >= InvalidAX5043Device) {
                 printf("Give a device number between 0 and 4\n");
@@ -1647,7 +1659,7 @@ void RealConsoleTask(void)
         }
 
         case testPLLrange: {
-            uint8_t devb = parseNumber(afterCommand);
+            uint8_t devb = parseNumber(&afterCommand);
 
             if (devb >= InvalidAX5043Device) {
                 printf("Give a device number between 0 and 4\n");
@@ -1833,53 +1845,52 @@ void RealConsoleTask(void)
         }
 
         case mkdirFS: {
-            skip_command_spaces(&afterCommand);
+            char *t = next_token(&afterCommand);
 
-            if (strlen(afterCommand) == 0) {
+            if (!t && strlen(t) == 0) {
                 printf("Usage: mkdir <file name with path>\n");
                 break;
             }
 
-            int32_t rc = red_mkdir(afterCommand);
+            int32_t rc = red_mkdir(t);
             if (rc == -1) {
-                printf("Unable make dir %s: %s\n",
-                       afterCommand, red_strerror(red_errno));
+                printf("Unable make dir %s: %s\n", t, red_strerror(red_errno));
             }
             break;
         }
 
         case rmdirFS: {
-            skip_command_spaces(&afterCommand);
+            char *t = next_token(&afterCommand);
 
-            if(strlen(afterCommand)== 0){
+            if(!t || strlen(t)== 0){
                 printf("Usage: rmdir <file name with path>\n");
                 break;
             }
 
-            int32_t rc = red_rmdir(afterCommand);
+            int32_t rc = red_rmdir(t);
 
             if (rc == -1) {
                 if (red_errno == RED_EBUSY)
                     printf("Unable remove dir that contains other files or directories: %s\n",
-                           afterCommand, red_strerror(red_errno));
+                           t, red_strerror(red_errno));
                 else
                     printf("Unable remove dir %s: %s\n",
-                           afterCommand, red_strerror(red_errno));
+                           t, red_strerror(red_errno));
             }
             break;
         }
 
 
         case mramHxd: {
-            skip_command_spaces(&afterCommand);
+            char *t = next_token(&afterCommand);
 
-            if (strlen(afterCommand) == 0){
+            if (!t || strlen(t) == 0) {
                 printf("Usage: hxd <file name with path>\n");
                 break;
             }
 
             char read_buffer[512];
-            int32_t fp = red_open(afterCommand, RED_O_RDONLY);
+            int32_t fp = red_open(t, RED_O_RDONLY);
 
             if (fp != -1) {
                 int32_t numOfBytesRead = red_read(fp, read_buffer,
@@ -1906,7 +1917,7 @@ void RealConsoleTask(void)
                 }
             } else {
                 printf("Unable to open %s for reading: %s\n",
-                       afterCommand, red_strerror(red_errno));
+                       t, red_strerror(red_errno));
             }
             printf("\n");
             break;
@@ -1955,9 +1966,8 @@ void RealConsoleTask(void)
 
         case setUnxTime:
         case setRtc: {
-            static char *nextNum;
-            uint32_t t = (uint32_t)strtol(afterCommand,&nextNum,0);
-            printf("Setting unix time to: %d\n",t);
+            uint32_t t = parseNumber32(&afterCommand);
+            printf("Setting unix time to: %d\n", t);
             setUnixTime(t);
             time_valid = true;
             //printf("Setting RTC\n");
@@ -1973,8 +1983,8 @@ void RealConsoleTask(void)
         }
 
         case setMode: {
-            uint8_t devb = parseNumber(afterCommand);
-            unsigned int speed = parseNextNumber();
+            uint8_t devb = parseNumber(&afterCommand);
+            unsigned int speed = parseNumber(&afterCommand);
             uint8_t dspeed;
             enum ax5043_mode mode;
 
@@ -2026,19 +2036,18 @@ void RealConsoleTask(void)
         }
 
         case HelpAll: {
+            char *t = next_token(&afterCommand);
             int i;
 
-            skip_command_spaces(&afterCommand);
-
-            if (strlen(afterCommand) == 0){
+            if (!t || strlen(t) == 0){
                 printf("\n***LIST OF ALL COMMANDS:\n");
+                t = "";
             } else {
-                printf("\n***LIST OF ALL COMMANDS CONTAINING %s:\n",
-                       afterCommand);
+                printf("\n***LIST OF ALL COMMANDS CONTAINING %s:\n", t);
             }
             for (i = 0; command_tables[i].pairs; i++) {
                 printf("\n%s:\n", command_tables[i].name);
-                printHelp(afterCommand, command_tables[i].pairs,
+                printHelp(t, command_tables[i].pairs,
                           command_tables[i].num_cmds);
             }
             break;
@@ -2049,6 +2058,7 @@ void RealConsoleTask(void)
         case HelpSetup:
         case HelpDevo: {
             struct command_table *table = NULL;
+            char *t = next_token(&afterCommand);
 
             if (index == Help)
                 table = &command_tables[HELP_COMMON_INDEX];
@@ -2062,15 +2072,14 @@ void RealConsoleTask(void)
             if (!table)
                 break;
 
-            skip_command_spaces(&afterCommand);
-
-            if (strlen(afterCommand) == 0){
+            if (!t || strlen(t) == 0){
                 printf("\n***LIST OF %s COMMANDS:\n\n", table->name);
+                t = "";
             } else {
                 printf("\n***LIST OF %s COMMANDS CONTAINING %s:\n\n",
-                       table->name, afterCommand);
+                       table->name, t);
             }
-            printHelp(afterCommand, table->pairs, table->num_cmds);
+            printHelp(t, table->pairs, table->num_cmds);
             break;
         }
 

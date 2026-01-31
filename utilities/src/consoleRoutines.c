@@ -4,6 +4,7 @@
  *  Created on: Sep 21, 2020
  *      Author: bfisher
  */
+#include <ctype.h>
 #include <pacsat.h>
 #include "stdarg.h"
 #include "stdlib.h"
@@ -24,8 +25,6 @@
 extern rt1Errors_t localErrorCollection;
 
 extern char *ErrMsg[], *LIHUErrMsg[],*TaskNames[];
-
-static char *nextNum;
 
 static const char *getTaskName(int task)
 {
@@ -50,39 +49,99 @@ void print8BitVolts(uint8_t volt8,uint16_t maxV)
            (interpVal / 100), ((interpVal % 100) + 5) / 10);
 }
 
-uint16_t parseNumber(char *afterCommand)
+char *next_token(char **str)
 {
-    return (uint16_t) strtol(afterCommand, &nextNum, 0);
-}
+    char *s = *str, *s2;
 
-uint16_t parseNextNumber(void)
-{
-    char *string;
-
-    string = nextNum;
-    return (uint16_t) strtol(string, &nextNum, 0);
-}
-
-uint32_t parseNumber32(char *afterCommand)
-{
-    return (uint32_t) strtoul(afterCommand, &nextNum, 0);
-}
-
-uint32_t parseNextNumber32(void)
-{
-    char *string;
-
-    string = nextNum;
-    return (uint32_t) strtoul(string, &nextNum, 0);
-}
-
-void skip_command_spaces(char **str)
-{
-    char *s = *str;
-
-    while (*s && *s == ' ')
+    while (isspace(*s))
         s++;
-    *str = s;
+    if (!*s)
+        return NULL;
+    s2 = s + 1;
+    while (*s2 && !isspace(*s2))
+        s2++;
+    if (*s2) {
+        *s2 = '\0';
+        s2++;
+    }
+    *str = s2;
+    return s;
+}
+
+uint16_t parseNumber(char **str)
+{
+    char *t = next_token(str);
+
+    if (!t)
+        return 0;
+    return (uint16_t) strtol(t, NULL, 0);
+}
+
+uint32_t parseNumber32(char **str)
+{
+    char *t = next_token(str);
+
+    if (!t)
+        return 0;
+    return (uint32_t) strtoul(t, NULL, 0);
+}
+
+int parse_uint8(char **str, uint8_t *num, int base)
+{
+    char *t = next_token(str), *end;
+    uint16_t v;
+
+    if (!t || !*t)
+        return -1;
+    v = (uint8_t) strtol(t, &end, base);
+    if (*end != '\0')
+        return -1;
+    *num = v;
+    return 0;
+}
+
+int parse_uint16(char **str, uint16_t *num, int base)
+{
+    char *t = next_token(str), *end;
+    uint16_t v;
+
+    if (!t || !*t)
+        return -1;
+    v = (uint16_t) strtol(t, &end, base);
+    if (*end != '\0')
+        return -1;
+    *num = v;
+    return 0;
+}
+
+int parse_uint32(char **str, uint32_t *num, int base)
+{
+    char *t = next_token(str), *end;
+    uint16_t v;
+
+    if (!t || !*t)
+        return -1;
+    v = (uint32_t) strtol(t, &end, base);
+    if (*end != '\0')
+        return -1;
+    *num = v;
+    return 0;
+}
+
+int parse_bool(char **str, bool *val)
+{
+    char *t = next_token(str);
+
+    if (!t || !*t)
+        return -1;
+    if (strcmp(t, "1") == 0 || strcmp(t, "true") == 0 || strcmp(t, "on") == 0)
+        *val = true;
+    else if (strcmp(t, "0") == 0 || strcmp(t, "false") == 0 ||
+             strcmp(t, "off") == 0)
+        *val = false;
+    else
+        return -1;
+    return 0;
 }
 
 void receiveLine(COM_NUM ioCom, char *commandString, char prompt, bool echo)

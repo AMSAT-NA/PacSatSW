@@ -23,11 +23,15 @@ void print8BitTemp(uint8_t temp8);
 void DisplayTelemetry(uint32_t typeRequested);
 void PreflightInitNow(CanIDNode cameFrom);
 void receiveLine(COM_NUM ioCom, char *commandString, char prompt, bool echo);
-uint16_t parseNextNumber(void);
-uint16_t parseNumber(char *afterCommand);
-uint32_t parseNumber32(char *afterCommand);
-uint32_t parseNextNumber32(void);
-void skip_command_spaces(char **str);
+
+char *next_token(char **str);
+uint16_t parseNumber(char **str);
+uint32_t parseNumber32(char **str);
+
+int parse_uint8(char **str, uint8_t *num, int base);
+int parse_uint16(char **str, uint16_t *num, int base);
+int parse_uint32(char **str, uint32_t *num, int base);
+int parse_bool(char **str, bool *val);
 
 bool AntennaAsk(void);
 void receiveLine(COM_NUM ioCom, char *commandString, char prompt, bool echo);
