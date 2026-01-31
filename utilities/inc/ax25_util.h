@@ -65,15 +65,18 @@ typedef struct {
     uint8_t NS;
     int PF;
     uint8_t pid;
-    uint8_t data[AX25_MAX_INFO_BYTES_LEN]; // If this is increased then data_len should be increased
+    // If this is increased then data_len should be increased
+    uint8_t data[AX25_MAX_INFO_BYTES_LEN];
     uint8_t data_len; // Set this to 0 if there are no data bytes
 } AX25_PACKET;
 
 
-int decode_call_and_command(uint8_t *c, char *call, int *final_call, int *command);
+int decode_call_and_command(uint8_t *c, char *call, int *final_call,
+                            int *command);
 int decode_call(uint8_t *c, char *call);
 int encode_call(char *name, uint8_t *buf, int final_call, int command);
-uint8_t ax25_decode_packet(uint8_t *packet, int len, AX25_PACKET *decoded_packet);
+uint8_t ax25_decode_packet(uint8_t *packet, int len,
+                           AX25_PACKET *decoded_packet);
 void ax25_copy_packet(AX25_PACKET *packet, AX25_PACKET *to_packet);
 int print_packet(char *label, uint8_t *packet, int len);
 int print_decoded_packet(char *label, AX25_PACKET *decoded);
