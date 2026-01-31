@@ -211,12 +211,10 @@ enum {
     getNextFileNumber,
     resetNextFileNumber,
     heapFree,
-    setUnxTime,
-    getUnxTime,
-    setMode,
+    Time,
     getRtc,
-    setRtc,
     regRtc,
+    Mode,
     setDigi,
 };
 
@@ -464,24 +462,18 @@ commandPairs commonCommands[] = {
     { "heap free",
       "Show free bytes in the heap.",
       heapFree},
-    { "get unix time",
-      "Get the number of seconds since the Unix epoch",
-      getUnxTime},
-    { "set unix time",
-      "Set the Real Time Clock and update the IHU Unix time",
-      setUnxTime},
-    { "set mode",
-      "Set the radio to 1200 bps AFSK or 9600 GMSK",
-      setMode},
-    { "get rtc",
-      "Get the status and time from the Real Time Clock",
-      getRtc},
-    { "set rtc",
-      "Set the Real Time Clock and update the IHU Unix time",
-      setRtc},
-    { "get regrtc",
+    { "time",
+      "Get/set the number of seconds since the Unix epoch",
+      Time},
+    { "regrtc",
       "Read the specified register in the rtc",
       regRtc},
+    { "rtc",
+      "Get the status and time from the Real Time Clock",
+      getRtc},
+    { "mode",
+      "Get/set the radio to 1200 bps AFSK or 9600 GMSK",
+      Mode},
     { "mount fs",
       "Mount the filesystem",
       MountFS},
@@ -635,6 +627,21 @@ char *ResetReasons[] = {
     "Power On"
 };
 
+static char *get_dev_speed_str(uint8_t devb)
+{
+    uint8_t dspeed;
+
+    if (devb == TX_DEVICE)
+        dspeed = ReadMRAMTelemSpeed();
+    else
+        dspeed = ReadMRAMReceiveSpeed(devb);
+    switch (dspeed) {
+    case DCT_SPEED_1200: return "1200";
+    case DCT_SPEED_9600: return "9600";
+    }
+    return "?";
+}
+
 void RealConsoleTask(void)
 {
     /* Block for 500ms. */
@@ -731,24 +738,6 @@ void RealConsoleTask(void)
             printf("Size of MRAM2 is %dKB\n",getMRAMSize(MRAM2Dev)/1024);
             printf("Size of MRAM3 is %dKB\n",getMRAMSize(MRAM3Dev)/1024);
 #endif
-            break;
-        }
-
-        case regRtc: {
-            uint8_t readReg = parseNumber(&afterCommand);
-            bool status;
-            uint8_t data;
-
-            status = I2cSendCommand(MAX31331_PORT,MAX31331_ADDR,
-                                    &readReg, 1, &data, 1);
-#if 0
-            uint8_t data[8];
-            printf("Status=%d,reg values from %d are: %x %x %x %x %x %x %x %x\n",
-                   status, readReg, data[0], data[1], data[2], data[3],
-                   data[4], data[5], data[6], data[7]);
-#endif
-            printf("Status=%d,reg %d value: 0x%x\n",
-                   status,readReg,data);
             break;
         }
 
@@ -1416,7 +1405,6 @@ void RealConsoleTask(void)
         }
 
         case getI2cState: {
-
             printf("I2c device state: (1 is ok)\n"
                     "   PacSat CPU Temp: %d, Tx Temp: %d    RTC: %d\n",
                     CpuTempIsOk(),TxTempIsOk(),RTCIsOk());
@@ -1470,8 +1458,7 @@ void RealConsoleTask(void)
                    time.IHUresetCnt, time.METcount);
             printf("Poweron Time since preflight: %d seconds\n",
                    getSecondsInOrbit());
-            printf("Unix time in secs: %d\n",
-                   getUnixTime());
+            printf("Unix time in secs: %d\n", getUnixTime());
             if (!time_valid)
                 printf("***Unix Time is not valid\n");
 
@@ -1957,46 +1944,103 @@ void RealConsoleTask(void)
             break;
         }
 
-        case getUnxTime: {
-            printf("Unix time in secs: %d\n",getUnixTime());
-            if (!time_valid)
-                printf("***Unix Time is not valid\n");
-            break;
-        }
+        case Time: {
+            uint32_t t;
+            int err = parse_uint32(&afterCommand, &t, 0);
 
-        case setUnxTime:
-        case setRtc: {
-            uint32_t t = parseNumber32(&afterCommand);
-            printf("Setting unix time to: %d\n", t);
-            setUnixTime(t);
-            time_valid = true;
-            //printf("Setting RTC\n");
-            if (RTCIsOk()) {
-                bool set = SetRtcTime31331(&t);
-                if (set) {
-                    printf("Setting RTC\n");
-                } else {
-                    printf("Failed to set RTC\n");
+            if (err) {
+                printf("Unix time in secs: %d\n",getUnixTime());
+                if (!time_valid)
+                    printf("***Unix Time is not valid\n");
+            } else {
+                printf("Setting unix time to: %d\n", t);
+                setUnixTime(t);
+                time_valid = true;
+                //printf("Setting RTC\n");
+                if (RTCIsOk()) {
+                    bool set = SetRtcTime31331(&t);
+                    if (set) {
+                        printf("Setting RTC\n");
+                    } else {
+                        printf("Failed to set RTC\n");
+                    }
                 }
             }
             break;
         }
 
-        case setMode: {
-            uint8_t devb = parseNumber(&afterCommand);
-            unsigned int speed = parseNumber(&afterCommand);
+        case getRtc: {
+            bool rc = false;
+            uint32_t time;
+
+            rc = GetRtcTime31331(&time);
+            if (rc == FALSE)
+                printf(" Error, time unavailable\n");
+            else {
+                printf("Time: %d vs IHU Unix time %d\n", time, getUnixTime());
+                if (!time_valid)
+                    printf("***Unix time is not valid\n");
+            }
+            break;
+        }
+
+        case regRtc: {
+            uint8_t readReg;
+            int err = parse_uint8(&afterCommand, &readReg, 0);
+            bool status;
+            uint8_t data;
+
+            if (err) {
+                uint8_t data[8];
+
+                readReg = 0;
+                status = I2cSendCommand(MAX31331_PORT,MAX31331_ADDR,
+                                        &readReg, 1, &data, 8);
+                printf("Status=%d, reg values are: "
+                       "%2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x\n",
+                       status, data[0], data[1], data[2], data[3],
+                       data[4], data[5], data[6], data[7]);
+                break;
+            }
+
+            status = I2cSendCommand(MAX31331_PORT,MAX31331_ADDR,
+                                    &readReg, 1, &data, 1);
+            printf("Status=%d, reg %d value: 0x%x\n",
+                   status,readReg,data);
+            break;
+        }
+
+        case Mode: {
+            uint8_t devb;
+            char *speed;
             uint8_t dspeed;
             enum ax5043_mode mode;
+            int err;
 
+            err = parse_uint8(&afterCommand, &devb, 0);
+            if (err) {
+                for (devb = 0; devb < InvalidAX5043Device; devb++) {
+                    speed = get_dev_speed_str(devb);
+                    printf("device %d: %s\n", devb, speed);
+                }
+                break;
+            }
             if (devb >= InvalidAX5043Device) {
                 printf("Give a device number between 0 and %d\n",
                        NUM_AX5043_SPI_DEVICES - 1);
                 break;
             }
-            if (speed == 1200) {
+            speed = next_token(&afterCommand);
+            if (!speed) {
+                speed = get_dev_speed_str(devb);
+                printf("device %d: %s\n", devb, speed);
+                break;
+            }
+
+            if (strcmp(speed, "1200") == 0) {
                 dspeed = DCT_SPEED_1200;
                 mode = AX5043_MODE_AFSK_1200;
-            } else if (speed == 9600) {
+            } else if (strcmp(speed, "9600") == 0) {
                 dspeed = DCT_SPEED_9600;
                 mode = AX5043_MODE_GMSK_9600;
             } else {
@@ -2004,7 +2048,7 @@ void RealConsoleTask(void)
                 break;
             }
 
-            printf("Setting Radio %u to %d.\n", devb, speed);
+            printf("Setting Radio %u to %s.\n", devb, speed);
 
             if (devb == TX_DEVICE) {
                 WriteMRAMTelemSpeed(dspeed);
@@ -2018,21 +2062,6 @@ void RealConsoleTask(void)
                 ax5043StopRx((AX5043Device) devb);
                 ax5043_ax25_set_mode((AX5043Device) devb, mode, false);
                 ax5043StartRx((AX5043Device) devb);
-            }
-            break;
-        }
-
-        case getRtc: {
-            bool rc = false;
-
-            uint32_t time;
-            rc = GetRtcTime31331(&time);
-            if (rc == FALSE)
-                printf(" Error, time unavailable\n");
-            else {
-                printf("Time: %d vs IHU Unix time %d\n", time, getUnixTime());
-                if (!time_valid)
-                    printf("***Unix time is not valid\n");
             }
             break;
         }
