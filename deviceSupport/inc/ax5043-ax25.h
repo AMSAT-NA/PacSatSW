@@ -359,27 +359,27 @@
 // power states
 #define AX5043_PWRSTATE_POWERDOWN           0x0
 #define AX5043_PWRSTATE_DEEPSLEEP           0x1
-#define AX5043_PWRSTATE_REGS_ON           	0x4
-#define AX5043_PWRSTATE_XTAL_ON           	0x5
-#define AX5043_PWRSTATE_FIFO_ON           	0x7
+#define AX5043_PWRSTATE_REGS_ON                 0x4
+#define AX5043_PWRSTATE_XTAL_ON                 0x5
+#define AX5043_PWRSTATE_FIFO_ON                 0x7
 #define AX5043_PWRSTATE_SYNTH_RX            0x8
 #define AX5043_PWRSTATE_FULL_RX             0x9
-#define AX5043_PWRSTATE_WOR_RX           	0xb
+#define AX5043_PWRSTATE_WOR_RX                  0xb
 #define AX5043_PWRSTATE_SYNTH_TX            0xc
 #define AX5043_PWRSTATE_FULL_TX             0xd
 
 //fifo commands
-#define AX5043_FIFOCMD_NOP			0x00
-#define AX5043_FIFOCMD_DATA			0x01
-#define AX5043_FIFOCMD_REPEATDATA	0x02
-#define AX5043_FIFOCMD_TIMER		0x10
-#define AX5043_FIFOCMD_RSSI			0x11
-#define AX5043_FIFOCMD_FREQOFFS		0x12
-#define AX5043_FIFOCMD_RFFREQOFFS	0x13
-#define AX5043_FIFOCMD_DATARATE		0x14
-#define AX5043_FIFOCMD_ANTRSSI		0x15
-#define AX5043_FIFOCMD_TXCTRL		0x1C
-#define AX5043_FIFOCMD_TXPWR		0x1D
+#define AX5043_FIFOCMD_NOP                      0x00
+#define AX5043_FIFOCMD_DATA                     0x01
+#define AX5043_FIFOCMD_REPEATDATA       0x02
+#define AX5043_FIFOCMD_TIMER            0x10
+#define AX5043_FIFOCMD_RSSI                     0x11
+#define AX5043_FIFOCMD_FREQOFFS         0x12
+#define AX5043_FIFOCMD_RFFREQOFFS       0x13
+#define AX5043_FIFOCMD_DATARATE         0x14
+#define AX5043_FIFOCMD_ANTRSSI          0x15
+#define AX5043_FIFOCMD_TXCTRL           0x1C
+#define AX5043_FIFOCMD_TXPWR            0x1D
 
 #define SILICONREV1            0x51
 
@@ -413,16 +413,21 @@ enum ax5043_mode {
     AX5043_MODE_GMSK_9600,
 };
 
-#define AX5043_FLAG_DIV2	(1 << 0) // Divide the frequency by 2.
-#define AX5043_FLAG_EXT_INDUCT	(1 << 1) // Use an external inductor.
-#define AX5043_FLAG_ANT_DIFFER	(1 << 2) // Differential antenna input.
+#define AX5043_FLAG_DIV2        (1 << 0) // Divide the frequency by 2.
+#define AX5043_FLAG_EXT_INDUCT  (1 << 1) // Use an external inductor.
+#define AX5043_FLAG_ANT_DIFFER  (1 << 2) // Differential antenna input.
+
+#define AX5043_QUEUE_PKTSTART_FLAG 0X01
+#define AX5043_QUEUE_PKTEND_FLAG 0X02
+#define AX5043_QUEUE_RAW_NO_CRC_FLAG 0x18 // Flag of 0x18 is RAW no CRC
 
 void quick_setfreq(AX5043Device device, int32_t f);
 void start_ax25_rx(AX5043Device device,
-		   enum ax5043_mode mode, unsigned int flags);
+                   enum ax5043_mode mode, unsigned int flags);
 void start_ax25_tx(AX5043Device device,
-		   enum ax5043_mode mode, unsigned int flags);
+                   enum ax5043_mode mode, unsigned int flags);
 uint16_t fifo_free(AX5043Device device);
+void fifo_clear(AX5043Device device);
 void fifo_repeat_byte(AX5043Device device, uint8_t b, uint8_t count, uint8_t flags);
 void fifo_commit(AX5043Device device);
 void fifo_queue_buffer(AX5043Device device, uint8_t *buf, uint8_t len, uint8_t flags);
@@ -435,9 +440,9 @@ uint8_t get_rssi(AX5043Device device);
 void set_tx_power(AX5043Device device, uint32_t power);
 uint16_t get_tx_power(AX5043Device device);
 void test_freq(AX5043Device device, uint32_t freq, enum ax5043_mode mode,
-	       unsigned int flags);
+               unsigned int flags);
 void test_pll_2m_range(AX5043Device device, enum ax5043_mode mode,
-		       unsigned int flags);
+                       unsigned int flags);
 
 void ax5043_ax25_set_mode(AX5043Device device,
                           enum ax5043_mode mode,

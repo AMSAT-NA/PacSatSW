@@ -1493,6 +1493,11 @@ void fifo_commit(AX5043Device device)
     vTaskDelay(1);
 }  
 
+void fifo_clear(AX5043Device device)
+{
+    ax5043WriteReg(device, AX5043_FIFOSTAT, 3);
+}
+
 void fifo_repeat_byte(AX5043Device device, uint8_t b, uint8_t count,
                       uint8_t flags)
 {
