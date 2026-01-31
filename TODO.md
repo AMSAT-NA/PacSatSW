@@ -10,6 +10,16 @@ though.  It's kind of strange.
 
 # Pending enhancements
 
+## Get PSK working
+
+## Allow the transmitter mode/rate to change per message
+
+If we add PSK, then it makes sense for each receiver to be able to be
+a different mode/rate.  If you do this, you would want the transmitter
+to send in a mode based upon if it was a response how it was received.
+
+There is also the question of how to send telemetry, of course.
+
 ## Write code to put the CAN bus messages someplace
 
 The base CAN bus driver is written; it will call a function when a CAN

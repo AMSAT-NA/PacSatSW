@@ -438,3 +438,7 @@ void test_freq(AX5043Device device, uint32_t freq, enum ax5043_mode mode,
 	       unsigned int flags);
 void test_pll_2m_range(AX5043Device device, enum ax5043_mode mode,
 		       unsigned int flags);
+
+void ax5043_ax25_set_mode(AX5043Device device,
+                          enum ax5043_mode mode,
+                          bool tx);

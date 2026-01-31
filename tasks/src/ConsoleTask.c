@@ -213,8 +213,7 @@ enum {
     heapFree,
     setUnxTime,
     getUnxTime,
-    setRate9600,
-    setRate1200,
+    setMode,
     getRtc,
     setRtc,
     regRtc,
@@ -471,12 +470,9 @@ commandPairs commonCommands[] = {
     { "set unix time",
       "Set the Real Time Clock and update the IHU Unix time",
       setUnxTime},
-    { "set rate 1200",
-      "Set the radio to 1200 bps AFSK packets",
-      setRate1200},
-    { "set rate 9600",
-      "Set the radio to 9600 bps GMSK packets",
-      setRate9600},
+    { "set mode",
+      "Set the radio to 1200 bps AFSK or 9600 GMSK",
+      setMode},
     { "get rtc",
       "Get the status and time from the Real Time Clock",
       getRtc},
@@ -1976,33 +1972,40 @@ void RealConsoleTask(void)
             break;
         }
 
-        case setRate1200:
-        case setRate9600: {
+        case setMode: {
             uint8_t devb = parseNumber(afterCommand);
-            uint8_t speed;
+            unsigned int speed = parseNextNumber();
+            uint8_t dspeed;
+            enum ax5043_mode mode;
 
             if (devb >= InvalidAX5043Device) {
                 printf("Give a device number between 0 and %d\n",
                        NUM_AX5043_SPI_DEVICES - 1);
                 break;
             }
+            if (speed == 1200) {
+                dspeed = DCT_SPEED_1200;
+                mode = AX5043_MODE_AFSK_1200;
+            } else if (speed == 9600) {
+                dspeed = DCT_SPEED_9600;
+                mode = AX5043_MODE_AFSK_9600;
+            } else {
+                printf("Invalid mode %d, must be 1200 or 9600\n", speed);
+                break;
+            }
 
-            printf("Setting Radio %u to %sbps.\n", devb,
-                   index == setRate9600 ? "9600" : "1200");
-
-            if (index == setRate9600)
-                speed = DCT_SPEED_9600;
-            else
-                speed = DCT_SPEED_1200;
+            printf("Setting Radio %u to %d.\n", devb, speed);
 
             if (devb == TX_DEVICE) {
-                WriteMRAMTelemSpeed(speed);
-                ax5043StopTx(TX_DEVICE);
-                ax5043StartTx(TX_DEVICE);
+                WriteMRAMTelemSpeed(dspeed);
+                ax5043_ax25_set_mode((AX5043Device) devb, mode, true);
+                //ax5043StopTx(TX_DEVICE);
+                //ax5043StartTx(TX_DEVICE);
             } else {
-                WriteMRAMReceiveSpeed(devb, speed);
-                ax5043StopRx((AX5043Device) devb);
-                ax5043StartRx((AX5043Device) devb);
+                WriteMRAMReceiveSpeed(devb, dspeed);
+                ax5043_ax25_set_mode((AX5043Device) devb, mode, false);
+                //ax5043StopRx((AX5043Device) devb);
+                //ax5043StartRx((AX5043Device) devb);
             }
             break;
         }

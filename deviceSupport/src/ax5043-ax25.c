@@ -91,20 +91,14 @@ static const uint8_t axradio_phy_chanvcoiinit = 0x97;
 static uint8_t axradio_phy_chanpllrng[NUM_AX5043_SPI_DEVICES];
 static uint8_t axradio_phy_chanvcoi[NUM_AX5043_SPI_DEVICES];
 
-/**
- * FIRST ALL OF THE SETTINGS THAT ARE COMMON TO BOTH BANDS AND FOR RX AND TX
- * Set all of the base registers
- */
-static void ax5043_ax25_set_registers(AX5043Device device,
-                                      enum ax5043_mode mode,
-                                      unsigned int flags)
+static void ax5043_ax25_set_mode_base(AX5043Device device,
+                                      enum ax5043_mode mode)
 {
     switch (mode) {
     case AX5043_MODE_AFSK_1200:
         // AFSK.  0x04 is PSK. GMSK for 9600 is 0x07
         ax5043WriteReg(device, AX5043_MODULATION, 0x0A);
-        // Differential encoding, bit inversion, no scrambler.  Use
-        // 0x07 for G3RUH scrambler
+        // Differential encoding, bit inversion, no scrambler.
         ax5043WriteReg(device, AX5043_ENCODING, 0x03);
         break;
 
@@ -115,26 +109,10 @@ static void ax5043_ax25_set_registers(AX5043Device device,
          * GMSK */
         // GMSK for 9600 is 0x07.  0x04 is PSK.
         ax5043WriteReg(device, AX5043_MODULATION, 0x08);
-        // Differential encoding, bit inversion, no scrambler.  Use
-        // 0x07 for G3RUH scrambler
+        // Differential encoding, bit inversion, G3RUH scrambler.
         ax5043WriteReg(device, AX5043_ENCODING, 0x07);
         break;
     }
-
-    // 0x14 is HDLC framing with CRC. 0x04 is HDLC without CRC.  Was
-    // 0x06 for GOLF format
-    ax5043WriteReg(device, AX5043_FRAMING, 0x14);
-    // Set PERTUNE114 to zero for CRC with HDLC.  Set to 0x06 for raw soft bits
-    ax5043WriteReg(device, AX5043_0xF72, 0x00);
-    // This sets the the pin to output 1/16th of crystal freq.  Set to 06 for 1/4
-    ax5043WriteReg(device, AX5043_PINFUNCSYSCLK, 0x01);
-    ax5043WriteReg(device, AX5043_PINFUNCDCLK, 0x01);
-    ax5043WriteReg(device, AX5043_PINFUNCDATA, 0x01);
-    //Toggles Amplifier PA Pin to off, set to 01 if it is on
-    ax5043WriteReg(device, AX5043_PINFUNCANTSEL, 0x00);
-    ax5043WriteReg(device, AX5043_PINFUNCPWRAMP, 0x07);
-     // Wake up xtal oscillator early
-    ax5043WriteReg(device, AX5043_WAKEUPXOEARLY, 0x01);
 
     /**
      * Freq of the IF sets the center of the downconverted spectrum.  Set to BW / 2
@@ -213,18 +191,6 @@ static void ax5043_ax25_set_registers(AX5043Device device,
     }
 
     /**
-     * We can set to zero if our timing is stable and TX bitrate is within 1%
-     * Otherwise set to:
-     *   MAXDROFFSET = 2^7 * Fxtal * delta_bitrate / bitrate^2 * decimation + 0.5
-     * 1BC8 for 10% of bit rate might be interesting for testing, but
-     * note that pre-amble needs to be longer to cope
-     */
-    // These are set to 0 if timing of TX is within 1%.
-    ax5043WriteReg(device, AX5043_MAXDROFFSET2, 0x00);
-    ax5043WriteReg(device, AX5043_MAXDROFFSET1, 0x00);
-    ax5043WriteReg(device, AX5043_MAXDROFFSET0, 0x00);
-
-    /**
      * AFC is bounded by MAXRFOFFSET = 2^24 * Foffset / Fxtal + 0.5
      * We cant set Foffset to more than BW / 4.  So the max is:
      * 1200bps = 2600Hz
@@ -251,15 +217,6 @@ static void ax5043_ax25_set_registers(AX5043Device device,
         break;
     }
 
-    /*
-     * Radio lab sets FSKDMAX and FSKDMIN, which are not set in the
-     * GOLF code.  They are set to 0
-     */
-    ax5043WriteReg(device, AX5043_FSKDMAX1, 0x00);
-    ax5043WriteReg(device, AX5043_FSKDMAX0, 0x00);
-    ax5043WriteReg(device, AX5043_FSKDMIN1, 0x00);
-    ax5043WriteReg(device, AX5043_FSKDMIN0, 0x00);
-
   /*
    * AFSK detector bandwidth set as
    *   AFSKCTRL = 2 * log2 (Fxtal / 2^5 * bitrate * decimation)
@@ -274,10 +231,6 @@ static void ax5043_ax25_set_registers(AX5043Device device,
         // not needed for 9600, only 1200bps AFSK
         break;
     }
-
-    ax5043WriteReg(device, AX5043_AMPLFILTER, 0x00);
-    // Was F4 in GOLF to have different param sets for each pattern matched
-    ax5043WriteReg(device, AX5043_RXPARAMSETS, 0xF4);
 
     /**
      * AGCGAIN contains two 4 bit numbers AGCDECAY AGCATTACK
@@ -310,14 +263,6 @@ static void ax5043_ax25_set_registers(AX5043Device device,
         ax5043WriteReg(device, AX5043_AGCGAIN0, 0xB5); // RX Only
         break;
     }
-
-    /*
-     * ADC for AGC has max value of 512.  This sets the max range.
-     * Set to 75% or magnitude 384.
-     *   AGCTARGET = log2(Magnitude) * 16 = 0x89
-     * Radio lab sets this to 84
-     */
-    ax5043WriteReg(device, AX5043_AGCTARGET0, 0x84); // RX only
 
     /**
      * TIMEGAIN contains two 4 bit numbers TIMEGAINxM and TIMEGAINxE
@@ -369,12 +314,6 @@ static void ax5043_ax25_set_registers(AX5043Device device,
         break;
     }
 
-    /*
-     * Set FILTERIDX bits to 11 in PHASEGAIN - see DECIMATION calc above
-     * Radio lab also sets this to default of C3
-     */
-    ax5043WriteReg(device, AX5043_PHASEGAIN0, 0xC3); // C3 is also the default
-
     /* From GOLF FREQUENCYGAINA0 = 46, B0 = 0A, C0 = qF, D0 = 1F
      * Radio lab sets FREQUENCYGAINA0 to 0F, B0 = 1F, C0 = 0D, D0 = 0D */
 
@@ -394,16 +333,6 @@ static void ax5043_ax25_set_registers(AX5043Device device,
         break;
     }
 
-    /* AMPLITUDEGAIN0 set to 06 in GOLF and by RadioLab */
-    ax5043WriteReg(device, AX5043_AMPLITUDEGAIN0, 0x06);
-
-    /* Set to 00 */
-    ax5043WriteReg(device, AX5043_FREQDEV10, 0x00);
-    ax5043WriteReg(device, AX5043_FREQDEV00, 0x00);
-
-    /* Baseband gain compensation resistors Set to zero */
-    ax5043WriteReg(device, AX5043_BBOFFSRES0, 0x00);
-
     switch (mode) {
     case AX5043_MODE_AFSK_1200:
         ax5043WriteReg(device, AX5043_AGCGAIN1, 0xE8); // RX Only?
@@ -413,10 +342,6 @@ static void ax5043_ax25_set_registers(AX5043Device device,
         ax5043WriteReg(device, AX5043_AGCGAIN1, 0xB5); // RX Only?
         break;
     }
-
-    ax5043WriteReg(device, AX5043_AGCTARGET1, 0x84);
-    ax5043WriteReg(device, AX5043_AGCAHYST1, 0x00); // 0 is default value
-    ax5043WriteReg(device, AX5043_AGCMINMAX1, 0x00); // 0 is default value
 
     switch (mode) {
     case AX5043_MODE_AFSK_1200:
@@ -433,8 +358,6 @@ static void ax5043_ax25_set_registers(AX5043Device device,
         ax5043WriteReg(device, AX5043_DRGAIN1, 0x82);
         break;
     }
-
-    ax5043WriteReg(device, AX5043_PHASEGAIN1, 0xC3); // GOLF was 83, C3 per radio lab
 
     switch (mode) {
     case AX5043_MODE_AFSK_1200:
@@ -460,9 +383,6 @@ static void ax5043_ax25_set_registers(AX5043Device device,
         break;
     }
 
-    ax5043WriteReg(device, AX5043_AMPLITUDEGAIN1, 0x06); // per radio lab
-    ax5043WriteReg(device, AX5043_FREQDEV11, 0x00); // per radio lab
-
     switch (mode) {
     case AX5043_MODE_AFSK_1200:
         ax5043WriteReg(device, AX5043_FREQDEV01, 0x00); // per radio lab
@@ -473,13 +393,6 @@ static void ax5043_ax25_set_registers(AX5043Device device,
         break;
     }
 
-    ax5043WriteReg(device, AX5043_FOURFSK1, 0x16); // per radio lab
-
-    ax5043WriteReg(device, AX5043_BBOFFSRES1, 0x00); // per radio lab
-    ax5043WriteReg(device, AX5043_AGCGAIN3, 0xFF); // per radio lab
-    ax5043WriteReg(device, AX5043_AGCTARGET3, 0x84); // per radio lab
-    ax5043WriteReg(device, AX5043_AGCAHYST3, 0x00); // 0 is default value
-    ax5043WriteReg(device, AX5043_AGCMINMAX3, 0x00); // 0 is default value
     switch (mode) {
     case AX5043_MODE_AFSK_1200:
         // GOLF was 93, D9 per radio lab
@@ -495,9 +408,6 @@ static void ax5043_ax25_set_registers(AX5043Device device,
         ax5043WriteReg(device, AX5043_DRGAIN3, 0x81);
         break;
     }
-
-    // GOLF was 83, C3 per radio lab
-    ax5043WriteReg(device, AX5043_PHASEGAIN3, 0xC3);
 
     switch (mode) {
     case AX5043_MODE_AFSK_1200:
@@ -523,8 +433,6 @@ static void ax5043_ax25_set_registers(AX5043Device device,
         break;
     }
 
-    ax5043WriteReg(device, AX5043_AMPLITUDEGAIN3, 0x06); // per radio lab
-    ax5043WriteReg(device, AX5043_FREQDEV13, 0x00); // per radio lab
     switch (mode) {
     case AX5043_MODE_AFSK_1200:
         ax5043WriteReg(device, AX5043_FREQDEV03, 0x00); // per radio lab
@@ -534,9 +442,6 @@ static void ax5043_ax25_set_registers(AX5043Device device,
         ax5043WriteReg(device, AX5043_FREQDEV03, 0x2D); // per radio lab
         break;
     }
-
-    ax5043WriteReg(device, AX5043_FOURFSK3, 0x16); // per radio lab
-    ax5043WriteReg(device, AX5043_BBOFFSRES3, 0x00); // per radio lab
 
   /*
    * 03 is Gaussian BT = 0.5.  02 is Gaussian with BT = 0.3 and 00 is
@@ -577,15 +482,6 @@ static void ax5043_ax25_set_registers(AX5043Device device,
         break;
     }
 
-    /* Sets up ANTENNA, MODCFGA sets bit shape as well */
-    if (flags & AX5043_FLAG_ANT_DIFFER) {
-        // TX differential antenna
-        ax5043WriteReg(device, AX5043_MODCFGA, 0x05);
-    } else {
-         // TX Single ended through antenna
-        ax5043WriteReg(device, AX5043_MODCFGA, 0x06);
-    }
-
     /* TXRATE = BITRATE/Fxtal * 2^24 + 1/2
      * Where Fxtal = 16,000,000
      */
@@ -606,6 +502,178 @@ static void ax5043_ax25_set_registers(AX5043Device device,
         ax5043WriteReg(device, AX5043_TXRATE1, 0x27);
         ax5043WriteReg(device, AX5043_TXRATE0, 0x52);
         break;
+    }
+
+    // unclear if this needs to be different, but it is from radio lab
+    switch (mode) {
+    case AX5043_MODE_AFSK_1200:
+        ax5043WriteReg(device, AX5043_MATCH1LEN, 0x8A);
+        break;
+
+    case AX5043_MODE_AFSK_9600:
+        // Bit 7 - 1 = raw, 0 = scrambled
+        ax5043WriteReg(device, AX5043_MATCH1LEN, 0x0A);
+        break;
+    }
+}
+
+static void ax5043_ax25_set_mode_tx(AX5043Device device,
+                                    enum ax5043_mode mode)
+{
+    switch (mode) {
+    case AX5043_MODE_AFSK_1200:
+        /* For AFSK we need another pair of registers for MARK / SPACE
+         * AFSK(Mark/Space) = Freq * 2^18 / Fxtal + 1/2
+         * Freq Space = 2200Hz
+         * Freq Mark = 1200Hz
+         */
+        ax5043WriteReg(device, AX5043_AFSKSPACE1, 0x00);
+        // 0r 25?  This was 24 in Golf
+        ax5043WriteReg(device, AX5043_AFSKSPACE0, 0x24);
+        ax5043WriteReg(device, AX5043_AFSKMARK1, 0x00);
+        ax5043WriteReg(device, AX5043_AFSKMARK0, 0x14);
+        break;
+
+    case AX5043_MODE_AFSK_9600:
+        break;
+    }
+}
+
+static void ax5043_ax25_set_mode_rx(AX5043Device device,
+                                    enum ax5043_mode mode)
+{
+    switch (mode) {
+    case AX5043_MODE_AFSK_1200:
+        /* For AFSK we need another pair of registers for MARK / SPACE
+         * AFSK(Mark/Space) = Freq * DECIMATION * 2^16 / Fxtal + 1/2
+         * Freq Space = 2200Hz
+         * Freq Mark = 1200Hz
+         */
+        ax5043WriteReg(device, AX5043_AFSKSPACE1, 0x00);
+        ax5043WriteReg(device, AX5043_AFSKSPACE0, 0x48); // D9 Per black magic
+        ax5043WriteReg(device, AX5043_AFSKMARK1, 0x00);
+        ax5043WriteReg(device, AX5043_AFSKMARK0, 0x27); // 76 per black magic
+        break;
+
+    case AX5043_MODE_AFSK_9600:
+        break;
+    }
+}
+
+void ax5043_ax25_set_mode(AX5043Device device,
+                          enum ax5043_mode mode,
+                          bool tx)
+{
+    ax5043_ax25_set_mode_base(device, mode);
+    if (tx)
+        ax5043_ax25_set_mode_tx(device, mode);
+    else
+        ax5043_ax25_set_mode_rx(device, mode);
+}
+
+/**
+ * FIRST ALL OF THE SETTINGS THAT ARE COMMON TO BOTH BANDS AND FOR RX AND TX
+ * Set all of the base registers
+ */
+static void ax5043_ax25_set_registers(AX5043Device device,
+                                      enum ax5043_mode mode,
+                                      unsigned int flags)
+{
+    // 0x14 is HDLC framing with CRC. 0x04 is HDLC without CRC.  Was
+    // 0x06 for GOLF format
+    ax5043WriteReg(device, AX5043_FRAMING, 0x14);
+    // Set PERTUNE114 to zero for CRC with HDLC.  Set to 0x06 for raw soft bits
+    ax5043WriteReg(device, AX5043_0xF72, 0x00);
+    // This sets the the pin to output 1/16th of crystal freq.  Set to 06 for 1/4
+    ax5043WriteReg(device, AX5043_PINFUNCSYSCLK, 0x01);
+    ax5043WriteReg(device, AX5043_PINFUNCDCLK, 0x01);
+    ax5043WriteReg(device, AX5043_PINFUNCDATA, 0x01);
+    //Toggles Amplifier PA Pin to off, set to 01 if it is on
+    ax5043WriteReg(device, AX5043_PINFUNCANTSEL, 0x00);
+    ax5043WriteReg(device, AX5043_PINFUNCPWRAMP, 0x07);
+     // Wake up xtal oscillator early
+    ax5043WriteReg(device, AX5043_WAKEUPXOEARLY, 0x01);
+
+    /**
+     * We can set to zero if our timing is stable and TX bitrate is within 1%
+     * Otherwise set to:
+     *   MAXDROFFSET = 2^7 * Fxtal * delta_bitrate / bitrate^2 * decimation + 0.5
+     * 1BC8 for 10% of bit rate might be interesting for testing, but
+     * note that pre-amble needs to be longer to cope
+     */
+    // These are set to 0 if timing of TX is within 1%.
+    ax5043WriteReg(device, AX5043_MAXDROFFSET2, 0x00);
+    ax5043WriteReg(device, AX5043_MAXDROFFSET1, 0x00);
+    ax5043WriteReg(device, AX5043_MAXDROFFSET0, 0x00);
+
+    /*
+     * Radio lab sets FSKDMAX and FSKDMIN, which are not set in the
+     * GOLF code.  They are set to 0
+     */
+    ax5043WriteReg(device, AX5043_FSKDMAX1, 0x00);
+    ax5043WriteReg(device, AX5043_FSKDMAX0, 0x00);
+    ax5043WriteReg(device, AX5043_FSKDMIN1, 0x00);
+    ax5043WriteReg(device, AX5043_FSKDMIN0, 0x00);
+
+    ax5043WriteReg(device, AX5043_AMPLFILTER, 0x00);
+    // Was F4 in GOLF to have different param sets for each pattern matched
+    ax5043WriteReg(device, AX5043_RXPARAMSETS, 0xF4);
+
+    /*
+     * ADC for AGC has max value of 512.  This sets the max range.
+     * Set to 75% or magnitude 384.
+     *   AGCTARGET = log2(Magnitude) * 16 = 0x89
+     * Radio lab sets this to 84
+     */
+    ax5043WriteReg(device, AX5043_AGCTARGET0, 0x84); // RX only
+
+    /*
+     * Set FILTERIDX bits to 11 in PHASEGAIN - see DECIMATION calc above
+     * Radio lab also sets this to default of C3
+     */
+    ax5043WriteReg(device, AX5043_PHASEGAIN0, 0xC3); // C3 is also the default
+
+    /* AMPLITUDEGAIN0 set to 06 in GOLF and by RadioLab */
+    ax5043WriteReg(device, AX5043_AMPLITUDEGAIN0, 0x06);
+
+    /* Set to 00 */
+    ax5043WriteReg(device, AX5043_FREQDEV10, 0x00);
+    ax5043WriteReg(device, AX5043_FREQDEV00, 0x00);
+
+    /* Baseband gain compensation resistors Set to zero */
+    ax5043WriteReg(device, AX5043_BBOFFSRES0, 0x00);
+
+    ax5043WriteReg(device, AX5043_AGCTARGET1, 0x84);
+    ax5043WriteReg(device, AX5043_AGCAHYST1, 0x00); // 0 is default value
+    ax5043WriteReg(device, AX5043_AGCMINMAX1, 0x00); // 0 is default value
+
+    ax5043WriteReg(device, AX5043_PHASEGAIN1, 0xC3); // GOLF was 83, C3 per radio lab
+
+    ax5043WriteReg(device, AX5043_AMPLITUDEGAIN1, 0x06); // per radio lab
+    ax5043WriteReg(device, AX5043_FREQDEV11, 0x00); // per radio lab
+
+    ax5043WriteReg(device, AX5043_FOURFSK1, 0x16); // per radio lab
+
+    ax5043WriteReg(device, AX5043_BBOFFSRES1, 0x00); // per radio lab
+    ax5043WriteReg(device, AX5043_AGCGAIN3, 0xFF); // per radio lab
+    ax5043WriteReg(device, AX5043_AGCTARGET3, 0x84); // per radio lab
+    ax5043WriteReg(device, AX5043_AGCAHYST3, 0x00); // 0 is default value
+    ax5043WriteReg(device, AX5043_AGCMINMAX3, 0x00); // 0 is default value
+    // GOLF was 83, C3 per radio lab
+    ax5043WriteReg(device, AX5043_PHASEGAIN3, 0xC3);
+
+    ax5043WriteReg(device, AX5043_AMPLITUDEGAIN3, 0x06); // per radio lab
+    ax5043WriteReg(device, AX5043_FREQDEV13, 0x00); // per radio lab
+    ax5043WriteReg(device, AX5043_FOURFSK3, 0x16); // per radio lab
+    ax5043WriteReg(device, AX5043_BBOFFSRES3, 0x00); // per radio lab
+
+    /* Sets up ANTENNA, MODCFGA sets bit shape as well */
+    if (flags & AX5043_FLAG_ANT_DIFFER) {
+        // TX differential antenna
+        ax5043WriteReg(device, AX5043_MODCFGA, 0x05);
+    } else {
+         // TX Single ended through antenna
+        ax5043WriteReg(device, AX5043_MODCFGA, 0x06);
     }
 
     //  ax5043WriteReg(device, AX5043_TXPWRCOEFFB1, 0x0F); // max output pwr
@@ -679,18 +747,6 @@ static void ax5043_ax25_set_registers(AX5043Device device,
     //  ax5043WriteReg(device, AX5043_MATCH0MAX, 0x7E);
     ax5043WriteReg(device, AX5043_MATCH1PAT1, 0x7E);  /// 7E for 1200
     ax5043WriteReg(device, AX5043_MATCH1PAT0, 0x7E);
-
-    // unclear if this needs to be different, but it is from radio lab
-    switch (mode) {
-    case AX5043_MODE_AFSK_1200:
-        ax5043WriteReg(device, AX5043_MATCH1LEN, 0x8A);
-        break;
-
-    case AX5043_MODE_AFSK_9600:
-        // Bit 7 - 1 = raw, 0 = scrambled
-        ax5043WriteReg(device, AX5043_MATCH1LEN, 0x0A);
-        break;
-    }
 
     ax5043WriteReg(device, AX5043_MATCH1MAX, 0x0A);
 
@@ -770,6 +826,8 @@ static void ax5043_ax25_set_registers(AX5043Device device,
 
     // Per programming manual, though 0x00 is the default
     ax5043WriteReg(device, AX5043_0xF0C, 0x00);
+
+    ax5043_ax25_set_mode_base(device, mode);
 }
 
 static void ax5043_ax25_init_registers(AX5043Device device,
@@ -876,23 +934,8 @@ static void ax5043_ax25_set_registers_tx(AX5043Device device,
     ax5043_set_pll_regs(device, flags);
 //    ax5043WriteReg(device, AX5043_0xF0D, 0x03);  // Per J Brandenburg
 
-    switch (mode) {
-    case AX5043_MODE_AFSK_1200:
-        /* For AFSK we need another pair of registers for MARK / SPACE
-         * AFSK(Mark/Space) = Freq * 2^18 / Fxtal + 1/2
-         * Freq Space = 2200Hz
-         * Freq Mark = 1200Hz
-         */
-        ax5043WriteReg(device, AX5043_AFSKSPACE1, 0x00);
-        // 0r 25?  This was 24 in Golf
-        ax5043WriteReg(device, AX5043_AFSKSPACE0, 0x24);
-        ax5043WriteReg(device, AX5043_AFSKMARK1, 0x00);
-        ax5043WriteReg(device, AX5043_AFSKMARK0, 0x14);
-        break;
+    ax5043_ax25_set_mode_tx(device, mode);
 
-    case AX5043_MODE_AFSK_9600:
-        break;
-    }
 #ifdef AX5043_USES_TCXO
     ax5043WriteReg(device, AX5043_XTALCAP, 0x00);
 #else
@@ -944,22 +987,7 @@ static void ax5043_ax25_set_registers_rx(AX5043Device device,
 
     ax5043_set_pll_regs(device, flags);
 
-    switch (mode) {
-    case AX5043_MODE_AFSK_1200:
-        /* For AFSK we need another pair of registers for MARK / SPACE
-         * AFSK(Mark/Space) = Freq * DECIMATION * 2^16 / Fxtal + 1/2
-         * Freq Space = 2200Hz
-         * Freq Mark = 1200Hz
-         */
-        ax5043WriteReg(device, AX5043_AFSKSPACE1, 0x00);
-        ax5043WriteReg(device, AX5043_AFSKSPACE0, 0x48); // D9 Per black magic
-        ax5043WriteReg(device, AX5043_AFSKMARK1, 0x00);
-        ax5043WriteReg(device, AX5043_AFSKMARK0, 0x27); // 76 per black magic
-        break;
-
-    case AX5043_MODE_AFSK_9600:
-        break;
-    }
+    ax5043_ax25_set_mode_rx(device, mode);
 
 #ifdef AX5043_USES_TCXO
     ax5043WriteReg(device, AX5043_XTALCAP, 0x00);
@@ -1024,10 +1052,11 @@ static uint8_t ax5043_receiver_on_continuous(AX5043Device device)
 /**
  * axradio_init
  *
- * This is run at startup.  It initializes the radio for TX and runs the PLL ranging
- * Then it initializes the radio for RX on the same frequency and ranges the PLL again.
- * If everything works it returns success - AXRADIO_ERR_NOERROR
+ * This is run at startup.  It initializes the radio for TX and runs
+ * the PLL ranging Then it initializes the radio for RX on the same
+ * frequency and ranges the PLL again.
  *
+ * If everything works it returns success - AXRADIO_ERR_NOERROR
  */
 static uint8_t axradio_init(AX5043Device device, int32_t freq,
                             enum ax5043_mode mode,
@@ -1552,25 +1581,25 @@ uint16_t get_tx_power(AX5043Device device)
 }
 
 void test_freq(AX5043Device device, uint32_t freq,
-	       enum ax5043_mode mode, unsigned int flags)
+               enum ax5043_mode mode, unsigned int flags)
 {
     printf("Transmitting on freq: %d\n", freq);
 
     if (device != TX_DEVICE) {
-	/* Need to re-initialize a receive device to transmit. */
-	ax5043PowerOn(device);
-	flags = calc_flags(device, freq, flags);
+        /* Need to re-initialize a receive device to transmit. */
+        ax5043PowerOn(device);
+        flags = calc_flags(device, freq, flags);
 
-	uint8_t retVal = axradio_init(device, freq, mode, flags);
-	printf("axradio_init: %d\n",retVal);
+        uint8_t retVal = axradio_init(device, freq, mode, flags);
+        printf("axradio_init: %d\n",retVal);
 
-	retVal = mode_tx(device, mode, flags);
-	printf("mode_tx: %d\n",retVal);
+        retVal = mode_tx(device, mode, flags);
+        printf("mode_tx: %d\n",retVal);
 
-	ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_FULL_TX);
-	printf("Powerstate is FULL_TX\n");
+        ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_FULL_TX);
+        printf("Powerstate is FULL_TX\n");
 
-	printf("AX5043_XTALCAP: %d\n", ax5043ReadReg(device, AX5043_XTALCAP));
+        printf("AX5043_XTALCAP: %d\n", ax5043ReadReg(device, AX5043_XTALCAP));
     }
 
     int i = 0;
