@@ -22,6 +22,7 @@ void printHelp(char *search,commandPairs *commands, int numberOfCommands);
 void print8BitTemp(uint8_t temp8);
 void DisplayTelemetry(uint32_t typeRequested);
 void PreflightInitNow(CanIDNode cameFrom);
+
 void receiveLine(COM_NUM ioCom, char *commandString, char prompt, bool echo);
 
 char *next_token(char **str);
@@ -32,9 +33,6 @@ int parse_uint8(char **str, uint8_t *num, int base);
 int parse_uint16(char **str, uint16_t *num, int base);
 int parse_uint32(char **str, uint32_t *num, int base);
 int parse_bool(char **str, bool *val);
-
-bool AntennaAsk(void);
-void receiveLine(COM_NUM ioCom, char *commandString, char prompt, bool echo);
 
 void printID(void);
 

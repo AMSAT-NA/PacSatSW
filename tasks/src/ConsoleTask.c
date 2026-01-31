@@ -858,7 +858,7 @@ void RealConsoleTask(void)
             }
 
             CANEnableLoopback(canNum, enable);
-	    printf("CAN loopback %s\n", enable ? "enabled" : "disabled");
+            printf("CAN loopback %s\n", enable ? "enabled" : "disabled");
             break;
         }
 
@@ -873,7 +873,7 @@ void RealConsoleTask(void)
             }
 
             trace_can = enable;
-	    printf("CAN tracing %s\n", enable ? "enabled" : "disabled");
+            printf("CAN tracing %s\n", enable ? "enabled" : "disabled");
             break;
         }
 
@@ -1073,16 +1073,16 @@ void RealConsoleTask(void)
             bool stat;
 
             for (i = 0; i < sizeof(key); i++) {
-		if (!parse_uint8(&afterCommand, &key[i], 16)) {
+                if (!parse_uint8(&afterCommand, &key[i], 16)) {
                     printf("Not enough numbers or invalid number on item %d",
-			   i);
-		    break;
-		}
+                           i);
+                    break;
+                }
             }
-	    if (i < sizeof(key))
-		break;
+            if (i < sizeof(key))
+                break;
 
-	    checksum = key_checksum(key);
+            checksum = key_checksum(key);
             printf("\n");
             if (i == sizeof(key)) {
                 printf("Writing key...");
