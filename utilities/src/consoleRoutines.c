@@ -89,13 +89,15 @@ uint32_t parseNumber32(char **str)
 int parse_uint8(char **str, uint8_t *num, int base)
 {
     char *t = next_token(str), *end;
-    uint8_t v;
+    uint32_t v;
 
     if (!t || !*t)
         return -1;
-    v = (uint8_t) strtoul(t, &end, base);
+    v = strtoul(t, &end, base);
     if (*end != '\0')
-        return -1;
+        return -2;
+    if (v > 255)
+        return -3;
     *num = v;
     return 0;
 }
@@ -103,13 +105,15 @@ int parse_uint8(char **str, uint8_t *num, int base)
 int parse_uint16(char **str, uint16_t *num, int base)
 {
     char *t = next_token(str), *end;
-    uint16_t v;
+    uint32_t v;
 
     if (!t || !*t)
         return -1;
-    v = (uint16_t) strtoul(t, &end, base);
+    v = strtoul(t, &end, base);
     if (*end != '\0')
-        return -1;
+        return -2;
+    if (v > 65535)
+        return -3;
     *num = v;
     return 0;
 }
@@ -121,7 +125,7 @@ int parse_uint32(char **str, uint32_t *num, int base)
 
     if (!t || !*t)
         return -1;
-    v = (uint32_t) strtoul(t, &end, base);
+    v = strtoul(t, &end, base);
     if (*end != '\0')
         return -1;
     *num = v;
@@ -135,7 +139,7 @@ int parse_freq(char **str, uint32_t *num)
 
     if (!t || !*t)
         return -1;
-    v = (uint32_t) strtoul(t, &end, 0);
+    v = strtoul(t, &end, 0);
     if (*end == 'k' || *end == 'K')
         v *= 1000;
     else if (*end == 'm' || *end == 'M')
@@ -183,8 +187,9 @@ static char *next_token_chr(char **str, char *cstr)
 
 int parse_uint16_range(char **str, uint16_t *num1, uint16 *num2, int base)
 {
-    char *t = next_token_chr(str, "-"), *end, *s;
+    char *t = next_token_chr(str, "-"), *s;
     bool has_range = false;
+    int err;
 
     if (!t || !*t)
         return -1;
@@ -197,9 +202,9 @@ int parse_uint16_range(char **str, uint16_t *num1, uint16 *num2, int base)
         s++;
     }
 
-    *num1 = (uint16_t) strtol(t, &end, base);
-    if (*end != '\0')
-        return -1;
+    err = parse_uint16(&t, num1, base);
+    if (err)
+        return err;
 
     if (!has_range) {
         *num2 = *num1;
@@ -210,9 +215,9 @@ int parse_uint16_range(char **str, uint16_t *num1, uint16 *num2, int base)
     if (!t || !*t)
         return -1;
 
-    *num2 = (uint16_t) strtol(t, &end, base);
-    if (*end != '\0')
-        return -1;
+    err = parse_uint16(&t, num2, base);
+    if (err)
+        return err;
 
     *str = s;
     return 0;

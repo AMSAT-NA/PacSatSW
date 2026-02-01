@@ -29,6 +29,10 @@ char *next_token(char **str);
 uint16_t parseNumber(char **str);
 uint32_t parseNumber32(char **str);
 
+/*
+ * Number parsing routines.  These return -1 for no token, -2 for
+ * an invalid number, -3 for out of range number, or 0 for success.
+ */
 int parse_uint8(char **str, uint8_t *num, int base);
 int parse_uint16(char **str, uint16_t *num, int base);
 int parse_uint32(char **str, uint32_t *num, int base);
