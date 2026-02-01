@@ -104,13 +104,13 @@ enum {
     getTemp,
     getVoltages,
     getPowerFlags,
-    toggleRfPowPrint,
-    getBoardVersion,
+    RfPowPrint,
+    BoardVersion,
     reset,
     startWD,
     preflight,
     time,
-    version,
+    SwVersion,
     clrMinMax,
     getI2cState,
     internalWDTimeout,
@@ -121,8 +121,7 @@ enum {
     writeMRAMsr,
     dropBus,
     healthMode,
-    inhibitTx,
-    allowTx,
+    Tx,
     getState,
     testLED,
     doClearMRAM,
@@ -139,12 +138,8 @@ enum {
     rmdirFS,
     SelectRFPowerLevels,
     SetDCTDrivePower,
-    RaiseFreq,
-    LowerFreq,
-    SetFreq,
-    ReadFreqs,
-    SetTxPower,
-    GetTxPower,
+    Freq,
+    TxPow,
     SaveFreq,
     LoadKey,
     showDownlinkSize,
@@ -159,8 +154,7 @@ enum {
     TraceCAN,
     GetCANCounts,
     getax5043,
-    readax5043,
-    writeax5043,
+    AxReg,
     getRSSI,
     testFreq,
     testPLLrange,
@@ -224,30 +218,20 @@ commandPairs setupCommands[] = {
     { "init new proc",
       "Init DCT and MRAM stuff that will be set once for each unit",
       initSaved},
-    { "raise freq",
-      "Raise the frequency by n Hz",
-      RaiseFreq},
-    { "lower freq",
-      "Lower the frequency by n Hz",
-      LowerFreq},
-    { "set freq",
-      "Set the frequency by n kHz",
-      SetFreq},
+    { "freq",
+      "Set/raise/lower/get the frequency\r\n"
+      "                       freq <devnum> [+|-]value",
+      Freq},
     { "save freq",
       "Save the current frequency in MRAM",
       SaveFreq},
-    { "read freq",
-      "Read all the frequencies from MRAM",
-      ReadFreqs},
     { "test freq",
       "xmit on frequency of specified device",
       testFreq},
-    { "set tx power",
-      "Set the tx power to a percentage 0-100",
-      SetTxPower },
-    { "get tx power",
-      "Get the tx power as a percentage 0-100",
-      GetTxPower },
+    { "txpow",
+      "Get/set the tx power as a percentage 0-100\r\n"
+      "                       txpow [on|off]",
+      TxPow },
     { "test internal wd",
       "Force internal watchdog to reset CPU",
       internalWDTimeout},
@@ -270,7 +254,8 @@ commandPairs setupCommands[] = {
  */
 commandPairs pacsatCommands[] = {
     { "monitor",
-      "Enable/disbale monitoring of sent and received packets",
+      "Enable/disable monitoring of sent and received packets\r\n"
+      "                       monitor [on|off",
       Monitor},
     { "shut pb",
       "Shut the PB",
@@ -341,12 +326,10 @@ commandPairs debugCommands[] = {
     { "poll i2c",
       "Poll to see which I2c devices are there",
       pollI2c},
-    { "inhibit tx",
-      "Simulate FCC command to turn off tx",
-      inhibitTx},
-    { "allow tx",
-      "Simulate FCC command to turn on tx",
-      allowTx},
+    { "tx",
+      "Simulate FCC command to turn on/off tx\r\n"
+      "                       tx [on|off]",
+      Tx},
     { "get mram sr",
       "Get the MRAM status register",
       readMRAMsr},
@@ -427,27 +410,28 @@ commandPairs commonCommands[] = {
     { "get rssi",
       "Get the current RSSI reading from the AX5043 Rx",
       getRSSI},
-    { "get temp",
-      "Get RT-IHU board temperature",
+    { "temp",
+      "Print board temperatures",
       getTemp},
-    { "get voltages",
-      "Get RT-IHU board voltages",
+    { "volt",
+      "Print board voltages",
       getVoltages},
-    { "get power flags",
-      "Get RT-IHU board voltages",
+    { "powfl",
+      "Print power good flags",
       getPowerFlags},
-    { "toggle rf power print",
-      "Toggle printing RF power",
-      toggleRfPowPrint},
-    { "get board version",
+    { "rfpowpr",
+      "Enable/disable printing RF power\r\n"
+      "                       rfpowpr [on|off]",
+      RfPowPrint},
+    { "board version",
       "Get board version number",
-      getBoardVersion},
+      BoardVersion},
     { "get state",
       "Mainly for debug: Get the current state of the downlink state machine",
       getState},
-    { "get version",
+    { "sw version",
       "Get the software version number and build time",
-      version},
+      SwVersion},
     { "get mram size",
       "Get the total size of all MRAMs",
       sizeMRAM},
@@ -458,16 +442,19 @@ commandPairs commonCommands[] = {
       "Show free bytes in the heap.",
       heapFree},
     { "time",
-      "Get/set the number of seconds since the Unix epoch",
+      "Get/set the number of seconds since the Unix epoch\r\n"
+      "                       time [<value>]",
       Time},
     { "regrtc",
-      "Read the specified register in the rtc",
+      "Read the specified register in the rtc\r\n"
+      "                       regrtc [<reg> [<value>]]",
       regRtc},
     { "rtc",
       "Get the status and time from the Real Time Clock",
       getRtc},
     { "mode",
-      "Get/set the radio to 1200 bps AFSK or 9600 GMSK",
+      "Get/set the radio to 1200 bps AFSK or 9600 GMSK\r\n"
+      "                       mode [<dev> [1200|9600]]",
       Mode},
     { "mount fs",
       "Mount the filesystem",
@@ -494,7 +481,8 @@ commandPairs commonCommands[] = {
       "Get a list the last 4 s/w commands",
       GetCommands},
     { "gpio",
-      "Display/set the values of GPIOS",
+      "Display/set the values of GPIOS\r\n"
+      "                       gpio [<num> [<value>]]",
       Gpio},
     { "send can",
       "Send a CAN bus message",
@@ -511,12 +499,10 @@ commandPairs commonCommands[] = {
     { "get ax",
       "Get ax5043 status",
       getax5043},
-    { "read axreg",
-      "Read ax5043 reg n from device",
-      readax5043},
-    { "write axreg",
-      "write ax5043 value to reg n on device",
-      writeax5043},
+    { "axreg",
+      "Read ax5043 reg n from device\r\n"
+      "                       axreg <dev> <startreg>[-<endreg>] [value]",
+      AxReg},
     { "health mode",
       "Set health mode",
       healthMode},
@@ -632,6 +618,36 @@ static char *get_dev_speed_str(uint8_t devb)
     case DCT_SPEED_9600: return "9600";
     }
     return "?";
+}
+
+static int parse_devnum_de(char **str, AX5043Device *dev, int off, bool doerr)
+{
+    uint8_t devb;
+    int err = parse_uint8(str, &devb, 0);
+
+    if (err) {
+        if (doerr)
+            printf("Invalid or missing device number\n");
+        return err;
+    }
+    if (devb >= NUM_AX5043_SPI_DEVICES - off) {
+        if (doerr)
+            printf("Give a device number between 0 and %d\n",
+                   NUM_AX5043_SPI_DEVICES - off);
+        return -100;
+    }
+    *dev = (AX5043Device) devb;
+    return 0;
+}
+
+static int parse_devnum_noerr(char **str, AX5043Device *dev, int off)
+{
+    return parse_devnum_de(str, dev, off, false);
+}
+
+static int parse_devnum(char **str, AX5043Device *dev, int off)
+{
+    return parse_devnum_de(str, dev, off, true);
 }
 
 void RealConsoleTask(void)
@@ -912,83 +928,71 @@ void RealConsoleTask(void)
             break;
         }
 
-        case RaiseFreq: {
-            uint8_t devb = parseNumber(&afterCommand);
+        case Freq: {
+            AX5043Device dev;
+            int err = parse_devnum_noerr(&afterCommand, &dev, 0);
+            uint32_t val, freq;
+            unsigned int i;
+            char *t;
 
-            if (devb >= InvalidAX5043Device){
-                printf("Give a device number between 0 and 4\n");
+            if (err) {
+                printf("Tx--MRAM: %d, Memory: %d\n",
+                       ReadMRAMTelemFreq(), DCTTxFreq);
+                for (i = 0; i < NUM_AX5043_RX_DEVICES; i++) {
+                    printf("Rx%d--MRAM: %d Memory: %d\n", i,
+                           ReadMRAMReceiveFreq(i), DCTRxFreq[i]);
+                }
                 break;
             }
 
-            AX5043Device dev = (AX5043Device)devb;
-            int number = parseNumber(&afterCommand);
+            t = next_token(&afterCommand);
+            if (!t) {
+                if (dev == TX_DEVICE) {
+                    printf("Tx--MRAM: %d, Memory: %d\n",
+                           ReadMRAMTelemFreq(), DCTTxFreq);
+                } else {
+                    printf("Rx%d--MRAM: %d Memory: %d\n", dev,
+                           ReadMRAMReceiveFreq(dev), DCTRxFreq[dev]);
+                }
+                break;
+            }
 
-            if (dev == TX_DEVICE) {
-                DCTTxFreq += number;
-                printf("TxFreq=%d\n", DCTTxFreq);
-                quick_setfreq(dev, DCTTxFreq);
+            if (dev == TX_DEVICE)
+                freq = DCTTxFreq;
+            else
+                freq = DCTRxFreq[dev];
+            
+            if (*t == '+') {
+                t++;
+                err = parse_uint32(&t, &val, 0);
+                if (err) {
+                    printf("Invalid value\n");
+                    break;
+                }
+                freq += val;
+            } else if (*t == '-') {
+                t++;
+                err = parse_uint32(&t, &val, 0);
+                if (err) {
+                    printf("Invalid value\n");
+                    break;
+                }
+                freq -= val;
             } else {
-                DCTRxFreq[dev] += number;
-                printf("RxFreq=%d\n", DCTRxFreq[dev]);
-                quick_setfreq(dev, DCTRxFreq[dev]);
+                err = parse_uint32(&t, &freq, 0);
+                if (err) {
+                    printf("Invalid value\n");
+                    break;
+                }
             }
-            break;
-        }
-
-        case LowerFreq: {
-            uint8_t devb = parseNumber(&afterCommand);
-
-            if (devb >= InvalidAX5043Device) {
-                printf("Give a device number between 0 and 4\n");
-                break;
-            }
-
-            AX5043Device dev = (AX5043Device) devb;
-            int number = parseNumber(&afterCommand);
-
-            if (dev == TX_DEVICE) {
-                DCTTxFreq -= number;
-                printf("TxFreq=%d\n", DCTTxFreq);
-                quick_setfreq(dev, DCTTxFreq);
-            } else {
-                DCTRxFreq[dev] -= number;
-                printf("RxFreq=%d\n", DCTRxFreq[dev]);
-                quick_setfreq(dev, DCTRxFreq[dev]);
-            }
-            break;
-        }
-
-        case SetFreq: {
-            uint8_t devb = parseNumber(&afterCommand);
-
-            if (devb >= InvalidAX5043Device){
-                printf("Give a device number between 0 and 4\n");
-                break;
-            }
-
-            AX5043Device dev = (AX5043Device)devb;
-            uint32_t freq = parseNumber32(&afterCommand) * 1000;
-
             if (dev == TX_DEVICE) {
                 DCTTxFreq = freq;
-                printf("TxFreq=%d\n", DCTTxFreq);
+                printf("Set TxFreq=%d\n", DCTTxFreq);
                 quick_setfreq(dev, DCTTxFreq);
             } else {
                 DCTRxFreq[dev] = freq;
-                printf("RxFreq=%d\n", DCTRxFreq[dev]);
+                printf("Set Rx%dFreq=%d\n", dev, DCTRxFreq[dev]);
                 quick_setfreq(dev, DCTRxFreq[dev]);
-            }
-            break;
-        }
-
-        case ReadFreqs: {
-            int i;
-
-            printf("Tx--MRAM: %d, Memory: %d\n",
-                   ReadMRAMTelemFreq(), DCTTxFreq);
-            for (i = 0; i < NUM_AX5043_RX_DEVICES; i++) {
-                printf("Rx%d--MRAM: %d Memory: %d\n", i,
-                       ReadMRAMReceiveFreq(i), DCTRxFreq[i]);
             }
             break;
         }
@@ -1005,34 +1009,22 @@ void RealConsoleTask(void)
             break;
         }
 
-        case SetTxPower: {
-            uint8_t power, devb = parseNumber(&afterCommand);
+        case TxPow: {
+            AX5043Device dev;
+            uint8_t power;
+            int err = parse_devnum(&afterCommand, &dev, 0);
 
-            if (devb >= InvalidAX5043Device){
-                printf("Give a device number between 0 and 4\n");
+            if (err)
+                break;
+            err = parse_uint8(&afterCommand, &power, 0);
+            if (err) {
+                power = get_tx_power(dev);
+                printf("dev%u power = %d%%\n", dev, power);
                 break;
             }
 
-            power = parseNumber(&afterCommand);
-            if (power > 100) {
-                printf("Give a power between 0 and 100\n");
-                break;
-            }
-
-            set_tx_power((AX5043Device) devb, power);
-            break;
-        }
-
-        case GetTxPower: {
-            uint8_t power, devb = parseNumber(&afterCommand);
-
-            if (devb >= InvalidAX5043Device){
-                printf("Give a device number between 0 and 4\n");
-                break;
-            }
-
-            power = get_tx_power((AX5043Device) devb);
-            printf("%u%%\n", power);
+            set_tx_power(dev, power);
+            printf("dev%u power set to %d%\n", dev, power);
             break;
         }
 
@@ -1328,15 +1320,21 @@ void RealConsoleTask(void)
             break;
         }
 
-        case inhibitTx: {
-            SimulateHWCommand(CMD_TX_OFF);
-            inhibitTransmit = true;
-            break;
-        }
+        case Tx: {
+            bool val;
+            int err = parse_bool(&afterCommand, &val);
 
-        case allowTx: {
-            SimulateHWCommand(CMD_ALL_ON);
-            inhibitTransmit = false;
+            if (!err) {
+                if (val) {
+                    SimulateHWCommand(CMD_ALL_ON);
+                    inhibitTransmit = false;
+                } else {
+                    SimulateHWCommand(CMD_TX_OFF);
+                    inhibitTransmit = true;
+                }
+            }
+            printf("Transmit is %s\n",
+                   inhibitTransmit ? "disabled" : "enabled");
             break;
         }
 
@@ -1407,32 +1405,26 @@ void RealConsoleTask(void)
         }
 
         case startRx:{
-            uint8_t devb = parseNumber(&afterCommand);
+            AX5043Device dev;
+            int err = parse_devnum(&afterCommand, &dev, 1);
 
-            // -1 to remove the TX device.
-            if (devb >= InvalidAX5043Device - 1) {
-                printf("Give a device number between 0 and %d\n",
-                       NUM_AX5043_SPI_DEVICES - 1);
+            if (err)
                 break;
-            }
-            ax5043StartRx((AX5043Device) devb);
+            ax5043StartRx(dev);
             break;
         }
 
         case stopRx: {
-            uint8_t devb = parseNumber(&afterCommand);
+            AX5043Device dev;
+            int err = parse_devnum(&afterCommand, &dev, 1);
 
-            // -1 to remove the TX device.
-            if (devb >= InvalidAX5043Device - 1) {
-                printf("Give a device number between 0 and %d\n",
-                       NUM_AX5043_SPI_DEVICES - 1);
+            if (err)
                 break;
-            }
-            ax5043StopRx((AX5043Device) devb);
+            ax5043StopRx(dev);
             break;
         }
 
-        case version:{
+        case SwVersion:{
             printID();
             break;
         }
@@ -1475,9 +1467,16 @@ void RealConsoleTask(void)
             break;
         }
 
-        case toggleRfPowPrint: {
-            extern bool print_rf_power;
-            print_rf_power = !print_rf_power;
+        case RfPowPrint: {
+            bool enable;
+            int err = parse_bool(&afterCommand, &enable);
+
+            if (err) {
+                printf("rf power print is %s\n", print_rf_power ? "on" : "off");
+                break;
+            }
+            print_rf_power = enable;
+            printf("Set rf power print %s\n", enable ? "on" : "off");
             break;
         }
 
@@ -1531,7 +1530,7 @@ void RealConsoleTask(void)
             break;
         }
 
-        case getBoardVersion: {
+        case BoardVersion: {
             printf("Board version: %d\n", board_version);
             break;
         }
@@ -1545,68 +1544,57 @@ void RealConsoleTask(void)
         }
 
         case getax5043: {
-            uint8_t devb = parseNumber(&afterCommand);
+            AX5043Device dev;
+            int err = parse_devnum(&afterCommand, &dev, 0);
 
-            if (devb >= InvalidAX5043Device) {
-                printf("Give a device number between 0 and %d\n",
-                       NUM_AX5043_SPI_DEVICES - 1);
+            if (err)
                 break;
-            }
-            ax5043Dump((AX5043Device) devb);
+            ax5043Dump(dev);
             break;
         }
 
-        case readax5043: {
-            uint8_t devb = parseNumber(&afterCommand);
-
-            if (devb >= InvalidAX5043Device) {
-                printf("Give a device number between 0 and %d\n",
-                       NUM_AX5043_SPI_DEVICES - 1);
-                break;
-            }
-
-            uint16_t regstart = parseNumber(&afterCommand);
-            uint16_t regend = parseNumber(&afterCommand);
+        case AxReg: {
+            AX5043Device dev;
+            int err = parse_devnum(&afterCommand, &dev, 0);
+            uint16_t regstart;
+            uint16_t regend;
             uint16_t i;
+            uint8 val;
 
-            if (regend <= regstart)
-                regend = regstart;
+            if (err)
+                break;
 
-            for (i = regstart; i <= regend; i++) {
-                unsigned int val = ax5043ReadReg((AX5043Device) devb, i);
-
-                printf("ax5043 %d reg 0x%3.3x = %3d (0x%2.2x)\n",
-                       devb, i, val, val);
-            }
-            break;
-        }
-
-        case writeax5043: {
-            uint8_t devb = parseNumber(&afterCommand);
-
-            if (devb >= InvalidAX5043Device) {
-                printf("Give a device number between 0 and %d\n",
-                       NUM_AX5043_SPI_DEVICES - 1);
+            err = parse_uint16_range(&afterCommand, &regstart, &regend, 0);
+            if (err) {
+                printf("Invalid start or end register\n");
                 break;
             }
 
-            uint16_t reg = parseNumber(&afterCommand);
-            uint8_t val = parseNumber(&afterCommand);
+            err = parse_uint8(&afterCommand, &val, 0);
+            if (err) {
+                for (i = regstart; i <= regend; i++) {
+                    unsigned int val = ax5043ReadReg(dev, i);
 
-            ax5043WriteReg((AX5043Device) devb, reg, val);
-            printf("ax5043 %d reg 0x%3.3x = %3d (0x%2.2x)\n",
-                   devb, reg, val, val);
+                    printf("ax5043 %d reg 0x%3.3x = %3d (0x%2.2x)\n",
+                           dev, i, val, val);
+                }
+                break;
+            }
+            if (regstart != regend) {
+                printf("Cannot set multiple registers\n");
+                break;
+            }
+
+            ax5043WriteReg(dev, regstart, val);
             break;
         }
 
         case getRSSI: {
-            uint8_t devb = parseNumber(&afterCommand);
+            AX5043Device dev;
+            int err = parse_devnum(&afterCommand, &dev, 0);
 
-            if (devb >= InvalidAX5043Device) {
-                printf("Give a device number between 0 and 4\n");
+            if (err)
                 break;
-            }
-            AX5043Device dev = (AX5043Device) devb;
             int rssi = get_rssi(dev);
             printf("AX5043 Dev: %d RSSI is %02x = %d dBm\n",
                    dev, rssi, ((int16_t)rssi) - 255);
@@ -1616,38 +1604,33 @@ void RealConsoleTask(void)
         case testFreq: {
             // This is so we can find what the receive frequency is on
             // first build
-            uint8_t devb = parseNumber(&afterCommand);
-
-            if (devb >= InvalidAX5043Device) {
-                printf("Give a device number between 0 and 4\n");
-                break;
-            }
-            AX5043Device device = (AX5043Device) devb;
+            AX5043Device dev;
+            int err = parse_devnum(&afterCommand, &dev, 0);
             uint32_t freq;
 
-            if (device != TX_DEVICE)
-                freq = DCTRxFreq[device];
+            if (err)
+                break;
+
+            if (dev != TX_DEVICE)
+                freq = DCTRxFreq[dev];
             else
                 freq = DCTTxFreq;
 
-            printf("Testing TX for AX5043 Dev: %d\n", device);
-            test_freq(device, freq, AX5043_MODE_AFSK_1200, 0);
+            printf("Testing TX for AX5043 Dev: %d\n", dev);
+            test_freq(dev, freq, AX5043_MODE_AFSK_1200, 0);
             break;
         }
 
         case testPLLrange: {
-            uint8_t devb = parseNumber(&afterCommand);
+            AX5043Device dev;
+            int err = parse_devnum(&afterCommand, &dev, 0);
 
-            if (devb >= InvalidAX5043Device) {
-                printf("Give a device number between 0 and 4\n");
+            if (err)
                 break;
-            }
-            AX5043Device device = (AX5043Device) devb;
-
-            printf("Testing the PLL range for device: %d\n", device);
+            printf("Testing the PLL range for device: %d\n", dev);
 
             // test the range of the receiver on 2m
-            test_pll_2m_range(device, AX5043_MODE_GMSK_9600, 0);
+            test_pll_2m_range(dev, AX5043_MODE_GMSK_9600, 0);
             break;
         }
 

@@ -89,11 +89,11 @@ uint32_t parseNumber32(char **str)
 int parse_uint8(char **str, uint8_t *num, int base)
 {
     char *t = next_token(str), *end;
-    uint16_t v;
+    uint8_t v;
 
     if (!t || !*t)
         return -1;
-    v = (uint8_t) strtol(t, &end, base);
+    v = (uint8_t) strtoul(t, &end, base);
     if (*end != '\0')
         return -1;
     *num = v;
@@ -107,7 +107,7 @@ int parse_uint16(char **str, uint16_t *num, int base)
 
     if (!t || !*t)
         return -1;
-    v = (uint16_t) strtol(t, &end, base);
+    v = (uint16_t) strtoul(t, &end, base);
     if (*end != '\0')
         return -1;
     *num = v;
@@ -117,11 +117,11 @@ int parse_uint16(char **str, uint16_t *num, int base)
 int parse_uint32(char **str, uint32_t *num, int base)
 {
     char *t = next_token(str), *end;
-    uint16_t v;
+    uint32_t v;
 
     if (!t || !*t)
         return -1;
-    v = (uint32_t) strtol(t, &end, base);
+    v = (uint32_t) strtoul(t, &end, base);
     if (*end != '\0')
         return -1;
     *num = v;
@@ -141,6 +141,62 @@ int parse_bool(char **str, bool *val)
         *val = false;
     else
         return -1;
+    return 0;
+}
+
+static char *next_token_chr(char **str, char *cstr)
+{
+    char *s = *str, *s2;
+
+    while (isspace(*s))
+        s++;
+    if (!*s)
+        return NULL;
+    s2 = s + 1;
+    while (*s2 && !isspace(*s2) && !strchr(cstr, *s2))
+        s2++;
+    if (*s2 && !strchr(cstr, *s2)) {
+        *s2 = '\0';
+        s2++;
+    }
+    *str = s2;
+    return s;
+}
+
+int parse_uint16_range(char **str, uint16_t *num1, uint16 *num2, int base)
+{
+    char *t = next_token_chr(str, "-"), *end, *s;
+    bool has_range = false;
+
+    if (!t || !*t)
+        return -1;
+    s = *str;
+    while (isspace(*s))
+	s++;
+    if (*s == '-') {
+	has_range = true;
+	*s = '\0';
+	s++;
+    }
+
+    *num1 = (uint16_t) strtol(t, &end, base);
+    if (*end != '\0')
+        return -1;
+
+    if (!has_range) {
+	*num2 = *num1;
+	return 0;
+    }
+
+    t = next_token(&s);
+    if (!t || !*t)
+        return -1;
+
+    *num2 = (uint16_t) strtol(t, &end, base);
+    if (*end != '\0')
+        return -1;
+
+    *str = s;
     return 0;
 }
 

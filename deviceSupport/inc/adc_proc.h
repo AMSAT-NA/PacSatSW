@@ -106,4 +106,6 @@ extern unsigned int board_version;
  */
 extern unsigned int board_num;
 
+extern bool print_rf_power;
+
 #endif
