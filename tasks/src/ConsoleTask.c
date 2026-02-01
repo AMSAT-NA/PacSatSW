@@ -485,7 +485,8 @@ commandPairs commonCommands[] = {
       "                       gpio [<num> [<value>]]",
       Gpio},
     { "send can",
-      "Send a CAN bus message",
+      "Send a CAN bus message\r\n"
+      "                       send can <canbus> <prio> <type> <id> <dest> [<byte1> [<byte2> [...]]]",
       SendCANMsg },
     { "set can loopback",
       "Enable/Disable the CAN loopback",
@@ -813,25 +814,65 @@ void RealConsoleTask(void)
         }
 
         case SendCANMsg: {
-            uint8_t canNum = parseNumber(&afterCommand);
-            int priority = parseNumber(&afterCommand);
-            int type = parseNumber(&afterCommand);
-            uint32_t id = parseNumber32(&afterCommand);
-            int dest = parseNumber(&afterCommand);
-            int msglen = parseNumber(&afterCommand);
+            uint8_t canNum, priority, type, dest;
+            int err = parse_uint8(&afterCommand, &canNum, 0);
+            uint32_t id;
             uint8_t msg[64];
             unsigned int i;
 
+            if (err) {
+                printf("Invalid or missing can bus\n");
+                break;
+            }
             if (canNum >= NUM_CAN_BUSSES) {
                 printf("Invalid can bus: %d\n", canNum);
                 break;
             }
 
-            if (msglen > 64)
-                msglen = 64;
-            for (i = 0; i < msglen; i++)
-                msg[i] = 0x10 + i;
-            if (!CANSend(canNum, priority, type, id, dest, msg, msglen))
+            err = parse_uint8(&afterCommand, &priority, 0);
+            if (err) {
+                printf("Invalid or missing priority\n");
+                break;
+            }
+
+            err = parse_uint8(&afterCommand, &type, 0);
+            if (err) {
+                printf("Invalid or missing type\n");
+                break;
+            }
+
+            err = parse_uint32(&afterCommand, &id, 0);
+            if (err) {
+                printf("Invalid or missing id\n");
+                break;
+            }
+
+            err = parse_uint8(&afterCommand, &dest, 0);
+            if (err) {
+                printf("Invalid or missing dest\n");
+                break;
+            }
+
+            for (i = 0; ; i++) {
+                uint8_t v;
+
+                err = parse_uint8(&afterCommand, &v, 0);
+                if (err == -1)
+                    break;
+                if (err) {
+                    printf("Invalid message byte %d\n", i);
+                    i = 65;
+                    break;
+                }
+                if (i > 64) {
+                    printf("Message too long, 64 bytes max\n");
+                    break;
+                }
+                msg[i] = v;
+            }
+            if (i > 64)
+                break;
+            if (!CANSend(canNum, priority, type, id, dest, msg, i))
                 printf("Error sending CAN message.\n");
             break;
         }
