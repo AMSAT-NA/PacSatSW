@@ -220,7 +220,7 @@ commandPairs setupCommands[] = {
       initSaved},
     { "freq",
       "Set/raise/lower/get the frequency\r\n"
-      "                       freq <devnum> [+|-]value",
+      "                       freq <devnum> [+|-]value[k|m]",
       Freq},
     { "save freq",
       "Save the current frequency in MRAM",
@@ -964,7 +964,7 @@ void RealConsoleTask(void)
             
             if (*t == '+') {
                 t++;
-                err = parse_uint32(&t, &val, 0);
+                err = parse_freq(&t, &val);
                 if (err) {
                     printf("Invalid value\n");
                     break;
@@ -972,14 +972,14 @@ void RealConsoleTask(void)
                 freq += val;
             } else if (*t == '-') {
                 t++;
-                err = parse_uint32(&t, &val, 0);
+                err = parse_freq(&t, &val);
                 if (err) {
                     printf("Invalid value\n");
                     break;
                 }
                 freq -= val;
             } else {
-                err = parse_uint32(&t, &freq, 0);
+                err = parse_freq(&t, &freq);
                 if (err) {
                     printf("Invalid value\n");
                     break;

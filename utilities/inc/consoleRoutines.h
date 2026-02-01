@@ -32,6 +32,7 @@ uint32_t parseNumber32(char **str);
 int parse_uint8(char **str, uint8_t *num, int base);
 int parse_uint16(char **str, uint16_t *num, int base);
 int parse_uint32(char **str, uint32_t *num, int base);
+int parse_freq(char **str, uint32_t *num);
 int parse_bool(char **str, bool *val);
 int parse_uint16_range(char **str, uint16_t *num1, uint16 *num2, int base);
 

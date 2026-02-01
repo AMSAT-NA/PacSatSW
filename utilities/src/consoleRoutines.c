@@ -128,6 +128,24 @@ int parse_uint32(char **str, uint32_t *num, int base)
     return 0;
 }
 
+int parse_freq(char **str, uint32_t *num)
+{
+    char *t = next_token(str), *end;
+    uint32_t v;
+
+    if (!t || !*t)
+        return -1;
+    v = (uint32_t) strtoul(t, &end, 0);
+    if (*end == 'k' || *end == 'K')
+        v *= 1000;
+    else if (*end == 'm' || *end == 'M')
+        v *= 1000000;
+    else if (*end != '\0')
+        return -1;
+    *num = v;
+    return 0;
+}
+
 int parse_bool(char **str, bool *val)
 {
     char *t = next_token(str);
@@ -172,11 +190,11 @@ int parse_uint16_range(char **str, uint16_t *num1, uint16 *num2, int base)
         return -1;
     s = *str;
     while (isspace(*s))
-	s++;
+        s++;
     if (*s == '-') {
-	has_range = true;
-	*s = '\0';
-	s++;
+        has_range = true;
+        *s = '\0';
+        s++;
     }
 
     *num1 = (uint16_t) strtol(t, &end, base);
@@ -184,8 +202,8 @@ int parse_uint16_range(char **str, uint16_t *num1, uint16 *num2, int base)
         return -1;
 
     if (!has_range) {
-	*num2 = *num1;
-	return 0;
+        *num2 = *num1;
+        return 0;
     }
 
     t = next_token(&s);
