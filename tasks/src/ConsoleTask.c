@@ -153,8 +153,7 @@ enum {
     initSaved,
     TestMemScrub,
     GetCommands,
-    GetGpios,
-    SetGpio,
+    Gpio,
     SendCANMsg,
     SetCANLoopback,
     TraceCAN,
@@ -196,8 +195,7 @@ enum {
     testUploadTable,
     listUploadTable,
 #endif
-    monitorOn,
-    monitorOff,
+    Monitor,
     pbShut,
     pbOpen,
     uplinkShut,
@@ -271,12 +269,9 @@ commandPairs setupCommands[] = {
  * through the console.
  */
 commandPairs pacsatCommands[] = {
-    { "monitor on",
-      "Monitor sent and received packets",
-      monitorOn},
-    { "monitor off",
-      "Stop monitoring packets",
-      monitorOff},
+    { "monitor",
+      "Enable/disbale monitoring of sent and received packets",
+      Monitor},
     { "shut pb",
       "Shut the PB",
       pbShut},
@@ -498,12 +493,9 @@ commandPairs commonCommands[] = {
     { "get commands",
       "Get a list the last 4 s/w commands",
       GetCommands},
-    { "get gpios",
-      "Display the values of all GPIOS",
-      GetGpios},
-    { "set gpio",
-      "Set the value of a GPIO",
-      SetGpio},
+    { "gpio",
+      "Display/set the values of GPIOS",
+      Gpio},
     { "send can",
       "Send a CAN bus message",
       SendCANMsg },
@@ -770,34 +762,32 @@ void RealConsoleTask(void)
         }
 
 #ifdef DEBUG
-        case GetGpios: {
+        case Gpio: {
+            uint16_t gpio;
+            int err = parse_uint16(&afterCommand, &gpio, 0);
             Gpio_Use i;
-            int count;
+            bool val;
 
-            for (i = (Gpio_Use) 0, count = 0; i < NumberOfGPIOs; i++, count++) {
-                if (count % 4 == 0) {
-                    printf("\n");
-                }
-                printf("%s(%d):%d ", GPIOToName(i), i, GPIOIsOn(i));
+            if (err) {
+                for (i = (Gpio_Use) 0; i < NumberOfGPIOs; i++)
+                    printf("%s(%d):%d\n", GPIOToName(i), i, GPIOIsOn(i));
+                break;
             }
-            printf("\n");
-            break;
-        }
-        case SetGpio: {
-            Gpio_Use i;
-            int val;
 
-            i = (Gpio_Use) parseNumber(&afterCommand);
+            i = (Gpio_Use) gpio;
+
             if (i >= NumberOfGPIOs) {
-                printf("Invalid GPIO number %d, use 'get gpios' to find the number\n",
-                       i);
+                printf("Invalid GPIO number %d, use 'gpio' to find the number\n",
+                       gpio);
                 break;
             }
-            val = parseNumber(&afterCommand);
-            if (val < 0 || val > 1) {
-                printf("Invalid <GPIO value %d, must be 0 or 1\n", val);
+
+            err = parse_bool(&afterCommand, &val);
+            if (err) {
+                printf("%s(%d):%d\n", GPIOToName(i), i, GPIOIsOn(i));
                 break;
             }
+
             if (val)
                 GPIOSetOn(i);
             else
@@ -1783,15 +1773,16 @@ void RealConsoleTask(void)
 
 #endif /* DEBUG */
 
-        case monitorOn: {
-            monitorPackets = true;
-            printf("monitorPackets = true\n");
-            break;
-        }
+        case Monitor: {
+            bool val;
+            int err = parse_bool(&afterCommand, &val);
 
-        case monitorOff: {
-            monitorPackets = false;
-            printf("monitorPackets = false\n");
+            if (err) {
+                printf("Packet monitor is %s\n", monitorPackets ? "on" : "off");
+                break;
+            }
+            monitorPackets = val;
+            printf("Setting packet monitor %s\n", val ? "on" : "off");
             break;
         }
 
