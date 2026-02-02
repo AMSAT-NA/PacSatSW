@@ -244,8 +244,8 @@ void ax25_send_status() {
         strlcpy(buffer,"Open ", sizeof(buffer));
 
         int i;
-        for (i=0; i < NUM_RX_CHANNELS; i++) {
-            if (ax5043RxWorking((AX5043Device) i) && data_link_state_machine[i].dl_state == DISCONNECTED) {
+        for (i = 0; i < NUM_RX_CHANNELS; i++) {
+            if (ax5043RxWorking(i) && data_link_state_machine[i].dl_state == DISCONNECTED) {
                 strlcat(buffer, rx_channel_names[i], sizeof(buffer));
             } else {
                 channels_available--;

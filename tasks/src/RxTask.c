@@ -21,6 +21,7 @@
 
 #include "hardwareConfig.h"
 #include "RxTask.h"
+#include "nonvolManagement.h"
 #include "FreeRTOS.h"
 #include "os_task.h"
 
@@ -80,8 +81,8 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
     /* Initialize the Radio RX */
     for (i = FIRST_RX_CHANNEL; i <= LAST_RX_CHANNEL; i++) {
 #ifdef BLINKY_HARDWARE
-        if (i == AX5043Dev1) {
-            ax5043_off(AX5043Dev1); // dev1 is broken on blinky.
+        if (i == 1) {
+            ax5043_off(1); // dev1 is broken on blinky.
             continue;
         }
 #endif
@@ -100,17 +101,13 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
         ReportToWatchdog(CurrentTaskWD);
 
         if (monitorPackets) {
-            uint8_t rssi = get_rssi(AX5043Dev0);
+            uint8_t rssi;
             int16_t dbm;
-            // this magic value is supposed to be above the background
-            // noise, so we only see actual transmissions
-            if (rssi > ADJ_RX_RSSI_THRESHOLD) {
-                dbm = rssi - 255;
-                debug_print("RSSI-0: %d dBm\n",dbm);
-            }
 
             for (i = FIRST_RX_CHANNEL; i <= LAST_RX_CHANNEL; i++) {
-                rssi = get_rssi((AX5043Device) i);
+                // this magic value is supposed to be above the background
+                // noise, so we only see actual transmissions
+                rssi = get_rssi(i);
                 if (rssi > ADJ_RX_RSSI_THRESHOLD) {
                     dbm = rssi - 255;
                     debug_print("RSSI-d: %d dBm\n", i, dbm);
@@ -133,17 +130,17 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
                 break;
 
             case AX5043_Rx1_InterruptMsg:
-                process_fifo(AX5043Dev0);
+                process_fifo(0);
                 break;
-#if NUM_AX5043_RX_DEVICES == 4
+#if NUM_CHANNELS == 4
             case AX5043_Rx2_InterruptMsg:
-                process_fifo(AX5043Dev1);
+                process_fifo(1);
                 break;
             case AX5043_Rx3_InterruptMsg:
-                process_fifo(AX5043Dev2);
+                process_fifo(2);
                 break;
             case AX5043_Rx4_InterruptMsg:
-                process_fifo(AX5043Dev3);
+                process_fifo(3);
                 break;
 #endif
             }

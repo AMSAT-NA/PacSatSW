@@ -61,12 +61,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "FreeRTOS.h"
 #include "config.h"
 #include "os_task.h"
 #include "ax5043_access.h"
-#include "serialDriver.h"
-#include "nonvolManagement.h"
 
 /* Forward declarations */
 static uint8_t ax5043_ax25_init_registers_common(AX5043Device device);

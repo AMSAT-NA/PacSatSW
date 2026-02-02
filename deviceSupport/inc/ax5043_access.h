@@ -14,17 +14,7 @@
 #include "spiDriver.h"
 
 
-typedef enum {
-    AX5043Dev0 = 0,
-    AX5043Dev1,
-#if NUM_AX5043_SPI_DEVICES > 2
-    AX5043Dev2,
-    AX5043Dev3,
-    AX5043Dev4,
-#endif
-    InvalidAX5043Device
-} AX5043Device;
-
+typedef uint8_t AX5043Device;
 
 void ax5043StartRx(AX5043Device device,
                    uint32_t freq, enum radio_modulation mod);

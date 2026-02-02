@@ -20,21 +20,13 @@
 #include "sys_common.h"
 #include "spi.h"
 #include "spi-replacement.h"
-//#include "gio.h"
-//#include "sys_core.h"
 #include "gpioDriver.h"
-//FreeRTOS headers
-#include "FreeRTOS.h"
-#include "os_task.h"
 
 //Pacsat headers
 #include "spiDriver.h"
 #include "ax5043.h"
 #include "ax5043_access.h"
 #include "ax5043-ax25.h"
-#include "nonvol.h"
-#include "nonvolManagement.h"
-
 
 struct AX5043Info {
     SPIDevice spidev;

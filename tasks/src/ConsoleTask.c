@@ -630,7 +630,7 @@ static int parse_devnum_de(char **str, AX5043Device *dev, int off, bool doerr)
                    NUM_CHANNELS - off);
         return -100;
     }
-    *dev = (AX5043Device) devb;
+    *dev = devb;
     return 0;
 }
 
@@ -655,7 +655,7 @@ void RealConsoleTask(void)
         DCTFreq[i] = ReadMRAMFreq(i);
         if ((DCTFreq[i] < 999000) || (DCTFreq[i] > 600000000))
             DCTFreq[i] = DCT_DEFAULT_FREQ[i];
-        quick_setfreq((AX5043Device) i, DCTFreq[i]);
+        quick_setfreq(i, DCTFreq[i]);
         DCTModulation[i] = ReadMRAMModulation(i);
     }
 
@@ -1539,7 +1539,7 @@ void RealConsoleTask(void)
             int i;
 
             for (i = 0; i < NUM_CHANNELS; i++)
-                ax5043Test((AX5043Device)i);
+                ax5043Test(i);
             break;
         }
 
@@ -1987,19 +1987,15 @@ void RealConsoleTask(void)
             enum radio_modulation mod;
             int err;
 
-            err = parse_uint8(&afterCommand, &devb, 0);
+            err = parse_devnum_noerr(&afterCommand, &devb, 0);
             if (err) {
-                for (devb = 0; devb < InvalidAX5043Device; devb++) {
+                for (devb = 0; devb < NUM_CHANNELS; devb++) {
                     modstr = get_dev_modulation_str(devb);
                     printf("device %d: %s\n", devb, modstr);
                 }
                 break;
             }
-            if (devb >= InvalidAX5043Device) {
-                printf("Give a device number between 0 and %d\n",
-                       NUM_CHANNELS - 1);
-                break;
-            }
+
             modstr = next_token(&afterCommand);
             if (!modstr) {
                 modstr = get_dev_modulation_str(devb);
@@ -2027,9 +2023,9 @@ void RealConsoleTask(void)
                  * doesn't change while transmitting.
                  */
                 tx_modulation = mod;
-            } else if (ax5043_rxing((AX5043Device) devb)) {
-                ax5043StopRx((AX5043Device) devb);
-                ax5043StartRx((AX5043Device) devb, DCTFreq[devb],
+            } else if (ax5043_rxing(devb)) {
+                ax5043StopRx(devb);
+                ax5043StartRx(devb, DCTFreq[devb],
                               DCTModulation[devb]);
             }
             break;
