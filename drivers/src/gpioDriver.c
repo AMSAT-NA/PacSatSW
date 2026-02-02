@@ -715,14 +715,12 @@ static const GPIOInfo OtherFaultInfo = {
     .info                 = &gioPortBGPIO,
     .PinNum               = 3,
     .DirectionIsOut       = GPIO_IN,
-    .NegativeLogic        = true,
 };
 
 static const GPIOInfo OtherPowerOffStateInfo = {
     .info                 = &hetPort1GPIO,
     .PinNum               = 11,
     .DirectionIsOut       = GPIO_IN,
-    .NegativeLogic        = true,
 };
 
 static const GPIOInfo OtherPresenceInfo = {
@@ -736,7 +734,6 @@ static const GPIOInfo OtherActiveInfo = {
     .info                 = &gioPortAGPIO,
     .PinNum               = 6,
     .DirectionIsOut       = GPIO_IN,
-    .NegativeLogic        = true,
 };
 
 static const GPIOInfo OtherPowerOffInfo = {
@@ -751,14 +748,6 @@ static const GPIOInfo ActiveInfo = {
     .PinNum               = 1,
     .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
-    .NegativeLogic        = true,
-    /*
-     * TODO - This is a temporary fix, the ACTIVE_N line can't go
-     * above 2.75V because it's driving the control input of the RF
-     * switch.  So use the voltage divider to get the high to the
-     * right level.
-     */
-    .OpenCollector        = true,
 };
 
 static const GPIOInfo UmbilicalAttachedInfo = {
