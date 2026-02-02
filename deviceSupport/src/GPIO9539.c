@@ -30,9 +30,9 @@ bool WritePCA9539Bits(int bank, uint8_t *gpioBits){
     retVal = I2cSendCommand(I2C1, PCA9539_ADDR, bits,2,0,0);
     return retVal;
 }
-#endif
 bool ReadPCA9539Bits(int bank, uint8_t *gpioBits){
     uint8_t command;
     command = (bank==0)?PCA9539_REG_INPUT0:PCA9539_REG_INPUT1;
     return I2cSendCommand(I2C1, PCA9539_ADDR, &command,1,gpioBits,1);
 }
+#endif

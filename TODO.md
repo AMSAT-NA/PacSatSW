@@ -17,6 +17,13 @@ instance, the PbTask and maybe the UplinkTask could be combined with
 the TelemAndControlTask.  Maybe the CommandTask could be consolidated
 with something else.
 
+A task takes over 4K of RAM (from testing) so that's a big chunk of
+memory when the processor only has 128K of RAM.
+
+The important part of tasks is priority.  You generally don't need two
+tasks with the same priority.  It can make things more convenient, so
+there is a balance, but memory is at a premium.
+
 ## Get PSK working
 
 ## Allow the transmitter mode/rate to change per message
