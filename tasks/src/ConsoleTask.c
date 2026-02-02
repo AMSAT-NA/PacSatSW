@@ -649,14 +649,14 @@ void RealConsoleTask(void)
     /* Block for 500ms. */
     char *afterCommand;
     bool DoEcho = true;
-    unsigned int i;
+    unsigned int chan;
 
-    for (i = 0; i < NUM_CHANNELS; i++) {
-        DCTFreq[i] = ReadMRAMFreq(i);
-        if ((DCTFreq[i] < 999000) || (DCTFreq[i] > 600000000))
-            DCTFreq[i] = DCT_DEFAULT_FREQ[i];
-        quick_setfreq(i, DCTFreq[i]);
-        DCTModulation[i] = ReadMRAMModulation(i);
+    for (chan = 0; chan < NUM_CHANNELS; chan++) {
+        DCTFreq[chan] = ReadMRAMFreq(chan);
+        if ((DCTFreq[chan] < 999000) || (DCTFreq[chan] > 600000000))
+            DCTFreq[chan] = DCT_DEFAULT_FREQ[chan];
+        quick_setfreq(chan, DCTFreq[chan]);
+        DCTModulation[chan] = ReadMRAMModulation(chan);
     }
 
     // For watchdog when it is called with "current task"
@@ -1410,7 +1410,7 @@ void RealConsoleTask(void)
 
             if (err)
                 break;
-            ax5043StartRx(dev, DCTFreq[i], DCTModulation[i]);
+            ax5043StartRx(dev, DCTFreq[dev], DCTModulation[dev]);
             break;
         }
 

@@ -110,7 +110,7 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
                 rssi = get_rssi(i);
                 if (rssi > ADJ_RX_RSSI_THRESHOLD) {
                     dbm = rssi - 255;
-                    debug_print("RSSI-d: %d dBm\n", i, dbm);
+                    debug_print("RSSI-%d: %d dBm\n", i, dbm);
                 }
             }
 ////                debug_print("FRMRX: %d   ",ax5043ReadReg(device, AX5043_FRAMING) & 0x80 ); // FRAMING Pkt start bit detected - will print 128
