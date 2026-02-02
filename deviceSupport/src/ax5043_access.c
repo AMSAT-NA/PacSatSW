@@ -25,7 +25,7 @@
 //Pacsat headers
 #include "spiDriver.h"
 #include "ax5043_access.h"
-#include "ax5043-ax25.h"
+#include "ax5043.h"
 
 struct AX5043Info {
     SPIDevice spidev;

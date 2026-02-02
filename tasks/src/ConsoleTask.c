@@ -7,7 +7,7 @@
 /*
  * Standard headers for Golf
  */
-#include <ax5043-ax25.h>
+#include <ax5043.h>
 #include <pacsat.h>
 #include "stdarg.h"
 #include "stdlib.h"

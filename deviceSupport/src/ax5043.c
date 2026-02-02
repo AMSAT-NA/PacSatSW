@@ -55,7 +55,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <ax5043-ax25.h>
+#include <ax5043.h>
 #include <pacsat.h>
 #include <stdarg.h>
 #include <stdlib.h>

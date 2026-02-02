@@ -58,7 +58,7 @@
 #include "os_task.h"
 #include "nonvolManagement.h"
 #include "ax5043_access.h"
-#include "ax5043-ax25.h"
+#include "ax5043.h"
 #include "RxTask.h"
 #include "ax25_util.h"
 #include "str_util.h"

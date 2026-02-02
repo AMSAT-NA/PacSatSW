@@ -23,7 +23,7 @@
 
 #include "pacsat.h"
 #include "ax5043_access.h"
-#include "ax5043-ax25.h"
+#include "ax5043.h"
 #include "TxTask.h"
 #include "FreeRTOS.h"
 #include "os_task.h"
