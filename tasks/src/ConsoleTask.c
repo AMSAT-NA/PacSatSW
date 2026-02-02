@@ -230,7 +230,7 @@ commandPairs setupCommands[] = {
       testFreq},
     { "txpow",
       "Get/set the tx power as a percentage 0-100\r\n"
-      "                       txpow [on|off]",
+      "                       txpow <devnum> [0-100]",
       TxPow },
     { "test internal wd",
       "Force internal watchdog to reset CPU",
@@ -1065,7 +1065,7 @@ void RealConsoleTask(void)
             }
 
             set_tx_power(dev, power);
-            printf("dev%u power set to %d%\n", dev, power);
+            printf("dev%u power set to %d%%\n", dev, power);
             break;
         }
 
