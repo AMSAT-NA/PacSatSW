@@ -253,16 +253,9 @@ void ax5043StartRx(AX5043Device device)
         info->on = true;
     }
     if (!info->rxing) {
-        uint8_t speed = ReadMRAMReceiveSpeed(device);
-        /* FIXME - store the enum in MRAM. */
-        enum ax5043_mode mode;
+       enum radio_modulation mod = ReadMRAMModulation(device);
 
-        if (speed == DCT_SPEED_9600)
-            mode = AX5043_MODE_GMSK_9600;
-        else
-            mode = AX5043_MODE_AFSK_1200;
-
-        start_ax25_rx(device, mode, 0);
+        start_ax25_rx(device, mod, 0);
         info->rxing = true;
         info->txing = false;
     }
@@ -300,17 +293,9 @@ void ax5043StartTx(AX5043Device device)
     }
 
     if (!info->txing) {
-        uint8_t speed = ReadMRAMReceiveSpeed(device);
-        /* FIXME - store the enum in MRAM. */
-        enum ax5043_mode mode;
+        enum radio_modulation mod = ReadMRAMModulation(device);
 
-        if (speed == DCT_SPEED_9600)
-            mode = AX5043_MODE_GMSK_9600;
-        else
-            mode = AX5043_MODE_AFSK_1200;
-
-
-        start_ax25_tx(device, mode, 0);
+        start_ax25_tx(device, mod, 0);
         info->txing = true;
         info->rxing = false;
     }

@@ -171,26 +171,26 @@ void NullPrint(char *, ...);
 
 /* Here we define the number of transmitters and receivers. */
 #ifdef LAUNCHPAD_HARDWARE
-#define NUM_OF_TX_CHANNELS 1 // The number of transmitters we have
-#define NUM_OF_RX_CHANNELS 1 // The number of receivers we have
+#define NUM_TX_CHANNELS 1 // The number of transmitters we have
+#define NUM_RX_CHANNELS 1 // The number of receivers we have
 #else
-#define NUM_OF_TX_CHANNELS 1 // The number of transmitters we have
-#define NUM_OF_RX_CHANNELS 4 // The number of receivers we have
+#define NUM_TX_CHANNELS 1 // The number of transmitters we have
+#define NUM_RX_CHANNELS 4 // The number of receivers we have
 #endif
-/* Radio Channels */
-typedef enum {
-    Channel_A,
-    Channel_B,
-    Channel_C,
-    Channel_D,
-} rx_channel_t;
 
-typedef enum {
-    TX_Channel_A,
-} tx_channel_t;
+/*
+ * NOTE - If the number of channels goes above 5, then the values in
+ * MRAMMap.h that hold channel information must change.
+ */
 
-// TODO - TX channels?  Do we add to above or have a seperate list.  Assumed to be only one but it could be configurable.
+#define FIRST_RX_CHANNEL 0
+#define LAST_RX_CHANNEL (FIRST_RX_CHANNEL + NUM_RX_CHANNELS - 1)
+#define FIRST_TX_CHANNEL NUM_RX_CHANNELS
+#define LAST_TX_CHANNEL (FIRST_TX_CHANNEL + NUM_TX_CHANNELS - 1)
+#define NUM_CHANNELS (NUM_TX_CHANNELS + NUM_RX_CHANNELS)
 
+#define is_tx_chan(c) ((c) >= FIRST_TX_CHANNEL && (c) <= LAST_TX_CHANNEL)
+#define is_rx_chan(c) ((c) >= FIRST_RX_CHANNEL && (c) <= LAST_RX_CHANNEL)
 
 #define DIR_FOLDER "//dir/"
 #define TMP_FOLDER "//tmp/"
@@ -326,23 +326,23 @@ typedef enum {
 /**
  * AX5043 radio constants
  */
-#define DCT_SPEED_1200 0
-#define DCT_SPEED_9600 1
-
 #define AX5043_USES_TCXO // If this is not defined then we are using an XTAL
-#define DCT_DEFAULT_TX_FREQ 435760000 // Actual frequency.  Converted later to ax5043 register value
-#define DCT_DEFAULT_TX_SPEED DCT_SPEED_1200
-//#define DCT_DEFAULT_RX_FREQ 145835000 //436800000 // The Flight frequency will be in 2m. e.g. 145835000
+
+enum radio_modulation {
+    MODULATION_AFSK_1200 = 0,
+    MODULATION_GMSK_9600 = 1,
+};
+char *modulation_to_str(enum radio_modulation mod);
+
 /* Defined in ConsoleTask.c */
-extern const uint32_t DCT_DEFAULT_RX_FREQ[4];
+extern const uint32_t DCT_DEFAULT_FREQ[NUM_CHANNELS];
+extern const enum radio_modulation DCT_DEFAULT_MODULATION[NUM_CHANNELS];
+extern const uint8_t DCT_DEFAULT_MODE[NUM_CHANNELS];
+
 // For now, we want the output to be something like 100mW (20dBm) and 500mW (27dBm)
 // I believe this makes the DCT output be about -7dBM and +3dBM
 #define DCT_DEFAULT_LOW_POWER 261   // This seems about right for 20dBm
 #define DCT_DEFAULT_HIGH_POWER 632 // TODO:  This should be defined so we get about 27dBm out of the PA.
-
-/* Defined in ConsoleTask.c */
-extern const uint8_t DCT_DEFAULT_RX_MODE[4];
-extern const uint8_t DCT_DEFAULT_RX_SPEED[4];
 
 /*
  * MET Constants.  The MET timer goes off every second.  Other time constants

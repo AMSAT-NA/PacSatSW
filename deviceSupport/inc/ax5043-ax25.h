@@ -408,11 +408,6 @@ struct axradio_address {
     uint8_t addr[4];
 };
 
-enum ax5043_mode {
-    AX5043_MODE_AFSK_1200,
-    AX5043_MODE_GMSK_9600,
-};
-
 #define AX5043_FLAG_DIV2        (1 << 0) // Divide the frequency by 2.
 #define AX5043_FLAG_EXT_INDUCT  (1 << 1) // Use an external inductor.
 #define AX5043_FLAG_ANT_DIFFER  (1 << 2) // Differential antenna input.
@@ -423,9 +418,9 @@ enum ax5043_mode {
 
 void quick_setfreq(AX5043Device device, int32_t f);
 void start_ax25_rx(AX5043Device device,
-                   enum ax5043_mode mode, unsigned int flags);
+                   enum radio_modulation modulation, unsigned int flags);
 void start_ax25_tx(AX5043Device device,
-                   enum ax5043_mode mode, unsigned int flags);
+                   enum radio_modulation modulation, unsigned int flags);
 uint16_t fifo_free(AX5043Device device);
 void fifo_clear(AX5043Device device);
 void fifo_repeat_byte(AX5043Device device, uint8_t b, uint8_t count, uint8_t flags);
@@ -439,11 +434,11 @@ uint16_t fifo_free(AX5043Device device);
 uint8_t get_rssi(AX5043Device device);
 void set_tx_power(AX5043Device device, uint32_t power);
 uint16_t get_tx_power(AX5043Device device);
-void test_freq(AX5043Device device, uint32_t freq, enum ax5043_mode mode,
-               unsigned int flags);
-void test_pll_2m_range(AX5043Device device, enum ax5043_mode mode,
+void test_freq(AX5043Device device, uint32_t freq,
+               enum radio_modulation modulation, unsigned int flags);
+void test_pll_2m_range(AX5043Device device, enum radio_modulation modulation,
                        unsigned int flags);
 
-void ax5043_ax25_set_mode(AX5043Device device,
-                          enum ax5043_mode mode,
-                          bool tx);
+void ax5043_ax25_set_modulation(AX5043Device device,
+                                enum radio_modulation modulation,
+                                bool tx);

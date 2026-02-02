@@ -31,6 +31,6 @@ bool tx_test_make_packet();
 extern bool inhibitTransmit;
 
 /* Current transmit mode. */
-extern enum ax5043_mode tx_mode;
+extern enum radio_modulation tx_modulation;
 
 #endif /* TASKS_INC_TXTASK_H_ */

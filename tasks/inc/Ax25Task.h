@@ -86,7 +86,7 @@ typedef enum {
 
 
 typedef struct {
-    rx_channel_t rx_channel;
+    uint8_t rx_channel;
     AX25_primitive_t primitive;
     AX25_PACKET packet; // This needs to be a copy to avoid the data being changed before it is processed
     ax25_error_t error_num;
@@ -99,7 +99,7 @@ typedef enum {
 
 typedef struct {
     AX25_data_link_state_t dl_state;
-    rx_channel_t channel;             /* Radio A, B, C, D */
+    uint8_t channel;
     char callsign[MAX_CALLSIGN_LEN];
     AX25_PACKET decoded_packet;
     AX25_PACKET response_packet;

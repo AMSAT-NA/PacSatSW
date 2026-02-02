@@ -80,15 +80,10 @@ void WriteMRAMDCTDriveHighPower(uint32_t);
 uint32_t ReadMRAMDCTDriveLowPower(void);
 void WriteMRAMDCTDriveLowPower(uint32_t);
 
-uint32_t ReadMRAMTelemFreq(void);
-void WriteMRAMTelemFreq(uint32_t);
-void WriteMRAMTelemSpeed(uint8_t speed);
-uint8_t ReadMRAMTelemSpeed(void);
-
-uint32_t ReadMRAMReceiveFreq(uint8_t rxNumber);
-void WriteMRAMReceiveFreq(uint8_t rxNumber,uint32 freq);
-void WriteMRAMReceiveSpeed(uint8_t rxNum, uint8_t speed);
-uint8_t ReadMRAMReceiveSpeed(uint8_t rxNum);
+uint32_t ReadMRAMFreq(uint8_t devnum);
+void WriteMRAMFreq(uint8_t devnum, uint32 freq);
+enum radio_modulation ReadMRAMModulation(uint8_t devnum);
+void WriteMRAMModulation(uint8_t devnum, enum radio_modulation mod);
 
 void WriteMRAMVersionNumber(void);
 bool CheckMRAMVersionNumber(void);

@@ -11,7 +11,7 @@
 #include <pacsat.h>
 
 typedef struct {
-    rx_channel_t channel;
+    uint8_t channel;
     uint8_t bytes[AX25_PKT_BUFFER_LEN];
     uint16_t len;
 } rx_radio_buffer_t;

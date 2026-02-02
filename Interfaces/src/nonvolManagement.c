@@ -338,32 +338,26 @@ uint32_t ReadMRAMTimeout(TimeoutType type){
     READ_UINT32(TimeoutTimes[type],0);
 }
 
-void WriteMRAMReceiveFreq(uint8_t rxNum,uint32_t freq){
-    WRITE_UINT32(DCTRxFrequency[rxNum],freq);
+void WriteMRAMFreq(uint8_t devnum, uint32_t freq)
+{
+    WRITE_UINT32(DCTFrequency[devnum], freq);
 }
-uint32_t ReadMRAMReceiveFreq(uint8_t rxNum){
-    READ_UINT32(DCTRxFrequency[rxNum],DCT_DEFAULT_RX_FREQ[rxNum]);
-}
-
-void WriteMRAMReceiveSpeed(uint8_t rxNum, uint8_t speed){
-    WRITE_UINT8(DCTRxSpeed[rxNum], speed);
-}
-uint8_t ReadMRAMReceiveSpeed(uint8_t rxNum){
-    READ_UINT8(DCTRxSpeed[rxNum], DCT_DEFAULT_RX_SPEED[rxNum]);
+uint32_t ReadMRAMFreq(uint8_t devnum)
+{
+    READ_UINT32(DCTFrequency[devnum], DCT_DEFAULT_FREQ[devnum]);
 }
 
-void WriteMRAMTelemFreq(uint32_t freq){
-    WRITE_UINT32(DCTTxFrequency,freq);
+void WriteMRAMModulation(uint8_t devnum, enum radio_modulation mod)
+{
+    WRITE_UINT8(DCTModulation[devnum], mod);
 }
-uint32_t ReadMRAMTelemFreq(void){
-    READ_UINT32(DCTTxFrequency,DCT_DEFAULT_TX_FREQ);
+static uint8_t getmrammod(uint8_t devnum)
+{
+    READ_UINT8(DCTModulation[devnum], DCT_DEFAULT_MODULATION[devnum]);
 }
-
-void WriteMRAMTelemSpeed(uint8_t speed){
-    WRITE_UINT8(DCTTxSpeed, speed);
-}
-uint8_t ReadMRAMTelemSpeed(void){
-    READ_UINT8(DCTTxSpeed, DCT_DEFAULT_TX_SPEED);
+enum radio_modulation ReadMRAMModulation(uint8_t devnum)
+{
+    return (enum radio_modulation) getmrammod(devnum);
 }
 
 void WriteMRAMDCTDriveLowPower(uint32_t regVal){
@@ -405,7 +399,7 @@ uint8_t ReadMRAMReceiverMode(uint8_t rxNum){
     if (val1 == val2)
         return val1;
     else
-        return DCT_DEFAULT_RX_MODE[rxNum];
+        return DCT_DEFAULT_MODE[rxNum];
 }
 
 /*
@@ -417,6 +411,7 @@ void SetupMRAMStates() {
      * These are initialized by preflight init.  That means that these values are the ones
      * that are in MRAM when we first power up in orbit.
      */
+    int i;
 
     WriteMRAMBoolState(StateCommandedSafeMode,true);
     WriteMRAMBoolState(StateAutoSafe,false);
@@ -451,12 +446,8 @@ void SetupMRAMStates() {
     WriteMRAMExitAutosafe(DEFAULT_AUTOSAFE_OUTOF);
 
     WriteMRAMHighestFileNumber(0);  // Start the file system at file 1, so the highest file number is zero.  File Id 0 is reserved and sent when a station does not have a file to upload.
-    int i;
-    for(i=0;i<4;i++){
-        WriteMRAMReceiverMode(i, DCT_DEFAULT_RX_MODE[i]);
-        WriteMRAMReceiveSpeed(i, DCT_DEFAULT_RX_SPEED[i]);
-    }
-    WriteMRAMTelemSpeed(DCT_DEFAULT_TX_SPEED);
+    for(i = 0; i < NUM_CHANNELS; i++)
+        WriteMRAMModulation(i, DCT_DEFAULT_MODULATION[i]);
 
     /* These are like 'set internal schedule' but sets relative to startup, not to current time */
     WriteMRAMTimeout(NoCommandTimeout,NO_COMMAND_TIMEOUT);
@@ -511,10 +502,9 @@ void IHUInitSaved(void){
      * value that has to be tweaked for each processor (or each DCT in this case)
      */
     uint8_t i;
-    for(i=0;i<4;i++){
-        WriteMRAMReceiveFreq(i,DCT_DEFAULT_RX_FREQ[i]);
-    }
-    WriteMRAMTelemFreq(DCT_DEFAULT_TX_FREQ);
+
+    for(i = 0; i < NUM_CHANNELS; i++)
+        WriteMRAMFreq(i, DCT_DEFAULT_FREQ[i]);
     WriteMRAMDCTDriveHighPower(DCT_DEFAULT_HIGH_POWER);
     WriteMRAMDCTDriveLowPower(DCT_DEFAULT_LOW_POWER);
 }

@@ -77,7 +77,7 @@ typedef struct {
 
 typedef struct {
     uplink_state_t ul_state;
-    rx_channel_t channel;             /* Radio A, B, C, D */
+    uint8_t channel;             /* Radio A, B, C, D */
     char callsign[MAX_CALLSIGN_LEN];
     int file_id; /* File id of the file being uploaded */
     uint32_t request_time; /* The time the request was received for timeout purposes */

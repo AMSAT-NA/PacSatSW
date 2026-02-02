@@ -204,7 +204,7 @@ void process_fifo(AX5043Device device) {
                 GPIOSetOff(LED2);
 
                 // Store the channel here - same as device id
-                rx_radio_buffer.channel = (rx_channel_t)device;
+                rx_radio_buffer.channel = device;
 
                 /* Add to the queue and wait for 10ms to see if space is available */
                 BaseType_t xStatus = xQueueSendToBack( xRxPacketQueue, &rx_radio_buffer, CENTISECONDS(1) );

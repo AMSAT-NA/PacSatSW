@@ -42,7 +42,6 @@ int parse_uint16_range(char **str, uint16_t *num1, uint16 *num2, int base);
 
 void printID(void);
 
-
 #define COM_STRING_SIZE 90
 
 #endif /* UTILITIES_INC_CONSOLEROUTINES_H_ */

@@ -78,16 +78,22 @@ extern uint8_t SWCmdRing[SW_CMD_RING_SIZE], SWCmdIndex;
 static char commandString[COM_STRING_SIZE];
 
 /* Current and default frequencies. */
-static uint32_t DCTTxFreq, DCTRxFreq[4];
-const uint32_t DCT_DEFAULT_RX_FREQ[4] =
-    { 145780000, 145810000, 145840000, 145870000 };
+static uint32_t DCTFreq[NUM_CHANNELS];
+#if NUM_CHANNELS == 5
+const uint32_t DCT_DEFAULT_FREQ[NUM_CHANNELS] =
+    { 145780000, 145810000, 145840000, 145870000, 435760000 };
+#else
+    { 145780000, 435760000 };
+#endif
 
-// default all channels
-const uint8_t DCT_DEFAULT_RX_MODE[4] = { 0x15, 0x15, 0x15, 0x15 };
-
-const uint8_t DCT_DEFAULT_RX_SPEED[4] = {
-    DCT_SPEED_1200, DCT_SPEED_1200, DCT_SPEED_1200, DCT_SPEED_1200
+const enum radio_modulation DCT_DEFAULT_MODULATION[NUM_CHANNELS] = {
+    MODULATION_AFSK_1200, MODULATION_AFSK_1200,
+    MODULATION_AFSK_1200, MODULATION_AFSK_1200,
+    MODULATION_AFSK_1200,
 };
+
+// default all channels - TODO - is this used?
+const uint8_t DCT_DEFAULT_MODE[NUM_CHANNELS] = { 0x15, 0x15, 0x15, 0x15, 15 };
 
 extern bool InSafeMode, InScienceMode, InHealthMode;
 extern bool TransponderEnabled, onOrbit, SimDoppler;
@@ -206,7 +212,7 @@ enum {
     Time,
     getRtc,
     regRtc,
-    Mode,
+    Modulation,
     setDigi,
 };
 
@@ -452,10 +458,10 @@ commandPairs commonCommands[] = {
     { "rtc",
       "Get the status and time from the Real Time Clock",
       getRtc},
-    { "mode",
+    { "modul",
       "Get/set the radio to 1200 bps AFSK or 9600 GMSK\r\n"
       "                       mode [<dev> [1200|9600]]",
-      Mode},
+      Modulation},
     { "mount fs",
       "Mount the filesystem",
       MountFS},
@@ -606,19 +612,9 @@ char *ResetReasons[] = {
     "Power On"
 };
 
-static char *get_dev_speed_str(uint8_t devb)
+static char *get_dev_modulation_str(uint8_t devb)
 {
-    uint8_t dspeed;
-
-    if (devb == TX_DEVICE)
-        dspeed = ReadMRAMTelemSpeed();
-    else
-        dspeed = ReadMRAMReceiveSpeed(devb);
-    switch (dspeed) {
-    case DCT_SPEED_1200: return "1200";
-    case DCT_SPEED_9600: return "9600";
-    }
-    return "?";
+    return modulation_to_str(ReadMRAMModulation(devb));
 }
 
 static int parse_devnum_de(char **str, AX5043Device *dev, int off, bool doerr)
@@ -656,25 +652,14 @@ void RealConsoleTask(void)
     /* Block for 500ms. */
     char *afterCommand;
     bool DoEcho = true;
+    unsigned int i;
 
-    DCTTxFreq = ReadMRAMTelemFreq();
-    DCTRxFreq[0] = ReadMRAMReceiveFreq(0);
-    DCTRxFreq[1] = ReadMRAMReceiveFreq(1);
-    DCTRxFreq[2] = ReadMRAMReceiveFreq(2);
-    DCTRxFreq[3] = ReadMRAMReceiveFreq(3);
-    if ((DCTTxFreq < 999000) || (DCTTxFreq > 600000000)){
-        DCTTxFreq = DCT_DEFAULT_TX_FREQ;
+    for (i = 0; i < NUM_CHANNELS; i++) {
+        DCTFreq[i] = ReadMRAMFreq(i);
+        if ((DCTFreq[i] < 999000) || (DCTFreq[i] > 600000000))
+            DCTFreq[0] = DCT_DEFAULT_FREQ[i];
+        quick_setfreq((AX5043Device) i, DCTFreq[i]);
     }
-    if ((DCTRxFreq[0] < 999000) || (DCTRxFreq[0] > 600000000)){
-        DCTRxFreq[0] = DCT_DEFAULT_RX_FREQ[0];
-    }
-    quick_setfreq(RX1_DEVICE, DCTRxFreq[0]);
-#if NUM_AX5043_RX_DEVICES == 4
-    quick_setfreq(RX2_DEVICE, DCTRxFreq[1]);
-    quick_setfreq(RX3_DEVICE, DCTRxFreq[2]);
-    quick_setfreq(RX4_DEVICE, DCTRxFreq[3]);
-#endif
-    quick_setfreq(TX_DEVICE, DCTTxFreq);
 
     // For watchdog when it is called with "current task"
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE) ConsoleTsk);
@@ -977,31 +962,22 @@ void RealConsoleTask(void)
             char *t;
 
             if (err) {
-                printf("Tx--MRAM: %d, Memory: %d\n",
-                       ReadMRAMTelemFreq(), DCTTxFreq);
-                for (i = 0; i < NUM_AX5043_RX_DEVICES; i++) {
-                    printf("Rx%d--MRAM: %d Memory: %d\n", i,
-                           ReadMRAMReceiveFreq(i), DCTRxFreq[i]);
-                }
+                for (i = 0; i < NUM_CHANNELS; i++)
+                    printf("%s%d--MRAM: %d, Memory: %d\n",
+                           is_tx_chan(i) ? "Tx" : "Rx", i,
+                           ReadMRAMFreq(i), DCTFreq[i]);
                 break;
             }
 
             t = next_token(&afterCommand);
             if (!t) {
-                if (dev == TX_DEVICE) {
-                    printf("Tx--MRAM: %d, Memory: %d\n",
-                           ReadMRAMTelemFreq(), DCTTxFreq);
-                } else {
-                    printf("Rx%d--MRAM: %d Memory: %d\n", dev,
-                           ReadMRAMReceiveFreq(dev), DCTRxFreq[dev]);
-                }
+                printf("%s%d--MRAM: %d Memory: %d\n", dev,
+                       is_tx_chan(dev) ? "Tx" : "Rx", dev,
+                       ReadMRAMFreq(dev), DCTFreq[dev]);
                 break;
             }
 
-            if (dev == TX_DEVICE)
-                freq = DCTTxFreq;
-            else
-                freq = DCTRxFreq[dev];
+            freq = DCTFreq[dev];
             
             if (*t == '+') {
                 t++;
@@ -1026,26 +1002,21 @@ void RealConsoleTask(void)
                     break;
                 }
             }
-            if (dev == TX_DEVICE) {
-                DCTTxFreq = freq;
-                printf("Set TxFreq=%d\n", DCTTxFreq);
-                quick_setfreq(dev, DCTTxFreq);
-            } else {
-                DCTRxFreq[dev] = freq;
-                printf("Set Rx%dFreq=%d\n", dev, DCTRxFreq[dev]);
-                quick_setfreq(dev, DCTRxFreq[dev]);
-            }
+            DCTFreq[dev] = freq;
+            quick_setfreq(dev, DCTFreq[dev]);
+
+            printf("Set %s%d=%d\n", dev,
+                   is_tx_chan(dev) ? "Tx" : "Rx", dev, DCTFreq[dev]);
             break;
         }
 
         case SaveFreq: {
             int i;
 
-            printf("Saving Tx frequency %d to MRAM\n", DCTTxFreq);
-            WriteMRAMTelemFreq(DCTTxFreq);
             for (i = 0; i < NUM_AX5043_RX_DEVICES; i++) {
-                printf("Saving Rx%d frequency %d to MRAM\n", i, DCTRxFreq[i]);
-                WriteMRAMReceiveFreq(i, DCTRxFreq[i]);
+                printf("Saving %s%d frequency %d to MRAM\n",
+                       is_tx_chan(i) ? "Tx" : "Rx", i, DCTFreq[i]);
+                WriteMRAMFreq(i, DCTFreq[i]);
             }
             break;
         }
@@ -1652,13 +1623,10 @@ void RealConsoleTask(void)
             if (err)
                 break;
 
-            if (dev != TX_DEVICE)
-                freq = DCTRxFreq[dev];
-            else
-                freq = DCTTxFreq;
+            freq = DCTFreq[dev];
 
             printf("Testing TX for AX5043 Dev: %d\n", dev);
-            test_freq(dev, freq, AX5043_MODE_AFSK_1200, 0);
+            test_freq(dev, freq, MODULATION_AFSK_1200, 0);
             break;
         }
 
@@ -1671,7 +1639,7 @@ void RealConsoleTask(void)
             printf("Testing the PLL range for device: %d\n", dev);
 
             // test the range of the receiver on 2m
-            test_pll_2m_range(dev, AX5043_MODE_GMSK_9600, 0);
+            test_pll_2m_range(dev, MODULATION_GMSK_9600, 0);
             break;
         }
 
@@ -1964,7 +1932,7 @@ void RealConsoleTask(void)
             int err = parse_uint32(&afterCommand, &t, 0);
 
             if (err) {
-                printf("Unix time in secs: %d\n",getUnixTime());
+                printf("Unix time in secs: %d\n", getUnixTime());
                 if (!time_valid)
                     printf("***Unix Time is not valid\n");
             } else {
@@ -2025,18 +1993,17 @@ void RealConsoleTask(void)
             break;
         }
 
-        case Mode: {
+        case Modulation: {
             uint8_t devb;
-            char *speed;
-            uint8_t dspeed;
-            enum ax5043_mode mode;
+            char *modstr;
+            enum radio_modulation mod;
             int err;
 
             err = parse_uint8(&afterCommand, &devb, 0);
             if (err) {
                 for (devb = 0; devb < InvalidAX5043Device; devb++) {
-                    speed = get_dev_speed_str(devb);
-                    printf("device %d: %s\n", devb, speed);
+                    modstr = get_dev_modulation_str(devb);
+                    printf("device %d: %s\n", devb, modstr);
                 }
                 break;
             }
@@ -2045,37 +2012,35 @@ void RealConsoleTask(void)
                        NUM_AX5043_SPI_DEVICES - 1);
                 break;
             }
-            speed = next_token(&afterCommand);
-            if (!speed) {
-                speed = get_dev_speed_str(devb);
-                printf("device %d: %s\n", devb, speed);
+            modstr = next_token(&afterCommand);
+            if (!modstr) {
+                modstr = get_dev_modulation_str(devb);
+                printf("device %d: %s\n", devb, modstr);
                 break;
             }
 
-            if (strcmp(speed, "1200") == 0) {
-                dspeed = DCT_SPEED_1200;
-                mode = AX5043_MODE_AFSK_1200;
-            } else if (strcmp(speed, "9600") == 0) {
-                dspeed = DCT_SPEED_9600;
-                mode = AX5043_MODE_GMSK_9600;
+            if (strcmp(modstr, "1200") == 0) {
+                mod = MODULATION_AFSK_1200;
+            } else if (strcmp(modstr, "9600") == 0) {
+                mod = MODULATION_GMSK_9600;
             } else {
-                printf("Invalid mode %d, must be 1200 or 9600\n", speed);
+                printf("Invalid modulation %s, must be 1200 or 9600\n",
+                       modstr);
                 break;
             }
 
-            printf("Setting Radio %u to %s.\n", devb, speed);
+            printf("Setting Radio %u to %s.\n", devb, modstr);
 
-            if (devb == TX_DEVICE) {
-                WriteMRAMTelemSpeed(dspeed);
+            WriteMRAMModulation(devb, mod);
+            if (is_tx_chan(devb)) {
                 /*
                  * Transmit task will set the mode as necessary so it
                  * doesn't change while transmitting.
                  */
-                tx_mode = mode;
+                tx_modulation = mod;
             } else {
-                WriteMRAMReceiveSpeed(devb, dspeed);
                 ax5043StopRx((AX5043Device) devb);
-                ax5043_ax25_set_mode((AX5043Device) devb, mode, false);
+                ax5043_ax25_set_modulation((AX5043Device) devb, mod, false);
                 ax5043StartRx((AX5043Device) devb);
             }
             break;

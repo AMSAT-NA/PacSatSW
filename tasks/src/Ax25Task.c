@@ -64,13 +64,13 @@
 #include "str_util.h"
 
 /* Forward functions */
-void ax25_process_lm_frame(rx_channel_t channel);
+void ax25_process_lm_frame(uint8_t channel);
 void ax25_t1_expired(TimerHandle_t xTimer);
 void ax25_t3_expired(TimerHandle_t xTimer);
 void start_timer(TimerHandle_t timer);
 void restart_timer(TimerHandle_t timer);
 void stop_timer(TimerHandle_t timer);
-void ax25_send_response(rx_channel_t channel, ax25_frame_type_t frame_type, char *to_callsign, AX25_PACKET *response_packet, bool expedited);
+void ax25_send_response(uint8_t channel, ax25_frame_type_t frame_type, char *to_callsign, AX25_PACKET *response_packet, bool expedited);
 bool ax25_send_event(AX25_data_link_state_machine_t *state, AX25_primitive_t prim, AX25_PACKET *packet, ax25_error_t error_num);
 bool ax25_send_lm_event(AX25_data_link_state_machine_t *state, AX25_primitive_t prim);
 
@@ -112,18 +112,18 @@ int shiftByV(int x, int VA);
 int AX25_MODULO(int vs);
 
 /* Local variables */
-static xTimerHandle timerT1[NUM_OF_RX_CHANNELS];
-static xTimerHandle timerT3[NUM_OF_RX_CHANNELS];
+static xTimerHandle timerT1[NUM_RX_CHANNELS];
+static xTimerHandle timerT3[NUM_RX_CHANNELS];
 
 static rx_radio_buffer_t ax25_radio_buffer; /* Static storage for packets from the radio */
-static AX25_data_link_state_machine_t data_link_state_machine[NUM_OF_RX_CHANNELS];
+static AX25_data_link_state_machine_t data_link_state_machine[NUM_RX_CHANNELS];
 static const AX25_PACKET EMPTY_PACKET; /* Use this to reset packet to zero */
 static AX25_event_t ax25_received_event; /* Static storage for received event */
 static AX25_event_t send_event_buffer; /* Static storage for event we are sending */
 static AX25_event_t timer_event; /* Static storage for timer events */
 static AX25_event_t lm_event; /* Static storage for Link Multiplexer event */
 bool in_test = false;
-static bool seize_requested[NUM_OF_RX_CHANNELS];
+static bool seize_requested[NUM_RX_CHANNELS];
 
 static char *rx_channel_names[] = {"A","B","C","D"};
 static char *state_names[] = {"DISC","AWAIT CONN","AWAIT REL","CONN", "TIMER REC", "AWAIT_22_CONN"};
@@ -135,7 +135,7 @@ portTASK_FUNCTION_PROTO(Ax25Task, pvParameters)  {
 //    printf("Initializing Ax25 Data Link Task\n");
 
     int chan;
-    for (chan=0; chan < NUM_OF_RX_CHANNELS; chan++) {
+    for (chan=0; chan < NUM_RX_CHANNELS; chan++) {
         /* create RTOS software timers for T1 and T3.  Both for each channel.*/
         timerT1[chan] = xTimerCreate( "T1", AX25_TIMER_T1_PERIOD, FALSE, (void *)chan, ax25_t1_expired); // single shot timer
         timerT3[chan] = xTimerCreate( "T3", AX25_TIMER_T3_PERIOD, FALSE, (void *)chan, ax25_t3_expired); // single shot timer
@@ -171,7 +171,7 @@ portTASK_FUNCTION_PROTO(Ax25Task, pvParameters)  {
         ReportToWatchdog(Ax25TaskWD);
         xStatus = xQueueReceive( xRxEventQueue, &ax25_received_event, CENTISECONDS(1) );  // Wait to see if data available
         if( xStatus == pdPASS ) {
-            if (ax25_received_event.rx_channel >= NUM_OF_RX_CHANNELS) {
+            if (ax25_received_event.rx_channel >= NUM_RX_CHANNELS) {
                 // something is seriously wrong.  Programming error.  Unlikely to occur in flight
                 debug_print("ERR: AX25 channel %d is invalid\n",ax25_received_event.rx_channel);
             } else {
@@ -194,7 +194,7 @@ portTASK_FUNCTION_PROTO(Ax25Task, pvParameters)  {
              * acknowledgement.  If SEIZE Request is set then send the DL State Machine a SEIZE Confirm message after any
              * frames are sent.  This will cause an RR to be sent if an ACK is still pending. */
             int c;
-            for (c = 0; c < NUM_OF_RX_CHANNELS; c++) {
+            for (c = 0; c < NUM_RX_CHANNELS; c++) {
                 xStatus = xQueueReceive( xIFrameQueue[c], &ax25_received_event, CENTISECONDS(1) );  // Wait to see if data available
                 if( xStatus == pdPASS ) {
 //#ifdef DEBUG
@@ -239,12 +239,12 @@ void ax25_send_status() {
     } else  {
 
         char buffer[25];
-        uint8_t len = 6 + NUM_OF_RX_CHANNELS; // Open ABCD.   - we do not send the string termination char or it is transmitted too
-        int channels_available = NUM_OF_RX_CHANNELS;
+        uint8_t len = 6 + NUM_RX_CHANNELS; // Open ABCD.   - we do not send the string termination char or it is transmitted too
+        int channels_available = NUM_RX_CHANNELS;
         strlcpy(buffer,"Open ", sizeof(buffer));
 
         int i;
-        for (i=0; i < NUM_OF_RX_CHANNELS; i++) {
+        for (i=0; i < NUM_RX_CHANNELS; i++) {
             if (ax5043RxWorking((AX5043Device) i) && data_link_state_machine[i].dl_state == DISCONNECTED) {
                 strlcat(buffer, rx_channel_names[i], sizeof(buffer));
             } else {
@@ -272,9 +272,9 @@ void ax25_send_status() {
  */
 void ax25_t1_expired(TimerHandle_t xTimer) {
     uint32_t chan = (uint32_t)pvTimerGetTimerID( xTimer ); // timer id is treated as an integer and not as a pointer
-    trace_dl("AX25[%d]: Timer T1 Expiry Int at %d\n", (rx_channel_t)chan, getSeconds());
+    trace_dl("AX25[%d]: Timer T1 Expiry Int at %d\n", chan, getSeconds());
     timer_event.primitive = DL_TIMER_T1_Expire;
-    timer_event.rx_channel = (rx_channel_t)chan;
+    timer_event.rx_channel = chan;
     BaseType_t xStatus = xQueueSendToBack( xRxEventQueue, &timer_event, 0 ); // Do not block as this is called from timer
     if( xStatus != pdPASS ) {
         debug_print("EVENT QUEUE FULL: Could not add T1 expire to Event Queue\n");
@@ -286,10 +286,10 @@ void ax25_t1_expired(TimerHandle_t xTimer) {
 void ax25_t3_expired(TimerHandle_t xTimer) {
 #ifdef DEBUG
     uint32_t chan = (uint32_t)pvTimerGetTimerID( xTimer ); // timer id is treated as an integer and not as a pointer
-    trace_dl("AX25[%d]: Timeout... Timer T3 Expiry Int at %d\n", (rx_channel_t)chan, getSeconds());
+    trace_dl("AX25[%d]: Timeout... Timer T3 Expiry Int at %d\n", chan, getSeconds());
 #endif
     timer_event.primitive = DL_TIMER_T3_Expire;
-    timer_event.rx_channel = (rx_channel_t)chan;
+    timer_event.rx_channel = chan;
     BaseType_t xStatus = xQueueSendToBack( xRxEventQueue, &timer_event, 0 ); // Do not block as this is called from timer
     if( xStatus != pdPASS ) {
         debug_print("EVENT QUEUE FULL: Could not add T3 expire to Event Queue\n");
@@ -307,7 +307,7 @@ void start_timer(TimerHandle_t timer) {
         restart_timer(timer);
     } else {
 #ifdef DEBUG
-        trace_dl("AX25[%d]: Start Timer %s at %d\n", (rx_channel_t)chan, pcTimerGetTimerName(timer), getSeconds());
+        trace_dl("AX25[%d]: Start Timer %s at %d\n", chan, pcTimerGetTimerName(timer), getSeconds());
 #endif
         portBASE_TYPE timerStatus = xTimerStart(timer, 0); // Block time of zero as this can not block
         if (timerStatus != pdPASS) {
@@ -319,7 +319,7 @@ void start_timer(TimerHandle_t timer) {
 void restart_timer(TimerHandle_t timer) {
 #ifdef DEBUG
     uint32_t chan = (uint32_t)pvTimerGetTimerID( timer ); // timer id is treated as an integer and not as a pointer
-    trace_dl("AX25[%d]: Restarted Timer %s at %d\n", (rx_channel_t)chan, pcTimerGetTimerName(timer), getSeconds());
+    trace_dl("AX25[%d]: Restarted Timer %s at %d\n", chan, pcTimerGetTimerName(timer), getSeconds());
 #endif
     portBASE_TYPE timerT1Status = xTimerReset(timer, 0); // Block time of zero as this can not block
     if (timerT1Status != pdPASS) {
@@ -330,7 +330,7 @@ void restart_timer(TimerHandle_t timer) {
 void stop_timer(TimerHandle_t timer) {
 #ifdef DEBUG
     uint32_t chan = (uint32_t)pvTimerGetTimerID( timer ); // timer id is treated as an integer and not as a pointer
-    trace_dl("AX25[%d]: Stop Timer %s at %d\n", (rx_channel_t)chan, pcTimerGetTimerName(timer), getSeconds());
+    trace_dl("AX25[%d]: Stop Timer %s at %d\n", chan, pcTimerGetTimerName(timer), getSeconds());
 #endif
     portBASE_TYPE timerStatus = xTimerStop(timer, 0); // Block time of zero as this can not block
     if (timerStatus != pdPASS) {
@@ -348,7 +348,7 @@ void stop_timer(TimerHandle_t timer) {
  * stores a copy of the received packet in the state machine structure.
  *
  */
-void ax25_process_lm_frame(rx_channel_t channel) {
+void ax25_process_lm_frame(uint8_t channel) {
     char *from_callsign;
     char *to_callsign;
 
@@ -420,7 +420,7 @@ void ax25_process_lm_frame(rx_channel_t channel) {
  * is a choice then it should already be set correctly in the packet
  *
  */
-void ax25_send_response(rx_channel_t channel, ax25_frame_type_t frame_type, char *to_callsign, AX25_PACKET *response_packet, bool expedited) {
+void ax25_send_response(uint8_t channel, ax25_frame_type_t frame_type, char *to_callsign, AX25_PACKET *response_packet, bool expedited) {
     strlcpy(response_packet->to_callsign, to_callsign, MAX_CALLSIGN_LEN);
     strlcpy(response_packet->from_callsign, BBS_CALLSIGN, MAX_CALLSIGN_LEN);
 
@@ -1970,7 +1970,7 @@ bool test_ax25_retransmission() {
 
     in_test = TRUE;
     AX25_data_link_state_machine_t dl;
-    dl.channel = Channel_A;
+    dl.channel = FIRST_RX_CHANNEL;
     dl.VA = 7;
     dl.VS = 0;
     dl.VR = 2;

@@ -42,7 +42,7 @@ static bool tx_make_packet(AX25_PACKET *packet,
 static AX5043Device device = TX_DEVICE;
 
 extern bool monitorPackets;
-enum ax5043_mode tx_mode;
+enum radio_modulation tx_modulation;
 
 bool inhibitTransmit;
 
@@ -52,15 +52,11 @@ bool inhibitTransmit;
 
 portTASK_FUNCTION_PROTO(TxTask, pvParameters)
 {
-    uint8_t speed = ReadMRAMTelemSpeed();
     /* Buffer used when data copied from tx queue */
     rx_radio_buffer_t tx_packet_buffer;
-    enum ax5043_mode curr_mode = (enum ax5043_mode) -1;
+    enum radio_modulation curr_modulation = (enum radio_modulation) -1;
 
-    if (speed == DCT_SPEED_9600)
-        tx_mode = AX5043_MODE_GMSK_9600;
-    else
-        tx_mode = AX5043_MODE_AFSK_1200;
+    tx_modulation = ReadMRAMModulation(device);
 
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE) TxTaskWD);
     InitInterTask(ToTxTask, 10);
@@ -105,11 +101,11 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
 
         // 10 for 1200 bps - Radio lab recommends 32 for 9600, may
         // need as much as 56.
-        switch (tx_mode) {
-        case AX5043_MODE_AFSK_1200:
+        switch (tx_modulation) {
+        case MODULATION_AFSK_1200:
             preamble_length = 10;
             break;
-        case AX5043_MODE_GMSK_9600:
+        case MODULATION_GMSK_9600:
             break;
         }
 
@@ -134,9 +130,9 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
             /* Data was successfully received from the queue */
             int numbytes = tx_packet_buffer.len;
 
-            if (tx_mode != curr_mode) {
-                ax5043_ax25_set_mode(device, tx_mode, true);
-                curr_mode = tx_mode;
+            if (tx_modulation != curr_modulation) {
+                ax5043_ax25_set_modulation(device, tx_modulation, true);
+                curr_modulation = tx_modulation;
             }
 
             if (monitorPackets)

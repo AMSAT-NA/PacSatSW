@@ -46,10 +46,10 @@ void ftl0_state_data_rx(ftl0_state_machine_t *state, AX25_event_t *event);
 void ftl0_state_abort(ftl0_state_machine_t *state, AX25_event_t *event);
 
 bool ftl0_send_event(AX25_event_t *received_event, AX25_event_t *send_event);
-bool ftl0_add_request(char *from_callsign, rx_channel_t channel);
-bool ftl0_remove_request(rx_channel_t channel);
-bool ftl0_connection_received(char *from_callsign, char *to_callsign, rx_channel_t channel);
-bool ftl0_disconnect(char *to_callsign, rx_channel_t channel);
+bool ftl0_add_request(char *from_callsign, uint8_t channel);
+bool ftl0_remove_request(uint8_t channel);
+bool ftl0_connection_received(char *from_callsign, char *to_callsign, uint8_t channel);
+bool ftl0_disconnect(char *to_callsign, uint8_t channel);
 int ftl0_send_err(char *from_callsign, int channel, int err);
 int ftl0_send_ack(char *from_callsign, int channel);
 int ftl0_send_nak(char *from_callsign, int channel, int err);
@@ -70,7 +70,7 @@ bool ftl0_mram_set_file_upload_record(uint32_t id, InProcessFileUpload_t * file_
 bool ftl0_clear_upload_table();
 
 /* Local variables */
-static ftl0_state_machine_t ftl0_state_machine[NUM_OF_RX_CHANNELS];
+static ftl0_state_machine_t ftl0_state_machine[NUM_RX_CHANNELS];
 static AX25_event_t ax25_event; /* Static storage for event */
 static AX25_event_t send_event_buffer;
 static const MRAMmap_t *LocalFlash = (MRAMmap_t *) 0; /* Used to index the MRAM static storage where the File Upload Table is stored */
@@ -118,7 +118,7 @@ portTASK_FUNCTION_PROTO(UplinkTask, pvParameters)  {
         ReportToWatchdog(UplinkTaskWD);
         BaseType_t xStatus = xQueueReceive( xUplinkEventQueue, &ax25_event, CENTISECONDS(1) );  // Wait to see if data available
         if( xStatus == pdPASS ) {
-            if (ax25_event.rx_channel >= NUM_OF_RX_CHANNELS) {
+            if (ax25_event.rx_channel >= NUM_RX_CHANNELS) {
                 // something is seriously wrong.  Programming error.  Unlikely to occur in flight
                 debug_print("ERR: AX25 channel %d is invalid\n",ax25_event.rx_channel);
             } else {
@@ -521,7 +521,7 @@ bool ftl0_send_event(AX25_event_t *received_event, AX25_event_t *send_event) {
  * returns EXIT_SUCCESS it it succeeds or EXIT_FAILURE if the PB is shut or full
  *
  */
-bool ftl0_add_request(char *from_callsign, rx_channel_t channel) {
+bool ftl0_add_request(char *from_callsign, uint8_t channel) {
     if (!ReadMRAMBoolState(StateUplinkEnabled)) {
         trace_ftl0("FTL0: Uplink closed\n");
         return FALSE;
@@ -529,7 +529,7 @@ bool ftl0_add_request(char *from_callsign, rx_channel_t channel) {
 
     int i;
     /* Each station can only be on the Uplink once, so reject if the callsign is already in the list */
-    for (i=0; i < NUM_OF_RX_CHANNELS; i++) {
+    for (i=0; i < NUM_CHANNELS; i++) {
         if (ftl0_state_machine[i].ul_state != UL_UNINIT) {
             if (strcasecmp(ftl0_state_machine[i].callsign, from_callsign) == 0) {
                 trace_ftl0("FTL0: %s is already on the uplink\n",from_callsign);
@@ -559,7 +559,7 @@ bool ftl0_add_request(char *from_callsign, rx_channel_t channel) {
  * return TRUE unless there is no item to remove.
  *
  */
-bool ftl0_remove_request(rx_channel_t channel) {
+bool ftl0_remove_request(uint8_t channel) {
 #ifdef DEBUG
     uint32_t now = getSeconds();
     int duration = (int)(now - ftl0_state_machine[channel].request_time);
@@ -617,7 +617,7 @@ variables to UL_CMD_WAIT
  * other stations can see who has logged in??
  *
  */
-bool ftl0_connection_received(char *from_callsign, char *to_callsign, rx_channel_t channel) {
+bool ftl0_connection_received(char *from_callsign, char *to_callsign, uint8_t channel) {
     //trace_ftl0("FTL0: Connection for File Upload from: %s\n",from_callsign);
 
     /* Add the request, which initializes their uplink state machine. At this point we don't know the
@@ -671,7 +671,7 @@ bool ftl0_connection_received(char *from_callsign, char *to_callsign, rx_channel
  * Disconnect from the station specified in to_callsign
  *
  */
-bool ftl0_disconnect(char *to_callsign, rx_channel_t channel) {
+bool ftl0_disconnect(char *to_callsign, uint8_t channel) {
     trace_ftl0("FTL0: Disconnecting: %s\n", to_callsign);
     send_event_buffer.primitive = DL_DISCONNECT_Request;
 
@@ -1178,7 +1178,7 @@ bool ftl0_set_file_upload_record(InProcessFileUpload_t * file_upload_record) {
                  * live right now and then note it as the oldest */
                 bool on_the_uplink_now = FALSE;
                 int j;
-                for (j=0; j < NUM_OF_RX_CHANNELS; j++) {
+                for (j=0; j < NUM_CHANNELS; j++) {
                     if (ftl0_state_machine[j].ul_state != UL_UNINIT) {
                         if (strcasecmp(ftl0_state_machine[j].callsign, tmp_file_upload_record.callsign) == 0) {
                             on_the_uplink_now = TRUE;                        }

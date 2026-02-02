@@ -344,6 +344,20 @@ void PreflightInitNow(CanIDNode cameFrom)
     }
 }
 
+char *modulation_to_str(enum radio_modulation mod)
+{
+    switch (mod) {
+    case MODULATION_AFSK_1200:
+        return "afsk1200";
+
+    case MODULATION_GMSK_9600:
+        return "gmsk9600";
+
+    default:
+        return "unknown";
+    }
+}
+
 void DisplayTelemetry(uint32_t typeRequested)
 {
     switch(typeRequested){
@@ -370,9 +384,8 @@ void DisplayTelemetry(uint32_t typeRequested)
                ReadMRAMBoolState(StateUplinkEnabled),
                ReadMRAMBoolState(StateDigiEnabled));
         printf(" RX Modes:");
-        for (i = 0; i < NUM_OF_RX_CHANNELS; i++)
-            printf(" [%d] %x %s", i, ReadMRAMReceiverMode(i),
-                   ReadMRAMReceiveSpeed(i) == DCT_SPEED_9600 ? "9600" : "1200");
+        for (i = 0; i < NUM_RX_CHANNELS; i++)
+            printf(" [%d] %s", i, modulation_to_str(ReadMRAMModulation(i)));
         printf("\n Uncommanded Seconds in Orbit=%d\n\r",
                 (unsigned int) ReadMRAMSecondsOnOrbit());
         // todo:  Have to put the on-orbit flag somewhere

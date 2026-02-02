@@ -52,10 +52,8 @@ typedef struct {
         /* Each entry has two because we want extra bits for checking */
 // These we don't want to change with each MRAM change.  They are generally set only once
 // for each processor.
-    uint32_t DCTRxFrequency[4][2];
-    uint32_t DCTTxFrequency[2];
-    uint8_t  DCTRxSpeed[4][2];
-    uint8_t  DCTTxSpeed[2];
+    uint32_t DCTFrequency[5][2];
+    uint8_t  DCTModulation[5][2];
     uint8_t  unused1[3][2];
     uint32_t DCTDriveLowPower[2];
     uint32_t DCTDriveHighPower[2];
@@ -85,6 +83,7 @@ typedef struct {
      * Bits 2/3: 00 - No FTL0, 01 FTL0 supported, 10 FTL for Command stations only,
      * Bits 4/5: 00 - no digi, 01 - via Digi Callsign, 10 - APRS Digi, 11 - Digi All
      * Bits 6/7: Reserved */
+    /* TODO - is this used for anything? */
     uint32_t RxChannelMode[4][2];
     uint32_t SpareData[13];
     uint8_t  NonVolatileStates[MaxStates][2];
