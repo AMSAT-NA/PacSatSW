@@ -132,7 +132,7 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
             case AX5043_Rx1_InterruptMsg:
                 process_fifo(0);
                 break;
-#if NUM_CHANNELS == 4
+#if NUM_RX_CHANNELS == 4
             case AX5043_Rx2_InterruptMsg:
                 process_fifo(1);
                 break;

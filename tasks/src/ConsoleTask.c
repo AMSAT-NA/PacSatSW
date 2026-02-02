@@ -1004,8 +1004,8 @@ void RealConsoleTask(void)
             WriteMRAMFreq(dev, DCTFreq[dev]);
             quick_setfreq(dev, DCTFreq[dev]);
 
-            printf("Set %s%d=%d\n", dev,
-                   is_tx_chan(dev) ? "Tx" : "Rx", dev, DCTFreq[dev]);
+            printf("Set %s%d=%d\n", is_tx_chan(dev) ? "Tx" : "Rx", dev,
+                   DCTFreq[dev]);
             break;
         }
 
