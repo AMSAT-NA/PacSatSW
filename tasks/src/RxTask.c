@@ -31,10 +31,8 @@
 #include "ax25_util.h"
 
 /* Local variables */
-static uint8_t PAPowerFlagCnt = 0;
-static uint8_t AX5043PowerFlagCnt = 0;
-
 static rx_radio_buffer_t rx_radio_buffer;
+
 extern bool monitorPackets;
 
 /* Forward declarations */
@@ -140,16 +138,6 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
         if (status == 1) { // We received a message
             //debug_print("AX5043 Message %d\n",messageReceived.MsgType);
             switch(messageReceived.MsgType) {
-            case AX5043PowerFlagMsg:
-                debug_print("AX5043 Power Interrupted\n");
-                AX5043PowerFlagCnt++;
-                break;
-
-            case PAPowerFlagMsg:
-                debug_print("Power Amp Power Interrupted\n");
-                PAPowerFlagCnt++;
-                break;
-
             case AX5043_Rx1_InterruptMsg:
                 process_fifo(FIRST_RX_CHANNEL);
                 break;

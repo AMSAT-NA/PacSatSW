@@ -61,8 +61,6 @@ typedef enum {
     AX5043_Rx4_InterruptMsg,
 #endif
     AX5043_Tx_InterruptMsg,
-    AX5043PowerFlagMsg,
-    PAPowerFlagMsg,
     AX5043InitMessage,
 
     /*
