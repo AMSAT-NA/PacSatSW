@@ -10,6 +10,13 @@ though.  It's kind of strange.
 
 # Pending enhancements
 
+## Consolidate tasks
+
+Tasks take up a lot of RAM, and some tasks could be combined.  For
+instance, the PbTask and maybe the UplinkTask could be combined with
+the TelemAndControlTask.  Maybe the CommandTask could be consolidated
+with something else.
+
 ## Get PSK working
 
 ## Allow the transmitter mode/rate to change per message

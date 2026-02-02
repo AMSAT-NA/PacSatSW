@@ -350,7 +350,7 @@ void ConsoleTask(void *pvParameters){
                 PB_PRIORITY, NULL);
     xTaskCreate(UplinkTask, "UplinkTask", UPLINK_STACK_SIZE, NULL,
                 UPLINK_PRIORITY, NULL);
-    xTaskCreate(TxTask, "TxTask", RADIO_STACK_SIZE, NULL,
+    xTaskCreate(TxTask, "TxTask", TX_STACK_SIZE, NULL,
                 TX_PRIORITY, NULL);
     xTaskCreate(TelemAndControlTask, "Telem and Control Task",
                 TELEMETRY_STACK_SIZE, NULL, TELEMETRY_PRIORITY, NULL);
