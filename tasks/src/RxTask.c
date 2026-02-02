@@ -31,10 +31,11 @@
 #include "ax25_util.h"
 
 /* Local variables */
-static uint8_t PAPowerFlagCnt=0,AX5043PowerFlagCnt=0;
-static rx_radio_buffer_t rx_radio_buffer; // static buffer to store the channel and received bytes from the radio
+static uint8_t PAPowerFlagCnt = 0;
+static uint8_t AX5043PowerFlagCnt = 0;
+
+static rx_radio_buffer_t rx_radio_buffer;
 static rx_radio_buffer_t EMPTY_RADIO_BUFFER;
-//static uint8_t axradio_rxbuffer[AX25_PKT_BUFFER_LEN];  ******************** HERE WE ARE - REMOVING THIS
 extern bool monitorPackets;
 
 /* Forward declarations */
@@ -46,34 +47,47 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
 {
     rfchan chan;
 
-    vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)RxTaskWD );
+    vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)RxTaskWD);
     InitInterTask(ToRxTask, 10);
     ResetAllWatchdogs();
 //    printf("Initializing Rx\n");
 
     /* These are defined in pacsat.h, declared here */
-    xRxPacketQueue = xQueueCreate( RX_PACKET_QUEUE_LEN, sizeof( rx_radio_buffer ) );
-    xRxEventQueue = xQueueCreate( RX_EVENT_QUEUE_LEN, sizeof( AX25_event_t ) );
-    xPbPacketQueue = xQueueCreate( PB_PACKET_QUEUE_LEN, sizeof( rx_radio_buffer ) );
-    xUplinkEventQueue = xQueueCreate( UPLINK_PACKET_QUEUE_LEN,  sizeof( AX25_event_t ) );
+    xRxPacketQueue = xQueueCreate(RX_PACKET_QUEUE_LEN, sizeof(rx_radio_buffer));
+    xRxEventQueue = xQueueCreate(RX_EVENT_QUEUE_LEN, sizeof(AX25_event_t));
+    xPbPacketQueue = xQueueCreate(PB_PACKET_QUEUE_LEN, sizeof(rx_radio_buffer));
+    xUplinkEventQueue = xQueueCreate(UPLINK_PACKET_QUEUE_LEN,
+                                     sizeof(AX25_event_t));
 
     if (xRxPacketQueue == NULL) {
-        /* The queue could not be created.  This is fatal and should only happen in test if we are short of memory at startup */
+        /*
+         * The queue could not be created.  This is fatal and should
+         * only happen in test if we are short of memory at startup
+         */
         debug_print("FATAL ERROR: Could not create RX Packet Queue\n");
         //TODO - log this
     }
     if (xRxEventQueue == NULL) {
-        /* The queue could not be created.  This is fatal and should only happen in test if we are short of memory at startup */
+        /*
+         * The queue could not be created.  This is fatal and should
+         * only happen in test if we are short of memory at startup
+         */
         debug_print("FATAL ERROR: Could not create RX Event Queue\n");
         //TODO - log this
     }
     if (xPbPacketQueue == NULL) {
-        /* The queue could not be created.  This is fatal and should only happen in test if we are short of memory at startup */
+        /*
+         * The queue could not be created.  This is fatal and should
+         * only happen in test if we are short of memory at startup
+         */
         debug_print("FATAL ERROR: Could not create PB Packet Queue\n");
         //TODO - log this
     }
     if (xUplinkEventQueue == NULL) {
-        /* The queue could not be created.  This is fatal and should only happen in test if we are short of memory at startup */
+        /*
+         * The queue could not be created.  This is fatal and should
+         * only happen in test if we are short of memory at startup
+         */
         debug_print("FATAL ERROR: Could not create UPLINK Packet Queue\n");
         //TODO - log this
     }
@@ -91,12 +105,13 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
 
     GPIOSetOn(LED2);
 
-    while(1) {
+    while (true) {
         Intertask_Message messageReceived;
         int status = 0;
 
         ReportToWatchdog(CurrentTaskWD);
-        status = WaitInterTask(ToRxTask, CENTISECONDS(10), &messageReceived);  // This is triggered when there is RX data on the FIFO
+        // This is triggered when there is RX data on the FIFO
+        status = WaitInterTask(ToRxTask, CENTISECONDS(10), &messageReceived);
         ReportToWatchdog(CurrentTaskWD);
 
         if (monitorPackets) {
@@ -113,17 +128,24 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
                     debug_print("RSSI-%d: %d dBm\n", chan, dbm);
                 }
             }
-////                debug_print("FRMRX: %d   ",ax5043ReadReg(chan, AX5043_FRAMING) & 0x80 ); // FRAMING Pkt start bit detected - will print 128
-////                debug_print("RADIO: %d ",ax5043ReadReg(chan, AX5043_RADIOSTATE) & 0xF ); // Radio State bits 0-3
+#if 0
+            // FRAMING Pkt start bit detected - will print 128
+            debug_print("FRMRX: %d   ",
+                        ax5043ReadReg(chan, AX5043_FRAMING) & 0x80);
+            // Radio State bits 0-3
+            debug_print("RADIO: %d ",
+                        ax5043ReadReg(chan, AX5043_RADIOSTATE) & 0xF);
+#endif
         }
 
-        if (status==1) { // We received a message
+        if (status == 1) { // We received a message
             //debug_print("AX5043 Message %d\n",messageReceived.MsgType);
-            switch(messageReceived.MsgType){
+            switch(messageReceived.MsgType) {
             case AX5043PowerFlagMsg:
                 debug_print("AX5043 Power Interrupted\n");
                 AX5043PowerFlagCnt++;
                 break;
+
             case PAPowerFlagMsg:
                 debug_print("Power Amp Power Interrupted\n");
                 PAPowerFlagCnt++;
@@ -136,9 +158,11 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
             case AX5043_Rx2_InterruptMsg:
                 process_fifo(1);
                 break;
+
             case AX5043_Rx3_InterruptMsg:
                 process_fifo(2);
                 break;
+
             case AX5043_Rx4_InterruptMsg:
                 process_fifo(3);
                 break;
@@ -148,9 +172,10 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
     }
 }
 
-void process_fifo(rfchan chan) {
-    if ((ax5043ReadReg(chan, AX5043_PWRMODE) & 0x0F) == AX5043_PWRSTATE_FULL_RX) {
-
+void process_fifo(rfchan chan)
+{
+    if ((ax5043ReadReg(chan, AX5043_PWRMODE) & 0x0F) ==
+                        AX5043_PWRSTATE_FULL_RX) {
         if (monitorPackets)
             debug_print("RX channel: %d Interrupt while in FULL_RX mode\n",
                         chan);
@@ -158,29 +183,41 @@ void process_fifo(rfchan chan) {
         //printf("IRQREQUEST0: %02x\n", ax5043ReadReg(AX5043_IRQREQUEST0));
         //printf("FIFOSTAT: %02x\n", ax5043ReadReg(AX5043_FIFOSTAT));
 
-        if ((ax5043ReadReg(chan, AX5043_FIFOSTAT) & 0x01) != 1) { // FIFO not empty
+        // FIFO not empty
+        if ((ax5043ReadReg(chan, AX5043_FIFOSTAT) & 0x01) != 1) {
             //debug_print("FIFO NOT EMPTY\n");
-            uint8_t fifo_cmd = ax5043ReadReg(chan, AX5043_FIFODATA); // read command
-            uint8_t len = (fifo_cmd & 0xE0) >> 5; // top 3 bits encode payload len
+            // read command
+            uint8_t fifo_cmd = ax5043ReadReg(chan, AX5043_FIFODATA);
+            uint8_t fifo_flags;
+            // top 3 bits encode payload len
+            uint8_t len = (fifo_cmd & 0xE0) >> 5;
+
             if (len == 7)
-                len = ax5043ReadReg(chan, AX5043_FIFODATA); // 7 means variable length, -> get length byte
+                // 7 means variable length, -> get length byte
+                len = ax5043ReadReg(chan, AX5043_FIFODATA);
             fifo_cmd &= 0x1F;
-            /* Note that the length byte and header byte are not included in the length of the packet
-                               but length does include the flag byte */
-            uint8_t fifo_flags = ax5043ReadReg(chan, AX5043_FIFODATA); // read command
+            /*
+             * Note that the length byte and header byte are not
+             * included in the length of the packet but length does
+             * include the flag byte
+             */
+            // read command
+            fifo_flags = ax5043ReadReg(chan, AX5043_FIFODATA);
             len--;
             if (fifo_cmd == AX5043_FIFOCMD_DATA) {
+                uint8_t loc = 0;
                 //debug_print("FIFO CMD:%d LEN:%d FLAGS:%x\n",fifo_cmd,len, fifo_flags);
                 if (fifo_flags != 0x03) {
                     // TODO - log something here?  This should never happen??
                     debug_print("ERROR in received FIFO Flags\n");
                 }
-                uint8_t loc = 0;
 
                 /* Store the length byte  */
-                rx_radio_buffer.len = len-1; // remove the flag byte from the length
+                // remove the flag byte from the length
+                rx_radio_buffer.len = len - 1;
                 while (len--) {
-                    rx_radio_buffer.bytes[loc] = ax5043ReadReg(chan, AX5043_FIFODATA);
+                    rx_radio_buffer.bytes[loc] = ax5043ReadReg(chan,
+                                                               AX5043_FIFODATA);
                     loc++;
                 }
                 if (monitorPackets) {
@@ -191,31 +228,37 @@ void process_fifo(rfchan chan) {
 //                    debug_print("\n");
                     char rx_str[10];
                     snprintf(rx_str, sizeof(rx_str), "RX[%d]",chan);
-                    print_packet(rx_str, &rx_radio_buffer.bytes[0],rx_radio_buffer.len);
+                    print_packet(rx_str, &rx_radio_buffer.bytes[0],
+                                 rx_radio_buffer.len);
                 }
                 GPIOSetOff(LED2);
 
                 // Store the channel here - same as device id
                 rx_radio_buffer.channel = chan;
 
-                /* Add to the queue and wait for 10ms to see if space is available */
-                BaseType_t xStatus = xQueueSendToBack( xRxPacketQueue, &rx_radio_buffer, CENTISECONDS(1) );
-                if( xStatus != pdPASS ) {
-                    /* The send operation could not complete because the queue was full */
+                /*
+                 * Add to the queue and wait for 10ms to see if space
+                 * is available
+                 */
+                BaseType_t xStatus = xQueueSendToBack(xRxPacketQueue,
+                                                      &rx_radio_buffer,
+                                                      CENTISECONDS(1));
+                if (xStatus != pdPASS) {
+                    /*
+                     * The send operation could not complete because
+                     * the queue was full
+                     */
                     debug_print("RX QUEUE FULL: Could not add to Packet Queue\n");
                     // TODO - we should log this error and downlink in telemetry
                 }
 #ifdef DEBUG
                 rx_radio_buffer = EMPTY_RADIO_BUFFER;
 #endif
-
             } else {
                 //debug_print("FIFO MESSAGE: %d LEN:%d\n",fifo_cmd,len);
-
             }
         }
     } else {
         //printf("AX5043 Interrupt in pwrmode: %02x\n", ax5043ReadReg(AX5043_PWRMODE));
     }
-
 }
