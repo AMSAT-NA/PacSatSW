@@ -151,19 +151,19 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
                 break;
 
             case AX5043_Rx1_InterruptMsg:
-                process_fifo(0);
+                process_fifo(FIRST_RX_CHANNEL);
                 break;
 #if NUM_RX_CHANNELS == 4
             case AX5043_Rx2_InterruptMsg:
-                process_fifo(1);
+                process_fifo(FIRST_RX_CHANNEL + 1);
                 break;
 
             case AX5043_Rx3_InterruptMsg:
-                process_fifo(2);
+                process_fifo(FIRST_RX_CHANNEL + 2);
                 break;
 
             case AX5043_Rx4_InterruptMsg:
-                process_fifo(3);
+                process_fifo(FIRST_RX_CHANNEL + 3);
                 break;
 #endif
             }
@@ -171,90 +171,89 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
     }
 }
 
+static void handle_fifo_data(rfchan chan, uint8_t fifo_flags, uint8_t len)
+{
+    uint8_t loc = 0;
+
+    //debug_print("FIFO CMD:%d LEN:%d FLAGS:%x\n",fifo_cmd,len, fifo_flags);
+    if (fifo_flags != 0x03) {
+        // TODO - log something here?  This should never happen??
+        debug_print("ERROR in received FIFO Flags\n");
+    }
+
+    /* Store the length byte  */
+    // remove the flag byte from the length
+    rx_radio_buffer.len = len - 1;
+    while (len--) {
+        rx_radio_buffer.bytes[loc] = ax5043ReadReg(chan, AX5043_FIFODATA);
+        loc++;
+    }
+    if (monitorPackets) {
+        char rx_str[10];
+        snprintf(rx_str, sizeof(rx_str), "RX[%d]", chan);
+        print_packet(rx_str, &rx_radio_buffer.bytes[0],
+                     rx_radio_buffer.len);
+    }
+    GPIOSetOff(LED2);
+
+    // Store the channel here - same as device id
+    rx_radio_buffer.channel = chan;
+
+    /*
+     * Add to the queue and wait for 10ms to see if space
+     * is available
+     */
+    BaseType_t xStatus = xQueueSendToBack(xRxPacketQueue, &rx_radio_buffer,
+                                          CENTISECONDS(1));
+    if (xStatus != pdPASS) {
+        /*
+         * The send operation could not complete because
+         * the queue was full
+         */
+        debug_print("RX QUEUE FULL: Could not add to Packet Queue\n");
+        // TODO - we should log this error and downlink in telemetry
+    }
+}
+
 void process_fifo(rfchan chan)
 {
-    if ((ax5043ReadReg(chan, AX5043_PWRMODE) & 0x0F) ==
-                        AX5043_PWRSTATE_FULL_RX) {
-        if (monitorPackets)
-            debug_print("RX channel: %d Interrupt while in FULL_RX mode\n",
-                        chan);
-        //printf("IRQREQUEST1: %02x\n", ax5043ReadReg(AX5043_IRQREQUEST1));
-        //printf("IRQREQUEST0: %02x\n", ax5043ReadReg(AX5043_IRQREQUEST0));
-        //printf("FIFOSTAT: %02x\n", ax5043ReadReg(AX5043_FIFOSTAT));
-
-        // FIFO not empty
-        if ((ax5043ReadReg(chan, AX5043_FIFOSTAT) & 0x01) != 1) {
-            //debug_print("FIFO NOT EMPTY\n");
-            // read command
-            uint8_t fifo_cmd = ax5043ReadReg(chan, AX5043_FIFODATA);
-            uint8_t fifo_flags;
-            // top 3 bits encode payload len
-            uint8_t len = (fifo_cmd & 0xE0) >> 5;
-
-            if (len == 7)
-                // 7 means variable length, -> get length byte
-                len = ax5043ReadReg(chan, AX5043_FIFODATA);
-            fifo_cmd &= 0x1F;
-            /*
-             * Note that the length byte and header byte are not
-             * included in the length of the packet but length does
-             * include the flag byte
-             */
-            // read command
-            fifo_flags = ax5043ReadReg(chan, AX5043_FIFODATA);
-            len--;
-            if (fifo_cmd == AX5043_FIFOCMD_DATA) {
-                uint8_t loc = 0;
-                //debug_print("FIFO CMD:%d LEN:%d FLAGS:%x\n",fifo_cmd,len, fifo_flags);
-                if (fifo_flags != 0x03) {
-                    // TODO - log something here?  This should never happen??
-                    debug_print("ERROR in received FIFO Flags\n");
-                }
-
-                /* Store the length byte  */
-                // remove the flag byte from the length
-                rx_radio_buffer.len = len - 1;
-                while (len--) {
-                    rx_radio_buffer.bytes[loc] = ax5043ReadReg(chan,
-                                                               AX5043_FIFODATA);
-                    loc++;
-                }
-                if (monitorPackets) {
-//                    int i;
-//                    debug_print("RX Bytes: %d:",rx_radio_buffer.len);
-//                    for (i=0; i< rx_radio_buffer.len; i++)
-//                        debug_print("%0x ", rx_radio_buffer.bytes[i]);
-//                    debug_print("\n");
-                    char rx_str[10];
-                    snprintf(rx_str, sizeof(rx_str), "RX[%d]",chan);
-                    print_packet(rx_str, &rx_radio_buffer.bytes[0],
-                                 rx_radio_buffer.len);
-                }
-                GPIOSetOff(LED2);
-
-                // Store the channel here - same as device id
-                rx_radio_buffer.channel = chan;
-
-                /*
-                 * Add to the queue and wait for 10ms to see if space
-                 * is available
-                 */
-                BaseType_t xStatus = xQueueSendToBack(xRxPacketQueue,
-                                                      &rx_radio_buffer,
-                                                      CENTISECONDS(1));
-                if (xStatus != pdPASS) {
-                    /*
-                     * The send operation could not complete because
-                     * the queue was full
-                     */
-                    debug_print("RX QUEUE FULL: Could not add to Packet Queue\n");
-                    // TODO - we should log this error and downlink in telemetry
-                }
-            } else {
-                //debug_print("FIFO MESSAGE: %d LEN:%d\n",fifo_cmd,len);
-            }
-        }
-    } else {
+    if (!rx_working(chan)) {
         //printf("AX5043 Interrupt in pwrmode: %02x\n", ax5043ReadReg(AX5043_PWRMODE));
+        return;
+    }
+
+    if (monitorPackets)
+        debug_print("RX channel: %d Interrupt while in FULL_RX mode\n", chan);
+    //printf("IRQREQUEST1: %02x\n", ax5043ReadReg(AX5043_IRQREQUEST1));
+    //printf("IRQREQUEST0: %02x\n", ax5043ReadReg(AX5043_IRQREQUEST0));
+    //printf("FIFOSTAT: %02x\n", ax5043ReadReg(AX5043_FIFOSTAT));
+
+    // FIFO not empty
+    if ((ax5043ReadReg(chan, AX5043_FIFOSTAT) & 0x01) != 1) {
+        //debug_print("FIFO NOT EMPTY\n");
+        // read command
+        uint8_t fifo_cmd = ax5043ReadReg(chan, AX5043_FIFODATA);
+        uint8_t fifo_flags;
+        // top 3 bits encode payload len
+        uint8_t len = (fifo_cmd & 0xE0) >> 5;
+
+        if (len == 7)
+            // 7 means length in next byte
+            len = ax5043ReadReg(chan, AX5043_FIFODATA);
+        fifo_cmd &= 0x1F;
+        /*
+         * Note that the length byte and header byte are not
+         * included in the length of the packet but length does
+         * include the flag byte
+         */
+        // read command
+        fifo_flags = ax5043ReadReg(chan, AX5043_FIFODATA);
+        len--;
+
+        if (fifo_cmd == AX5043_FIFOCMD_DATA) {
+            handle_fifo_data(chan, fifo_flags, len);
+        } else {
+            //debug_print("FIFO MESSAGE: %d LEN:%d\n",fifo_cmd,len);
+        }
     }
 }

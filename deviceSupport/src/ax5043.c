@@ -1818,7 +1818,7 @@ bool rx_working(rfchan device)
     int power_mode = ax5043ReadReg(device, AX5043_PWRMODE);
 
     /* If Power Mode != 9 then RX is not on or working */
-    return power_mode == AX5043_PWRSTATE_FULL_RX;
+    return (power_mode & 0xf) == AX5043_PWRSTATE_FULL_RX;
 }
 
 void set_modulation(rfchan device, enum radio_modulation mod, bool tx)
