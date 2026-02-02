@@ -557,17 +557,6 @@ static void ax5043_ax25_set_modulation_rx(rfchan device,
     }
 }
 
-void ax5043_ax25_set_modulation(rfchan device,
-                                enum radio_modulation mod,
-                                bool tx)
-{
-    ax5043_ax25_set_modulation_base(device, mod);
-    if (tx)
-        ax5043_ax25_set_modulation_tx(device, mod);
-    else
-        ax5043_ax25_set_modulation_rx(device, mod);
-}
-
 /**
  * FIRST ALL OF THE SETTINGS THAT ARE COMMON TO BOTH BANDS AND FOR RX AND TX
  * Set all of the base registers
@@ -1536,75 +1525,6 @@ void quick_setfreq(rfchan device, int32_t f)
     ax5043WriteReg(device, AX5043_FREQA3, f1 >> 24);
 }
 
-/* Takes a power as a percentage of full power. */
-void set_tx_power(rfchan device, uint32_t power)
-{
-    power = ((power * 4095) + 50) / 100;
-    if (power > 0xfff)
-        power = 0xfff;
-
-    ax5043WriteReg(device, AX5043_TXPWRCOEFFB1, power >> 8);
-    ax5043WriteReg(device, AX5043_TXPWRCOEFFB0, power & 0xff);
-}
-
-/* Returns current power as a percentage of full power. */
-uint16_t get_tx_power(rfchan device)
-{
-    uint32_t power;
-
-    power = ax5043ReadReg(device, AX5043_TXPWRCOEFFB1) << 8;
-    power |= ax5043ReadReg(device, AX5043_TXPWRCOEFFB0);
-
-    return ((power * 100) + 2048) / 4095;
-}
-
-void test_freq(rfchan device, uint32_t freq,
-               enum radio_modulation mod, unsigned int flags)
-{
-    printf("Transmitting on freq: %d\n", freq);
-
-    if (!is_tx_chan(device)) {
-        /* Need to re-initialize a receive device to transmit. */
-        ax5043PowerOn(device);
-        flags = calc_flags(device, freq, flags);
-
-        uint8_t retVal = axradio_init(device, freq, mod, flags);
-        printf("axradio_init: %d\n",retVal);
-
-        retVal = modulation_tx(device, mod, flags);
-        printf("modulation_tx: %d\n",retVal);
-
-        ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_FULL_TX);
-        printf("Powerstate is FULL_TX\n");
-
-        printf("AX5043_XTALCAP: %d\n", ax5043ReadReg(device, AX5043_XTALCAP));
-    }
-
-    int i = 0;
-    while (i < 500) {
-        fifo_repeat_byte(device, 0xAA, 200, 0);
-        fifo_commit(device);
-        i++;
-    }
-}
-
-void test_pll_2m_range(rfchan device, enum radio_modulation mod,
-                       unsigned int flags)
-{
-    int32_t i;
-
-    ax5043PowerOn(device);
-
-    for (i = 134000000; i < 159000000; i+= 1000000) {
-        uint8_t retVal = axradio_init(device, i, mod, flags);
-
-        printf("\n\nFreq: %d\n", i);
-        printf("  axradio_init: %d\n",retVal);
-    }
-
-    ax5043PowerOff(device);
-}
-
 struct AX5043Info {
     SPIDevice spidev;
 
@@ -1684,14 +1604,6 @@ static unsigned int ax5043ReadLongreg(rfchan device,
 unsigned int ax5043ReadReg(rfchan device, unsigned int reg)
 {
     return ax5043ReadLongreg(device, reg, 1);
-}
-
-bool ax5043RxWorking(rfchan device)
-{
-    int power_mode = ax5043ReadReg(device, AX5043_PWRMODE);
-
-    /* If Power Mode != 9 then RX is not on or working */
-    return power_mode == AX5043_PWRSTATE_FULL_RX;
 }
 
 void ax5043Test(rfchan device)
@@ -1785,16 +1697,6 @@ void ax5043PowerOff(rfchan device)
     info->txing = false;
 }
 
-bool ax5043_rxing(rfchan device)
-{
-    struct AX5043Info *info = ax5043_get_info(device);
-
-    if (!info)
-        return false;
-
-    return info->rxing;
-}
-
 static uint8_t ax5043_off_xtal(rfchan device)
 {
     ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_XTAL_ON);
@@ -1817,14 +1719,17 @@ uint8_t ax5043_off(rfchan device)
     return AXRADIO_ERR_NOERROR;
 }
 
+/*********************************************************************
+ * Everything below here is generic radio interface.
+ */
+
 /**
  * TODO - this now starts the AX25 RX.  It should be setup to start
  * multiple receivers We also need another function to start the
  * command receiver.
  *
  */
-void ax5043StartRx(rfchan device,
-                   uint32_t freq, enum radio_modulation mod)
+void start_rx(rfchan device, uint32_t freq, enum radio_modulation mod)
 {
     struct AX5043Info *info = ax5043_get_info(device);
 
@@ -1832,7 +1737,7 @@ void ax5043StartRx(rfchan device,
         return;
 
     //printf("StartRx: Power=%d,Txing=%d,Rxing=%d\n",PowerOn,Txing,Rxing);
-    ax5043StopTx(device);
+    stop_tx(device);
     if (!info->on) {
         ax5043PowerOn(device);
         info->on = true;
@@ -1844,7 +1749,7 @@ void ax5043StartRx(rfchan device,
     }
 }
 
-void ax5043StopRx(rfchan device)
+void stop_rx(rfchan device)
 {
     struct AX5043Info *info = ax5043_get_info(device);
 
@@ -1860,8 +1765,7 @@ void ax5043StopRx(rfchan device)
     }
 }
 
-void ax5043StartTx(rfchan device,
-                   uint32_t freq, enum radio_modulation mod)
+void start_tx(rfchan device, uint32_t freq, enum radio_modulation mod)
 {
     struct AX5043Info *info = ax5043_get_info(device);
 
@@ -1869,7 +1773,7 @@ void ax5043StartTx(rfchan device,
         return;
 
     //printf("StartTx: Power=%d,Txing=%d,Rxing=%d\n",PowerOn,Txing,Rxing);
-    ax5043StopRx(device);
+    stop_rx(device);
 
     if (!info->on) {
         ax5043PowerOn(device);
@@ -1883,7 +1787,7 @@ void ax5043StartTx(rfchan device,
     }
 }
 
-void ax5043StopTx(rfchan device)
+void stop_tx(rfchan device)
 {
     struct AX5043Info *info = ax5043_get_info(device);
 
@@ -1896,5 +1800,101 @@ void ax5043StopTx(rfchan device)
         info->txing = false;
         info->rxing = false;
     }
+    ax5043PowerOff(device);
+}
+
+bool rxing(rfchan device)
+{
+    struct AX5043Info *info = ax5043_get_info(device);
+
+    if (!info)
+        return false;
+
+    return info->rxing;
+}
+
+bool rx_working(rfchan device)
+{
+    int power_mode = ax5043ReadReg(device, AX5043_PWRMODE);
+
+    /* If Power Mode != 9 then RX is not on or working */
+    return power_mode == AX5043_PWRSTATE_FULL_RX;
+}
+
+void set_modulation(rfchan device, enum radio_modulation mod, bool tx)
+{
+    ax5043_ax25_set_modulation_base(device, mod);
+    if (tx)
+        ax5043_ax25_set_modulation_tx(device, mod);
+    else
+        ax5043_ax25_set_modulation_rx(device, mod);
+}
+
+/* Takes a power as a percentage of full power. */
+void set_tx_power(rfchan device, uint32_t power)
+{
+    power = ((power * 4095) + 50) / 100;
+    if (power > 0xfff)
+        power = 0xfff;
+
+    ax5043WriteReg(device, AX5043_TXPWRCOEFFB1, power >> 8);
+    ax5043WriteReg(device, AX5043_TXPWRCOEFFB0, power & 0xff);
+}
+
+/* Returns current power as a percentage of full power. */
+uint16_t get_tx_power(rfchan device)
+{
+    uint32_t power;
+
+    power = ax5043ReadReg(device, AX5043_TXPWRCOEFFB1) << 8;
+    power |= ax5043ReadReg(device, AX5043_TXPWRCOEFFB0);
+
+    return ((power * 100) + 2048) / 4095;
+}
+
+void test_freq(rfchan device, uint32_t freq,
+               enum radio_modulation mod, unsigned int flags)
+{
+    printf("Transmitting on freq: %d\n", freq);
+
+    if (!is_tx_chan(device)) {
+        /* Need to re-initialize a receive device to transmit. */
+        ax5043PowerOn(device);
+        flags = calc_flags(device, freq, flags);
+
+        uint8_t retVal = axradio_init(device, freq, mod, flags);
+        printf("axradio_init: %d\n",retVal);
+
+        retVal = modulation_tx(device, mod, flags);
+        printf("modulation_tx: %d\n",retVal);
+
+        ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_FULL_TX);
+        printf("Powerstate is FULL_TX\n");
+
+        printf("AX5043_XTALCAP: %d\n", ax5043ReadReg(device, AX5043_XTALCAP));
+    }
+
+    int i = 0;
+    while (i < 500) {
+        fifo_repeat_byte(device, 0xAA, 200, 0);
+        fifo_commit(device);
+        i++;
+    }
+}
+
+void test_pll_2m_range(rfchan device, enum radio_modulation mod,
+                       unsigned int flags)
+{
+    int32_t i;
+
+    ax5043PowerOn(device);
+
+    for (i = 134000000; i < 159000000; i+= 1000000) {
+        uint8_t retVal = axradio_init(device, i, mod, flags);
+
+        printf("\n\nFreq: %d\n", i);
+        printf("  axradio_init: %d\n",retVal);
+    }
+
     ax5043PowerOff(device);
 }

@@ -8,29 +8,28 @@
  *
  */
 
-#ifndef DRIVERS_INC_AX5043_ACCESS_H_
-#define DRIVERS_INC_AX5043_ACCESS_H_
+#ifndef DRIVERS_INC_RADIO_H_
+#define DRIVERS_INC_RADIO_H_
 #include <stdbool.h>
 #include "spiDriver.h"
 
+void start_rx(rfchan chan, uint32_t freq, enum radio_modulation mod);
+void stop_rx(rfchan chan);
+void start_tx(rfchan chan, uint32_t freq, enum radio_modulation mod);
+void stop_tx(rfchan chan);
 
-void ax5043StartRx(rfchan chan,
-                   uint32_t freq, enum radio_modulation mod);
-void ax5043StopRx(rfchan chan);
-void ax5043StartTx(rfchan chan,
-                   uint32_t freq, enum radio_modulation mod);
-void ax5043StopTx(rfchan chan);
+bool rxing(rfchan chan);
+bool rx_working(rfchan chan);
 
-void ax5043PowerOn(rfchan chan);
-void ax5043PowerOff(rfchan chan);
-uint8_t ax5043_off(rfchan chan);
-bool ax5043_rxing(rfchan chan);
+void set_modulation(rfchan chan, enum radio_modulation modulation, bool tx);
+void set_tx_power(rfchan chan, uint32_t power);
 
-bool ax5043RxWorking(rfchan chan);
-void ax5043Test(rfchan chan);
-void ax5043Dump(rfchan chan);
+uint8_t get_rssi(rfchan chan);
+uint16_t get_tx_power(rfchan chan);
+void test_freq(rfchan chan, uint32_t freq,
+               enum radio_modulation modulation, unsigned int flags);
+void test_pll_2m_range(rfchan chan, enum radio_modulation modulation,
+                       unsigned int flags);
 
-unsigned int ax5043ReadReg(rfchan chan, unsigned int reg);
-void ax5043WriteReg(rfchan chan, unsigned int reg, unsigned int val);
 
 #endif /* DRIVERS_INC_AX5043_ACCESS_H_ */

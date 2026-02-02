@@ -1404,7 +1404,7 @@ void RealConsoleTask(void)
 
             if (err)
                 break;
-            ax5043StartRx(chan, DCTFreq[chan], DCTModulation[chan]);
+            start_rx(chan, DCTFreq[chan], DCTModulation[chan]);
             break;
         }
 
@@ -1413,7 +1413,7 @@ void RealConsoleTask(void)
 
             if (err)
                 break;
-            ax5043StopRx(chan);
+            stop_rx(chan);
             break;
         }
 
@@ -2010,10 +2010,9 @@ void RealConsoleTask(void)
                  * doesn't change while transmitting.
                  */
                 tx_modulation = mod;
-            } else if (ax5043_rxing(chan)) {
-                ax5043StopRx(chan);
-                ax5043StartRx(chan, DCTFreq[chan],
-                              DCTModulation[chan]);
+            } else if (rxing(chan)) {
+                stop_rx(chan);
+                start_rx(chan, DCTFreq[chan], DCTModulation[chan]);
             }
             break;
         }

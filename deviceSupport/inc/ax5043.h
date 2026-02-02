@@ -423,14 +423,13 @@ void fifo_commit(rfchan chan);
 void fifo_repeat_byte(rfchan chan, uint8_t b, uint8_t count, uint8_t flags);
 void fifo_queue_buffer(rfchan chan, uint8_t *buf, uint8_t len, uint8_t flags);
 uint16_t fifo_free(rfchan chan);
-uint8_t get_rssi(rfchan chan);
-void set_tx_power(rfchan chan, uint32_t power);
-uint16_t get_tx_power(rfchan chan);
-void test_freq(rfchan chan, uint32_t freq,
-               enum radio_modulation modulation, unsigned int flags);
-void test_pll_2m_range(rfchan chan, enum radio_modulation modulation,
-                       unsigned int flags);
 
-void ax5043_ax25_set_modulation(rfchan chan,
-                                enum radio_modulation modulation,
-                                bool tx);
+void ax5043PowerOn(rfchan chan);
+void ax5043PowerOff(rfchan chan);
+uint8_t ax5043_off(rfchan chan);
+
+void ax5043Test(rfchan chan);
+void ax5043Dump(rfchan chan);
+
+unsigned int ax5043ReadReg(rfchan chan, unsigned int reg);
+void ax5043WriteReg(rfchan chan, unsigned int reg, unsigned int val);

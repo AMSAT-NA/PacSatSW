@@ -75,7 +75,7 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
                     (int)"FATAL ERROR: Could not create TX Packet Queue");
     }
 
-    ax5043StartTx(txchan, ReadMRAMFreq(txchan), ReadMRAMModulation(txchan));
+    start_tx(txchan, ReadMRAMFreq(txchan), ReadMRAMModulation(txchan));
 
     // Add seletable Tx power levels  N5BRG  240516
     //set_tx_power(1); // minimum power to test RF output on AX5043
@@ -132,7 +132,7 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
             int numbytes = tx_packet_buffer.len;
 
             if (tx_modulation != curr_modulation) {
-                ax5043_ax25_set_modulation(txchan, tx_modulation, true);
+                set_modulation(txchan, tx_modulation, true);
                 curr_modulation = tx_modulation;
             }
 

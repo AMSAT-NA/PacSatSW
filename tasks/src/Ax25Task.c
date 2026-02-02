@@ -58,7 +58,6 @@
 #include "os_task.h"
 #include "nonvolManagement.h"
 #include "radio.h"
-#include "ax5043.h"
 #include "RxTask.h"
 #include "ax25_util.h"
 #include "str_util.h"
@@ -245,7 +244,7 @@ void ax25_send_status() {
 
         int i;
         for (i = 0; i < NUM_RX_CHANNELS; i++) {
-            if (ax5043RxWorking(i) && data_link_state_machine[i].dl_state == DISCONNECTED) {
+            if (rx_working(i) && data_link_state_machine[i].dl_state == DISCONNECTED) {
                 strlcat(buffer, rx_channel_names[i], sizeof(buffer));
             } else {
                 channels_available--;

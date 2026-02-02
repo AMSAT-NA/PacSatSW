@@ -86,7 +86,7 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
             continue;
         }
 #endif
-        ax5043StartRx(chan, ReadMRAMFreq(chan), ReadMRAMModulation(chan));
+        start_rx(chan, ReadMRAMFreq(chan), ReadMRAMModulation(chan));
     }
 
     GPIOSetOn(LED2);
