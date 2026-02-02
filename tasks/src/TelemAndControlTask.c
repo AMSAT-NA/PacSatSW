@@ -395,15 +395,15 @@ void tac_collect_telemetry(telem_buffer_t *buffer)
 #endif
 
     /* TX Telemetry */
-    uint16_t rf_pwr = (ax5043ReadReg(TX_DEVICE, AX5043_TXPWRCOEFFB0)
-                       + (ax5043ReadReg(TX_DEVICE, AX5043_TXPWRCOEFFB1) << 8));
+    uint16_t rf_pwr = (ax5043ReadReg(FIRST_TX_CHANNEL, AX5043_TXPWRCOEFFB0)
+                       + (ax5043ReadReg(FIRST_TX_CHANNEL, AX5043_TXPWRCOEFFB1) << 8));
     buffer->rtHealth.common.TXPower = rf_pwr;
-    buffer->rtHealth.common.TXPwrMode = ax5043ReadReg(TX_DEVICE, AX5043_PWRMODE);
+    buffer->rtHealth.common.TXPwrMode = ax5043ReadReg(FIRST_TX_CHANNEL, AX5043_PWRMODE);
 
     /* RX0 Telemetry */
-    uint8_t rssi0 = get_rssi(RX1_DEVICE);
+    uint8_t rssi0 = get_rssi(FIRST_RX_CHANNEL);
     buffer->rtHealth.common.RX0RSSI = rssi0;
-    buffer->rtHealth.common.RX0PwrMode = ax5043ReadReg(RX1_DEVICE, AX5043_PWRMODE);
+    buffer->rtHealth.common.RX0PwrMode = ax5043ReadReg(FIRST_RX_CHANNEL, AX5043_PWRMODE);
 
     // Errors
     buffer->rtHealth.primaryErrors = localErrorCollection;

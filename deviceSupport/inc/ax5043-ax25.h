@@ -417,9 +417,9 @@ struct axradio_address {
 #define AX5043_QUEUE_RAW_NO_CRC_FLAG 0x18 // Flag of 0x18 is RAW no CRC
 
 void quick_setfreq(AX5043Device device, int32_t f);
-void start_ax25_rx(AX5043Device device,
+void start_ax25_rx(AX5043Device device, uint32_t freq,
                    enum radio_modulation modulation, unsigned int flags);
-void start_ax25_tx(AX5043Device device,
+void start_ax25_tx(AX5043Device device, uint32_t freq,
                    enum radio_modulation modulation, unsigned int flags);
 uint16_t fifo_free(AX5043Device device);
 void fifo_clear(AX5043Device device);

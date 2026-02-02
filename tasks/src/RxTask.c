@@ -41,7 +41,9 @@ void process_fifo(AX5043Device device);
 
 #define ADJ_RX_RSSI_THRESHOLD (RX_RSSI_THRESHOLD + 255)
 
-portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
+portTASK_FUNCTION_PROTO(RxTask, pvParameters)
+{
+    unsigned int i;
 
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)RxTaskWD );
     InitInterTask(ToRxTask, 10);
@@ -76,23 +78,22 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
     }
 
     /* Initialize the Radio RX */
-#ifdef LAUNCHPAD_HARDWARE
-    ax5043StartRx(AX5043Dev0);
-#else
-    ax5043StartRx(AX5043Dev0);
+    for (i = FIRST_RX_CHANNEL; i <= LAST_RX_CHANNEL; i++) {
 #ifdef BLINKY_HARDWARE
-    ax5043_off(AX5043Dev1); // dev1 is broken on blinky.
-#else
-    ax5043StartRx(AX5043Dev1);
+        if (i == AX5043Dev1) {
+            ax5043_off(AX5043Dev1); // dev1 is broken on blinky.
+            continue;
+        }
 #endif
-    ax5043StartRx(AX5043Dev2);
-    ax5043StartRx(AX5043Dev3);
+        ax5043StartRx(i, ReadMRAMFreq(i), ReadMRAMModulation(i));
+    }
+
     GPIOSetOn(LED2);
-#endif
+
     while(1) {
         Intertask_Message messageReceived;
         int status = 0;
-
+        unsigned int i;
 
         ReportToWatchdog(CurrentTaskWD);
         status = WaitInterTask(ToRxTask, CENTISECONDS(10), &messageReceived);  // This is triggered when there is RX data on the FIFO
@@ -100,27 +101,20 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)  {
 
         if (monitorPackets) {
             uint8_t rssi = get_rssi(AX5043Dev0);
-	    int16_t dbm;
+            int16_t dbm;
             // this magic value is supposed to be above the background
             // noise, so we only see actual transmissions
             if (rssi > ADJ_RX_RSSI_THRESHOLD) {
                 dbm = rssi - 255;
                 debug_print("RSSI-0: %d dBm\n",dbm);
             }
-            rssi = get_rssi(AX5043Dev1);
-            if (rssi > ADJ_RX_RSSI_THRESHOLD) {
-                dbm = rssi - 255;
-                debug_print("RSSI-1: %d dBm\n",dbm);
-            }
-            rssi = get_rssi(AX5043Dev2);
-            if (rssi > ADJ_RX_RSSI_THRESHOLD) {
-                dbm = rssi - 255;
-                debug_print("RSSI-2: %d dBm\n",dbm);
-            }
-            rssi = get_rssi(AX5043Dev3);
-            if (rssi > ADJ_RX_RSSI_THRESHOLD) {
-                dbm = rssi - 255;
-                debug_print("RSSI-3: %d dBm\n",dbm);
+
+            for (i = FIRST_RX_CHANNEL; i <= LAST_RX_CHANNEL; i++) {
+                rssi = get_rssi((AX5043Device) i);
+                if (rssi > ADJ_RX_RSSI_THRESHOLD) {
+                    dbm = rssi - 255;
+                    debug_print("RSSI-d: %d dBm\n", i, dbm);
+                }
             }
 ////                debug_print("FRMRX: %d   ",ax5043ReadReg(device, AX5043_FRAMING) & 0x80 ); // FRAMING Pkt start bit detected - will print 128
 ////                debug_print("RADIO: %d ",ax5043ReadReg(device, AX5043_RADIOSTATE) & 0xF ); // Radio State bits 0-3

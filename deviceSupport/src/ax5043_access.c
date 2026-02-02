@@ -44,9 +44,9 @@ struct AX5043Info {
     bool txing;
 };
 
-static struct AX5043Info ax5043_info[NUM_AX5043_SPI_DEVICES] = {
+static struct AX5043Info ax5043_info[NUM_CHANNELS] = {
     { .spidev = Rx1AX5043Dev },
-#ifndef LAUNCHPAD_HARDWARE
+#if NUM_CHANNELS > 2
     { .spidev = Rx2AX5043Dev },
     { .spidev = Rx3AX5043Dev },
     { .spidev = Rx4AX5043Dev },
@@ -56,7 +56,7 @@ static struct AX5043Info ax5043_info[NUM_AX5043_SPI_DEVICES] = {
 
 static struct AX5043Info *ax5043_get_info(AX5043Device device)
 {
-    if (device >= NUM_AX5043_SPI_DEVICES)
+    if (device >= NUM_CHANNELS)
         return NULL;
     return &ax5043_info[device];
 }
@@ -167,9 +167,9 @@ void ax5043Dump(AX5043Device dev)
  */
 
 #ifdef AFSK_HARDWARE
-static Gpio_Use ax5043_power_gpio[NUM_AX5043_SPI_DEVICES] = {
+static Gpio_Use ax5043_power_gpio[NUM_CHANNELS] = {
     AX5043_Rx1_Power,
-#if NUM_AX5043_SPI_DEVICES > 2
+#if NUM_CHANNELS > 2
     AX5043_Rx2_Power,
     AX5043_Rx3_Power,
     AX5043_Rx4_Power,
@@ -200,7 +200,7 @@ void ax5043PowerOff(AX5043Device device)
         return;
 
 #ifdef AFSK_HARDWARE
-    if (device == TX_DEVICE)
+    if (is_tx_chan(device))
         // Make sure the PA is off if we are turning off the TX 5043.
         GPIOSetOff(SSPAPower);
     GPIOSetOff(ax5043_power_gpio[device]);
@@ -209,6 +209,16 @@ void ax5043PowerOff(AX5043Device device)
     info->on = false;
     info->rxing = false;
     info->txing = false;
+}
+
+bool ax5043_rxing(AX5043Device device)
+{
+    struct AX5043Info *info = ax5043_get_info(device);
+
+    if (!info)
+        return false;
+
+    return info->rxing;
 }
 
 static uint8_t ax5043_off_xtal(AX5043Device device)
@@ -239,7 +249,8 @@ uint8_t ax5043_off(AX5043Device device)
  * command receiver.
  *
  */
-void ax5043StartRx(AX5043Device device)
+void ax5043StartRx(AX5043Device device,
+                   uint32_t freq, enum radio_modulation mod)
 {
     struct AX5043Info *info = ax5043_get_info(device);
 
@@ -253,9 +264,7 @@ void ax5043StartRx(AX5043Device device)
         info->on = true;
     }
     if (!info->rxing) {
-       enum radio_modulation mod = ReadMRAMModulation(device);
-
-        start_ax25_rx(device, mod, 0);
+        start_ax25_rx(device, freq, mod, 0);
         info->rxing = true;
         info->txing = false;
     }
@@ -277,7 +286,8 @@ void ax5043StopRx(AX5043Device device)
     }
 }
 
-void ax5043StartTx(AX5043Device device)
+void ax5043StartTx(AX5043Device device,
+                   uint32_t freq, enum radio_modulation mod)
 {
     struct AX5043Info *info = ax5043_get_info(device);
 
@@ -293,9 +303,7 @@ void ax5043StartTx(AX5043Device device)
     }
 
     if (!info->txing) {
-        enum radio_modulation mod = ReadMRAMModulation(device);
-
-        start_ax25_tx(device, mod, 0);
+        start_ax25_tx(device, freq, mod, 0);
         info->txing = true;
         info->rxing = false;
     }

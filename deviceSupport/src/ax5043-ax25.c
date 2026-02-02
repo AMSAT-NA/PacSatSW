@@ -88,8 +88,8 @@ static const uint8_t axradio_phy_chanpllrnginit = 0x09;
 static const uint8_t axradio_phy_vcocalib = 0;
 static const uint8_t axradio_phy_chanvcoiinit = 0x97;
 
-static uint8_t axradio_phy_chanpllrng[NUM_AX5043_SPI_DEVICES];
-static uint8_t axradio_phy_chanvcoi[NUM_AX5043_SPI_DEVICES];
+static uint8_t axradio_phy_chanpllrng[NUM_CHANNELS];
+static uint8_t axradio_phy_chanvcoi[NUM_CHANNELS];
 
 static void ax5043_ax25_set_modulation_base(AX5043Device device,
                                             enum radio_modulation mod)
@@ -1347,13 +1347,12 @@ static unsigned int calc_flags(AX5043Device device, uint32_t freq,
 }
 
 void start_ax25_rx(AX5043Device device,
+                   uint32_t freq,
                    enum radio_modulation mod,
                    unsigned int flags)
 {
-    uint32_t freq;
     int status = 0;
 
-    freq = ReadMRAMFreq((uint8_t) device);
     flags = calc_flags(device, freq, flags);
 
     debug_print("Starting RX with AX5043Device %d, freq=%d, modulation=%s, flags=0x%x\n",
@@ -1382,15 +1381,14 @@ void start_ax25_rx(AX5043Device device,
 }
 
 void start_ax25_tx(AX5043Device device,
+                   uint32_t freq,
                    enum radio_modulation mod,
                    unsigned int flags)
 {
     uint16_t irqreq;
     uint16_t irqs = 0;
-    uint32_t freq;
     int status = 0;
 
-    freq = ReadMRAMFreq(device);
     flags = calc_flags(device, freq, flags);
 
     debug_print("Starting TX with AX5043Device %d, freq=%d, modulation=%s, flags=0x%x\n",
@@ -1576,7 +1574,7 @@ void test_freq(AX5043Device device, uint32_t freq,
 {
     printf("Transmitting on freq: %d\n", freq);
 
-    if (device != TX_DEVICE) {
+    if (!is_tx_chan(device)) {
         /* Need to re-initialize a receive device to transmit. */
         ax5043PowerOn(device);
         flags = calc_flags(device, freq, flags);

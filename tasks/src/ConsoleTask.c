@@ -86,6 +86,7 @@ const uint32_t DCT_DEFAULT_FREQ[NUM_CHANNELS] =
     { 145780000, 435760000 };
 #endif
 
+static enum radio_modulation DCTModulation[NUM_CHANNELS];
 const enum radio_modulation DCT_DEFAULT_MODULATION[NUM_CHANNELS] = {
     MODULATION_AFSK_1200, MODULATION_AFSK_1200,
     MODULATION_AFSK_1200, MODULATION_AFSK_1200,
@@ -146,7 +147,6 @@ enum {
     SetDCTDrivePower,
     Freq,
     TxPow,
-    SaveFreq,
     LoadKey,
     showDownlinkSize,
     ignoreUmb,
@@ -228,9 +228,6 @@ commandPairs setupCommands[] = {
       "Set/raise/lower/get the frequency\r\n"
       "                       freq <devnum> [+|-]value[k|m]",
       Freq},
-    { "save freq",
-      "Save the current frequency in MRAM",
-      SaveFreq},
     { "test freq",
       "xmit on frequency of specified device",
       testFreq},
@@ -614,7 +611,7 @@ char *ResetReasons[] = {
 
 static char *get_dev_modulation_str(uint8_t devb)
 {
-    return modulation_to_str(ReadMRAMModulation(devb));
+    return modulation_to_str(DCTModulation[devb]);
 }
 
 static int parse_devnum_de(char **str, AX5043Device *dev, int off, bool doerr)
@@ -627,10 +624,10 @@ static int parse_devnum_de(char **str, AX5043Device *dev, int off, bool doerr)
             printf("Invalid or missing device number\n");
         return err;
     }
-    if (devb >= NUM_AX5043_SPI_DEVICES - off) {
+    if (devb >= NUM_CHANNELS - off) {
         if (doerr)
             printf("Give a device number between 0 and %d\n",
-                   NUM_AX5043_SPI_DEVICES - off);
+                   NUM_CHANNELS - off);
         return -100;
     }
     *dev = (AX5043Device) devb;
@@ -657,8 +654,9 @@ void RealConsoleTask(void)
     for (i = 0; i < NUM_CHANNELS; i++) {
         DCTFreq[i] = ReadMRAMFreq(i);
         if ((DCTFreq[i] < 999000) || (DCTFreq[i] > 600000000))
-            DCTFreq[0] = DCT_DEFAULT_FREQ[i];
+            DCTFreq[i] = DCT_DEFAULT_FREQ[i];
         quick_setfreq((AX5043Device) i, DCTFreq[i]);
+        DCTModulation[i] = ReadMRAMModulation(i);
     }
 
     // For watchdog when it is called with "current task"
@@ -1003,21 +1001,11 @@ void RealConsoleTask(void)
                 }
             }
             DCTFreq[dev] = freq;
+            WriteMRAMFreq(dev, DCTFreq[dev]);
             quick_setfreq(dev, DCTFreq[dev]);
 
             printf("Set %s%d=%d\n", dev,
                    is_tx_chan(dev) ? "Tx" : "Rx", dev, DCTFreq[dev]);
-            break;
-        }
-
-        case SaveFreq: {
-            int i;
-
-            for (i = 0; i < NUM_AX5043_RX_DEVICES; i++) {
-                printf("Saving %s%d frequency %d to MRAM\n",
-                       is_tx_chan(i) ? "Tx" : "Rx", i, DCTFreq[i]);
-                WriteMRAMFreq(i, DCTFreq[i]);
-            }
             break;
         }
 
@@ -1422,7 +1410,7 @@ void RealConsoleTask(void)
 
             if (err)
                 break;
-            ax5043StartRx(dev);
+            ax5043StartRx(dev, DCTFreq[i], DCTModulation[i]);
             break;
         }
 
@@ -1550,7 +1538,7 @@ void RealConsoleTask(void)
         case testAX5043: {
             int i;
 
-            for (i = 0; i < NUM_AX5043_SPI_DEVICES; i++)
+            for (i = 0; i < NUM_CHANNELS; i++)
                 ax5043Test((AX5043Device)i);
             break;
         }
@@ -2009,7 +1997,7 @@ void RealConsoleTask(void)
             }
             if (devb >= InvalidAX5043Device) {
                 printf("Give a device number between 0 and %d\n",
-                       NUM_AX5043_SPI_DEVICES - 1);
+                       NUM_CHANNELS - 1);
                 break;
             }
             modstr = next_token(&afterCommand);
@@ -2032,16 +2020,17 @@ void RealConsoleTask(void)
             printf("Setting Radio %u to %s.\n", devb, modstr);
 
             WriteMRAMModulation(devb, mod);
+            DCTModulation[devb] = mod;
             if (is_tx_chan(devb)) {
                 /*
                  * Transmit task will set the mode as necessary so it
                  * doesn't change while transmitting.
                  */
                 tx_modulation = mod;
-            } else {
+            } else if (ax5043_rxing((AX5043Device) devb)) {
                 ax5043StopRx((AX5043Device) devb);
-                ax5043_ax25_set_modulation((AX5043Device) devb, mod, false);
-                ax5043StartRx((AX5043Device) devb);
+                ax5043StartRx((AX5043Device) devb, DCTFreq[devb],
+                              DCTModulation[devb]);
             }
             break;
         }

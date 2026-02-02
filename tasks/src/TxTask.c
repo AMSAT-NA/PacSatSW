@@ -39,7 +39,7 @@ static bool tx_make_ui_packet(char *from_callsign, char *to_callsign,
 static bool tx_make_packet(AX25_PACKET *packet,
                            rx_radio_buffer_t *tx_radio_buffer);
 
-static AX5043Device device = TX_DEVICE;
+static AX5043Device device = FIRST_TX_CHANNEL;
 
 extern bool monitorPackets;
 enum radio_modulation tx_modulation;
@@ -75,7 +75,8 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
                     (int)"FATAL ERROR: Could not create TX Packet Queue");
     }
 
-    ax5043StartTx(device);
+    ax5043StartTx(device, ReadMRAMFreq(device), ReadMRAMModulation(device));
+
     // Add seletable Tx power levels  N5BRG  240516
     //set_tx_power(1); // minimum power to test RF output on AX5043
     //set_tx_power(50); // midrange power to test RF output on AX5043

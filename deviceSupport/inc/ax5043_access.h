@@ -14,19 +14,6 @@
 #include "spiDriver.h"
 
 
-#define RX1_DEVICE AX5043Dev0
-#ifdef LAUNCHPAD_HARDWARE
-#define NUM_AX5043_SPI_DEVICES 2
-#define TX_DEVICE AX5043Dev1
-#else
-#define NUM_AX5043_SPI_DEVICES 5
-#define RX2_DEVICE AX5043Dev1
-#define RX3_DEVICE AX5043Dev2
-#define RX4_DEVICE AX5043Dev3
-#define TX_DEVICE AX5043Dev4
-#endif
-#define NUM_AX5043_RX_DEVICES (NUM_AX5043_SPI_DEVICES - 1)
-
 typedef enum {
     AX5043Dev0 = 0,
     AX5043Dev1,
@@ -39,14 +26,17 @@ typedef enum {
 } AX5043Device;
 
 
-void ax5043StartRx(AX5043Device device);
+void ax5043StartRx(AX5043Device device,
+                   uint32_t freq, enum radio_modulation mod);
 void ax5043StopRx(AX5043Device device);
-void ax5043StartTx(AX5043Device device);
+void ax5043StartTx(AX5043Device device,
+                   uint32_t freq, enum radio_modulation mod);
 void ax5043StopTx(AX5043Device device);
 
 void ax5043PowerOn(AX5043Device device);
 void ax5043PowerOff(AX5043Device device);
 uint8_t ax5043_off(AX5043Device device);
+bool ax5043_rxing(AX5043Device device);
 
 bool ax5043RxWorking(AX5043Device device);
 void ax5043Test(AX5043Device device);
