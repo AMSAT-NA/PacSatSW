@@ -22,7 +22,7 @@
 #include "ctype.h"
 
 #include "pacsat.h"
-#include "ax5043_access.h"
+#include "radio.h"
 #include "ax5043.h"
 #include "TxTask.h"
 #include "FreeRTOS.h"

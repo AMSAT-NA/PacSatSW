@@ -25,7 +25,7 @@
 #include "FreeRTOS.h"
 #include "os_task.h"
 
-#include "ax5043_access.h"
+#include "radio.h"
 #include "ax5043.h"
 #include "Ax25Task.h"
 #include "ax25_util.h"

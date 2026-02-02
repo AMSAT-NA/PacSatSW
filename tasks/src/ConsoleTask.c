@@ -18,7 +18,7 @@
 #include "CommandTask.h"
 #include "TelemetryRadio.h"
 #include "consoleRoutines.h"
-#include "ax5043_access.h"
+#include "radio.h"
 #include "system.h"
 #include "sys_core.h"
 #include "gio.h"

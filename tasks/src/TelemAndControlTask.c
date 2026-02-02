@@ -30,7 +30,7 @@
 #include "pacsat_dir.h"
 #include "UplinkTask.h"
 #include "errors.h"
-#include "ax5043_access.h"
+#include "radio.h"
 #include "ax5043.h"
 #include "inet.h"
 #include "adc_proc.h"

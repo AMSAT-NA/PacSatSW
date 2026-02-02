@@ -23,7 +23,7 @@
 #include "hmac_sha256.h"
 #include "ao_fec_rx.h"
 #include "inet.h"
-#include "ax5043_access.h"
+#include "radio.h"
 #include "Max31331Rtc.h"
 #include "ADS7828.h"
 #include "I2cPoll.h"

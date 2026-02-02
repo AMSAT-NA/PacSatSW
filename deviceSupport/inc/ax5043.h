@@ -54,7 +54,7 @@
 
 //#include <unistd.h>
 #include <stdint.h>
-#include "ax5043_access.h"
+#include "radio.h"
 
 #define AXRADIO_ERR_NOERROR                     0x00 //!< Operation successful
 #define AXRADIO_ERR_NOTSUPPORTED                0x01 //!< Operation not supported

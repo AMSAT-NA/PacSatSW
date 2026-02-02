@@ -1,10 +1,10 @@
 /*
- * ax5043.h
+ * radio.h
  *
  *  Created on: Mar 11, 2019
  *      Author: burns
  *
- * This file contains the headers for AX5043 routines that are common across modes and frequencies
+ * This file contains the headers for generic radio routines.
  *
  */
 
