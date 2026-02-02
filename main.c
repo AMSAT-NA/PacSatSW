@@ -381,6 +381,9 @@ void ConsoleTask(void *pvParameters){
 }
 void vApplicationIdleHook(){
     ReportToWatchdog(IdleWD);
+
+    /* Go standby in idle state, reduces power a bit. */
+    asm volatile (" wfi");
 }
 #ifdef DEBUG
 void vApplicationMallocFailedHook(void){
