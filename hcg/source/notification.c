@@ -55,6 +55,7 @@
 #include "gio.h"
 #include "sci.h"
 #include "spi.h"
+#include "het.h"
 #include "rti.h"
 #include "i2c.h"
 #include "sys_dma.h"
@@ -199,6 +200,36 @@ void spiEndNotification(spiBASE_t *spi)
 /* USER CODE BEGIN (34) */
 /* USER CODE END */
 
+#pragma WEAK(pwmNotification)
+void pwmNotification(hetBASE_t * hetREG,uint32 pwm, uint32 notification)
+{
+/*  enter user code between the USER CODE BEGIN and USER CODE END. */
+/* USER CODE BEGIN (35) */
+/* USER CODE END */
+}
+
+/* USER CODE BEGIN (36) */
+/* USER CODE END */
+#pragma WEAK(edgeNotification)
+void edgeNotification(hetBASE_t * hetREG,uint32 edge)
+{
+/*  enter user code between the USER CODE BEGIN and USER CODE END. */
+/* USER CODE BEGIN (37) */
+/* USER CODE END */
+}
+
+/* USER CODE BEGIN (38) */
+/* USER CODE END */
+#pragma WEAK(hetNotification)
+void hetNotification(hetBASE_t *het, uint32 offset)
+{
+/*  enter user code between the USER CODE BEGIN and USER CODE END. */
+/* USER CODE BEGIN (39) */
+/* USER CODE END */
+}
+
+/* USER CODE BEGIN (40) */
+/* USER CODE END */
 
 
 /* USER CODE BEGIN (43) */
