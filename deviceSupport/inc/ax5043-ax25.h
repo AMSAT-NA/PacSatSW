@@ -399,7 +399,7 @@ struct axradio_address_mask {
 //unsigned int ax5043ReadReg(unsigned int reg);
 //void ax5043WriteReg(unsigned int reg, unsigned int val);
 
-//void ax5043_prepare_tx(AX5043Device device, bool rate_9600);
+//void ax5043_prepare_tx(rfchan chan, bool rate_9600);
 uint32_t ReadMRAMTelemFreq(void);
 
 int32_t axradio_conv_freq_tohz(int32_t f);
@@ -416,29 +416,29 @@ struct axradio_address {
 #define AX5043_QUEUE_PKTEND_FLAG 0X02
 #define AX5043_QUEUE_RAW_NO_CRC_FLAG 0x18 // Flag of 0x18 is RAW no CRC
 
-void quick_setfreq(AX5043Device device, int32_t f);
-void start_ax25_rx(AX5043Device device, uint32_t freq,
+void quick_setfreq(rfchan chan, int32_t f);
+void start_ax25_rx(rfchan chan, uint32_t freq,
                    enum radio_modulation modulation, unsigned int flags);
-void start_ax25_tx(AX5043Device device, uint32_t freq,
+void start_ax25_tx(rfchan chan, uint32_t freq,
                    enum radio_modulation modulation, unsigned int flags);
-uint16_t fifo_free(AX5043Device device);
-void fifo_clear(AX5043Device device);
-void fifo_repeat_byte(AX5043Device device, uint8_t b, uint8_t count, uint8_t flags);
-void fifo_commit(AX5043Device device);
-void fifo_queue_buffer(AX5043Device device, uint8_t *buf, uint8_t len, uint8_t flags);
+uint16_t fifo_free(rfchan chan);
+void fifo_clear(rfchan chan);
+void fifo_repeat_byte(rfchan chan, uint8_t b, uint8_t count, uint8_t flags);
+void fifo_commit(rfchan chan);
+void fifo_queue_buffer(rfchan chan, uint8_t *buf, uint8_t len, uint8_t flags);
 //void fifo_send_sync(int final);
-void fifo_commit(AX5043Device device);
-void fifo_repeat_byte(AX5043Device device, uint8_t b, uint8_t count, uint8_t flags);
-void fifo_queue_buffer(AX5043Device device, uint8_t *buf, uint8_t len, uint8_t flags);
-uint16_t fifo_free(AX5043Device device);
-uint8_t get_rssi(AX5043Device device);
-void set_tx_power(AX5043Device device, uint32_t power);
-uint16_t get_tx_power(AX5043Device device);
-void test_freq(AX5043Device device, uint32_t freq,
+void fifo_commit(rfchan chan);
+void fifo_repeat_byte(rfchan chan, uint8_t b, uint8_t count, uint8_t flags);
+void fifo_queue_buffer(rfchan chan, uint8_t *buf, uint8_t len, uint8_t flags);
+uint16_t fifo_free(rfchan chan);
+uint8_t get_rssi(rfchan chan);
+void set_tx_power(rfchan chan, uint32_t power);
+uint16_t get_tx_power(rfchan chan);
+void test_freq(rfchan chan, uint32_t freq,
                enum radio_modulation modulation, unsigned int flags);
-void test_pll_2m_range(AX5043Device device, enum radio_modulation modulation,
+void test_pll_2m_range(rfchan chan, enum radio_modulation modulation,
                        unsigned int flags);
 
-void ax5043_ax25_set_modulation(AX5043Device device,
+void ax5043_ax25_set_modulation(rfchan chan,
                                 enum radio_modulation modulation,
                                 bool tx);

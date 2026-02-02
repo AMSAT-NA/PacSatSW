@@ -39,7 +39,7 @@ static bool tx_make_ui_packet(char *from_callsign, char *to_callsign,
 static bool tx_make_packet(AX25_PACKET *packet,
                            rx_radio_buffer_t *tx_radio_buffer);
 
-static AX5043Device device = FIRST_TX_CHANNEL;
+static rfchan txchan = FIRST_TX_CHANNEL;
 
 extern bool monitorPackets;
 enum radio_modulation tx_modulation;
@@ -56,7 +56,7 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
     rx_radio_buffer_t tx_packet_buffer;
     enum radio_modulation curr_modulation = (enum radio_modulation) -1;
 
-    tx_modulation = ReadMRAMModulation(device);
+    tx_modulation = ReadMRAMModulation(txchan);
 
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE) TxTaskWD);
     InitInterTask(ToTxTask, 10);
@@ -75,16 +75,16 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
                     (int)"FATAL ERROR: Could not create TX Packet Queue");
     }
 
-    ax5043StartTx(device, ReadMRAMFreq(device), ReadMRAMModulation(device));
+    ax5043StartTx(txchan, ReadMRAMFreq(txchan), ReadMRAMModulation(txchan));
 
     // Add seletable Tx power levels  N5BRG  240516
     //set_tx_power(1); // minimum power to test RF output on AX5043
     //set_tx_power(50); // midrange power to test RF output on AX5043
-    //set_tx_power(device, 100); // maximum power to test RF output on AX5043
-    set_tx_power(device, 5); // Low power, in case it's not plugged in.
+    //set_tx_power(txchan, 100); // maximum power to test RF output on AX5043
+    set_tx_power(txchan, 5); // Low power, in case it's not plugged in.
 
     /* Set Power state to FULL_TX */
-    ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_FULL_TX);
+    ax5043WriteReg(txchan, AX5043_PWRMODE, AX5043_PWRSTATE_FULL_TX);
 
     //printf("Turn off TX LED1 at init\n");
     GPIOSetOff(LED1);
@@ -132,7 +132,7 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
             int numbytes = tx_packet_buffer.len;
 
             if (tx_modulation != curr_modulation) {
-                ax5043_ax25_set_modulation(device, tx_modulation, true);
+                ax5043_ax25_set_modulation(txchan, tx_modulation, true);
                 curr_modulation = tx_modulation;
             }
 
@@ -142,24 +142,24 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
             //printf("FIFO_FREE 1: %d\n",fifo_free());
 
             // clear FIFO data & flags
-            fifo_clear(device);
+            fifo_clear(txchan);
 
             // repeat the preamble bytes
             //  TODO - no preamble for back to back packets
-            fifo_repeat_byte(device, 0x7E, preamble_length,
+            fifo_repeat_byte(txchan, 0x7E, preamble_length,
                              AX5043_QUEUE_RAW_NO_CRC_FLAG);
-            fifo_commit(device);
-            fifo_queue_buffer(device, tx_packet_buffer.bytes, numbytes,
+            fifo_commit(txchan);
+            fifo_queue_buffer(txchan, tx_packet_buffer.bytes, numbytes,
                         AX5043_QUEUE_PKTSTART_FLAG | AX5043_QUEUE_PKTEND_FLAG);
             //       printf("FIFO_FREE 2: %d\n",fifo_free());
-            fifo_commit(device);
+            fifo_commit(txchan);
             //       printf("INFO: Waiting for transmission to complete\n");
 
             // TODO - we need to support longer packets
 
             // Setup the interrupt to tell us when the buffer is empty
             // and we can check the TX status then
-            while (ax5043ReadReg(device, AX5043_RADIOSTATE) != 0) {
+            while (ax5043ReadReg(txchan, AX5043_RADIOSTATE) != 0) {
                 // this will yield and allow other processing while it transmits
                 // FIXME - Can't we use an interrupt for this?
                 vTaskDelay(MILLISECONDS(1));

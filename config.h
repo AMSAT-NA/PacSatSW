@@ -189,6 +189,8 @@ void NullPrint(char *, ...);
 #define LAST_TX_CHANNEL (FIRST_TX_CHANNEL + NUM_TX_CHANNELS - 1)
 #define NUM_CHANNELS (NUM_TX_CHANNELS + NUM_RX_CHANNELS)
 
+typedef uint8_t rfchan;
+
 #define is_tx_chan(c) ((c) >= FIRST_TX_CHANNEL && (c) <= LAST_TX_CHANNEL)
 #define is_rx_chan(c) ((c) >= FIRST_RX_CHANNEL && (c) <= LAST_RX_CHANNEL)
 

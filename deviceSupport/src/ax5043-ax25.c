@@ -66,14 +66,14 @@
 #include "ax5043_access.h"
 
 /* Forward declarations */
-static uint8_t ax5043_ax25_init_registers_common(AX5043Device device);
-static uint8_t ax5043_ax25_init_registers_tx(AX5043Device device,
+static uint8_t ax5043_ax25_init_registers_common(rfchan device);
+static uint8_t ax5043_ax25_init_registers_tx(rfchan device,
                                              enum radio_modulation mod,
                                              unsigned int flags);
-static uint8_t ax5043_ax25_init_registers_rx(AX5043Device device,
+static uint8_t ax5043_ax25_init_registers_rx(rfchan device,
                                              enum radio_modulation mod,
                                              unsigned int flags);
-static uint8_t ax5043_reset(AX5043Device device);
+static uint8_t ax5043_reset(rfchan device);
 
 // Global variables for radio physical layer.  These are used by the
 // radio and read by telemetry or the console
@@ -88,7 +88,7 @@ static const uint8_t axradio_phy_chanvcoiinit = 0x97;
 static uint8_t axradio_phy_chanpllrng[NUM_CHANNELS];
 static uint8_t axradio_phy_chanvcoi[NUM_CHANNELS];
 
-static void ax5043_ax25_set_modulation_base(AX5043Device device,
+static void ax5043_ax25_set_modulation_base(rfchan device,
                                             enum radio_modulation mod)
 {
     switch (mod) {
@@ -514,7 +514,7 @@ static void ax5043_ax25_set_modulation_base(AX5043Device device,
     }
 }
 
-static void ax5043_ax25_set_modulation_tx(AX5043Device device,
+static void ax5043_ax25_set_modulation_tx(rfchan device,
                                           enum radio_modulation mod)
 {
     switch (mod) {
@@ -536,7 +536,7 @@ static void ax5043_ax25_set_modulation_tx(AX5043Device device,
     }
 }
 
-static void ax5043_ax25_set_modulation_rx(AX5043Device device,
+static void ax5043_ax25_set_modulation_rx(rfchan device,
                                           enum radio_modulation mod)
 {
     switch (mod) {
@@ -557,7 +557,7 @@ static void ax5043_ax25_set_modulation_rx(AX5043Device device,
     }
 }
 
-void ax5043_ax25_set_modulation(AX5043Device device,
+void ax5043_ax25_set_modulation(rfchan device,
                                 enum radio_modulation mod,
                                 bool tx)
 {
@@ -572,7 +572,7 @@ void ax5043_ax25_set_modulation(AX5043Device device,
  * FIRST ALL OF THE SETTINGS THAT ARE COMMON TO BOTH BANDS AND FOR RX AND TX
  * Set all of the base registers
  */
-static void ax5043_ax25_set_registers(AX5043Device device,
+static void ax5043_ax25_set_registers(rfchan device,
                                       enum radio_modulation mod,
                                       unsigned int flags)
 {
@@ -827,7 +827,7 @@ static void ax5043_ax25_set_registers(AX5043Device device,
     ax5043_ax25_set_modulation_base(device, mod);
 }
 
-static void ax5043_ax25_init_registers(AX5043Device device,
+static void ax5043_ax25_init_registers(rfchan device,
                                        enum radio_modulation mod,
                                        unsigned int flags)
 {
@@ -850,7 +850,7 @@ static void ax5043_ax25_init_registers(AX5043Device device,
  * TODO - need to understand what this does.
  * It seems to get the VCO bias current
  */
-static uint8_t axradio_get_pllvcoi(AX5043Device device)
+static uint8_t axradio_get_pllvcoi(rfchan device)
 {
     if (axradio_phy_vcocalib) {
         uint8_t x = axradio_phy_chanvcoi[device];
@@ -877,7 +877,7 @@ static uint8_t axradio_get_pllvcoi(AX5043Device device)
  * the PLL again, but we have already done that.  It also seems to
  * read/write the VCO bias current
  */
-static uint8_t ax5043_ax25_init_registers_common(AX5043Device device)
+static uint8_t ax5043_ax25_init_registers_common(rfchan device)
 {
     uint8_t rng = axradio_phy_chanpllrng[device];
 
@@ -897,7 +897,7 @@ static uint8_t ax5043_ax25_init_registers_common(AX5043Device device)
     return AXRADIO_ERR_NOERROR;
 }
 
-static void axradio_wait_for_xtal(AX5043Device device)
+static void axradio_wait_for_xtal(rfchan device)
 {
     //printf("INFO: Waiting for crystal (axradio_wait_for_xtal)\n");
     while ((ax5043ReadReg(device, AX5043_XTALSTATUS) & 0x01) == 0) {
@@ -906,7 +906,7 @@ static void axradio_wait_for_xtal(AX5043Device device)
     //printf("INFO: Crystal is ready\n");
 }
 
-static void ax5043_set_pll_regs(AX5043Device device, unsigned int flags)
+static void ax5043_set_pll_regs(rfchan device, unsigned int flags)
 {
     uint8_t pllmode = 0x20; /* Always use the internal VCO. */
 
@@ -921,7 +921,7 @@ static void ax5043_set_pll_regs(AX5043Device device, unsigned int flags)
  * THEN THE SETTINGS THAT ARE JUST FOR THE TX
  */
 
-static void ax5043_ax25_set_registers_tx(AX5043Device device,
+static void ax5043_ax25_set_registers_tx(rfchan device,
                                          enum radio_modulation mod,
                                          unsigned int flags)
 {
@@ -946,7 +946,7 @@ static void ax5043_ax25_set_registers_tx(AX5043Device device,
      ax5043WriteReg(device, AX5043_0xF18, 0x06);
 }
 
-static uint8_t ax5043_ax25_init_registers_tx(AX5043Device device,
+static uint8_t ax5043_ax25_init_registers_tx(rfchan device,
                                              enum radio_modulation mod,
                                              unsigned int flags)
 {
@@ -954,7 +954,7 @@ static uint8_t ax5043_ax25_init_registers_tx(AX5043Device device,
     return ax5043_ax25_init_registers_common(device);
 }
 
-void ax5043_prepare_tx(AX5043Device device,
+void ax5043_prepare_tx(rfchan device,
                        enum radio_modulation mod,
                        unsigned int flags)
 {
@@ -972,7 +972,7 @@ void ax5043_prepare_tx(AX5043Device device,
  * THEN SETTINGS THAT ARE JUST FOR THE RX
  */
 
-static void ax5043_ax25_set_registers_rx(AX5043Device device,
+static void ax5043_ax25_set_registers_rx(rfchan device,
                                          enum radio_modulation mod,
                                          unsigned int flags)
 {
@@ -1006,7 +1006,7 @@ static void ax5043_ax25_set_registers_rx(AX5043Device device,
 /**
  * This is called once the ranging is complete.  It finalizes the registers for receive
  */
-static uint8_t ax5043_ax25_init_registers_rx(AX5043Device device,
+static uint8_t ax5043_ax25_init_registers_rx(rfchan device,
                                              enum radio_modulation mod,
                                              unsigned int flags)
 {
@@ -1014,7 +1014,7 @@ static uint8_t ax5043_ax25_init_registers_rx(AX5043Device device,
     return ax5043_ax25_init_registers_common(device);
 }
 
-static void ax5043_set_registers_rxcont(AX5043Device device)
+static void ax5043_set_registers_rxcont(rfchan device)
 {
     // Receiver AGC settling time.  Default is 00
     ax5043WriteReg(device, AX5043_TMGRXAGC, 0x00);
@@ -1024,7 +1024,7 @@ static void ax5043_set_registers_rxcont(AX5043Device device)
     ax5043WriteReg(device, AX5043_PKTMISCFLAGS, 0x00);
 }
 
-static uint8_t ax5043_receiver_on_continuous(AX5043Device device)
+static uint8_t ax5043_receiver_on_continuous(rfchan device)
 {
     uint8_t regValue;
 
@@ -1055,7 +1055,7 @@ static uint8_t ax5043_receiver_on_continuous(AX5043Device device)
  *
  * If everything works it returns success - AXRADIO_ERR_NOERROR
  */
-static uint8_t axradio_init(AX5043Device device, int32_t freq,
+static uint8_t axradio_init(rfchan device, int32_t freq,
                             enum radio_modulation mod,
                             unsigned int flags)
 {
@@ -1219,7 +1219,7 @@ static uint8_t axradio_init(AX5043Device device, int32_t freq,
 }
 
 
-static uint8_t modulation_tx(AX5043Device device,
+static uint8_t modulation_tx(rfchan device,
                              enum radio_modulation mod, unsigned int flags)
 {
     int retVal;
@@ -1238,7 +1238,7 @@ static uint8_t modulation_tx(AX5043Device device,
 }
 
 
-static uint8_t modulation_rx(AX5043Device device,
+static uint8_t modulation_rx(rfchan device,
                              enum radio_modulation mod, unsigned int flags)
 {
     int retVal;
@@ -1273,7 +1273,7 @@ static uint8_t modulation_rx(AX5043Device device,
  *
  * Returns RADIO_OK if all is well.
  */
-static uint8_t ax5043_reset(AX5043Device device)
+static uint8_t ax5043_reset(rfchan device)
 {
     //printf("INFO: Resetting AX5043 (ax5043_reset)\n");
     uint8_t i;
@@ -1304,7 +1304,7 @@ static uint8_t ax5043_reset(AX5043Device device)
     return RADIO_OK;
 }
 
-static unsigned int calc_flags(AX5043Device device, uint32_t freq,
+static unsigned int calc_flags(rfchan device, uint32_t freq,
                                unsigned int flags)
 {
     if (freq < 150000000) {
@@ -1343,7 +1343,7 @@ static unsigned int calc_flags(AX5043Device device, uint32_t freq,
     return flags;
 }
 
-void start_ax25_rx(AX5043Device device,
+void start_ax25_rx(rfchan device,
                    uint32_t freq,
                    enum radio_modulation mod,
                    unsigned int flags)
@@ -1352,7 +1352,7 @@ void start_ax25_rx(AX5043Device device,
 
     flags = calc_flags(device, freq, flags);
 
-    debug_print("Starting RX with AX5043Device %d, freq=%d, modulation=%s, flags=0x%x\n",
+    debug_print("Starting RX with rfchan %d, freq=%d, modulation=%s, flags=0x%x\n",
                 device, freq, modulation_to_str(mod), flags);
 
     //uint8_t retVal;
@@ -1377,7 +1377,7 @@ void start_ax25_rx(AX5043Device device,
     // ax5043 should be receiving packets now and interrupting on FIFO not empty
 }
 
-void start_ax25_tx(AX5043Device device,
+void start_ax25_tx(rfchan device,
                    uint32_t freq,
                    enum radio_modulation mod,
                    unsigned int flags)
@@ -1388,7 +1388,7 @@ void start_ax25_tx(AX5043Device device,
 
     flags = calc_flags(device, freq, flags);
 
-    debug_print("Starting TX with AX5043Device %d, freq=%d, modulation=%s, flags=0x%x\n",
+    debug_print("Starting TX with rfchan %d, freq=%d, modulation=%s, flags=0x%x\n",
                 device, freq, modulation_to_str(mod), flags);
 
     /* Get ready for TX */
@@ -1445,7 +1445,7 @@ void start_ax25_tx(AX5043Device device,
 
 // TODO - This is commented out in ax5043.h and called from TelemetryRadio.c
 // with the wrong parameters.
-void fifo_send_sync(AX5043Device device, int final)
+void fifo_send_sync(rfchan device, int final)
 {
     uint8_t i;
     uint8_t flags = 0x1C; // RAW, NOCRC, RESIDUE
@@ -1467,19 +1467,19 @@ void fifo_send_sync(AX5043Device device, int final)
     }
 }
 
-void fifo_commit(AX5043Device device)
+void fifo_commit(rfchan device)
 {
     ax5043WriteReg(device, AX5043_FIFOSTAT, 4);
     //  usleep(1000);
     vTaskDelay(1);
 }  
 
-void fifo_clear(AX5043Device device)
+void fifo_clear(rfchan device)
 {
     ax5043WriteReg(device, AX5043_FIFOSTAT, 3);
 }
 
-void fifo_repeat_byte(AX5043Device device, uint8_t b, uint8_t count,
+void fifo_repeat_byte(rfchan device, uint8_t b, uint8_t count,
                       uint8_t flags)
 {
     ax5043WriteReg(device, AX5043_FIFODATA, AX5043_FIFOCMD_REPEATDATA | (3 << 5));
@@ -1488,7 +1488,7 @@ void fifo_repeat_byte(AX5043Device device, uint8_t b, uint8_t count,
     ax5043WriteReg(device, AX5043_FIFODATA, b);
 }
 
-void fifo_queue_buffer(AX5043Device device, uint8_t *buf, uint8_t len,
+void fifo_queue_buffer(rfchan device, uint8_t *buf, uint8_t len,
                        uint8_t flags)
 {
     ax5043WriteReg(device, AX5043_FIFODATA, AX5043_FIFOCMD_DATA | (7 << 5));
@@ -1499,13 +1499,13 @@ void fifo_queue_buffer(AX5043Device device, uint8_t *buf, uint8_t len,
     }
 }
 
-uint16_t fifo_free(AX5043Device device)
+uint16_t fifo_free(rfchan device)
 {
     return (256*ax5043ReadReg(device, AX5043_FIFOFREE1)
             + ax5043ReadReg(device, AX5043_FIFOFREE0));
 }
 
-uint8_t get_rssi(AX5043Device device)
+uint8_t get_rssi(rfchan device)
 {
     int8_t byteVal;
     int16_t wordVal;
@@ -1531,7 +1531,7 @@ int32_t axradio_conv_freq_tohz(int32_t f)
 }
 
 
-void quick_setfreq(AX5043Device device, int32_t f)
+void quick_setfreq(rfchan device, int32_t f)
 {
     int32_t f1 = axradio_conv_freq_fromhz(f);
 
@@ -1545,7 +1545,7 @@ void quick_setfreq(AX5043Device device, int32_t f)
 }
 
 /* Takes a power as a percentage of full power. */
-void set_tx_power(AX5043Device device, uint32_t power)
+void set_tx_power(rfchan device, uint32_t power)
 {
     power = ((power * 4095) + 50) / 100;
     if (power > 0xfff)
@@ -1556,7 +1556,7 @@ void set_tx_power(AX5043Device device, uint32_t power)
 }
 
 /* Returns current power as a percentage of full power. */
-uint16_t get_tx_power(AX5043Device device)
+uint16_t get_tx_power(rfchan device)
 {
     uint32_t power;
 
@@ -1566,7 +1566,7 @@ uint16_t get_tx_power(AX5043Device device)
     return ((power * 100) + 2048) / 4095;
 }
 
-void test_freq(AX5043Device device, uint32_t freq,
+void test_freq(rfchan device, uint32_t freq,
                enum radio_modulation mod, unsigned int flags)
 {
     printf("Transmitting on freq: %d\n", freq);
@@ -1596,7 +1596,7 @@ void test_freq(AX5043Device device, uint32_t freq,
     }
 }
 
-void test_pll_2m_range(AX5043Device device, enum radio_modulation mod,
+void test_pll_2m_range(rfchan device, enum radio_modulation mod,
                        unsigned int flags)
 {
     int32_t i;

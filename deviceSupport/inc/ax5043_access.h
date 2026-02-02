@@ -14,25 +14,23 @@
 #include "spiDriver.h"
 
 
-typedef uint8_t AX5043Device;
-
-void ax5043StartRx(AX5043Device device,
+void ax5043StartRx(rfchan chan,
                    uint32_t freq, enum radio_modulation mod);
-void ax5043StopRx(AX5043Device device);
-void ax5043StartTx(AX5043Device device,
+void ax5043StopRx(rfchan chan);
+void ax5043StartTx(rfchan chan,
                    uint32_t freq, enum radio_modulation mod);
-void ax5043StopTx(AX5043Device device);
+void ax5043StopTx(rfchan chan);
 
-void ax5043PowerOn(AX5043Device device);
-void ax5043PowerOff(AX5043Device device);
-uint8_t ax5043_off(AX5043Device device);
-bool ax5043_rxing(AX5043Device device);
+void ax5043PowerOn(rfchan chan);
+void ax5043PowerOff(rfchan chan);
+uint8_t ax5043_off(rfchan chan);
+bool ax5043_rxing(rfchan chan);
 
-bool ax5043RxWorking(AX5043Device device);
-void ax5043Test(AX5043Device device);
-void ax5043Dump(AX5043Device device);
+bool ax5043RxWorking(rfchan chan);
+void ax5043Test(rfchan chan);
+void ax5043Dump(rfchan chan);
 
-unsigned int ax5043ReadReg(AX5043Device device, unsigned int reg);
-void ax5043WriteReg(AX5043Device device, unsigned int reg, unsigned int val);
+unsigned int ax5043ReadReg(rfchan chan, unsigned int reg);
+void ax5043WriteReg(rfchan chan, unsigned int reg, unsigned int val);
 
 #endif /* DRIVERS_INC_AX5043_ACCESS_H_ */

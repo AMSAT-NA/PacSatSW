@@ -229,7 +229,7 @@ commandPairs setupCommands[] = {
       "                       freq <devnum> [+|-]value[k|m]",
       Freq},
     { "test freq",
-      "xmit on frequency of specified device",
+      "xmit on frequency of specified channel",
       testFreq},
     { "txpow",
       "Get/set the tx power as a percentage 0-100\r\n"
@@ -614,19 +614,19 @@ static char *get_dev_modulation_str(uint8_t devb)
     return modulation_to_str(DCTModulation[devb]);
 }
 
-static int parse_devnum_de(char **str, AX5043Device *dev, int off, bool doerr)
+static int parse_chan_de(char **str, rfchan *dev, int off, bool doerr)
 {
     uint8_t devb;
     int err = parse_uint8(str, &devb, 0);
 
     if (err) {
         if (doerr)
-            printf("Invalid or missing device number\n");
+            printf("Invalid or missing channel number\n");
         return err;
     }
     if (devb >= NUM_CHANNELS - off) {
         if (doerr)
-            printf("Give a device number between 0 and %d\n",
+            printf("Give a channel number between 0 and %d\n",
                    NUM_CHANNELS - off);
         return -100;
     }
@@ -634,14 +634,14 @@ static int parse_devnum_de(char **str, AX5043Device *dev, int off, bool doerr)
     return 0;
 }
 
-static int parse_devnum_noerr(char **str, AX5043Device *dev, int off)
+static int parse_chan_noerr(char **str, rfchan *dev, int off)
 {
-    return parse_devnum_de(str, dev, off, false);
+    return parse_chan_de(str, dev, off, false);
 }
 
-static int parse_devnum(char **str, AX5043Device *dev, int off)
+static int parse_chan(char **str, rfchan *dev, int off)
 {
-    return parse_devnum_de(str, dev, off, true);
+    return parse_chan_de(str, dev, off, true);
 }
 
 void RealConsoleTask(void)
@@ -649,7 +649,7 @@ void RealConsoleTask(void)
     /* Block for 500ms. */
     char *afterCommand;
     bool DoEcho = true;
-    unsigned int chan;
+    rfchan chan;
 
     for (chan = 0; chan < NUM_CHANNELS; chan++) {
         DCTFreq[chan] = ReadMRAMFreq(chan);
@@ -953,29 +953,27 @@ void RealConsoleTask(void)
         }
 
         case Freq: {
-            AX5043Device dev;
-            int err = parse_devnum_noerr(&afterCommand, &dev, 0);
+            int err = parse_chan_noerr(&afterCommand, &chan, 0);
             uint32_t val, freq;
-            unsigned int i;
             char *t;
 
             if (err) {
-                for (i = 0; i < NUM_CHANNELS; i++)
+                for (chan = 0; chan < NUM_CHANNELS; chan++)
                     printf("%s%d--MRAM: %d, Memory: %d\n",
-                           is_tx_chan(i) ? "Tx" : "Rx", i,
-                           ReadMRAMFreq(i), DCTFreq[i]);
+                           is_tx_chan(chan) ? "Tx" : "Rx", chan,
+                           ReadMRAMFreq(chan), DCTFreq[chan]);
                 break;
             }
 
             t = next_token(&afterCommand);
             if (!t) {
-                printf("%s%d--MRAM: %d Memory: %d\n", dev,
-                       is_tx_chan(dev) ? "Tx" : "Rx", dev,
-                       ReadMRAMFreq(dev), DCTFreq[dev]);
+                printf("%s%d--MRAM: %d Memory: %d\n", chan,
+                       is_tx_chan(chan) ? "Tx" : "Rx", chan,
+                       ReadMRAMFreq(chan), DCTFreq[chan]);
                 break;
             }
 
-            freq = DCTFreq[dev];
+            freq = DCTFreq[chan];
             
             if (*t == '+') {
                 t++;
@@ -1000,31 +998,30 @@ void RealConsoleTask(void)
                     break;
                 }
             }
-            DCTFreq[dev] = freq;
-            WriteMRAMFreq(dev, DCTFreq[dev]);
-            quick_setfreq(dev, DCTFreq[dev]);
+            DCTFreq[chan] = freq;
+            WriteMRAMFreq(chan, DCTFreq[chan]);
+            quick_setfreq(chan, DCTFreq[chan]);
 
-            printf("Set %s%d=%d\n", is_tx_chan(dev) ? "Tx" : "Rx", dev,
-                   DCTFreq[dev]);
+            printf("Set %s%d=%d\n", is_tx_chan(chan) ? "Tx" : "Rx", chan,
+                   DCTFreq[chan]);
             break;
         }
 
         case TxPow: {
-            AX5043Device dev;
             uint8_t power;
-            int err = parse_devnum(&afterCommand, &dev, 0);
+            int err = parse_chan(&afterCommand, &chan, 0);
 
             if (err)
                 break;
             err = parse_uint8(&afterCommand, &power, 0);
             if (err) {
-                power = get_tx_power(dev);
-                printf("dev%u power = %d%%\n", dev, power);
+                power = get_tx_power(chan);
+                printf("chan%u power = %d%%\n", chan, power);
                 break;
             }
 
-            set_tx_power(dev, power);
-            printf("dev%u power set to %d%%\n", dev, power);
+            set_tx_power(chan, power);
+            printf("chan%u power set to %d%%\n", chan, power);
             break;
         }
 
@@ -1405,22 +1402,20 @@ void RealConsoleTask(void)
         }
 
         case startRx:{
-            AX5043Device dev;
-            int err = parse_devnum(&afterCommand, &dev, 1);
+            int err = parse_chan(&afterCommand, &chan, 1);
 
             if (err)
                 break;
-            ax5043StartRx(dev, DCTFreq[dev], DCTModulation[dev]);
+            ax5043StartRx(chan, DCTFreq[chan], DCTModulation[chan]);
             break;
         }
 
         case stopRx: {
-            AX5043Device dev;
-            int err = parse_devnum(&afterCommand, &dev, 1);
+            int err = parse_chan(&afterCommand, &chan, 1);
 
             if (err)
                 break;
-            ax5043StopRx(dev);
+            ax5043StopRx(chan);
             break;
         }
 
@@ -1544,18 +1539,16 @@ void RealConsoleTask(void)
         }
 
         case getax5043: {
-            AX5043Device dev;
-            int err = parse_devnum(&afterCommand, &dev, 0);
+            int err = parse_chan(&afterCommand, &chan, 0);
 
             if (err)
                 break;
-            ax5043Dump(dev);
+            ax5043Dump(chan);
             break;
         }
 
         case AxReg: {
-            AX5043Device dev;
-            int err = parse_devnum(&afterCommand, &dev, 0);
+            int err = parse_chan(&afterCommand, &chan, 0);
             uint16_t regstart;
             uint16_t regend;
             uint16_t i;
@@ -1573,10 +1566,10 @@ void RealConsoleTask(void)
             err = parse_uint8(&afterCommand, &val, 0);
             if (err) {
                 for (i = regstart; i <= regend; i++) {
-                    unsigned int val = ax5043ReadReg(dev, i);
+                    unsigned int val = ax5043ReadReg(chan, i);
 
                     printf("ax5043 %d reg 0x%3.3x = %3d (0x%2.2x)\n",
-                           dev, i, val, val);
+                           chan, i, val, val);
                 }
                 break;
             }
@@ -1585,49 +1578,46 @@ void RealConsoleTask(void)
                 break;
             }
 
-            ax5043WriteReg(dev, regstart, val);
+            ax5043WriteReg(chan, regstart, val);
             break;
         }
 
         case getRSSI: {
-            AX5043Device dev;
-            int err = parse_devnum(&afterCommand, &dev, 0);
+            int err = parse_chan(&afterCommand, &chan, 0);
 
             if (err)
                 break;
-            int rssi = get_rssi(dev);
-            printf("AX5043 Dev: %d RSSI is %02x = %d dBm\n",
-                   dev, rssi, ((int16_t)rssi) - 255);
+            int rssi = get_rssi(chan);
+            printf("Channel %d RSSI is %02x = %d dBm\n",
+                   chan, rssi, ((int16_t)rssi) - 255);
             break;
         }
 
         case testFreq: {
             // This is so we can find what the receive frequency is on
             // first build
-            AX5043Device dev;
-            int err = parse_devnum(&afterCommand, &dev, 0);
+            int err = parse_chan(&afterCommand, &chan, 0);
             uint32_t freq;
 
             if (err)
                 break;
 
-            freq = DCTFreq[dev];
+            freq = DCTFreq[chan];
 
-            printf("Testing TX for AX5043 Dev: %d\n", dev);
-            test_freq(dev, freq, MODULATION_AFSK_1200, 0);
+            printf("Testing TX for channel %d\n", chan);
+            test_freq(chan, freq, MODULATION_AFSK_1200, 0);
             break;
         }
 
         case testPLLrange: {
-            AX5043Device dev;
-            int err = parse_devnum(&afterCommand, &dev, 0);
+            int err = parse_chan(&afterCommand, &chan, 0);
 
             if (err)
                 break;
-            printf("Testing the PLL range for device: %d\n", dev);
+            printf("Testing the PLL range for channel: %d\n", chan);
 
             // test the range of the receiver on 2m
-            test_pll_2m_range(dev, MODULATION_GMSK_9600, 0);
+            test_pll_2m_range(chan, MODULATION_GMSK_9600, 0);
             break;
         }
 
@@ -1982,24 +1972,23 @@ void RealConsoleTask(void)
         }
 
         case Modulation: {
-            uint8_t devb;
             char *modstr;
             enum radio_modulation mod;
             int err;
 
-            err = parse_devnum_noerr(&afterCommand, &devb, 0);
+            err = parse_chan_noerr(&afterCommand, &chan, 0);
             if (err) {
-                for (devb = 0; devb < NUM_CHANNELS; devb++) {
-                    modstr = get_dev_modulation_str(devb);
-                    printf("device %d: %s\n", devb, modstr);
+                for (chan = 0; chan < NUM_CHANNELS; chan++) {
+                    modstr = get_dev_modulation_str(chan);
+                    printf("channel %d: %s\n", chan, modstr);
                 }
                 break;
             }
 
             modstr = next_token(&afterCommand);
             if (!modstr) {
-                modstr = get_dev_modulation_str(devb);
-                printf("device %d: %s\n", devb, modstr);
+                modstr = get_dev_modulation_str(chan);
+                printf("channel %d: %s\n", chan, modstr);
                 break;
             }
 
@@ -2013,20 +2002,20 @@ void RealConsoleTask(void)
                 break;
             }
 
-            printf("Setting Radio %u to %s.\n", devb, modstr);
+            printf("Setting Radio %u to %s.\n", chan, modstr);
 
-            WriteMRAMModulation(devb, mod);
-            DCTModulation[devb] = mod;
-            if (is_tx_chan(devb)) {
+            WriteMRAMModulation(chan, mod);
+            DCTModulation[chan] = mod;
+            if (is_tx_chan(chan)) {
                 /*
                  * Transmit task will set the mode as necessary so it
                  * doesn't change while transmitting.
                  */
                 tx_modulation = mod;
-            } else if (ax5043_rxing(devb)) {
-                ax5043StopRx(devb);
-                ax5043StartRx(devb, DCTFreq[devb],
-                              DCTModulation[devb]);
+            } else if (ax5043_rxing(chan)) {
+                ax5043StopRx(chan);
+                ax5043StartRx(chan, DCTFreq[chan],
+                              DCTModulation[chan]);
             }
             break;
         }

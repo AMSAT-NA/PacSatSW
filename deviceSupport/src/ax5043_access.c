@@ -46,14 +46,14 @@ static struct AX5043Info ax5043_info[NUM_CHANNELS] = {
     { .spidev = TxAX5043Dev },
 };
 
-static struct AX5043Info *ax5043_get_info(AX5043Device device)
+static struct AX5043Info *ax5043_get_info(rfchan device)
 {
     if (device >= NUM_CHANNELS)
         return NULL;
     return &ax5043_info[device];
 }
 
-void ax5043WriteReg(AX5043Device device, unsigned int reg, unsigned int val)
+void ax5043WriteReg(rfchan device, unsigned int reg, unsigned int val)
 {
     //spiDAT1_t dc = {.WDEL = false, .CS_HOLD = true, .DFSEL = SPI_FMT_0, .CSNR = 1 };
     uint8_t srcbuf[3];
@@ -79,7 +79,7 @@ void ax5043WriteReg(AX5043Device device, unsigned int reg, unsigned int val)
 #endif
 }
 
-static unsigned int ax5043ReadLongreg(AX5043Device device,
+static unsigned int ax5043ReadLongreg(rfchan device,
                                       unsigned int reg, int bytes)
 {
     uint8_t srcbuf[2];
@@ -104,12 +104,12 @@ static unsigned int ax5043ReadLongreg(AX5043Device device,
     return retval;
 }
 
-unsigned int ax5043ReadReg(AX5043Device device, unsigned int reg)
+unsigned int ax5043ReadReg(rfchan device, unsigned int reg)
 {
     return ax5043ReadLongreg(device, reg, 1);
 }
 
-bool ax5043RxWorking(AX5043Device device)
+bool ax5043RxWorking(rfchan device)
 {
     int power_mode = ax5043ReadReg(device, AX5043_PWRMODE);
 
@@ -117,7 +117,7 @@ bool ax5043RxWorking(AX5043Device device)
     return power_mode == AX5043_PWRSTATE_FULL_RX;
 }
 
-void ax5043Test(AX5043Device device)
+void ax5043Test(rfchan device)
 {
     ax5043WriteReg(device, AX5043_SCRATCH, device);
 
@@ -126,7 +126,7 @@ void ax5043Test(AX5043Device device)
            ax5043ReadReg(device, AX5043_SCRATCH));
 }
 
-void ax5043Dump(AX5043Device dev)
+void ax5043Dump(rfchan dev)
 {
     uint32_t val;
 
@@ -170,7 +170,7 @@ static Gpio_Use ax5043_power_gpio[NUM_CHANNELS] = {
 };
 #endif
 
-void ax5043PowerOn(AX5043Device device)
+void ax5043PowerOn(rfchan device)
 {
     struct AX5043Info *info = ax5043_get_info(device);
 
@@ -184,7 +184,7 @@ void ax5043PowerOn(AX5043Device device)
     vTaskDelay(CENTISECONDS(1)); // Don't try to mess with it for a bit
 }
 
-void ax5043PowerOff(AX5043Device device)
+void ax5043PowerOff(rfchan device)
 {
     struct AX5043Info *info = ax5043_get_info(device);
 
@@ -203,7 +203,7 @@ void ax5043PowerOff(AX5043Device device)
     info->txing = false;
 }
 
-bool ax5043_rxing(AX5043Device device)
+bool ax5043_rxing(rfchan device)
 {
     struct AX5043Info *info = ax5043_get_info(device);
 
@@ -213,7 +213,7 @@ bool ax5043_rxing(AX5043Device device)
     return info->rxing;
 }
 
-static uint8_t ax5043_off_xtal(AX5043Device device)
+static uint8_t ax5043_off_xtal(rfchan device)
 {
     ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_XTAL_ON);
     ax5043WriteReg(device, AX5043_LPOSCCONFIG, 0x00); // LPOSC off
@@ -221,7 +221,7 @@ static uint8_t ax5043_off_xtal(AX5043Device device)
     return AXRADIO_ERR_NOERROR;
 }
 
-uint8_t ax5043_off(AX5043Device device)
+uint8_t ax5043_off(rfchan device)
 {
     uint8_t retVal;
 
@@ -241,7 +241,7 @@ uint8_t ax5043_off(AX5043Device device)
  * command receiver.
  *
  */
-void ax5043StartRx(AX5043Device device,
+void ax5043StartRx(rfchan device,
                    uint32_t freq, enum radio_modulation mod)
 {
     struct AX5043Info *info = ax5043_get_info(device);
@@ -262,7 +262,7 @@ void ax5043StartRx(AX5043Device device,
     }
 }
 
-void ax5043StopRx(AX5043Device device)
+void ax5043StopRx(rfchan device)
 {
     struct AX5043Info *info = ax5043_get_info(device);
 
@@ -278,7 +278,7 @@ void ax5043StopRx(AX5043Device device)
     }
 }
 
-void ax5043StartTx(AX5043Device device,
+void ax5043StartTx(rfchan device,
                    uint32_t freq, enum radio_modulation mod)
 {
     struct AX5043Info *info = ax5043_get_info(device);
@@ -301,7 +301,7 @@ void ax5043StartTx(AX5043Device device,
     }
 }
 
-void ax5043StopTx(AX5043Device device)
+void ax5043StopTx(rfchan device)
 {
     struct AX5043Info *info = ax5043_get_info(device);
 
