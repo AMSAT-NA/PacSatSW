@@ -396,14 +396,6 @@ struct axradio_address_mask {
     uint8_t mask[4];
 };
 
-//unsigned int ax5043ReadReg(unsigned int reg);
-//void ax5043WriteReg(unsigned int reg, unsigned int val);
-
-//void ax5043_prepare_tx(rfchan chan, bool rate_9600);
-uint32_t ReadMRAMTelemFreq(void);
-
-int32_t axradio_conv_freq_tohz(int32_t f);
-
 struct axradio_address {
     uint8_t addr[4];
 };

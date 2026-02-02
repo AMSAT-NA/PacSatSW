@@ -1512,24 +1512,16 @@ uint8_t get_rssi(rfchan device)
 
     byteVal = (int8_t) ax5043ReadReg(device, AX5043_RSSI);
     wordVal = (int16_t) byteVal;
-    wordVal -=64;
-    wordVal +=255;
+    wordVal -= 64;
+    wordVal += 255;
 
     return (uint8_t)wordVal;
 }
 
-
-int32_t axradio_conv_freq_fromhz(int32_t f)
+static int32_t axradio_conv_freq_fromhz(int32_t f)
 {
     return (int32_t) (f * 1.048576);
 }
-
-
-int32_t axradio_conv_freq_tohz(int32_t f)
-{
-    return (int32_t) (f / 1.048576);
-}
-
 
 void quick_setfreq(rfchan device, int32_t f)
 {

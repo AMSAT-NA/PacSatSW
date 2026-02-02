@@ -24,7 +24,6 @@
 
 //Pacsat headers
 #include "spiDriver.h"
-#include "ax5043.h"
 #include "ax5043_access.h"
 #include "ax5043-ax25.h"
 
@@ -124,6 +123,11 @@ void ax5043Test(rfchan device)
     printf("AX5043 #%d: Revision=0x%x, scratch=%d\n", device,
            ax5043ReadReg(device, AX5043_SILICONREVISION),
            ax5043ReadReg(device, AX5043_SCRATCH));
+}
+
+static int32_t axradio_conv_freq_tohz(int32_t f)
+{
+    return (int32_t) (f / 1.048576);
 }
 
 void ax5043Dump(rfchan dev)
