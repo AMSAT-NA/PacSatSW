@@ -35,7 +35,6 @@ static uint8_t PAPowerFlagCnt = 0;
 static uint8_t AX5043PowerFlagCnt = 0;
 
 static rx_radio_buffer_t rx_radio_buffer;
-static rx_radio_buffer_t EMPTY_RADIO_BUFFER;
 extern bool monitorPackets;
 
 /* Forward declarations */
@@ -251,9 +250,6 @@ void process_fifo(rfchan chan)
                     debug_print("RX QUEUE FULL: Could not add to Packet Queue\n");
                     // TODO - we should log this error and downlink in telemetry
                 }
-#ifdef DEBUG
-                rx_radio_buffer = EMPTY_RADIO_BUFFER;
-#endif
             } else {
                 //debug_print("FIFO MESSAGE: %d LEN:%d\n",fifo_cmd,len);
             }
