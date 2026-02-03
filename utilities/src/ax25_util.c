@@ -159,7 +159,8 @@ int encode_call(char *name, uint8_t *buf, int final_call, int command)
 uint8_t ax25_decode_packet(uint8_t *packet, int len,
                            AX25_PACKET *decoded_packet)
 {
-    if (len < 16) return 0;
+    if (len < 15)
+        return 0;
 
     int final_call = false;
     int destBit = false;
@@ -190,7 +191,8 @@ uint8_t ax25_decode_packet(uint8_t *packet, int len,
     }
 
     if (!final_call) {
-        if (len < 23) return 0;
+        if (len < 22)
+            return 0;
         decode_call_and_command(&packet[14], decoded_packet->via_callsign,
                                 &final_call, &repeatedBit);
         if (!final_call) {
