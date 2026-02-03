@@ -28,8 +28,8 @@ uint8_t get_rssi(rfchan chan);
 uint16_t get_tx_power(rfchan chan);
 void test_freq(rfchan chan, uint32_t freq,
                enum radio_modulation modulation, unsigned int flags);
-void test_pll_2m_range(rfchan chan, enum radio_modulation modulation,
-                       unsigned int flags);
-
+void test_pll_range(rfchan chan, enum radio_modulation modulation,
+                    unsigned int flags, uint32_t start, uint32_t end,
+                    uint32_t incr);
 
 #endif /* DRIVERS_INC_AX5043_ACCESS_H_ */

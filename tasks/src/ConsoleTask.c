@@ -243,7 +243,8 @@ commandPairs setupCommands[] = {
       "Flash the LEDs in order",
       testLED},
     { "test mram",
-      "Write and read mram with n blocksize (4,8,16,32,64,128)",testAllMRAM},
+      "Write and read mram with n blocksize (4,8,16,32,64,128)",
+      testAllMRAM},
     {"load key",
      "Load an authorization key for uplink commands",
      LoadKey},
@@ -313,7 +314,8 @@ commandPairs debugCommands[] = {
       "Read the revision and scratch registers",
       testAX5043},
     { "test pll",
-      "test ax5043 PLL frequency range",
+      "test ax5043 PLL frequency range\r\n"
+      "                       test pll <chan> <start_freq> <stop freq> [<incr>]",
       testPLLrange},
     { "start rx",
       "Start up the 5043 receiver",
@@ -1609,13 +1611,28 @@ void RealConsoleTask(void)
 
         case testPLLrange: {
             int err = parse_chan(&afterCommand, &chan, 0);
+            uint32_t start, end, incr;
 
             if (err)
                 break;
-            printf("Testing the PLL range for channel: %d\n", chan);
+            err = parse_freq(&afterCommand, &start);
+            if (err) {
+                printf("Missing or invalid start frequency\n");
+                break;
+            }
+            err = parse_freq(&afterCommand, &end);
+            if (err) {
+                printf("Missing or invalid end frequency\n");
+                break;
+            }
+            err = parse_freq(&afterCommand, &incr);
+            if (err)
+                incr = 1000000;
+            printf("Testing the PLL range from %u to %u incr %u for channel: %d\n",
+                   start, end, incr, chan);
 
             // test the range of the receiver on 2m
-            test_pll_2m_range(chan, MODULATION_GMSK_9600, 0);
+            test_pll_range(chan, MODULATION_GMSK_9600, 0, start, end, incr);
             break;
         }
 
