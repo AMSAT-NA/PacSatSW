@@ -453,7 +453,7 @@ commandPairs commonCommands[] = {
     { "rtc",
       "Get the status and time from the Real Time Clock",
       getRtc},
-    { "modul",
+    { "mod",
       "Get/set the radio to 1200 bps AFSK or 9600 GMSK\r\n"
       "                       mode [<dev> [1200|9600]]",
       Modulation},
