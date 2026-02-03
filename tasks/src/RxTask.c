@@ -168,15 +168,20 @@ static void handle_fifo_data(rfchan chan, uint8_t fifo_flags, uint8_t len)
         debug_print("ERROR in received FIFO Flags\n");
     }
 
-    /* Store the length byte  */
-    // remove the flag byte from the length
-    rx_radio_buffer.len = len - 1;
-    while (len--) {
+    for (loc = 0; loc < len; loc++)
         rx_radio_buffer.bytes[loc] = ax5043ReadReg(chan, AX5043_FIFODATA);
-        loc++;
+
+    if (len < 2) {
+        /* Shouldn't happen, the CRC at the end is still there. */
+        /* TODO - log this? */
+        return;
     }
+
+    rx_radio_buffer.len = len - 2; // Remove the CRC, flags are already gone.
+
     if (monitorPackets) {
         char rx_str[10];
+
         snprintf(rx_str, sizeof(rx_str), "RX[%d]", chan);
         print_packet(rx_str, &rx_radio_buffer.bytes[0],
                      rx_radio_buffer.len);
@@ -204,7 +209,8 @@ static void handle_fifo_data(rfchan chan, uint8_t fifo_flags, uint8_t len)
 void process_fifo(rfchan chan)
 {
     if (!rx_working(chan)) {
-        //printf("AX5043 Interrupt in pwrmode: %02x\n", ax5043ReadReg(AX5043_PWRMODE));
+        //printf("AX5043 Interrupt in pwrmode: %02x\n",
+        //       ax5043ReadReg(AX5043_PWRMODE));
         return;
     }
 
@@ -216,8 +222,6 @@ void process_fifo(rfchan chan)
 
     // FIFO not empty
     if ((ax5043ReadReg(chan, AX5043_FIFOSTAT) & 0x01) != 1) {
-        //debug_print("FIFO NOT EMPTY\n");
-        // read command
         uint8_t fifo_cmd = ax5043ReadReg(chan, AX5043_FIFODATA);
         uint8_t fifo_flags;
         // top 3 bits encode payload len
