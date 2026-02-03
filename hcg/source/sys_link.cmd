@@ -85,9 +85,14 @@ SECTIONS
     .heap  : {
         /* Use the rest of RAM for the heap. */
         _heap_start = .;
-	. += 4;
+        . += 4;
         _heap_end = 0x8020000;
     } > RAM
+    .flash : {
+        _flash_last = .;
+        . += 4;
+        _flash_end = 0xc0000;
+    } >FLASH0
 /* USER CODE END */
 }
 

@@ -458,10 +458,12 @@ void printID(void){
     printf("Free heap size is %d\n",xPortGetFreeHeapSize());
     {
         uint32_t *addr= (uint32_t *)0xf008015c,value,megs,kilos;
+        extern char _flash_last[], _flash_end[];
         value = ((*addr) & 0xFFFF);
         megs = value/1024;
         kilos = value % 1024;
-        printf("Flash memory size %dMb+%dKb\n",megs,kilos);
+        printf("Flash memory size %dMb+%dKb, %d free\n",megs,kilos,
+               _flash_end - _flash_last);
         printf("MRAM config data partition size=%d, file system size=%d\n",
                getSizeNV(NVConfigData), getSizeNV(NVFileSystem));
     }
