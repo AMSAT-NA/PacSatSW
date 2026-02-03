@@ -100,8 +100,6 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
         start_rx(chan, ReadMRAMFreq(chan), ReadMRAMModulation(chan));
     }
 
-    GPIOSetOn(LED2);
-
     while (true) {
         Intertask_Message messageReceived;
         int status = 0;
@@ -110,6 +108,7 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
         // This is triggered when there is RX data on the FIFO
         status = WaitInterTask(ToRxTask, CENTISECONDS(10), &messageReceived);
         ReportToWatchdog(CurrentTaskWD);
+        GPIOSetOff(LED2);
 
         if (monitorPackets) {
             uint8_t rssi;
@@ -182,7 +181,6 @@ static void handle_fifo_data(rfchan chan, uint8_t fifo_flags, uint8_t len)
         print_packet(rx_str, &rx_radio_buffer.bytes[0],
                      rx_radio_buffer.len);
     }
-    GPIOSetOff(LED2);
 
     // Store the channel here - same as device id
     rx_radio_buffer.channel = chan;
@@ -239,6 +237,7 @@ void process_fifo(rfchan chan)
         len--;
 
         if (fifo_cmd == AX5043_FIFOCMD_DATA) {
+            GPIOSetOn(LED2);
             handle_fifo_data(chan, fifo_flags, len);
         } else {
             //debug_print("FIFO MESSAGE: %d LEN:%d\n",fifo_cmd,len);
