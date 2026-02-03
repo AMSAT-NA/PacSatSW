@@ -475,7 +475,7 @@ void printID(void){
 
 void printHelp(char *search,commandPairs *commands, int numberOfCommands)
 {
-    int commandNum,sizeCmd,numSpace,space;
+    int commandNum, sizeCmd, numSpace;
 
     for (commandNum = 0; commandNum < numberOfCommands; commandNum++) {
         char *command = commands[commandNum].typedCommand;
@@ -489,9 +489,9 @@ void printHelp(char *search,commandPairs *commands, int numberOfCommands)
         sizeCmd = strlen(command);
         numSpace = 20 - sizeCmd;
         printf("%s", command);
-        for(space=0; space < numSpace; space++){
-            printf(" ");
-        }
-        printf("%s\n", commands[commandNum].help);
+        printf("%*s%s\n", numSpace, "", commands[commandNum].help);
+	if (commands[commandNum].help2) {
+	    printf("%22s%s %s\n", "", command, commands[commandNum].help2);
+	}
     }
 }

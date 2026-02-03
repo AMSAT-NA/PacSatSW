@@ -12,10 +12,11 @@
 #include "serialDriver.h"
 
 typedef struct _commandPairs {
-    char * typedCommand;
-    char * help;
+    char *typedCommand;
+    char *help;
     //CommandIndex
     int indexVal;
+    char *help2;
 } commandPairs;
 
 void printHelp(char *search,commandPairs *commands, int numberOfCommands);
