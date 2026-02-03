@@ -98,7 +98,6 @@ extern bool InSafeMode, InScienceMode, InHealthMode;
 extern bool TransponderEnabled, onOrbit, SimDoppler;
 extern resetMemory_t SaveAcrossReset;
 extern char *ErrMsg[];
-extern bool monitorPackets;
 
 bool TestPlayDead = false;
 
@@ -260,7 +259,7 @@ commandPairs pacsatCommands[] = {
     { "monitor",
       "Enable/disable monitoring of sent and received packets",
       Monitor,
-      "[on|off]",
+      "[on|off|rx [on|off]|rssi [on|off]|tx [on|off]|packet [on|off]",
     },
     { "shut pb",
       "Shut the PB",
@@ -1772,14 +1771,51 @@ void RealConsoleTask(void)
 
         case Monitor: {
             bool val;
-            int err = parse_bool(&afterCommand, &val);
+            int err;
+            char *t = next_token(&afterCommand);
 
-            if (err) {
-                printf("Packet monitor is %s\n", monitorPackets ? "on" : "off");
+            if (!t) {
+                printf("Packet Rx: %s\n", monitorRxPackets ? "on" : "off");
+                printf("Packet RSSI: %s\n", monitorRSSI ? "on" : "off");
+                printf("Packet Tx: %s\n", monitorTxPackets ? "on" : "off");
                 break;
             }
-            monitorPackets = val;
-            printf("Setting packet monitor %s\n", val ? "on" : "off");
+            if (strcmp(t, "on") == 0) {
+                monitorRxPackets = true;
+                monitorRSSI = true;
+                monitorTxPackets = true;
+                printf("All packet monitors on\n");
+            } else if (strcmp(t, "off") == 0) {
+                monitorRxPackets = false;
+                monitorRSSI = false;
+                monitorTxPackets = false;
+                printf("All packet monitors off\n");
+            } else if (strcmp(t, "packet") == 0) {
+                err = parse_bool(&afterCommand, &val);
+                if (!err) {
+                    monitorRxPackets = val;
+                    monitorTxPackets = val;
+                }
+                printf("Packet Rx: %s\n", monitorRxPackets ? "on" : "off");
+            } else if (strcmp(t, "rx") == 0) {
+                err = parse_bool(&afterCommand, &val);
+                if (!err)
+                    monitorRxPackets = val;
+                printf("Packet Rx: %s\n", monitorRxPackets ? "on" : "off");
+            } else if (strcmp(t, "tx") == 0) {
+                err = parse_bool(&afterCommand, &val);
+                if (!err)
+                    monitorTxPackets = val;
+                printf("Packet Tx: %s\n", monitorTxPackets ? "on" : "off");
+            } else if (strcmp(t, "rssi") == 0) {
+                err = parse_bool(&afterCommand, &val);
+                if (!err)
+                    monitorRSSI = val;
+                printf("Packet RSSI: %s\n", monitorRSSI ? "on" : "off");
+            } else {
+                printf("Unknown setting: %s\n", t);
+                break;
+            }
             break;
         }
 

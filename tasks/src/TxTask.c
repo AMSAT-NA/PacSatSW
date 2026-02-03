@@ -41,7 +41,6 @@ static bool tx_make_packet(AX25_PACKET *packet,
 
 static rfchan txchan = FIRST_TX_CHANNEL;
 
-extern bool monitorPackets;
 enum radio_modulation tx_modulation;
 
 bool inhibitTransmit;
@@ -136,7 +135,7 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
                 curr_modulation = tx_modulation;
             }
 
-            if (monitorPackets)
+            if (monitorTxPackets)
                 print_packet("TX", tx_packet_buffer.bytes, tx_packet_buffer.len);
 
             //printf("FIFO_FREE 1: %d\n",fifo_free());

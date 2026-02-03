@@ -33,8 +33,6 @@
 /* Local variables */
 static rx_radio_buffer_t rx_radio_buffer;
 
-extern bool monitorPackets;
-
 /* Forward declarations */
 void process_fifo(rfchan chan);
 
@@ -110,7 +108,7 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
         ReportToWatchdog(CurrentTaskWD);
         GPIOSetOff(LED2);
 
-        if (monitorPackets) {
+        if (monitorRSSI) {
             uint8_t rssi;
             int16_t dbm;
             rfchan chan;
@@ -179,7 +177,7 @@ static void handle_fifo_data(rfchan chan, uint8_t fifo_flags, uint8_t len)
 
     rx_radio_buffer.len = len - 2; // Remove the CRC, flags are already gone.
 
-    if (monitorPackets) {
+    if (monitorRxPackets) {
         char rx_str[10];
 
         snprintf(rx_str, sizeof(rx_str), "RX[%d]", chan);
@@ -214,7 +212,7 @@ void process_fifo(rfchan chan)
         return;
     }
 
-    if (monitorPackets)
+    if (monitorRxPackets)
         debug_print("RX channel: %d Interrupt while in FULL_RX mode\n", chan);
     //printf("IRQREQUEST1: %02x\n", ax5043ReadReg(AX5043_IRQREQUEST1));
     //printf("IRQREQUEST0: %02x\n", ax5043ReadReg(AX5043_IRQREQUEST0));
