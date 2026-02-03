@@ -116,7 +116,6 @@ static xTimerHandle timerT3[NUM_RX_CHANNELS];
 
 static rx_radio_buffer_t ax25_radio_buffer; /* Static storage for packets from the radio */
 static AX25_data_link_state_machine_t data_link_state_machine[NUM_RX_CHANNELS];
-static const AX25_PACKET EMPTY_PACKET; /* Use this to reset packet to zero */
 static AX25_event_t ax25_received_event; /* Static storage for received event */
 static AX25_event_t send_event_buffer; /* Static storage for event we are sending */
 static AX25_event_t timer_event; /* Static storage for timer events */
@@ -126,6 +125,11 @@ static bool seize_requested[NUM_RX_CHANNELS];
 
 static char *rx_channel_names[] = {"A", "B", "C", "D"};
 static char *state_names[] = {"DISC","AWAIT CONN","AWAIT REL","CONN", "TIMER REC", "AWAIT_22_CONN"};
+
+static void clear_packet(AX25_PACKET *packet)
+{
+    memset(packet, 0, sizeof(*packet));
+}
 
 portTASK_FUNCTION_PROTO(Ax25Task, pvParameters)
 {
@@ -435,7 +439,7 @@ void ax25_process_lm_frame(uint8_t channel)
                  * Send a DM with P=1 as we can not accept a
                  * connection or other frames
                  */
-                state->response_packet = EMPTY_PACKET;
+                clear_packet(&state->response_packet);
                 state->response_packet.PF = 1;
                 ax25_send_response(channel, TYPE_U_DM, from_callsign,
                                    &state->response_packet, NOT_EXPEDITED);
@@ -705,7 +709,7 @@ void ax25_state_disc_packet(AX25_data_link_state_machine_t *state,
         }
         case TYPE_U_DISC : {
             trace_dl("UA\n");
-            state->response_packet = EMPTY_PACKET;
+            clear_packet(&state->response_packet);
             state->response_packet.PF = packet->PF & 0b1;
             ax25_send_response(state->channel, TYPE_U_DM, state->callsign,
                                &state->response_packet, NOT_EXPEDITED);
@@ -713,7 +717,7 @@ void ax25_state_disc_packet(AX25_data_link_state_machine_t *state,
         }
         case TYPE_U_SABM : {
             trace_dl("SABM\n");
-            state->response_packet = EMPTY_PACKET;
+            clear_packet(&state->response_packet);
             // Set version 2.0 - we already have the default values of
             // MODULO 8 and no SREJ.
             state->response_packet.PF = packet->PF & 0b1;
@@ -741,7 +745,7 @@ void ax25_state_disc_packet(AX25_data_link_state_machine_t *state,
             trace_dl("SABME - V2.2 NOT SUPPORTED\n");
             // We dont support v2.2 yet, so send FRMR and remain in
             // disconnected dl_state.
-            state->response_packet = EMPTY_PACKET;
+            clear_packet(&state->response_packet);
             state->response_packet.PF = packet->PF & 0b1;
             ax25_send_response(state->channel, TYPE_U_FRMR, state->callsign,
                                &state->response_packet, NOT_EXPEDITED);
@@ -750,7 +754,7 @@ void ax25_state_disc_packet(AX25_data_link_state_machine_t *state,
         default:
             // All other commands get a DM
             if (packet->command) {
-                state->response_packet = EMPTY_PACKET;
+                clear_packet(&state->response_packet);
                 state->response_packet.PF = packet->PF & 0b1;
                 ax25_send_response(state->channel, TYPE_U_DM, state->callsign,
                                    &state->response_packet, NOT_EXPEDITED);
@@ -792,7 +796,7 @@ void ax25_state_wait_conn_prim(AX25_data_link_state_machine_t *state,
             discard_iframe_queue(state);
             state->RC = 0;
             // DISC P = 1
-            state->response_packet = EMPTY_PACKET;
+            clear_packet(&state->response_packet);
             state->response_packet.PF = 1;
             ax25_send_response(state->channel, TYPE_U_DISC, state->callsign,
                                &state->response_packet, NOT_EXPEDITED);
@@ -854,7 +858,7 @@ void ax25_state_wait_conn_prim(AX25_data_link_state_machine_t *state,
              } else {
                  state->RC += 1;
                  // SABM P = 1
-                 state->response_packet = EMPTY_PACKET;
+                 clear_packet(&state->response_packet);
                  state->response_packet.PF = 1;
                  ax25_send_response(state->channel, TYPE_U_SABM,
                                     state->callsign, &state->response_packet,
@@ -881,7 +885,7 @@ void ax25_state_wait_conn_packet(AX25_data_link_state_machine_t *state,
             trace_dl("UI\n");
             trace_dl("UI Not implemented\n");
             if (packet->PF == 1) {
-                state->response_packet = EMPTY_PACKET; // zero out the packet
+                clear_packet(&state->response_packet);
                 state->response_packet.PF = 1;
                 ax25_send_response(state->channel, TYPE_U_DM, state->callsign,
                                    &state->response_packet, NOT_EXPEDITED);
@@ -890,7 +894,7 @@ void ax25_state_wait_conn_packet(AX25_data_link_state_machine_t *state,
         }
         case TYPE_U_SABM : {
             trace_dl("SABM\n");
-            state->response_packet = EMPTY_PACKET; // zero out the packet
+            clear_packet(&state->response_packet);
             state->response_packet.PF = packet->PF & 0b1;
             ax25_send_response(state->channel, TYPE_U_UA, state->callsign,
                                &state->response_packet, EXPEDITED);
@@ -898,7 +902,7 @@ void ax25_state_wait_conn_packet(AX25_data_link_state_machine_t *state,
         }
         case TYPE_U_SABME : {
             trace_dl("SABME\n");
-            state->response_packet = EMPTY_PACKET; // zero out the packet
+            clear_packet(&state->response_packet);
             state->response_packet.PF = packet->PF & 0b1;
             ax25_send_response(state->channel, TYPE_U_FRMR, state->callsign,
                                &state->response_packet, EXPEDITED);
@@ -908,7 +912,7 @@ void ax25_state_wait_conn_packet(AX25_data_link_state_machine_t *state,
         }
         case TYPE_U_DISC : {
             trace_dl("DISC\n");
-            state->response_packet = EMPTY_PACKET; // zero out the packet
+            clear_packet(&state->response_packet);
             state->response_packet.PF = packet->PF & 0b1;
             ax25_send_response(state->channel, TYPE_U_DM, state->callsign,
                                &state->response_packet, EXPEDITED);
@@ -970,7 +974,7 @@ void ax25_state_wait_release_prim(AX25_data_link_state_machine_t *state,
     //trace_dl("AX25: STATE WAIT RELEASE (prim): ");
     switch (event->primitive) {
         case DL_DISCONNECT_Request : {
-            state->response_packet = EMPTY_PACKET; // zero out the packet
+            clear_packet(&state->response_packet);
             state->response_packet.PF = 0;
             ax25_send_response(state->channel, TYPE_U_DM, state->callsign,
                                &state->response_packet, EXPEDITED);
@@ -986,7 +990,7 @@ void ax25_state_wait_release_prim(AX25_data_link_state_machine_t *state,
              } else {
                  state->RC += 1;
                  // DISC P = 1
-                 state->response_packet = EMPTY_PACKET;
+                 clear_packet(&state->response_packet);
                  state->response_packet.PF = 1;
                  ax25_send_response(state->channel, TYPE_U_DISC, state->callsign,
                                     &state->response_packet, NOT_EXPEDITED);
@@ -1023,7 +1027,7 @@ void ax25_state_wait_release_packet(AX25_data_link_state_machine_t *state,
         }
         case TYPE_U_SABM : {
             trace_dl("SABM\n");
-            state->response_packet = EMPTY_PACKET; // zero out the packet
+            clear_packet(&state->response_packet);
             state->response_packet.PF = packet->PF & 0b1;
             ax25_send_response(state->channel, TYPE_U_DM, state->callsign,
                                &state->response_packet, EXPEDITED);
@@ -1032,7 +1036,7 @@ void ax25_state_wait_release_packet(AX25_data_link_state_machine_t *state,
         case TYPE_U_SABME : {
             trace_dl("SABME - V2.2 NOT SUPPORTED\n");
             // We dont support v2.2 yet, so send FRMR and remain in dl_state.
-            state->response_packet = EMPTY_PACKET; // zero out the packet
+            clear_packet(&state->response_packet);
             state->response_packet.PF = packet->PF & 0b1;
             ax25_send_response(state->channel, TYPE_U_FRMR, state->callsign,
                                &state->response_packet, EXPEDITED);
@@ -1040,7 +1044,7 @@ void ax25_state_wait_release_packet(AX25_data_link_state_machine_t *state,
         }
         case TYPE_U_DISC : {
             trace_dl("UA\n");
-            state->response_packet = EMPTY_PACKET; // zero out the packet
+            clear_packet(&state->response_packet);
             state->response_packet.PF = packet->PF & 0b1;
             ax25_send_response(state->channel, TYPE_U_UA, state->callsign,
                                &state->response_packet, EXPEDITED);
@@ -1060,7 +1064,7 @@ void ax25_state_wait_release_packet(AX25_data_link_state_machine_t *state,
             trace_dl("UI\n");
             trace_dl("UI Not implemented\n");
             if (packet->PF == 1) {
-                state->response_packet = EMPTY_PACKET; // zero out the packet
+                clear_packet(&state->response_packet);
                 state->response_packet.PF = 1;
                 ax25_send_response(state->channel, TYPE_U_DM, state->callsign,
                                    &state->response_packet, NOT_EXPEDITED);
@@ -1073,7 +1077,7 @@ void ax25_state_wait_release_packet(AX25_data_link_state_machine_t *state,
         case TYPE_S_REJ: {
             trace_dl("I, RR, RNR or REJ\n");
             if (packet->PF == 1) {
-                state->response_packet = EMPTY_PACKET; // zero out the packet
+                clear_packet(&state->response_packet);
                 state->response_packet.PF = 1;
                 ax25_send_response(state->channel, TYPE_U_DM, state->callsign,
                                    &state->response_packet, NOT_EXPEDITED);
@@ -1085,7 +1089,7 @@ void ax25_state_wait_release_packet(AX25_data_link_state_machine_t *state,
             if (packet->command == AX25_COMMAND) {
                 // The flow chart specifies SREJ Commands
                 if (packet->PF == 1) {
-                    state->response_packet = EMPTY_PACKET; // zero out the packet
+                    clear_packet(&state->response_packet);
                     state->response_packet.PF = 1;
                     ax25_send_response(state->channel, TYPE_U_DM,
                                        state->callsign, &state->response_packet,
@@ -1115,7 +1119,7 @@ void ax25_state_connected_prim(AX25_data_link_state_machine_t *state,
             discard_iframe_queue(state);
             state->RC = 0;
             // DISC P = 1
-            state->response_packet = EMPTY_PACKET;
+            clear_packet(&state->response_packet);
             state->response_packet.PF = 1;
             ax25_send_response(state->channel, TYPE_U_DISC, state->callsign,
                                &state->response_packet, NOT_EXPEDITED);
@@ -1199,7 +1203,7 @@ void ax25_state_connected_packet(AX25_data_link_state_machine_t *state,
     switch (packet->frame_type) {
         case TYPE_U_SABM : {
             trace_dl("SABM\n");
-            state->response_packet = EMPTY_PACKET; // zero out the packet
+            clear_packet(&state->response_packet);
             state->response_packet.PF = packet->PF &0b1;
             // Set version 2.0 - we already have the default values of
             // MODULO 8 and no SREJ.
@@ -1227,7 +1231,7 @@ void ax25_state_connected_packet(AX25_data_link_state_machine_t *state,
         case TYPE_U_SABME : {
             trace_dl("SABME - NOT SUPPORTED YET\n");
             // We dont support v2.2 yet, so send FRMR and remain in connected dl_state.
-            state->response_packet = EMPTY_PACKET; // zero out the packet
+            clear_packet(&state->response_packet);
             state->response_packet.PF = packet->PF & 0b1;
             ax25_send_response(state->channel, TYPE_U_FRMR, state->callsign,
                                &state->response_packet, NOT_EXPEDITED);
@@ -1258,7 +1262,7 @@ void ax25_state_connected_packet(AX25_data_link_state_machine_t *state,
         case TYPE_U_DISC : {
             trace_dl("DISC\n");
             discard_iframe_queue(state);
-            state->response_packet = EMPTY_PACKET; // zero out the packet
+            clear_packet(&state->response_packet);
             state->response_packet.PF = packet->PF &0b1;
             ax25_send_response(state->channel, TYPE_U_UA, state->callsign, &state->response_packet, NOT_EXPEDITED);
             ax25_send_event(state, DL_DISCONNECT_Indicate, packet, NO_ERROR);
@@ -1338,7 +1342,7 @@ void ax25_state_timer_rec_prim(AX25_data_link_state_machine_t *state,
             discard_iframe_queue(state);
             state->RC = 0;
             // DISC P = 1
-            state->response_packet = EMPTY_PACKET;
+            clear_packet(&state->response_packet);
             state->response_packet.PF = 1;
             ax25_send_response(state->channel, TYPE_U_DISC, state->callsign,
                                &state->response_packet, NOT_EXPEDITED);
@@ -1403,7 +1407,7 @@ void ax25_state_timer_rec_prim(AX25_data_link_state_machine_t *state,
                                 NO_ERROR); // Tell Layer 3 link is dead
                 discard_iframe_queue(state);
                 // Send DM Response F=0
-                state->response_packet = EMPTY_PACKET;
+                clear_packet(&state->response_packet);
                 // Send F = 0 as per DireWolf because this is not a
                 // response to P = 1.  This differs from the spec.
                 state->response_packet.PF = 0;
@@ -1464,7 +1468,7 @@ void ax25_state_timer_rec_packet(AX25_data_link_state_machine_t *state,
         }
         case TYPE_U_SABM : {
             trace_dl("SABM\n");
-            state->response_packet = EMPTY_PACKET; // zero out the packet
+            clear_packet(&state->response_packet);
             state->response_packet.PF = packet->PF & 0b1;
             // Set version 2.0 - we already have the default values of
             // MODULO 8 and no SREJ.
@@ -1493,7 +1497,7 @@ void ax25_state_timer_rec_packet(AX25_data_link_state_machine_t *state,
             trace_dl("SABME - NOT SUPPORTED YET\n");
             // We dont support v2.2 yet, so send FRMR and remain in
             // disconnected dl_state.
-            state->response_packet = EMPTY_PACKET; // zero out the packet
+            clear_packet(&state->response_packet);
             state->response_packet.PF = packet->PF & 0b1;
             ax25_send_response(state->channel, TYPE_U_FRMR, state->callsign,
                                &state->response_packet, NOT_EXPEDITED);
@@ -1515,7 +1519,7 @@ void ax25_state_timer_rec_packet(AX25_data_link_state_machine_t *state,
         case TYPE_U_DISC : {
             trace_dl("DISC\n");
             discard_iframe_queue(state);
-            state->response_packet = EMPTY_PACKET; // zero out the packet
+            clear_packet(&state->response_packet);
             state->response_packet.PF = packet->PF & 0b1;
             ax25_send_response(state->channel, TYPE_U_UA, state->callsign,
                                &state->response_packet, NOT_EXPEDITED);
@@ -1778,7 +1782,7 @@ void process_iframe(AX25_data_link_state_machine_t *state, AX25_PACKET *packet,
                 if (state->own_receiver_busy) {
                     // Discard iframe i.e. ignore it
                     if (packet->PF == 1) {
-                        state->response_packet = EMPTY_PACKET;
+                        clear_packet(&state->response_packet);
                         state->response_packet.PF = 1;
                         state->response_packet.command = AX25_RESPONSE;
                         state->response_packet.NR = state->VR;
@@ -1837,7 +1841,7 @@ void process_iframe(AX25_data_link_state_machine_t *state, AX25_PACKET *packet,
                             
                             // Discard Iframe by ignoring
                             state->reject_exception = true;
-                            state->response_packet = EMPTY_PACKET;
+                            clear_packet(&state->response_packet);
                             state->response_packet.PF = packet->PF & 0b1;
                             state->response_packet.command = AX25_RESPONSE;
                             state->response_packet.NR = state->VR;
@@ -1867,7 +1871,7 @@ void process_iframe(AX25_data_link_state_machine_t *state, AX25_PACKET *packet,
  */
 void send_rr_frame(AX25_data_link_state_machine_t *state, AX25_PACKET *packet)
 {
-    state->response_packet = EMPTY_PACKET;
+    clear_packet(&state->response_packet);
     state->response_packet.PF = 1;
     state->response_packet.command = AX25_RESPONSE;
     state->response_packet.NR = state->VR;
@@ -1906,8 +1910,9 @@ void clear_exception_conditions(AX25_data_link_state_machine_t *state)
  */
 void transmit_enquiry(AX25_data_link_state_machine_t *state)
 {
-    state->response_packet = EMPTY_PACKET;
-    state->response_packet.PF = 1; /* This is the only time we send command R frames with P = 1 */
+    clear_packet(&state->response_packet);
+    /* This is the only time we send command R frames with P = 1 */
+    state->response_packet.PF = 1;
     state->response_packet.command = AX25_COMMAND;
     state->response_packet.NR = state->VR;
     if (state->own_receiver_busy) {
@@ -1935,7 +1940,7 @@ void transmit_enquiry(AX25_data_link_state_machine_t *state)
 void enquiry_response(AX25_data_link_state_machine_t *state,
                       AX25_PACKET *packet, int F)
 {
-    state->response_packet = EMPTY_PACKET; // zero out the packet
+    clear_packet(&state->response_packet);
     state->response_packet.NR = state->VR;
     state->response_packet.command = AX25_RESPONSE;
     state->response_packet.PF = F;
@@ -2082,7 +2087,7 @@ void establish_data_link(AX25_data_link_state_machine_t *state)
 {
     clear_exception_conditions(state);
     state->RC = 1;
-    state->response_packet = EMPTY_PACKET;
+    clear_packet(&state->response_packet);
     state->response_packet.PF = 1;
     // send SABM
     ax25_send_response(state->channel, TYPE_U_SABM, state->callsign,
