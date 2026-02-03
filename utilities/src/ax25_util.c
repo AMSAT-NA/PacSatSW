@@ -199,6 +199,7 @@ uint8_t ax25_decode_packet(uint8_t *packet, int len,
             debug_print("ERR: ax25_decode_packet() Invalid packet. Only 1 via supported\n");
             return FALSE;
         }
+        decoded_packet->via_h = packet[20] & 0x80;
         offset = 21;
     }
     decoded_packet->control = packet[offset];
@@ -374,6 +375,8 @@ int print_decoded_packet(char *label, AX25_PACKET *decoded)
                 decoded->from_callsign, decoded->to_callsign);
     if (decoded->via_callsign[0] != 0) {
         debug_print(",%s", decoded->via_callsign);
+        if (decoded->via_h)
+            debug_print(":h");
     }
     debug_print(" %s pid:%0x pf:%d ",command, decoded->pid, decoded->PF);
     if (decoded->frame_type == TYPE_I) {

@@ -59,6 +59,7 @@ typedef struct {
     char to_callsign[MAX_CALLSIGN_LEN];
     char from_callsign[MAX_CALLSIGN_LEN];
     char via_callsign[MAX_CALLSIGN_LEN];
+    uint8_t via_h;
     int command;
     uint8_t control;
     uint8_t NR;
