@@ -108,8 +108,10 @@ static uint16_t PORT_getBit(const GPIOHandler *h, uint16_t pinNum)
 {
     PortGPIOInfo *info = h->data;
     gioPORT_t *port = info->port;
+    uint16_t val;
 
-    return gioGetBit(port, pinNum);
+    val = gioGetBit(port, pinNum);
+    return val;
 }
 
 static void PORT_toggleBit(const GPIOHandler *h, uint16_t pinNum)
@@ -1063,13 +1065,17 @@ void GPIOToggle(Gpio_Use whichGpio)
 bool GPIOIsOn(Gpio_Use whichGpio)
 {
     const GPIOInfo *thisGPIO = GPIOInfoStructures[whichGpio];
+    uint16_t val;
 
-    return GPIORead(whichGpio) == !thisGPIO->NegativeLogic;
+    val = GPIORead(whichGpio);
+    val = val == !thisGPIO->NegativeLogic;
+    return val;
 }
 
 uint16_t GPIORead(Gpio_Use whichGpio)
 {
     const GPIOInfo *thisGPIO = GPIOInfoStructures[whichGpio];
+    uint16_t val;
 
     if (!GPIOUsable[whichGpio])
         return 0;
@@ -1080,7 +1086,8 @@ uint16_t GPIORead(Gpio_Use whichGpio)
     }
 #endif
 
-    return thisGPIO->info->funcs->getBit(thisGPIO->info, thisGPIO->PinNum);
+    val = thisGPIO->info->funcs->getBit(thisGPIO->info, thisGPIO->PinNum);
+    return val;
 }
 
 static void GPIOIntRoutine(Gpio_Use whichGPIO)

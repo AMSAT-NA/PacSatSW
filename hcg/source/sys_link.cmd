@@ -79,7 +79,7 @@ SECTIONS
     .bss     : {} > RAM
     .data    : {} > RAM
     .sysmem  : {} > RAM
-
+    
 
 /* USER CODE BEGIN (4) */
     .heap  : {
