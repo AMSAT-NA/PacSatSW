@@ -93,7 +93,25 @@ task.h is included from an application file. */
 
 
 /* Allocate the memory for the heap. */
-static uint8_t ucHeap[ configTOTAL_HEAP_SIZE ];
+/*
+ * The _heap_start and _heap_end values are set in the linker
+ * script with the following:
+ *
+ *   .heap  : {
+ *       _heap_start = .;
+ *       . += 4;
+ *       _heap_end = 0x8020000;
+ *   } > RAM
+ *
+ * as the last RAM section, and _heap_end set to the end of the RAM
+ * region.  On later binutils you can calculate _heap_end as
+ * ORIGIN(RAM) + LENGTH(RAM).
+ */
+extern uint8_t _heap_start[], _heap_end[];
+static uint8_t *ucHeap = _heap_start;
+#undef configTOTAL_HEAP_SIZE
+#define configTOTAL_HEAP_SIZE (_heap_end - _heap_start)
+
 
 /* Define the linked list structure.  This is used to link free blocks in order
 of their memory address. */
@@ -359,7 +377,7 @@ void vPortInitialiseBlocks( void )
 }
 /*-----------------------------------------------------------*/
 
-static void prvHeapInit( void )
+void prvHeapInit( void )
 {
 BlockLink_t *pxFirstFreeBlock;
 uint8_t *pucAlignedHeap;

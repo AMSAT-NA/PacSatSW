@@ -79,9 +79,15 @@ SECTIONS
     .bss     : {} > RAM
     .data    : {} > RAM
     .sysmem  : {} > RAM
-    
+
 
 /* USER CODE BEGIN (4) */
+    .heap  : {
+        /* Use the rest of RAM for the heap. */
+        _heap_start = .;
+	. += 4;
+        _heap_end = 0x8020000;
+    } > RAM
 /* USER CODE END */
 }
 
