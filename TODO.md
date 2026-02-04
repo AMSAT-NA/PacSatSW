@@ -85,14 +85,14 @@ Only on board version 3 and greater.
 
 ## Commands (from the ground or CAN bus)
 
+# Add missing PC104 GPIOs
+
+# Done
+
 ## RX LED handling needs some work
 
 LED2 is turned off by starting RX and is disabled on each received
 packet, but is never re-enabled.  Probably not optimal.
-
-# Add missing PC104 GPIOs
-
-# Done
 
 ## Convert to thermsistor temperature measurement
 
