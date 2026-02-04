@@ -60,8 +60,8 @@ typedef struct GPIOFuncs {
     /* Set the direction of the pin, out for true, in for false. */
     void (*setDirectionOut)(const GPIOHandler *h, uint16_t pinNum, bool v);
 
-    /* Set whether the given pin is open collector. */
-    void (*setOpenCollector)(const GPIOHandler *h, uint16_t pinNum, bool v);
+    /* Set whether the given pin is open drain. */
+    void (*setOpenDrain)(const GPIOHandler *h, uint16_t pinNum, bool v);
 } GPIOFuncs;
 
 /*
@@ -135,7 +135,7 @@ static void PORT_setDirectionOut(const GPIOHandler *h, uint16_t pinNum, bool v)
     port->PULDIS = info->direction;
 }
 
-static void PORT_setOpenCollector(const GPIOHandler *h, uint16_t pinNum, bool v)
+static void PORT_setOpenDrain(const GPIOHandler *h, uint16_t pinNum, bool v)
 {
     PortGPIOInfo *info = h->data;
     gioPORT_t *port = info->port;
@@ -151,7 +151,7 @@ static const GPIOFuncs PortGPIOFuncs = {
     .getBit = PORT_getBit,
     .toggleBit = PORT_toggleBit,
     .setDirectionOut = PORT_setDirectionOut,
-    .setOpenCollector = PORT_setOpenCollector,
+    .setOpenDrain = PORT_setOpenDrain,
 };
 
 static struct PortGPIOInfo gioPortAGPIOInfo = {
@@ -294,8 +294,7 @@ static void CANGPIO_setDirectionOut(const GPIOHandler *h, uint16_t pinNum,
     }
 }
 
-static void CANGPIO_setOpenCollector(const GPIOHandler *h, uint16_t pinNum,
-                                     bool val)
+static void CANGPIO_setOpenDrain(const GPIOHandler *h, uint16_t pinNum, bool val)
 {
     CANGPIOInfo *info = h->data;
     canBASE_t *can = info->can;
@@ -318,7 +317,7 @@ static const GPIOFuncs CANGPIOFuncs = {
     .getBit = CANGPIO_getBit,
     .toggleBit = CANGPIO_toggleBit,
     .setDirectionOut = CANGPIO_setDirectionOut,
-    .setOpenCollector = CANGPIO_setOpenCollector,
+    .setOpenDrain = CANGPIO_setOpenDrain,
 };
 
 static struct CANGPIOInfo can1GPIOInfo = {
@@ -356,8 +355,8 @@ static void ECLKGPIO_setDirectionOut(const GPIOHandler *h, uint16_t pinNum,
     systemREG1->SYSPC2 = val;
 }
 
-static void ECLKGPIO_setOpenCollector(const GPIOHandler *h, uint16_t pinNum,
-				      bool val)
+static void ECLKGPIO_setOpenDrain(const GPIOHandler *h, uint16_t pinNum,
+				  bool val)
 {
     systemREG1->SYSPC7 = val;
 }
@@ -367,7 +366,7 @@ static const GPIOFuncs ECLKGPIOFuncs = {
     .getBit = ECLKGPIO_getBit,
     .toggleBit = ECLKGPIO_toggleBit,
     .setDirectionOut = ECLKGPIO_setDirectionOut,
-    .setOpenCollector = ECLKGPIO_setOpenCollector,
+    .setOpenDrain = ECLKGPIO_setOpenDrain,
 };
 
 const GPIOHandler eclkGPIO = {
@@ -397,8 +396,8 @@ static void DUMMYGPIO_setDirectionOut(const GPIOHandler *h, uint16_t pinNum,
 {
 }
 
-static void DUMMYGPIO_setOpenCollector(const GPIOHandler *h, uint16_t pinNum,
-                                     bool val)
+static void DUMMYGPIO_setOpenDrain(const GPIOHandler *h, uint16_t pinNum,
+				   bool val)
 {
 }
 
@@ -407,7 +406,7 @@ static const GPIOFuncs DUMMYGPIOFuncs = {
     .getBit = DUMMYGPIO_getBit,
     .toggleBit = DUMMYGPIO_toggleBit,
     .setDirectionOut = DUMMYGPIO_setDirectionOut,
-    .setOpenCollector = DUMMYGPIO_setOpenCollector,
+    .setOpenDrain = DUMMYGPIO_setOpenDrain,
 };
 
 const GPIOHandler dummyGPIO = {
@@ -455,7 +454,7 @@ typedef struct _GPIOInfo {
      * If true, set the output to open collector.  If not, it's a push
      * pull output.  Only valid for outputs.
      */
-    bool OpenCollector;
+    bool OpenDrain;
 
     /*
      * If true, set 1 as the "off" value and 0 as the "on" value.  If false,
@@ -477,7 +476,6 @@ static const GPIOInfo LED1Info = {
     .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
 #ifndef LAUNCHPAD_HARDWARE
-    .OpenCollector        = true,
     .NegativeLogic        = true,
 #endif
 };
@@ -488,7 +486,6 @@ static const GPIOInfo LED2Info = {
     .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
 #ifndef LAUNCHPAD_HARDWARE
-    .OpenCollector        = true,
     .NegativeLogic        = true,
 #endif
 };
@@ -610,7 +607,6 @@ static const GPIOInfo LED3Info = {
     .PinNum               = GPIOLed3Pin,
     .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
-    .OpenCollector        = true,
     .NegativeLogic        = true,
 };
 
@@ -933,8 +929,8 @@ bool GPIOInit(Gpio_Use whichGpio, DestinationTask task, IntertaskMessageType msg
 	 * Set open collector first to avoid driving the output high
 	 * if it shouldn't be driven.
 	 */
-        thisGPIO->info->funcs->setOpenCollector(thisGPIO->info, pinNum, 
-                                                thisGPIO->OpenCollector);
+        thisGPIO->info->funcs->setOpenDrain(thisGPIO->info, pinNum, 
+					    thisGPIO->OpenDrain);
 
 	if (thisGPIO->InitialStateOn)
 	    GPIOSetOn(whichGpio);
