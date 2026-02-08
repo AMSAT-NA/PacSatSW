@@ -978,7 +978,7 @@ void RealConsoleTask(void)
 
             t = next_token(&afterCommand);
             if (!t) {
-                printf("%s%d--MRAM: %d Memory: %d\n", chan,
+                printf("%s%d--MRAM: %d Memory: %d\n",
                        is_tx_chan(chan) ? "Tx" : "Rx", chan,
                        ReadMRAMFreq(chan), DCTFreq[chan]);
                 break;
@@ -1020,14 +1020,17 @@ void RealConsoleTask(void)
 
         case TxPow: {
             uint8_t power;
-            int err = parse_chan(&afterCommand, &chan, 0);
+            int err = parse_chan_noerr(&afterCommand, &chan, 0);
 
-            if (err)
+            if (err) {
+                for (chan = 0; chan < NUM_CHANNELS; chan++)
+		    printf("chan%u power = %d%%\n", chan, get_tx_power(chan));
                 break;
+	    }
+
             err = parse_uint8(&afterCommand, &power, 0);
             if (err) {
-                power = get_tx_power(chan);
-                printf("chan%u power = %d%%\n", chan, power);
+                printf("chan%u power = %d%%\n", chan, get_tx_power(chan));
                 break;
             }
 
