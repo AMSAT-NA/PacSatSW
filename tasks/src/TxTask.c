@@ -122,7 +122,9 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
         while (xStatus == pdPASS) {
             /* Data was successfully received from the queue */
             int numbytes = tx_packet_buffer.len;
-	    enum radio_modulation mod = tx_packet_buffer.tx_modulation;
+	    enum radio_modulation mod;
+
+	    mod = (enum radio_modulation) tx_packet_buffer.tx_modulation;
 
 	    // 10 for 1200 bps - Radio lab recommends 32 for 9600, may
 	    // need as much as 56.
@@ -493,7 +495,7 @@ bool tx_test_make_packet()
 
     debug_print("## SELF TEST: tx_test_make_packet\n");
     rc = tx_make_ui_packet(from_callsign, to_callsign, pid, bytes, len,
-                           &tmp_packet_buffer, tx_modulation);
+                           tx_modulation, &tmp_packet_buffer);
 
     BaseType_t xStatus = xQueueSendToBack(xTxPacketQueue, &tmp_packet_buffer,
                                           CENTISECONDS(1));
