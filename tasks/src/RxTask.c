@@ -48,9 +48,11 @@ static void rx_irq_handler(void *handler_data);
 static volatile uint8_t rx_ready[NUM_RX_CHANNELS];
 const static struct gpio_irq_info rx_gpio_info[NUM_RX_CHANNELS] = {
     { rx_irq_handler, (void *) (uintptr_t) 0 },
+#if NUM_RX_CHANNELS == 4
     { rx_irq_handler, (void *) (uintptr_t) 1 },
     { rx_irq_handler, (void *) (uintptr_t) 2 },
     { rx_irq_handler, (void *) (uintptr_t) 3 },
+#endif
 };
 static xSemaphoreHandle RxFIFOReady;
 
@@ -225,17 +227,18 @@ static bool process_fifo(rfchan chan)
     uint8_t fifo_cmd, fifo_flags, len;
 
     if (!rx_working(chan)) {
-        //printf("AX5043 Interrupt in pwrmode: %02x\n",
-        //       ax5043ReadReg(AX5043_PWRMODE));
+        debug_print("AX5043 Interrupt in pwrmode: %02x\n",
+		    ax5043ReadReg(chan, AX5043_PWRMODE));
         return false;
     }
+
+    if (monitorRxPackets)
+        debug_print("RX channel: %d Interrupt while in FULL_RX mode\n", chan);
 
     if ((ax5043ReadReg(chan, AX5043_FIFOSTAT) & 0x01) == 1)
         // FIFO empty
         return false;
 
-    if (monitorRxPackets)
-        debug_print("RX channel: %d Interrupt while in FULL_RX mode\n", chan);
     //printf("IRQREQUEST1: %02x\n", ax5043ReadReg(AX5043_IRQREQUEST1));
     //printf("IRQREQUEST0: %02x\n", ax5043ReadReg(AX5043_IRQREQUEST0));
     //printf("FIFOSTAT: %02x\n", ax5043ReadReg(AX5043_FIFOSTAT));
