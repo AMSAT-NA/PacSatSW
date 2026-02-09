@@ -34,16 +34,40 @@
 static rx_radio_buffer_t rx_radio_buffer;
 
 /* Forward declarations */
-void process_fifo(rfchan chan);
+static bool process_fifo(rfchan chan);
+static void rx_irq_handler(void *handler_data);
 
 #define ADJ_RX_RSSI_THRESHOLD (RX_RSSI_THRESHOLD + 255)
+
+
+/*
+ * Interrupt handling for each AX5043.  If an interrupt comes in,
+ * rx_ready is set for that AX5043 and the RxTask is woken with
+ * RxFIFOReady.
+ */
+static volatile uint8_t rx_ready[NUM_RX_CHANNELS];
+const static struct gpio_irq_info rx_gpio_info[NUM_RX_CHANNELS] = {
+    { rx_irq_handler, (void *) (uintptr_t) 0 },
+    { rx_irq_handler, (void *) (uintptr_t) 1 },
+    { rx_irq_handler, (void *) (uintptr_t) 2 },
+    { rx_irq_handler, (void *) (uintptr_t) 3 },
+};
+static xSemaphoreHandle RxFIFOReady;
+
+static void rx_irq_handler(void *handler_data)
+{
+    unsigned int rxnum = (uintptr_t) handler_data;
+    BaseType_t higherPrioTaskWoken;
+
+    rx_ready[rxnum] = 1;
+    xSemaphoreGiveFromISR(RxFIFOReady, &higherPrioTaskWoken);
+}
 
 portTASK_FUNCTION_PROTO(RxTask, pvParameters)
 {
     rfchan chan;
 
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)RxTaskWD);
-    InitInterTask(ToRxTask, 10);
     ResetAllWatchdogs();
 //    printf("Initializing Rx\n");
 
@@ -87,11 +111,13 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
         //TODO - log this
     }
 
-    GPIOInit(AX5043_Rx1_Interrupt, ToRxTask, AX5043_Rx1_InterruptMsg);
-#ifndef LAUNCHPAD_HARDWARE
-    GPIOInit(AX5043_Rx2_Interrupt, ToRxTask, AX5043_Rx2_InterruptMsg);
-    GPIOInit(AX5043_Rx3_Interrupt, ToRxTask, AX5043_Rx3_InterruptMsg);
-    GPIOInit(AX5043_Rx4_Interrupt, ToRxTask, AX5043_Rx4_InterruptMsg);
+    vSemaphoreCreateBinary(RxFIFOReady);
+
+    GPIOInit(AX5043_Rx1_Interrupt, &rx_gpio_info[0]);
+#if NUM_RX_CHANNELS == 4
+    GPIOInit(AX5043_Rx2_Interrupt, &rx_gpio_info[1]);
+    GPIOInit(AX5043_Rx3_Interrupt, &rx_gpio_info[2]);
+    GPIOInit(AX5043_Rx4_Interrupt, &rx_gpio_info[3]);
 #endif
 
     /* Initialize the Radio RX */
@@ -106,12 +132,9 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
     }
 
     while (true) {
-        Intertask_Message messageReceived;
-        int status = 0;
-
         ReportToWatchdog(CurrentTaskWD);
-        // This is triggered when there is RX data on the FIFO
-        status = WaitInterTask(ToRxTask, CENTISECONDS(10), &messageReceived);
+        // This is triggered when there is RX data in a FIFO
+        xSemaphoreTake(RxFIFOReady, CENTISECONDS(10));
         ReportToWatchdog(CurrentTaskWD);
         GPIOSetOff(LED2);
 
@@ -139,25 +162,11 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
 #endif
         }
 
-        if (status == 1) { // We received a message
-            //debug_print("AX5043 Message %d\n",messageReceived.MsgType);
-            switch(messageReceived.MsgType) {
-            case AX5043_Rx1_InterruptMsg:
-                process_fifo(FIRST_RX_CHANNEL);
-                break;
-#if NUM_RX_CHANNELS == 4
-            case AX5043_Rx2_InterruptMsg:
-                process_fifo(FIRST_RX_CHANNEL + 1);
-                break;
-
-            case AX5043_Rx3_InterruptMsg:
-                process_fifo(FIRST_RX_CHANNEL + 2);
-                break;
-
-            case AX5043_Rx4_InterruptMsg:
-                process_fifo(FIRST_RX_CHANNEL + 3);
-                break;
-#endif
+        for (chan = 0; chan < NUM_RX_CHANNELS; chan++) {
+            if (rx_ready[chan]) {
+                rx_ready[chan] = 0;
+                while (process_fifo(FIRST_RX_CHANNEL + chan))
+                    ;
             }
         }
     }
@@ -211,13 +220,19 @@ static void handle_fifo_data(rfchan chan, uint8_t fifo_flags, uint8_t len)
     }
 }
 
-void process_fifo(rfchan chan)
+static bool process_fifo(rfchan chan)
 {
+    uint8_t fifo_cmd, fifo_flags, len;
+
     if (!rx_working(chan)) {
         //printf("AX5043 Interrupt in pwrmode: %02x\n",
         //       ax5043ReadReg(AX5043_PWRMODE));
-        return;
+        return false;
     }
+
+    if ((ax5043ReadReg(chan, AX5043_FIFOSTAT) & 0x01) == 1)
+        // FIFO empty
+        return false;
 
     if (monitorRxPackets)
         debug_print("RX channel: %d Interrupt while in FULL_RX mode\n", chan);
@@ -225,31 +240,29 @@ void process_fifo(rfchan chan)
     //printf("IRQREQUEST0: %02x\n", ax5043ReadReg(AX5043_IRQREQUEST0));
     //printf("FIFOSTAT: %02x\n", ax5043ReadReg(AX5043_FIFOSTAT));
 
-    // FIFO not empty
-    if ((ax5043ReadReg(chan, AX5043_FIFOSTAT) & 0x01) != 1) {
-        uint8_t fifo_cmd = ax5043ReadReg(chan, AX5043_FIFODATA);
-        uint8_t fifo_flags;
-        // top 3 bits encode payload len
-        uint8_t len = (fifo_cmd & 0xE0) >> 5;
+    fifo_cmd = ax5043ReadReg(chan, AX5043_FIFODATA);
+    // top 3 bits encode payload length
+    len = (fifo_cmd & 0xE0) >> 5;
 
-        if (len == 7)
-            // 7 means length in next byte
-            len = ax5043ReadReg(chan, AX5043_FIFODATA);
-        fifo_cmd &= 0x1F;
-        /*
-         * Note that the length byte and header byte are not
-         * included in the length of the packet but length does
-         * include the flag byte
-         */
-        // read command
-        fifo_flags = ax5043ReadReg(chan, AX5043_FIFODATA);
-        len--;
+    if (len == 7)
+        // 7 means length in next byte
+        len = ax5043ReadReg(chan, AX5043_FIFODATA);
+    fifo_cmd &= 0x1F;
+    /*
+     * Note that the length byte and header byte are not
+     * included in the length of the packet but length does
+     * include the flag byte.
+     */
+    // read command
+    fifo_flags = ax5043ReadReg(chan, AX5043_FIFODATA);
+    len--;
 
-        if (fifo_cmd == AX5043_FIFOCMD_DATA) {
-            GPIOSetOn(LED2);
-            handle_fifo_data(chan, fifo_flags, len);
-        } else {
-            //debug_print("FIFO MESSAGE: %d LEN:%d\n",fifo_cmd,len);
-        }
+    if (fifo_cmd == AX5043_FIFOCMD_DATA) {
+        GPIOSetOn(LED2);
+        handle_fifo_data(chan, fifo_flags, len);
+    } else {
+        //debug_print("FIFO MESSAGE: %d LEN:%d\n",fifo_cmd,len);
     }
+
+    return true;
 }

@@ -120,6 +120,12 @@ extern const GPIOHandler eclkGPIO;
 #define NO_MESSAGE ((IntertaskMessageType)-1)
 #define NO_TASK ((DestinationTask)-1)
 
+typedef void (*gpio_irq_handler)(void *data);
+struct gpio_irq_info {
+    gpio_irq_handler handler;
+    void *handler_data;
+};
+
 /*
  * Initialize a GPIO.  All GPIOs used by the system must be initialized
  * before they can be used.
@@ -128,8 +134,7 @@ extern const GPIOHandler eclkGPIO;
  * (gioA or giob) and when an interrupt comes in on the GPIO, the
  * given msg is sent to the task.
  */
-bool GPIOInit(Gpio_Use whichGpio, DestinationTask task,
-	      IntertaskMessageType msg);
+bool GPIOInit(Gpio_Use whichGpio, const struct gpio_irq_info *irqinfo);
 
 /* Simplified GPIO init with no tasks or messages. */
 bool GPIOEzInit(Gpio_Use whichGpio);

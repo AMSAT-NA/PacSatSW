@@ -57,7 +57,6 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
     tx_modulation = ReadMRAMModulation(txchan);
 
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE) TxTaskWD);
-    InitInterTask(ToTxTask, 10);
 
     //    printf("Initializing TX\n");
 

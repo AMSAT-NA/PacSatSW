@@ -21,8 +21,6 @@ typedef enum {
     ToNone=-1,
     ToDownlinkControl=0,
     ToCommand,
-    ToRxTask,
-    ToTxTask,
     ToTelemetryAndControl,
     ToCANTask,
     // New message destinations go above here

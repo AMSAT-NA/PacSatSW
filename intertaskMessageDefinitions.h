@@ -54,13 +54,6 @@ typedef enum {
     /*
      * For messages to the radio tasks
      */
-    AX5043_Rx1_InterruptMsg,
-#if NUM_RX_CHANNELS == 4
-    AX5043_Rx2_InterruptMsg,
-    AX5043_Rx3_InterruptMsg,
-    AX5043_Rx4_InterruptMsg,
-#endif
-    AX5043_Tx_InterruptMsg,
     AX5043InitMessage,
 
     /*

@@ -3,11 +3,6 @@ Things that need to be done
 
 # Bugs to fix
 
-I've noticed that if you tune all 4 receivers to the same frequency
-after receiving some messages all but one of them will stop receiving
-packets.  The RSSI values from the other channels are still showing,
-though.  It's kind of strange.
-
 # Pending enhancements
 
 ## Consolidate tasks
@@ -88,6 +83,13 @@ Only on board version 3 and greater.
 # Add missing PC104 GPIOs
 
 # Done
+
+## Error in RX handling
+
+I've noticed that if you tune all 4 receivers to the same frequency
+after receiving some messages all but one of them will stop receiving
+packets.  The RSSI values from the other channels are still showing,
+though.  It's kind of strange.
 
 ## RX LED handling needs some work
 

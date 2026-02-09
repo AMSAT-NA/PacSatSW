@@ -349,14 +349,14 @@ static void ECLKGPIO_toggleBit(const GPIOHandler *h, uint16_t pinNum)
 }
 
 static void ECLKGPIO_setDirectionOut(const GPIOHandler *h, uint16_t pinNum,
-				     bool val)
+                                     bool val)
 {
     systemREG1->SYSPC1 = 0; // Set to GPIO mode.
     systemREG1->SYSPC2 = val;
 }
 
 static void ECLKGPIO_setOpenDrain(const GPIOHandler *h, uint16_t pinNum,
-				  bool val)
+                                  bool val)
 {
     systemREG1->SYSPC7 = val;
 }
@@ -397,7 +397,7 @@ static void DUMMYGPIO_setDirectionOut(const GPIOHandler *h, uint16_t pinNum,
 }
 
 static void DUMMYGPIO_setOpenDrain(const GPIOHandler *h, uint16_t pinNum,
-				   bool val)
+                                   bool val)
 {
 }
 
@@ -873,9 +873,8 @@ static const char *GPIONames[NumberOfGPIOs] = {
 #endif
 #endif
 
-static bool GPIOUsable[NumberOfGPIOs];
-static IntertaskMessageType GPIOMessage[NumberOfGPIOs];
-static DestinationTask GPIOMessageDestination[NumberOfGPIOs];
+bool gpio_usable[NumberOfGPIOs];
+static const struct gpio_irq_info *gpio_irq_info[NumberOfGPIOs];
 
 #ifdef DEBUG
 const char *GPIOToName(Gpio_Use whichGpio)
@@ -891,10 +890,10 @@ const char *GPIOToName(Gpio_Use whichGpio)
 bool GPIOEzInit(Gpio_Use whichGpio)
 {
     // Save some typing, reading, and some code space for most init calls
-    return GPIOInit(whichGpio, NO_TASK, NO_MESSAGE);
+    return GPIOInit(whichGpio, NULL);
 }
 
-bool GPIOInit(Gpio_Use whichGpio, DestinationTask task, IntertaskMessageType msg)
+bool GPIOInit(Gpio_Use whichGpio, const struct gpio_irq_info *irqinfo)
 {
     const GPIOInfo *thisGPIO;
 
@@ -906,7 +905,7 @@ bool GPIOInit(Gpio_Use whichGpio, DestinationTask task, IntertaskMessageType msg
     thisGPIO = GPIOInfoStructures[whichGpio];
 
 #ifdef UNDEFINE_BEFORE_FLIGHT
-    if (task != NO_TASK) {
+    if (irqinfo) {
         // If they are asking for an interrupt, make sure it's supported.
         if (!thisGPIO->info->CanInterrupt || thisGPIO->DirectionIsOut) {
             return false; // No can do.
@@ -923,28 +922,28 @@ bool GPIOInit(Gpio_Use whichGpio, DestinationTask task, IntertaskMessageType msg
 
         uint16_t pinNum = thisGPIO->PinNum;
 
-	GPIOUsable[whichGpio] = true;
+        gpio_usable[whichGpio] = true;
 
-	/*
-	 * Set open collector first to avoid driving the output high
-	 * if it shouldn't be driven.
-	 */
+        /*
+         * Set open collector first to avoid driving the output high
+         * if it shouldn't be driven.
+         */
         thisGPIO->info->funcs->setOpenDrain(thisGPIO->info, pinNum, 
-					    thisGPIO->OpenDrain);
+                                            thisGPIO->OpenDrain);
 
-	if (thisGPIO->InitialStateOn)
-	    GPIOSetOn(whichGpio);
-	else
-	    GPIOSetOff(whichGpio);
+        if (thisGPIO->InitialStateOn)
+            GPIOSetOn(whichGpio);
+        else
+            GPIOSetOff(whichGpio);
 
-	/*
-	 * Delay setting the direction until here to avoid glitching
-	 * the GPIO.  Setting these before the output value is set
-	 * could cause whatever happened to be there to go out for a
-	 * little.
-	 */
-	thisGPIO->info->funcs->setDirectionOut(thisGPIO->info,
-					       thisGPIO->PinNum, true);
+        /*
+         * Delay setting the direction until here to avoid glitching
+         * the GPIO.  Setting these before the output value is set
+         * could cause whatever happened to be there to go out for a
+         * little.
+         */
+        thisGPIO->info->funcs->setDirectionOut(thisGPIO->info,
+                                               thisGPIO->PinNum, true);
     } else {
 
         /*
@@ -952,7 +951,7 @@ bool GPIOInit(Gpio_Use whichGpio, DestinationTask task, IntertaskMessageType msg
          * possibilities
          */
 
-        if (task != NO_TASK) {
+        if (irqinfo) {
             struct PortGPIOInfo *info = thisGPIO->info->data;
             gioPORT_t *port = info->port;
 
@@ -961,8 +960,7 @@ bool GPIOInit(Gpio_Use whichGpio, DestinationTask task, IntertaskMessageType msg
              * a message to be sent when it changes.  That means we
              * set up an interrupt.
              */
-            GPIOMessage[whichGpio] = msg;
-            GPIOMessageDestination[whichGpio] = task;
+            gpio_irq_info[whichGpio] = irqinfo;
 
             /*
              * This should really be handled through the abstraction,
@@ -1006,7 +1004,7 @@ bool GPIOInit(Gpio_Use whichGpio, DestinationTask task, IntertaskMessageType msg
             gioEnableNotification(port, thisGPIO->PinNum);
         }
 
-	GPIOUsable[whichGpio] = true;
+        gpio_usable[whichGpio] = true;
     }
 
     return true;
@@ -1016,7 +1014,7 @@ void GPIOSet(Gpio_Use whichGpio, bool v)
 {
     const GPIOInfo *thisGPIO = GPIOInfoStructures[whichGpio];
 
-    if (!GPIOUsable[whichGpio])
+    if (!gpio_usable[whichGpio])
         return;
 
 #ifdef DEBUG_BUILD
@@ -1046,7 +1044,7 @@ void GPIOToggle(Gpio_Use whichGpio)
 {
     const GPIOInfo *thisGPIO = GPIOInfoStructures[whichGpio];
 
-    if (!GPIOUsable[whichGpio])
+    if (!gpio_usable[whichGpio])
         return;
 
 #ifdef DEBUG_BUILD
@@ -1073,7 +1071,7 @@ uint16_t GPIORead(Gpio_Use whichGpio)
     const GPIOInfo *thisGPIO = GPIOInfoStructures[whichGpio];
     uint16_t val;
 
-    if (!GPIOUsable[whichGpio])
+    if (!gpio_usable[whichGpio])
         return 0;
 
 #ifdef DEBUG_BUILD
@@ -1093,13 +1091,8 @@ static void GPIOIntRoutine(Gpio_Use whichGPIO)
      * Note that reading a GPIO can be done from an interrupt routine.
      * Care must be taken not to mess with GPIORead to prevent this.
      */
-    Intertask_Message message;
-
-    message.MsgType = GPIOMessage[whichGPIO];
-    if (!NotifyInterTaskFromISR(GPIOMessageDestination[whichGPIO], &message)) {
-	// TODO - Report an error here, it is likely fatal.
-    }
-
+    if (gpio_irq_info[whichGPIO])
+        gpio_irq_info[whichGPIO]->handler(gpio_irq_info[whichGPIO]->handler_data);
     //EndInterruptRoutine();
 }
 
