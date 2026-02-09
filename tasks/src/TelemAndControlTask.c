@@ -451,7 +451,7 @@ void tac_send_telemetry(telem_buffer_t *buffer)
     }
 
     tx_send_ui_packet(BROADCAST_CALLSIGN, TLMP1, PID_NO_PROTOCOL,
-                      frame, len, BLOCK);
+                      frame, len, BLOCK, MODULATION_INVALID);
 
     uint32_t t = getUnixTime();
     //uint8_t time_frame[11];
@@ -464,5 +464,5 @@ void tac_send_telemetry(telem_buffer_t *buffer)
     time_frame = (uint8_t *) &t;
 
     tx_send_ui_packet(BROADCAST_CALLSIGN, TIME, PID_NO_PROTOCOL,
-                      time_frame, len, BLOCK);
+                      time_frame, len, BLOCK, MODULATION_INVALID);
 }

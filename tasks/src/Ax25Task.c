@@ -294,7 +294,8 @@ void ax25_send_status() {
 
 	    // TODO - handle return value.
             tx_send_ui_packet(BBS_CALLSIGN, BBSTAT, PID_NO_PROTOCOL,
-			      (uint8_t *)buffer, len, BLOCK);
+			      (uint8_t *)buffer, len, BLOCK,
+			      MODULATION_INVALID);
         } else {
             trace_ftl0("OPEN: Uplink is Full, nothing sent\n");
         }
@@ -512,7 +513,8 @@ void ax25_send_response(uint8_t channel, ax25_frame_type_t frame_type,
     trace_dl("AX25[%d]: ",rx_channel);
     print_decoded_packet("Send ", response_packet);
 #endif
-    bool rc = tx_send_packet(response_packet, expedited, BLOCK);
+    bool rc = tx_send_packet(response_packet, expedited, BLOCK,
+			     MODULATION_INVALID);
     if (rc == FALSE) {
         /* log the error if this could not be queued. */
         ReportError(TxPacketDropped, FALSE, CharString,
@@ -1717,7 +1719,8 @@ void iframe_pops_off_queue(AX25_data_link_state_machine_t *state,
         trace_dl("AX25[%d]: ",state->rx_channel);
         print_decoded_packet("I-frame Send ", &event->packet);
 #endif
-        rc = tx_send_packet(&event->packet, NOT_EXPEDITED, BLOCK);
+        rc = tx_send_packet(&event->packet, NOT_EXPEDITED, BLOCK,
+			    MODULATION_INVALID);
         if (rc == FALSE) {
             debug_print("ERROR: Could not send I frame to TX queue. Pushing back on I-frame queue\n");
             // push iframe back on queue, wait 2/10 second for queue

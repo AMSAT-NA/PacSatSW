@@ -34,8 +34,10 @@
 
 static bool tx_make_ui_packet(char *from_callsign, char *to_callsign,
                               uint8_t pid, uint8_t *bytes, int len,
+			      enum radio_modulation modulation,
                               tx_radio_buffer_t *tx_radio_buffer);
 static bool tx_make_packet(AX25_PACKET *packet,
+			   enum radio_modulation modulation,
                            tx_radio_buffer_t *tx_radio_buffer);
 
 static rfchan txchan = FIRST_TX_CHANNEL;
@@ -120,10 +122,11 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
         while (xStatus == pdPASS) {
             /* Data was successfully received from the queue */
             int numbytes = tx_packet_buffer.len;
+	    enum radio_modulation mod = tx_packet_buffer.tx_modulation;
 
 	    // 10 for 1200 bps - Radio lab recommends 32 for 9600, may
 	    // need as much as 56.
-	    switch (tx_modulation) {
+	    switch (mod) {
 	    case MODULATION_AFSK_1200:
 		preamble_length = 10;
 		break;
@@ -131,9 +134,9 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
 		break;
 	    }
 
-            if (tx_modulation != curr_modulation) {
-                set_modulation(txchan, tx_modulation, true);
-                curr_modulation = tx_modulation;
+            if (mod != curr_modulation) {
+                set_modulation(txchan, mod, true);
+                curr_modulation = mod;
             }
 
             if (monitorTxPackets)
@@ -190,6 +193,7 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
  */
 static bool tx_make_ui_packet(char *from_callsign, char *to_callsign,
                               uint8_t pid, uint8_t *bytes, int len,
+			      enum radio_modulation modulation,
                               tx_radio_buffer_t *tx_radio_buffer)
 {
     uint8_t packet_len;
@@ -213,6 +217,10 @@ static bool tx_make_ui_packet(char *from_callsign, char *to_callsign,
     }
     packet_len = len + header_len;
     tx_radio_buffer->len = packet_len; /* Number of bytes */
+    if (modulation == MODULATION_INVALID)
+	tx_radio_buffer->tx_modulation = tx_modulation;
+    else
+	tx_radio_buffer->tx_modulation = modulation;
 
 //    if (true) {
 //        for (i=0; i< packet_len; i++) {
@@ -239,6 +247,7 @@ static bool tx_make_ui_packet(char *from_callsign, char *to_callsign,
  * TODO - this should be in ax25_util and be called encode_packet()
  */
 static bool tx_make_packet(AX25_PACKET *packet,
+			   enum radio_modulation modulation,
                            tx_radio_buffer_t *tx_radio_buffer)
 {
     uint8_t packet_len;
@@ -359,6 +368,10 @@ static bool tx_make_packet(AX25_PACKET *packet,
         tx_radio_buffer->bytes[i+header_len] = packet->data[i];
     packet_len = packet->data_len + header_len;
     tx_radio_buffer->len = packet_len; /* Number of bytes */
+    if (modulation == MODULATION_INVALID)
+	tx_radio_buffer->tx_modulation = tx_modulation;
+    else
+	tx_radio_buffer->tx_modulation = modulation;
 
 //    if (true) {
 //        for (i=0; i< packet_len; i++) {
@@ -386,12 +399,13 @@ static bool tx_make_packet(AX25_PACKET *packet,
  * The TX takes are of HDLC framing and CRC
  */
 bool tx_send_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid,
-                       uint8_t *bytes, int len, bool block)
+                       uint8_t *bytes, int len, bool block,
+		       enum radio_modulation modulation)
 {
     tx_radio_buffer_t tmp_packet_buffer;
     //uint8_t raw_bytes[AX25_PKT_BUFFER_LEN];
     bool rc = tx_make_ui_packet(from_callsign, to_callsign, pid,
-                                bytes, len, &tmp_packet_buffer);
+                                bytes, len, modulation, &tmp_packet_buffer);
     TickType_t xTicksToWait = 0;
 
     if (block)
@@ -425,10 +439,11 @@ bool tx_send_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid,
  * the bad data.  That seems to be safer than locking up the BBS with
  * a bad packet in a loop.
  */
-bool tx_send_packet(AX25_PACKET *packet, bool expedited, bool block)
+bool tx_send_packet(AX25_PACKET *packet, bool expedited, bool block,
+		    enum radio_modulation modulation)
 {
     tx_radio_buffer_t tmp_packet_buffer;
-    bool rc = tx_make_packet(packet, &tmp_packet_buffer);
+    bool rc = tx_make_packet(packet, modulation, &tmp_packet_buffer);
 
     if (rc == false) {
         debug_print("LOGIC ERROR: Invalid packet. Packet not sent\n");
@@ -478,7 +493,7 @@ bool tx_test_make_packet()
 
     debug_print("## SELF TEST: tx_test_make_packet\n");
     rc = tx_make_ui_packet(from_callsign, to_callsign, pid, bytes, len,
-                           &tmp_packet_buffer);
+                           &tmp_packet_buffer, tx_modulation);
 
     BaseType_t xStatus = xQueueSendToBack(xTxPacketQueue, &tmp_packet_buffer,
                                           CENTISECONDS(1));

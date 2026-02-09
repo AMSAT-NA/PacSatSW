@@ -209,7 +209,9 @@ int pb_send_ok(char *from_callsign) {
     strlcat(buffer, from_callsign, sizeof(buffer));
     int len = 3 + strlen(from_callsign);
     buffer[len] = 0x0D; // this replaces the string termination
-    rc = tx_send_ui_packet(BROADCAST_CALLSIGN, from_callsign, PID_FILE, (uint8_t *)buffer, len, BLOCK);
+    rc = tx_send_ui_packet(BROADCAST_CALLSIGN, from_callsign, PID_FILE,
+			   (uint8_t *)buffer, len, BLOCK,
+			   MODULATION_INVALID);
     taskYIELD();
     return rc;
 }
@@ -235,7 +237,9 @@ int pb_send_err(char *from_callsign, int err) {
     strlcat(buffer," ", sizeof(buffer));
     strlcat(buffer, from_callsign, sizeof(buffer));
     strncat(buffer,&CR,1); // very specifically add just one char to the end of the string for the CR
-    rc = tx_send_ui_packet(BROADCAST_CALLSIGN, from_callsign, PID_FILE, (uint8_t *)buffer, len, BLOCK);
+    rc = tx_send_ui_packet(BROADCAST_CALLSIGN, from_callsign, PID_FILE,
+			   (uint8_t *)buffer, len, BLOCK,
+			   MODULATION_INVALID);
 
     return rc;
 }
@@ -255,7 +259,9 @@ void pb_send_status() {
 
    if (!ReadMRAMBoolState(StatePbEnabled)) {
         char shut[] = "PB Closed.";
-        int rc = tx_send_ui_packet(BROADCAST_CALLSIGN, PBSHUT, PID_NO_PROTOCOL, (uint8_t *)shut, strlen(shut), BLOCK);
+        int rc = tx_send_ui_packet(BROADCAST_CALLSIGN, PBSHUT, PID_NO_PROTOCOL,
+				   (uint8_t *)shut, strlen(shut), BLOCK,
+				   MODULATION_INVALID);
         trace_pb("SENDING: %s |%s|\n",PBSHUT, shut);
         ReportToWatchdog(CurrentTaskWD);
         return;
@@ -269,7 +275,9 @@ void pb_send_status() {
         uint8_t len = strlen((char *)pb_status_buffer);
         trace_pb("SENDING: %s |%s|\n",CALL, pb_status_buffer);
 
-       int rc = tx_send_ui_packet(BROADCAST_CALLSIGN, CALL, PID_NO_PROTOCOL, (uint8_t *)pb_status_buffer, len, BLOCK);
+       int rc = tx_send_ui_packet(BROADCAST_CALLSIGN, CALL, PID_NO_PROTOCOL,
+				  (uint8_t *)pb_status_buffer, len, BLOCK,
+				  MODULATION_INVALID);
         ReportToWatchdog(CurrentTaskWD);
         return;
     }
@@ -939,7 +947,9 @@ int pb_next_action() {
             ReportToWatchdog(CurrentTaskWD);
 
             /* Send the fill and finish */
-            int rc = tx_send_ui_packet(BROADCAST_CALLSIGN, QST, PID_DIRECTORY, data_buffer, data_len, BLOCK);
+            int rc = tx_send_ui_packet(BROADCAST_CALLSIGN, QST, PID_DIRECTORY,
+				       data_buffer, data_len, BLOCK,
+				       MODULATION_INVALID);
             ReportToWatchdog(CurrentTaskWD);
 
             if (rc != TRUE) {
@@ -1235,7 +1245,9 @@ int pb_broadcast_next_file_chunk(DIR_NODE *node, uint32_t offset, int length, ui
 
     /* Send the broadcast and finish */
     /* Send the fill and finish */
-    rc = tx_send_ui_packet(BROADCAST_CALLSIGN, QST, PID_FILE, data_buffer, data_len, BLOCK);
+    rc = tx_send_ui_packet(BROADCAST_CALLSIGN, QST, PID_FILE, data_buffer,
+			   data_len, BLOCK,
+			   MODULATION_INVALID);
     ReportToWatchdog(CurrentTaskWD);
     if (rc != TRUE) {
         debug_print("ERROR: Could not send FILE broadcast packet to TNC \n");
