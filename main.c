@@ -261,7 +261,6 @@ void ConsoleTask(void *pvParameters){
     initMET();
 
     GPIOInit(AX5043_Rx1_Interrupt, ToRxTask, AX5043_Rx1_InterruptMsg);
-    GPIOInit(AX5043_Tx_Interrupt, ToTxTask, AX5043_Tx_InterruptMsg);
 #ifndef LAUNCHPAD_HARDWARE
     GPIOInit(AX5043_Rx2_Interrupt, ToRxTask, AX5043_Rx2_InterruptMsg);
     GPIOInit(AX5043_Rx3_Interrupt, ToRxTask, AX5043_Rx3_InterruptMsg);

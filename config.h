@@ -331,6 +331,7 @@ typedef uint8_t rfchan;
 #define AX5043_USES_TCXO // If this is not defined then we are using an XTAL
 
 enum radio_modulation {
+    MODULATION_INVALID = -1,
     MODULATION_AFSK_1200 = 0,
     MODULATION_GMSK_9600 = 1,
 };

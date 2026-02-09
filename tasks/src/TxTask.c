@@ -28,16 +28,15 @@
 #include "FreeRTOS.h"
 #include "os_task.h"
 #include "ax25_util.h"
-#include "RxTask.h"
 #include "nonvolManagement.h"
 #include "gpioDriver.h"
 
 
 static bool tx_make_ui_packet(char *from_callsign, char *to_callsign,
                               uint8_t pid, uint8_t *bytes, int len,
-                              rx_radio_buffer_t *tx_radio_buffer);
+                              tx_radio_buffer_t *tx_radio_buffer);
 static bool tx_make_packet(AX25_PACKET *packet,
-                           rx_radio_buffer_t *tx_radio_buffer);
+                           tx_radio_buffer_t *tx_radio_buffer);
 
 static rfchan txchan = FIRST_TX_CHANNEL;
 
@@ -52,8 +51,8 @@ bool inhibitTransmit;
 portTASK_FUNCTION_PROTO(TxTask, pvParameters)
 {
     /* Buffer used when data copied from tx queue */
-    rx_radio_buffer_t tx_packet_buffer;
-    enum radio_modulation curr_modulation = (enum radio_modulation) -1;
+    tx_radio_buffer_t tx_packet_buffer;
+    enum radio_modulation curr_modulation = MODULATION_INVALID;
 
     tx_modulation = ReadMRAMModulation(txchan);
 
@@ -62,9 +61,12 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
 
     //    printf("Initializing TX\n");
 
+    // Interrupt is not currently used.
+    //GPIOInit(AX5043_Tx_Interrupt, ToTxTask, AX5043_Tx_InterruptMsg);
+
     /* This is defined in pacsat.h, declared here */
     xTxPacketQueue = xQueueCreate(TX_PACKET_QUEUE_LEN,
-                                  sizeof(rx_radio_buffer_t));
+                                  sizeof(tx_radio_buffer_t));
     if (xTxPacketQueue == NULL) {
         /*
          * The queue could not be created.  This is fatal and should
@@ -99,16 +101,6 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
         uint8_t preamble_length = 32;
         BaseType_t xStatus;
 
-        // 10 for 1200 bps - Radio lab recommends 32 for 9600, may
-        // need as much as 56.
-        switch (tx_modulation) {
-        case MODULATION_AFSK_1200:
-            preamble_length = 10;
-            break;
-        case MODULATION_GMSK_9600:
-            break;
-        }
-
         // TODO - adjust block time vs watchdog
         xStatus = xQueueReceive(xTxPacketQueue, &tx_packet_buffer,
                                 CENTISECONDS(10));
@@ -129,6 +121,16 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
         while (xStatus == pdPASS) {
             /* Data was successfully received from the queue */
             int numbytes = tx_packet_buffer.len;
+
+	    // 10 for 1200 bps - Radio lab recommends 32 for 9600, may
+	    // need as much as 56.
+	    switch (tx_modulation) {
+	    case MODULATION_AFSK_1200:
+		preamble_length = 10;
+		break;
+	    case MODULATION_GMSK_9600:
+		break;
+	    }
 
             if (tx_modulation != curr_modulation) {
                 set_modulation(txchan, tx_modulation, true);
@@ -189,7 +191,7 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
  */
 static bool tx_make_ui_packet(char *from_callsign, char *to_callsign,
                               uint8_t pid, uint8_t *bytes, int len,
-                              rx_radio_buffer_t *tx_radio_buffer)
+                              tx_radio_buffer_t *tx_radio_buffer)
 {
     uint8_t packet_len;
     uint8_t header_len = 16;
@@ -238,7 +240,7 @@ static bool tx_make_ui_packet(char *from_callsign, char *to_callsign,
  * TODO - this should be in ax25_util and be called encode_packet()
  */
 static bool tx_make_packet(AX25_PACKET *packet,
-                           rx_radio_buffer_t *tx_radio_buffer)
+                           tx_radio_buffer_t *tx_radio_buffer)
 {
     uint8_t packet_len;
     uint8_t header_len = 15; // Assumes no PID
@@ -387,7 +389,7 @@ static bool tx_make_packet(AX25_PACKET *packet,
 bool tx_send_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid,
                        uint8_t *bytes, int len, bool block)
 {
-    rx_radio_buffer_t tmp_packet_buffer;
+    tx_radio_buffer_t tmp_packet_buffer;
     //uint8_t raw_bytes[AX25_PKT_BUFFER_LEN];
     bool rc = tx_make_ui_packet(from_callsign, to_callsign, pid,
                                 bytes, len, &tmp_packet_buffer);
@@ -426,7 +428,7 @@ bool tx_send_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid,
  */
 bool tx_send_packet(AX25_PACKET *packet, bool expedited, bool block)
 {
-    rx_radio_buffer_t tmp_packet_buffer;
+    tx_radio_buffer_t tmp_packet_buffer;
     bool rc = tx_make_packet(packet, &tmp_packet_buffer);
 
     if (rc == false) {
@@ -473,7 +475,7 @@ bool tx_test_make_packet()
     uint8_t pid = 0xbb;
     uint8_t bytes[] = {0,1,2,3,4,5,6,7,8,9};
     uint8_t len = 10;
-    rx_radio_buffer_t tmp_packet_buffer;
+    tx_radio_buffer_t tmp_packet_buffer;
 
     debug_print("## SELF TEST: tx_test_make_packet\n");
     rc = tx_make_ui_packet(from_callsign, to_callsign, pid, bytes, len,

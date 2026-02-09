@@ -1096,7 +1096,9 @@ static void GPIOIntRoutine(Gpio_Use whichGPIO)
     Intertask_Message message;
 
     message.MsgType = GPIOMessage[whichGPIO];
-    NotifyInterTaskFromISR(GPIOMessageDestination[whichGPIO],&message);
+    if (!NotifyInterTaskFromISR(GPIOMessageDestination[whichGPIO], &message)) {
+	// TODO - Report an error here, it is likely fatal.
+    }
 
     //EndInterruptRoutine();
 }
