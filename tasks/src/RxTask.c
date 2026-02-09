@@ -87,6 +87,13 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
         //TODO - log this
     }
 
+    GPIOInit(AX5043_Rx1_Interrupt, ToRxTask, AX5043_Rx1_InterruptMsg);
+#ifndef LAUNCHPAD_HARDWARE
+    GPIOInit(AX5043_Rx2_Interrupt, ToRxTask, AX5043_Rx2_InterruptMsg);
+    GPIOInit(AX5043_Rx3_Interrupt, ToRxTask, AX5043_Rx3_InterruptMsg);
+    GPIOInit(AX5043_Rx4_Interrupt, ToRxTask, AX5043_Rx4_InterruptMsg);
+#endif
+
     /* Initialize the Radio RX */
     for (chan = FIRST_RX_CHANNEL; chan <= LAST_RX_CHANNEL; chan++) {
 #ifdef BLINKY_HARDWARE
