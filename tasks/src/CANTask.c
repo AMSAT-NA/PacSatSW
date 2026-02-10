@@ -776,7 +776,7 @@ void CANSetMyID(int canNum, int id)
         return;
 
     /* Tell CANTask to update the id. */
-    msg.MsgType = TacADCStartMsg;
+    msg.MsgType = CANUpdateIDMsg;
     msg.argument = canNum;
     msg.argument2 = id;
     NotifyInterTaskFromISR(ToCANTask, &msg);
