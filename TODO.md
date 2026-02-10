@@ -5,6 +5,25 @@ Things that need to be done
 
 # Pending enhancements
 
+## Ax25Task waits on multiple queues
+
+Waiting on multiple queues is non-optimal, consolidate the queues and
+rework the I frame handling to avoid blocking there.
+
+## UI frames need to be prioritized below protocol frames
+
+Also think about digipeated frames.
+
+## Possibly delay formatting of data frames until send time
+
+This way the latest data to be sent will be sent.  For instance,
+delaying RR/RNR/I frames will give the latest Ns value.  Delaying
+telemetry and status frames would give the latest data for that.
+
+Unnecessary RRs can be removed.
+
+Expedited frames can be handled more gracefully this way.
+
 ## Consolidate tasks
 
 Tasks take up a lot of RAM, and some tasks could be combined.  For
@@ -19,7 +38,24 @@ The important part of tasks is priority.  You generally don't need two
 tasks with the same priority.  It can make things more convenient, so
 there is a balance, but memory is at a premium.
 
-## Get PSK working
+## Implement higher speeds and error correction
+
+Work on GMSK, probably.  Maybe PSK, but the required bandwidth is
+pretty high, better bandwidth utilization for the same speed could be
+done with faster GMSK and better coding, I think.  I am unsure what
+the TMS570 is capable of for speed and error correction.
+
+You could so Reed-Solomon, but that has error correcting limitations.
+Convolutional codes would be better, but use more CPU and memory.
+LDPC or Turbo Codes would be even better.  For higher performance on
+coding, LDPC and Turbo codes use less CPU than a convolutional code
+with the same performance, but at their minimum performance they use
+more than a less capable convolutional code.
+
+LDPC and Turbo Codes also work better (really almost required)
+probabilities from the input data and the AX5043 doesn't provide that.
+They certainly require it on the intermediate data, and the memory
+requirements might be too high.
 
 ## Allow the transmitter mode/rate to change per message
 
