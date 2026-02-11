@@ -26,6 +26,8 @@
 
 #include <stdint.h>
 
+#define MAX_PFH_LENGTH 2048
+
 // Mandatory Header
 #define  FILE_ID 0x01
 #define  FILE_NAME 0x02
@@ -72,8 +74,13 @@
 #define  BODY_COMPRESSED_PKZIP 0x02
 #define  BODY_COMPRESSED_GZIP 0x03
 
+#define UNCOMPRESSED_FILE_SIZE_LIMIT 200 /* Compress files over this size before header added */
+
 #define PFH_TYPE_ASCII 0
-#define PFH_TYPE_WOD 3
+//#define PFH_TYPE_WOD 3 // This was WOD on historical sats
+#define PFH_TYPE_AL 223
+#define PFH_TYPE_BL 202
+#define PFH_TYPE_WL 203 // WOD Log
 #define PFH_TYPE_IMAGES 211
 
 // These offsets are to the start of the field, i.e. they point to the ID number not the data.
@@ -83,7 +90,9 @@
 #define BODY_OFFSET_BYTE_POS 65
 #define HEADER_CHECKSUM_BYTE_POS 60
 
-#define PSF_FILE_EXT "act"
+//#define PSF_FILE_EXT "act"
+//#define PSF_FILE_EXT ".act" // no need to store this extra info??
+#define PSF_FILE_TMP ".tmp"
 
 typedef struct {
   /* required Header Information */
@@ -133,9 +142,14 @@ int pfh_generate_header_bytes(HEADER *pfh, int body_size, uint8_t *header_bytes)
 void pfh_debug_print(HEADER *pfh);
 uint8_t * pfh_store_short(uint8_t *buffer, uint16_t n);
 uint8_t * pfh_store_int(uint8_t *buffer, uint32_t n);
+int pfh_make_internal_file(HEADER *pfh, char *dir_folder, char *body_filename, uint32_t file_size);
+int pfh_make_internal_header(HEADER *pfh,uint32_t now, uint8_t file_type, unsigned int id, char *filename,
+        char *source, char *destination, char *title, char *user_filename, uint32_t update_time,
+        uint32_t expire_time, char compression_type);
 
 int test_pfh();
 int test_pfh_file();
 int test_pfh_make_files();
+int test_pfh_make_internal_file(char * filename);
 
 #endif /* TASKS_INC_PACSAT_HEADER_H_ */

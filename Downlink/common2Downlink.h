@@ -6,11 +6,20 @@
 #error Wrong Archtecture
 #endif
 typedef struct  __attribute__((__packed__)) _commonRtWodPayload_t {
-    unsigned int AutoSafeAllowed:1;       //Offset=0
-    unsigned int AutoSafeModeActive:1;       //Offset=1
-    unsigned int pbEnabled:1;       //Offset=2
-    unsigned int uplinkEnabled:1;       //Offset=3
+//    unsigned int AutoSafeAllowed:1;       //Offset=0
+//    unsigned int AutoSafeModeActive:1;       //Offset=1
+//    unsigned int pbEnabled:1;       //Offset=2
+//    unsigned int uplinkEnabled:1;       //Offset=3
+//    unsigned int pad202:4;       //Offset=4
+
+    /* Big endian - must reverse the bit fields so they are the right order for little endian telem */
     unsigned int pad202:4;       //Offset=4
+    unsigned int uplinkEnabled:1;       //Offset=3
+    unsigned int pbEnabled:1;       //Offset=2
+    unsigned int AutoSafeModeActive:1;       //Offset=1
+    unsigned int AutoSafeAllowed:1;       //Offset=0
+
+
     uint8_t TLMresets;       //Offset=8
     uint8_t pad316;       //Offset=16
     uint8_t wodSize;       //Offset=24

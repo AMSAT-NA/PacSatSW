@@ -16,7 +16,7 @@
 #include "serialDriver.h"
 #include "UplinkCommands.h"
 #include "CommandTask.h"
-#include "TelemetryRadio.h"
+#include "TelemAndControlTask.h"
 #include "consoleRoutines.h"
 #include "radio.h"
 #include "system.h"
@@ -187,6 +187,8 @@ enum {
     testDecode,
     makePfhFiles,
     testDir,
+    testInternalFile,
+    makeWodFile,
     sendUplinkStatus,
     testRetransmission,
     testUploadTable,
@@ -300,6 +302,9 @@ commandPairs pacsatCommands[] = {
     { "reset filenumber",
       "Reset the next Dir file number to zero.",
       resetNextFileNumber},
+    { "list upload table",
+      "List the Upload records in the MRAM table",
+      listUploadTable},
 };
 
 /*
@@ -386,6 +391,12 @@ commandPairs debugCommands[] = {
     { "test dir",
       "Test the Pacsat Directory.  The command 'make psf' must already have been run",
      testDir},
+    { "test internal file",
+      "Generate a test internal file and add it to the directory",
+      testInternalFile},
+    { "test wod file",
+     "Generate a test wod file and add it to the file queue",
+     makeWodFile},
     { "send uplink status",
       "Send Uplink status",
       sendUplinkStatus},
@@ -395,9 +406,6 @@ commandPairs debugCommands[] = {
     { "test upload table",
       "Test the storage of Upload records in the MRAM table",
       testUploadTable},
-    { "list upload table",
-      "List the Upload records in the MRAM table",
-      listUploadTable},
     { "set digi",
       "Set the digipeater mode",
       setDigi},
@@ -1745,6 +1753,15 @@ void RealConsoleTask(void)
             break;
         }
 
+        case testInternalFile:{
+            bool rc = test_pfh_make_internal_file("//testfile");
+            break;
+        }
+        case makeWodFile:{
+            bool rc = tac_test_wod_file();
+            break;
+        }
+
         case testDecode: {
             bool rc = test_ax25_util_decode_packet();
             break;
@@ -1915,12 +1932,26 @@ void RealConsoleTask(void)
                     printf("Unable to read file: %s\n",
                            red_strerror(red_errno));
                 } else {
-                    int q;
+                    int q=0,n=0;
+                    while ( q*20 < numOfBytesRead) {
+                        for (n=0; n < 20; n++) {
+                            if ((q*20 + n) < numOfBytesRead)
+                                printf("%02x ", read_buffer[q*20+n]);
+                            else
+                                printf("   ");
+                        }
+                        printf("|");
+                        for (n=0; n < 20; n++) {
+                            if ((q*20 + n) < numOfBytesRead) {
+                                if (isprint(read_buffer[q*20+n]))
+                                    printf("%c", (char *)read_buffer[q*20+n]);
+                                else
+                                    printf(".");
+                            }
+                        }
+                        q++;
+                        printf("\n");
 
-                    for (q = 0; q < numOfBytesRead; q++) {
-                        printf("%02x ", read_buffer[q]);
-                        if (q != 0 && q % 20 == 0)
-                            printf("\n");
                     }
                 }
 

@@ -51,6 +51,7 @@
 #include "nonvol.h"
 #include "nonvolManagement.h"
 #include "MET.h"
+#include "redposix.h"
 
 
 /* Local forward headers */
@@ -58,6 +59,7 @@ void header_copy_to_str(uint8_t *header, int length, char *destination, int maxb
 uint8_t * add_mandatory_header(uint8_t *p, HEADER *pfh);
 uint8_t * add_extended_header(uint8_t *p, HEADER *pfh);
 uint8_t * add_optional_header(uint8_t *p, HEADER *pfh);
+int pfh_save_pacsatfile(unsigned char * header, int header_len, char *filename, char *body_filename, int file_size);
 uint8_t * pfh_store_char_field(uint8_t *buffer, uint16_t id, uint8_t val);
 uint8_t * pfh_store_short_int_field(uint8_t *buffer, uint16_t id, uint16_t val);
 uint8_t * pfh_store_int_field(uint8_t *buffer, uint16_t id, uint32_t val);
@@ -386,6 +388,8 @@ void pfh_debug_print(HEADER *pfh) {
  *
  * The checksums will be calculated.
  *
+ * TODO - wer should pass in the maximum length of header_bytes and confirm before writing that we do not overflow at any point.
+ *
  */
 int pfh_generate_header_bytes(HEADER *pfh, int body_size, uint8_t *header_bytes) {
     /* Clean up data values.  These are usually callsigns.
@@ -466,11 +470,11 @@ uint8_t * add_extended_header(uint8_t *p, HEADER *pfh) {
      * occurrences of items 0x14, 0x15, and 0x16.
      */
     p = pfh_store_str_field(p, SOURCE, strlen(pfh->source), pfh->source);
-    p = pfh_store_str_field(p, AX25_UPLOADER, 7, pfh->uploader);
+    p = pfh_store_str_field(p, AX25_UPLOADER, 6, pfh->uploader);
     p = pfh_store_int_field(p, UPLOAD_TIME, pfh->uploadTime);
     p = pfh_store_char_field(p, DOWNLOAD_COUNT, pfh->downloadCount);
     p = pfh_store_str_field(p, DESTINATION, strlen(pfh->destination), pfh->destination);
-    p = pfh_store_str_field(p, AX25_DOWNLOADER, 7, pfh->downloader);
+    p = pfh_store_str_field(p, AX25_DOWNLOADER, 6, pfh->downloader);
     p = pfh_store_int_field(p, DOWNLOAD_TIME, pfh->downloadTime);
     p = pfh_store_int_field(p, EXPIRE_TIME, pfh->expireTime);
     p = pfh_store_char_field(p, PRIORITY, pfh->priority);
@@ -509,6 +513,67 @@ uint8_t * add_optional_header(uint8_t *p, HEADER *pfh) {
         p = pfh_store_str_field(p, WISP3, strlen(pfh->wisp3), pfh->wisp3);
     return p;
 }
+
+/**
+ * pfh_save_pacsatfile()
+ *
+ * Create a Pacsat file based on the PFH byte stream specified with header and the file specified
+ * by body_filename.  The resulting pacsat file is saved in filename
+ *
+ * Returns: EXIT_SUCCESS or EXIT_FAILURE
+ *
+ */
+int pfh_save_pacsatfile(unsigned char * header, int header_len, char *filename, char *body_filename, int file_size) {
+
+    /* Save the header bytes */
+    int32_t rc = dir_fs_write_file_chunk(filename, header, header_len, 0);
+    if (rc == -1) {
+        debug_print("pfh_save_pacsatfile:File I/O error writing chunk: %s\n", filename);
+        return EXIT_FAILURE; // This is most likely caused by running out of file ids or space
+    }
+
+    /* Add the file contents */
+    int32_t fp = red_open(body_filename, RED_O_RDONLY);
+    if (fp == -1) {
+        debug_print("pfh_save_pacsatfile: Unable to open %s for reading: %s\n", body_filename, red_strerror(red_errno));
+        return EXIT_FAILURE;
+    }
+    uint8_t read_buffer[255];
+
+    int bytes_written = 0;
+    int loop_limit = 99999;
+    while (bytes_written < file_size && loop_limit-- > 0) {
+        int32_t numOfBytesRead = red_read(fp, read_buffer, sizeof(read_buffer));
+        if (numOfBytesRead == -1) {
+            debug_print("pfh_save_pacsatfile: Unable to read %s: %s\n", body_filename, red_strerror(red_errno));
+            // remove partial file
+            fp = red_unlink(filename); // try to unlink and ignore error if we can not
+            return EXIT_FAILURE;
+        }
+
+        rc = dir_fs_write_file_chunk(filename, read_buffer, numOfBytesRead, header_len + bytes_written);
+        if (rc == -1) {
+            debug_print("pfh_save_pacsatfile:File I/O error writing chunk: %s\n", filename);
+            // remove partial file
+            fp = red_unlink(filename); // try to unlink and ignore error if we can not
+            return EXIT_FAILURE; // This is most likely caused by running out of file ids or space
+        }
+        bytes_written = bytes_written + numOfBytesRead;
+    }
+
+
+    rc = red_close(fp);
+    if (rc != 0) {
+        printf("Unable to close %s: %s\n", body_filename, red_strerror(red_errno));
+    }
+
+    if (loop_limit == 0) {
+        debug_print("Unable to complete file read: stuck in loop\n");
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+}
+
 
 /**
  * Store a little endian 16 bit int as two big endian bytes
@@ -561,6 +626,118 @@ uint8_t * pfh_store_str_field(uint8_t *buffer, uint16_t id, uint8_t len, char* s
     }
     return buffer + len;
 }
+
+
+/**
+ * pfh_make_internal_header()
+ * Make a header for an internal file such as a log file or wod
+ * Return a pointer to the header.  The caller is responsible for freeing
+ *
+ * the memory later.
+ *
+ * The id needs to be obtained from the dir before the header is created. This is then an
+ * unused but allocated id until the file is added or discarded.  Similar to the upload
+ * queue.
+ *
+ * An expire_time of 0 will use the default expire time for all files.
+ *
+ * Returns EXIT SUCCESS or EXIT FAILURE if the header could not be created.
+ *
+ */
+int pfh_make_internal_header(HEADER *pfh,uint32_t now, uint8_t file_type, unsigned int id, char *filename,
+        char *source, char *destination, char *title, char *user_filename, uint32_t update_time,
+        uint32_t expire_time, char compression_type) {
+
+    if (pfh != NULL) {
+        pfh_new_header(pfh);
+        /* Required Header Information */
+        pfh->fileId = id;
+        strlcpy(pfh->fileName,filename, sizeof(pfh->fileName));
+//        strlcpy(pfh->fileExt,PSF_FILE_EXT, sizeof(pfh->fileExt));
+
+        pfh->createTime = (uint32_t)update_time;
+        pfh->modifiedTime = now;
+        pfh->fileType = file_type;
+
+        /* Extended Header Information */
+        strlcpy(pfh->source,source, sizeof(pfh->source));
+
+        strlcpy(pfh->destination,destination, sizeof(pfh->destination));
+        if (expire_time != 0)
+            pfh->expireTime = now + expire_time;
+
+        /* Optional Header Information */
+        strlcpy(pfh->title,title, sizeof(pfh->title));
+        strlcpy(pfh->userFileName,user_filename, sizeof(pfh->userFileName));
+        pfh->compression = compression_type;
+        return EXIT_SUCCESS;
+    }
+    return EXIT_FAILURE;
+}
+
+/**
+ * test_pfh_make_pacsat_file()
+ *
+ * Create a new PACSAT File based on a Header and the body file.  Save the new file
+ * into out_filename which will be file_id.act and saved into dir_folder
+ *
+ * Returns: EXIT SUCCESS or EXIT_FAILURE
+ */
+int pfh_make_internal_file(HEADER *pfh, char *dir_folder, char *body_filename, uint32_t file_size) {
+    if (pfh == NULL) return EXIT_FAILURE;
+
+    char out_filename[MAX_FILENAME_WITH_PATH_LEN];
+
+    dir_get_file_path_from_file_id(pfh->fileId, dir_folder, out_filename, MAX_FILENAME_WITH_PATH_LEN);
+
+    /* Measure body_size and calculate body_checksum */
+    short int body_checksum = 0;
+    unsigned int body_size = 0;
+
+    int32_t fp = red_open(body_filename, RED_O_RDONLY);
+    if (fp == -1) {
+        debug_print("pfh_make_internal_file: Unable to open %s for reading: %s\n", body_filename, red_strerror(red_errno));
+        return EXIT_FAILURE;
+    }
+
+    int32_t rc;
+    int i=0;
+    char read_buffer[255];
+
+    while (body_size < file_size) {
+        int32_t numOfBytesRead = red_read(fp, read_buffer, sizeof(read_buffer));
+        if (numOfBytesRead == -1) {
+            debug_print("pfh_make_internal_file: Unable to read %s: %s\n", body_filename, red_strerror(red_errno));
+            break;
+        }
+        if (numOfBytesRead == 0)
+            break;
+
+        for (i=0; i<numOfBytesRead; i++) {
+            body_checksum += read_buffer[i] & 0xff;
+            body_size++;
+        }
+    }
+
+    rc = red_close(fp);
+    if (rc != 0) {
+        printf("pfh_make_internal_file: Unable to close %s: %s\n", body_filename, red_strerror(red_errno));
+    }
+
+    pfh->bodyCRC = body_checksum;
+
+    //debug_print("Body size: %d Body CRC %02x\n",body_size, body_checksum);
+
+    /* Build Pacsat File Header */
+    uint8_t buffer[MAX_PFH_LENGTH];
+    int len = pfh_generate_header_bytes(pfh, body_size, buffer);
+
+    rc = pfh_save_pacsatfile(buffer, len, out_filename, body_filename, body_size);
+
+    return rc;
+}
+
+
 
 #ifdef DEBUG
 
@@ -722,7 +899,7 @@ bool make_test_header(HEADER *pfh, uint32_t fh, unsigned int file_id, char *file
     /* Required Header Information */
     pfh->fileId = 0; //file_id;
     strlcpy(pfh->fileName,filename, sizeof(pfh->fileName));
-    strlcpy(pfh->fileExt,PSF_FILE_EXT, sizeof(pfh->fileExt));
+//    strlcpy(pfh->fileExt,PSF_FILE_EXT, sizeof(pfh->fileExt));
 
     uint32_t now = getUnixTime();
     pfh->createTime = now;
@@ -934,6 +1111,65 @@ header items as specified below.\n";
 
 
     return rc;
+}
+
+/**
+ * test_pfh_make_internal_file()
+ *
+ * Test the mechanism to create an internal dir file
+ *
+ */
+int test_pfh_make_internal_file(char * filename) {
+    char *msg = "This is a test of the internal file system.  This file was created internally\
+            by PACSAT and added automatically to the directory.  This mechansim will be used\
+            for WOD, Log and Experiment files.\n\n\
+            This file ends here with the word END";
+    int rc = dir_fs_write_file_chunk(filename, (uint8_t *)msg, strlen(msg), 0);
+    if (rc == -1) {  debug_print("PFH: Test Write file data for internal file test - FAILED\n"); return FALSE; }
+
+    char psf_name[MAX_FILENAME_WITH_PATH_LEN];
+    char psf_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
+    uint32_t now = getUnixTime(); // Get the time in seconds since the unix epoch
+    HEADER pfh;
+    uint32_t id = dir_next_file_number();
+    debug_print("Next id is: %d\n",id);
+    int ret = pfh_make_internal_header(&pfh, now, PFH_TYPE_ASCII, id, "", BBS_CALLSIGN, "TXT", "Title: Test", "user_file_test_file.txt",
+                                       now, 0, BODY_NOT_COMPRESSED);
+    if (ret == EXIT_FAILURE)
+        return FALSE;
+
+    pfh_debug_print(&pfh);
+    dir_get_filename_from_file_id(id, psf_name, sizeof(psf_name_with_path));
+    dir_get_file_path_from_file_id(id, DIR_FOLDER, psf_name_with_path, sizeof(psf_name_with_path));
+    debug_print("Trying to create file %s in queue: %s from file %s\n",psf_name_with_path, "//",filename);
+
+    REDSTAT stat;
+    int32_t fp = red_open(filename, RED_O_RDONLY);
+    if (fp == -1) { debug_print("Unable to open %s : %s\n", filename, red_strerror(red_errno));return FALSE; }
+    ret = red_fstat(fp, &stat);
+    if (ret == -1) { debug_print("Unable to stat %s : %s\n", filename, red_strerror(red_errno));return FALSE; }
+
+    uint32_t file_size = stat.st_size;
+    debug_print("file size: %d\n",file_size);
+    rc = pfh_make_internal_file(&pfh, DIR_FOLDER, filename, file_size);
+    if (rc != EXIT_SUCCESS) {
+        printf("** Failed to make pacsat file %s\n", filename);
+        rc = red_unlink(psf_name_with_path); // remove this in case it was partially written, ignore any error
+        if (rc == -1) {
+            debug_print("Unable to remove file: %s : %s\n", psf_name_with_path, red_strerror(red_errno));
+        }
+        return FALSE;
+    }
+
+    rc = dir_load_pacsat_file(psf_name);
+    if (rc != TRUE) {
+        rc = red_unlink(psf_name_with_path); // remove this in case it was partially written, ignore any error
+        return FALSE;
+    }
+
+    printf("##### TEST MAKE INTERNAL FILE: success\n");
+
+    return TRUE;
 }
 
 #endif /* DEBUG */
