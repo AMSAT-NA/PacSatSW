@@ -11,6 +11,7 @@
 #include <pacsat.h>
 #include "stdarg.h"
 #include "stdlib.h"
+#include <ctype.h>
 #include "nonvolManagement.h"
 #include "sys_common.h"
 #include "serialDriver.h"

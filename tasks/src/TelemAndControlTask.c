@@ -18,6 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>
  */
 
+#include <time.h>
 #include "pacsat.h"
 #include "MET.h"
 #include "MRAMmap.h"
@@ -57,6 +58,7 @@ realTimeFrame_t realtimeFrame;
 void tac_pb_status_callback(TimerHandle_t xTimer);
 void tac_ftl0_status_callback(TimerHandle_t xTimer);
 void tac_telem_timer_callback(TimerHandle_t xTimer);
+void tac_wod_roll_timer_callback(TimerHandle_t xTimer);
 void tac_adc_timer_callback(TimerHandle_t xTimer);
 void tac_maintenance_timer_callback(TimerHandle_t xTimer);
 void tac_collect_telemetry(telem_buffer_t *buffer);
@@ -71,6 +73,9 @@ int wod_file_length = 0;
 
 /* timer to send the telemetry periodically */
 static xTimerHandle timerTelemSend;
+
+/* timer to send the roll the WOD file periodically */
+static xTimerHandle timerWodRoll;
 
 /* timer to perform maintenance periodically */
 static xTimerHandle timerMaintenance;
@@ -159,6 +164,17 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
     if (timerStatus != pdPASS) {
         ReportError(RTOSfailure, FALSE, CharString,
                     (int)"ERROR: Failed in starting Telem Timer");
+    }
+
+    /* Create a periodic timer to roll the WOD file */
+    timerWodRoll = xTimerCreate("WodRoll",
+                                  TAC_TIMER_ROLL_WOD_PERIOD, TRUE,
+                                  NULL, tac_wod_roll_timer_callback);
+    // Block time of zero as this can not block
+    timerStatus = xTimerStart(timerWodRoll, 0);
+    if (timerStatus != pdPASS) {
+        ReportError(RTOSfailure, FALSE, CharString,
+                    (int)"ERROR: Failed in starting WOD Roll Timer");
     }
 
     /* Create a periodic timer for maintenance */
@@ -256,8 +272,13 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
                  * at the same time.
                  */
                 tac_collect_telemetry(&telem_buffer);
+                tac_store_wod();
                 tac_send_telemetry(&telem_buffer);
                 tac_send_time();
+                break;
+
+            case TacRollWodMsg:
+                tac_roll_wod_file();
                 break;
 
             case TacADCStartMsg:
@@ -308,6 +329,18 @@ void tac_ftl0_status_callback(TimerHandle_t xTimer)
 void tac_telem_timer_callback(TimerHandle_t xTimer)
 {
     statusMsg.MsgType = TacSendRealtimeMsg;
+    NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
+}
+
+
+/**
+ * tac_wod_roll_timer_callback()
+ *
+ * This is called from a timer whenever the WOD file should be rolled.
+ */
+void tac_wod_roll_timer_callback(TimerHandle_t xTimer)
+{
+    statusMsg.MsgType = TacRollWodMsg;
     NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
 }
 
@@ -497,8 +530,7 @@ void tac_store_wod() {
     if (strlen(wod_file_name) == 0) {
         /* Make a new wod file name and start the file */
         char file_name[MAX_FILENAME_WITH_PATH_LEN];
-        strlcpy(file_name, "wod", sizeof(file_name));
-        strlcat(file_name, "20250311", sizeof(file_name));
+        strlcpy(file_name, "wod.tmp", sizeof(file_name));
 
         strlcpy(wod_file_name, WOD_FOLDER, sizeof(wod_file_name));
         strlcat(wod_file_name, file_name, sizeof(wod_file_name));
@@ -517,12 +549,13 @@ void tac_store_wod() {
     int rc = dir_fs_write_file_chunk(wod_file_name, frame, len, wod_file_length);
     if (rc == -1) {
         debug_print("tax:File I/O error writing WOD chunk: %s\n", wod_file_name);
-        // TODO - It is unclear what to do here.  We should realu look at the error code and decide,  Do we remove problem file?
+        // TODO - It is unclear what to do here.  We should really look at the error code and decide,  Do we remove problem file?
         // fp = red_unlink(wod_file_name); // try to unlink and ignore error if we can not
-        return; // This is most likely caused by running out of file ids or space
+        return; // This is most likely caused by running out of file ids or space.  In that case we would wait and try to add more data later
     } else {
         wod_file_length = wod_file_length + len;
     }
+    debug_print("Telem & Control: Stored WOD: %d/%d\n", ttohs(realtimeFrame.header.resetCnt), htotl(realtimeFrame.header.uptime));
 
 }
 
@@ -531,8 +564,47 @@ void tac_store_wod() {
  * file name so a new one is assigned next time we write data.
  */
 void tac_roll_wod_file() {
+    /* Make a new wod file name and start the file */
+    char file_name[MAX_FILENAME_WITH_PATH_LEN];
+    strlcpy(file_name, WOD_FOLDER, sizeof(file_name));
+    strlcat(file_name, "wod", sizeof(file_name));
+
+    char file_id_str[14];
+    uint32_t unixtime = getUnixTime(); // Get the time in seconds since the unix epoch
+    if (unixtime < 1691675756) {
+        // 10 Aug 2023 because that is when I wrote this line
+        debug_print("Unix time seems to be in the past!");
+        unixtime=0;
+    }
+    struct tm *time;
+    time_t t  = (time_t)(unixtime + 2208988800L - 6 * 60 * 60);
+    // Adjust because TI Time library used Epoch of 1-1-1900 UTC - 6
+    time = gmtime(&t);
+    if (time != NULL) {
+        strftime(file_id_str, sizeof(file_id_str), "%m%d%H%M", time);
+        strlcat(file_name, file_id_str, sizeof(file_name));
+    } else {
+        strlcat(file_name, "---", sizeof(file_name));
+    }
+
+    int rc = red_link(wod_file_name, file_name);
+    if (rc == -1) {
+        debug_print("Unable to link wod file: %s : %s\n", file_name, red_strerror(red_errno));
+        return; // TODO Check if this is because we ran out of space.  So exit and we will try again next time
+    }
+
+    /* Otherwise File renamed, ready to be added to the dir.  Remove the tmp file*/
+    rc = red_unlink(wod_file_name);
+    if (rc == -1) {
+        debug_print("Unable to remove tmp wod file: %s : %s\n", wod_file_name, red_strerror(red_errno));
+        // TODO this is not fatal but there needs to be a way to clean this up or we will keep trying to add it to the dir
+    }
+
     wod_file_name[0] = 0; // clear the file name
     wod_file_length = 0;
+
+    debug_print("Telem & Control: Rolled WOD file: %s\n", file_name);
+
 }
 
 #ifdef DEBUG

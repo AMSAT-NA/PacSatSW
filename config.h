@@ -221,9 +221,11 @@ typedef uint8_t rfchan;
 #define AX25_RETRIES_N2 10 /* Number of retries permitted by the Data Link State Machine */
 
 // Default is to send telemetry every 2 mins
-#define TAC_TIMER_SEND_TELEMETRY_PERIOD SECONDS(60) //SECONDS(120)
-// 90*60 every 1.5 hours or about once per orbit 
-#define TAC_TIMER_MAINTENANCE_PERIOD SECONDS(90*60)
+#define TAC_TIMER_SEND_TELEMETRY_PERIOD SECONDS(120) //SECONDS(120)
+// Generate 2 WOD files a day
+#define TAC_TIMER_ROLL_WOD_PERIOD SECONDS(1*60*60)
+// Run maintenance every 5 mins
+#define TAC_TIMER_MAINTENANCE_PERIOD SECONDS(5*60)
 // Every second for reading ADC values, probably reduce this.
 #define TAC_TIMER_ADC_PERIOD CENTISECONDS(100)
 
