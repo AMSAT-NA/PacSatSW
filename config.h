@@ -220,10 +220,11 @@ typedef uint8_t rfchan;
 #define AX25_TIMER_T3_PERIOD SECONDS(30) /* Idle timeout if nothing heard */
 #define AX25_RETRIES_N2 10 /* Number of retries permitted by the Data Link State Machine */
 
-// Default is to send telemetry every 2 mins
+// Default is to send telemetry every 2 mins and save WOD every 5 mins
 #define TAC_TIMER_SEND_TELEMETRY_PERIOD SECONDS(120) //SECONDS(120)
+#define TAC_TIMER_SAVE_WOD_PERIOD SECONDS(5*60)
 // Generate 2 WOD files a day
-#define TAC_TIMER_ROLL_WOD_PERIOD SECONDS(1*60*60)
+#define TAC_FILE_SIZE_TO_ROLL_WOD 1000 // 30k - we want this to be about a third of a day, but not so large that it is hard to download
 // Run maintenance every 5 mins
 #define TAC_TIMER_MAINTENANCE_PERIOD SECONDS(5*60)
 // Every second for reading ADC values, probably reduce this.

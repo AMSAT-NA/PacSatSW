@@ -68,7 +68,7 @@ typedef enum {
     TacSendErrorsPowerCycleMsg,
     TacADCStartMsg,
     TacADCProcessMsg,
-    TacRollWodMsg,
+    TacSaveWodMsg,
 
     /*
      * Messages to the CAN task

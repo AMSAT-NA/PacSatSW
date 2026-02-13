@@ -58,7 +58,7 @@ realTimeFrame_t realtimeFrame;
 void tac_pb_status_callback(TimerHandle_t xTimer);
 void tac_ftl0_status_callback(TimerHandle_t xTimer);
 void tac_telem_timer_callback(TimerHandle_t xTimer);
-void tac_wod_roll_timer_callback(TimerHandle_t xTimer);
+void tac_wod_save_timer_callback(TimerHandle_t xTimer);
 void tac_adc_timer_callback(TimerHandle_t xTimer);
 void tac_maintenance_timer_callback(TimerHandle_t xTimer);
 void tac_collect_telemetry(telem_buffer_t *buffer);
@@ -75,7 +75,7 @@ int wod_file_length = 0;
 static xTimerHandle timerTelemSend;
 
 /* timer to send the roll the WOD file periodically */
-static xTimerHandle timerWodRoll;
+static xTimerHandle timerWodSave;
 
 /* timer to perform maintenance periodically */
 static xTimerHandle timerMaintenance;
@@ -166,15 +166,15 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
                     (int)"ERROR: Failed in starting Telem Timer");
     }
 
-    /* Create a periodic timer to roll the WOD file */
-    timerWodRoll = xTimerCreate("WodRoll",
-                                  TAC_TIMER_ROLL_WOD_PERIOD, TRUE,
-                                  NULL, tac_wod_roll_timer_callback);
+    /* Create a periodic timer to save to the WOD file */
+    timerWodSave = xTimerCreate("WodSave",
+                                TAC_TIMER_SAVE_WOD_PERIOD, TRUE,
+                                  NULL, tac_wod_save_timer_callback);
     // Block time of zero as this can not block
-    timerStatus = xTimerStart(timerWodRoll, 0);
+    timerStatus = xTimerStart(timerWodSave, 0);
     if (timerStatus != pdPASS) {
         ReportError(RTOSfailure, FALSE, CharString,
-                    (int)"ERROR: Failed in starting WOD Roll Timer");
+                    (int)"ERROR: Failed in starting WOD Save Timer");
     }
 
     /* Create a periodic timer for maintenance */
@@ -272,13 +272,12 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
                  * at the same time.
                  */
                 tac_collect_telemetry(&telem_buffer);
-                tac_store_wod();
                 tac_send_telemetry(&telem_buffer);
                 tac_send_time();
                 break;
 
-            case TacRollWodMsg:
-                tac_roll_wod_file();
+            case TacSaveWodMsg:
+                tac_store_wod();
                 break;
 
             case TacADCStartMsg:
@@ -338,9 +337,9 @@ void tac_telem_timer_callback(TimerHandle_t xTimer)
  *
  * This is called from a timer whenever the WOD file should be rolled.
  */
-void tac_wod_roll_timer_callback(TimerHandle_t xTimer)
+void tac_wod_save_timer_callback(TimerHandle_t xTimer)
 {
-    statusMsg.MsgType = TacRollWodMsg;
+    statusMsg.MsgType = TacSaveWodMsg;
     NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
 }
 
@@ -546,16 +545,32 @@ void tac_store_wod() {
     frame = (uint8_t *)&realtimeFrame;
 
     /* Write bytes to the file */
-    int rc = dir_fs_write_file_chunk(wod_file_name, frame, len, wod_file_length);
-    if (rc == -1) {
-        debug_print("tax:File I/O error writing WOD chunk: %s\n", wod_file_name);
-        // TODO - It is unclear what to do here.  We should really look at the error code and decide,  Do we remove problem file?
-        // fp = red_unlink(wod_file_name); // try to unlink and ignore error if we can not
-        return; // This is most likely caused by running out of file ids or space.  In that case we would wait and try to add more data later
+    int32_t fp;
+    int32_t numOfBytesWritten = -1;
+    int32_t rc;
+
+    fp = red_open(wod_file_name, RED_O_CREAT | RED_O_APPEND | RED_O_WRONLY);
+    if (fp == -1) {
+        debug_print("Unable to open %s for writing: %s\n", wod_file_name, red_strerror(red_errno));
     } else {
-        wod_file_length = wod_file_length + len;
+
+        numOfBytesWritten = red_write(fp, frame, len);
+        if (numOfBytesWritten != len) {
+            printf("Write returned: %d\n",numOfBytesWritten);
+            if (numOfBytesWritten == -1) {
+                printf("Unable to write to %s: %s\n", wod_file_name, red_strerror(red_errno));
+            }
+        }
+        wod_file_length = red_lseek(fp, 0, RED_SEEK_END);
+        rc = red_close(fp);
+        if (rc != 0) {
+            printf("Unable to close %s: %s\n", wod_file_name, red_strerror(red_errno));
+        }
     }
-    debug_print("Telem & Control: Stored WOD: %d/%d\n", ttohs(realtimeFrame.header.resetCnt), htotl(realtimeFrame.header.uptime));
+
+    debug_print("Telem & Control: Stored WOD: %d/%d size:%d\n", ttohs(realtimeFrame.header.resetCnt), htotl(realtimeFrame.header.uptime),wod_file_length);
+    if (wod_file_length > TAC_FILE_SIZE_TO_ROLL_WOD)
+        tac_roll_wod_file();
 
 }
 
