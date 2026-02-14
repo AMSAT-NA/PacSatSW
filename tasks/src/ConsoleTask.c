@@ -596,6 +596,18 @@ static char *get_dev_modulation_str(uint8_t devb)
     return modulation_to_str(DCTModulation[devb]);
 }
 
+static bool mram_mounted(void)
+{
+    REDDIR *pDir;
+
+    pDir = red_opendir("//");
+    if (pDir) {
+	red_closedir(pDir);
+	return true;
+    }
+    return false;
+}
+
 static int parse_mramnr(char **str, uint8_t *mramnr)
 {
     int err = parse_uint8(str, mramnr, 0);
@@ -727,10 +739,20 @@ void RealConsoleTask(void)
                     break;
                 }
 
-                printf("NOTE:  This test will wipe out the file system and configuration values in MRAM.\n\n");
+		if (mram_mounted()) {
+		    printf("Cowardly refusing to test a mounted MRAM.  Unmount before testing\n");
+		    break;
+		}
+
+		printf("NOTE:  This test will wipe out the file system and configuration values in MRAM.\n\n");
 
                 testMRAM(size);
             } else if (strcmp(cmd, "clear") == 0) {
+		if (mram_mounted()) {
+		    printf("Cowardly refusing to clear a mounted MRAM.  Unmount before testing\n");
+		    break;
+		}
+
                 SetupMRAM();
                 // Don't get confused by in orbit state!
                 WriteMRAMBoolState(StateInOrbit, true);
