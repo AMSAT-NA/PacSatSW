@@ -113,7 +113,7 @@ enum {
     reset,
     startWD,
     preflight,
-    time,
+    upTime,
     SwVersion,
     clrMinMax,
     getI2cState,
@@ -158,7 +158,7 @@ enum {
     GetCANCounts,
     getax5043,
     AxReg,
-    getRSSI,
+    RSSI,
     testFreq,
     testPLLrange,
     testAX5043,
@@ -408,15 +408,15 @@ commandPairs commonCommands[] = {
     { "reset ihu",
       "Reset this processor",
       reset},
-    { "get time",
+    { "uptime",
       "Display reset number and seconds",
-      time},
+      upTime},
     { "get status",
       "Get some general status info",
       telem0},
-    { "get rssi",
+    { "rssi",
       "Get the current RSSI reading from the AX5043 Rx",
-      getRSSI},
+      RSSI},
     { "temp",
       "Print board temperatures",
       getTemp},
@@ -1438,7 +1438,7 @@ void RealConsoleTask(void)
             break;
         }
 
-        case time: {
+        case upTime: {
             logicalTime_t time;
 
             getTime(&time);
@@ -1596,12 +1596,19 @@ void RealConsoleTask(void)
             break;
         }
 
-        case getRSSI: {
+        case RSSI: {
             int err = parse_chan(&afterCommand, &chan, 0);
+            int rssi;
 
-            if (err)
+            if (err) {
+                for (chan = 0; chan < NUM_CHANNELS; chan++) {
+		    rssi = get_rssi(chan);
+		    printf("Channel %d RSSI is %02x = %d dBm\n",
+			   chan, rssi, ((int16_t)rssi) - 255);
+		}
                 break;
-            int rssi = get_rssi(chan);
+	    }
+	    rssi = get_rssi(chan);
             printf("Channel %d RSSI is %02x = %d dBm\n",
                    chan, rssi, ((int16_t)rssi) - 255);
             break;
