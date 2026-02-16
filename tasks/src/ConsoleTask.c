@@ -110,26 +110,22 @@ enum {
     getVoltages,
     getPowerFlags,
     RfPowPrint,
-    BoardVersion,
+    getVersion,
     reset,
     startWD,
     preflight,
-    time,
-    SwVersion,
+    upTime,
     clrMinMax,
     getI2cState,
     internalWDTimeout,
     externalWDTimeout,
     telem0,
     pollI2c,
-    readMRAMsr,
-    writeMRAMsr,
     dropBus,
     healthMode,
     Tx,
     getState,
     testLED,
-    doClearMRAM,
     enbCanPrint,
     dsbCanPrint,
     EnableComPr,
@@ -159,7 +155,7 @@ enum {
     GetCANCounts,
     getax5043,
     AxReg,
-    getRSSI,
+    RSSI,
     testFreq,
     testPLLrange,
     testAX5043,
@@ -168,11 +164,7 @@ enum {
     HelpSetup,
     HelpPacsat,
     Help,
-    MRAMWrEn,
-    testAllMRAM,
-    sizeMRAM,
-    mramSleep,
-    mramAwake,
+    MRAM,
     startRx,
     stopRx,
 #ifdef DEBUG
@@ -225,9 +217,9 @@ commandPairs setupCommands[] = {
       "Init DCT and MRAM stuff that will be set once for each unit",
       initSaved},
     { "freq",
-      "Set/raise/lower/get the frequency",
+      "Get/set/raise/lower/get the frequency",
       Freq,
-      "<chan> [+|-]value[k|m]",
+      "[<chan> [[+|-]value[k|m]]]",
     },
     { "test freq",
       "xmit on frequency of specified channel",
@@ -235,7 +227,7 @@ commandPairs setupCommands[] = {
     { "txpow",
       "Get/set the tx power as a percentage 0-100",
       TxPow,
-      "<chan> [0-100]",
+      "[<chan> [0-100]]",
     },
     { "test internal wd",
       "Force internal watchdog to reset CPU",
@@ -246,9 +238,6 @@ commandPairs setupCommands[] = {
     { "test leds",
       "Flash the LEDs in order",
       testLED},
-    { "test mram",
-      "Write and read mram with n blocksize (4,8,16,32,64,128)",
-      testAllMRAM},
     {"load key",
      "Load an authorization key for uplink commands",
      LoadKey},
@@ -289,10 +278,10 @@ commandPairs pacsatCommands[] = {
       "Display Hex for file number",
       mramHxd},
     { "load dir",
-      "Load the directory from MRAM",
+      "Load the directory from the filesystem",
       dirLoad},
     { "clear dir",
-      "Clear the directory but leave the files in MRAM",
+      "Clear the directory but leave the files in filesystem",
       dirClear},
     { "list dir",
       "List the Pacsat Directory.",
@@ -332,9 +321,6 @@ commandPairs debugCommands[] = {
     { "stop rx",
       "Stop the 5043 receiver",
       stopRx},
-    { "clear mram",
-      "Initializes MRAM state,WOD,Min/max but does not clear InOrbit--testing only",
-     doClearMRAM},
     { "poll i2c",
       "Poll to see which I2c devices are there",
       pollI2c},
@@ -343,21 +329,14 @@ commandPairs debugCommands[] = {
       Tx,
       "[on|off]",
     },
-    { "get mram sr",
-      "Get the MRAM status register",
-      readMRAMsr},
     { "get downlink size",
       "Debug-get sizes of downlink payloads and frames",
       showDownlinkSize},
-    { "mram wren",
-      "Write enable MRAM",
-      MRAMWrEn},
-    { "mram wake",
-      "Send wake command to MRAM",
-      mramAwake},
-    { "mram sleep",
-      "Send sleep command to MRAM",
-      mramSleep},
+    { "mram",
+      "Get/set MRAM data",
+      MRAM,
+      "[size | test <blksize> 42 | clear | sr <nr>|all [val] | wake <nr> | sleep <nr> | wren <nr>",
+    },
 #ifdef DEBUG
     { "test pacsat",
       "Run all of the PACSAT self tst routines",
@@ -417,15 +396,17 @@ commandPairs commonCommands[] = {
     { "reset ihu",
       "Reset this processor",
       reset},
-    { "get time",
+    { "uptime",
       "Display reset number and seconds",
-      time},
-    { "get status",
-      "Get some general status info",
+      upTime},
+    { "status",
+      "Print some general status info",
       telem0},
-    { "get rssi",
-      "Get the current RSSI reading from the AX5043 Rx",
-      getRSSI},
+    { "rssi",
+      "Get the current RSSI reading(s) from the AX5043 Rx",
+      RSSI,
+      "[<chan>]",
+    },
     { "temp",
       "Print board temperatures",
       getTemp},
@@ -440,18 +421,11 @@ commandPairs commonCommands[] = {
       RfPowPrint,
       "[on|off]",
     },
-    { "board version",
-      "Get board version number",
-      BoardVersion},
-    { "get state",
-      "Mainly for debug: Get the current state of the downlink state machine",
-      getState},
-    { "sw version",
-      "Get the software version number and build time",
-      SwVersion},
-    { "get mram size",
-      "Get the total size of all MRAMs",
-      sizeMRAM},
+    { "version",
+      "Get board and software version info",
+      getVersion,
+      "[sw|board]",
+    },
     { "get i2c",
       "What I2c devices are working?",
       getI2cState},
@@ -538,9 +512,6 @@ commandPairs commonCommands[] = {
       "Set rf power used in safe or normal modes",
       SelectRFPowerLevels},
 #endif
-    { "set mram sr",
-      "Set the MRAM status register",
-      writeMRAMsr},
     { "start watchdog",
       "Start the watchdog",
       startWD},
@@ -632,6 +603,29 @@ char *ResetReasons[] = {
 static char *get_dev_modulation_str(uint8_t devb)
 {
     return modulation_to_str(DCTModulation[devb]);
+}
+
+static bool mram_mounted(void)
+{
+    REDDIR *pDir;
+
+    pDir = red_opendir("//");
+    if (pDir) {
+	red_closedir(pDir);
+	return true;
+    }
+    return false;
+}
+
+static int parse_mramnr(char **str, uint8_t *mramnr)
+{
+    int err = parse_uint8(str, mramnr, 0);
+
+    if (err || *mramnr >= PACSAT_MAX_MRAMS) {
+	printf("Invalid or out of range MRAM number\n");
+	return -1;
+    }
+    return 0;
 }
 
 static int parse_chan_de(char **str, rfchan *dev, int off, bool doerr)
@@ -730,54 +724,105 @@ void RealConsoleTask(void)
             break;
         }
 
-        case sizeMRAM: {
-            int i;
-            printf("MRAM Address Size=%d\n", getMRAMAddressSize());
-            printf("Partition 0 size=%d, partition 1=%d\n",
-                   getMRAMPartitionSize(0), getMRAMPartitionSize(1));
-            for (i = 0; i < PACSAT_MAX_MRAMS;) {
-                printf("MRAM%d size is %dKBytes", i, getMRAMSize(i) / 1024);
-                i++;
-                if(i%2 == 0){
-                    printf("\n");
-                } else {
-                    printf(", ");
+        case MRAM: {
+            char *cmd = next_token(&afterCommand);
+
+            if (strcmp(cmd, "size") == 0) {
+                int i;
+
+                printf("MRAM Address Size=%d\n", getMRAMAddressSize());
+                printf("Partition 0 size=%d, partition 1=%d\n",
+                       getMRAMPartitionSize(0), getMRAMPartitionSize(1));
+                for (i = 0; i < PACSAT_MAX_MRAMS; i++)
+                    printf("MRAM%d size is %dKBytes\n", i, getMRAMSize(i) / 1024);
+            } else if (strcmp(cmd, "test") == 0) {
+                uint8_t size, secret;
+                int err;
+
+                err = parse_uint8(&afterCommand, &size, 0);
+                if (!err)
+                    err = parse_uint8(&afterCommand, &secret, 0);
+
+                if (err || secret != 42) {
+                    printf("Invalid data, you run 'test mram <size> 42' where size is the blocksize to test, a power of 2 from 4 to 128\n");
+                    break;
                 }
+
+		if (mram_mounted()) {
+		    printf("Cowardly refusing to test a mounted MRAM.  Unmount before testing\n");
+		    break;
+		}
+
+		printf("NOTE:  This test will wipe out the file system and configuration values in MRAM.\n\n");
+
+                testMRAM(size);
+            } else if (strcmp(cmd, "clear") == 0) {
+		if (mram_mounted()) {
+		    printf("Cowardly refusing to clear a mounted MRAM.  Unmount before testing\n");
+		    break;
+		}
+
+                SetupMRAM();
+                // Don't get confused by in orbit state!
+                WriteMRAMBoolState(StateInOrbit, true);
+            } else if (strcmp(cmd, "sr") == 0) {
+                uint8_t sr;
+                char *mramnrs = next_token(&afterCommand), *end;
+                int err;
+                unsigned int i, first = 0, last = PACSAT_MAX_MRAMS - 1;
+
+                if (!mramnrs) {
+                    printf("Must give an MRAM number or 'all'\n");
+                    break;
+                }
+
+                if (strcmp(mramnrs, "all") != 0) {
+                    first = strtoul(mramnrs, &end, 0);
+                    if (*end != '\0' || first > 255) {
+                        printf("Invalid mram number, %d to %d or 'all'\n",
+                               0, PACSAT_MAX_MRAMS - 1);
+                        break;
+                    }
+                    last = first;
+                }
+                err = parse_uint8(&afterCommand, &sr, 0);
+                if (err) {
+                    for (i = first; i <= last; i++)
+                        printf("MRAM%d: status 0x%x\n", i, readMRAMStatus(i));
+                    break;
+                }
+
+                for (i = first; i <= last; i++) {
+                    writeMRAMStatus(i, sr);
+                    printf("Set MRAM%d status to 0x%x\n", i, sr);
+                }
+            } else if (strcmp(cmd, "wren") == 0) {
+                bool stat;
+		uint8_t num;
+
+                if (parse_mramnr(&afterCommand, &num))
+		    break;
+
+                stat = writeEnableMRAM(num);
+                printf("stat for MRAM %d is %d; sr is %x\n", num, stat,
+                       readMRAMStatus(num));
+            } else if (strcmp(cmd, "wake") == 0) {
+		uint8_t num;
+
+                if (parse_mramnr(&afterCommand, &num))
+		    break;
+
+                MRAMWake(num);
+            } else if (strcmp(cmd, "sleep") == 0) {
+		uint8_t num;
+
+                if (parse_mramnr(&afterCommand, &num))
+		    break;
+
+                MRAMSleep(num);
+            } else {
+                printf("Unknown mram command, see help\n");
             }
-#if 0
-            printf("Size of MRAM0 is %dKB\n",getMRAMSize(0)/1024);
-            printf("Size of MRAM1 is %dKB\n",getMRAMSize(1)/1024);
-            printf("Size of MRAM2 is %dKB\n",getMRAMSize(MRAM2Dev)/1024);
-            printf("Size of MRAM3 is %dKB\n",getMRAMSize(MRAM3Dev)/1024);
-#endif
-            break;
-        }
-
-        case testAllMRAM:{
-            int add = parseNumber(&afterCommand);
-            int secret = parseNumber(&afterCommand);
-
-            if (add == 0)
-                add = 4;
-            printf("NOTE:  This test will wipe out the file system and configuration values in MRAM.\n\n");
-
-            if (secret != 42) {
-                printf("  To confirm you must give the command with a second argument of 42, for example 'test mram %d 42'\n", add);
-                break;
-            }
-            testMRAM(add);
-            break;
-        }
-
-        case MRAMWrEn: {
-            bool stat;
-            int num = parseNumber(&afterCommand);
-
-            stat = writeEnableMRAM(num);
-            printf("stat for MRAM %d is %d; sr is %x\n", num, stat,
-                   readMRAMStatus(num));
-            //readNV(data,8,NVConfigData,0);
-            //printf("MRAM at address 0 and 1 are now now %d and %d\n",data[0],data[1]);
             break;
         }
 
@@ -1033,9 +1078,9 @@ void RealConsoleTask(void)
 
             if (err) {
                 for (chan = 0; chan < NUM_CHANNELS; chan++)
-		    printf("chan%u power = %d%%\n", chan, get_tx_power(chan));
+                    printf("chan%u power = %d%%\n", chan, get_tx_power(chan));
                 break;
-	    }
+            }
 
             err = parse_uint8(&afterCommand, &power, 0);
             if (err) {
@@ -1298,27 +1343,6 @@ void RealConsoleTask(void)
             break;
         }
 
-        case mramSleep: {
-            int num = parseNumber(&afterCommand);
-
-            MRAMSleep(num);
-            break;
-        }
-
-        case mramAwake: {
-            int num = parseNumber(&afterCommand);
-
-            MRAMWake(num);
-            break;
-        }
-
-        case doClearMRAM:{
-            SetupMRAM();
-            // Don't get confused by in orbit state!
-            WriteMRAMBoolState(StateInOrbit, true);
-            break;
-        }
-
         case ignoreUmb:
             //OverrideUmbilical(true);
             break;
@@ -1372,31 +1396,6 @@ void RealConsoleTask(void)
             break;
         }
 
-        case readMRAMsr: {
-            int i;
-
-            for (i = 0; i < PACSAT_MAX_MRAMS; ) {
-                printf("MRAM%d: status %x", i, readMRAMStatus(i));
-                i++;
-                if(i%2 == 0){
-                    printf("\n");
-                } else {
-                    printf(", ");
-                }
-            }
-            break;
-        }
-
-        case writeMRAMsr: {
-            uint8_t stat = parseNumber(&afterCommand);
-            int i;
-
-            for (i = 0; i < PACSAT_MAX_MRAMS; i++){
-                writeMRAMStatus(i,stat);
-            }
-            break;
-        }
-
         case internalWDTimeout: {
             ForceInternalWatchdogTrigger();
             break;
@@ -1442,12 +1441,7 @@ void RealConsoleTask(void)
             break;
         }
 
-        case SwVersion:{
-            printID();
-            break;
-        }
-
-        case time: {
+        case upTime: {
             logicalTime_t time;
 
             getTime(&time);
@@ -1548,8 +1542,22 @@ void RealConsoleTask(void)
             break;
         }
 
-        case BoardVersion: {
-            printf("Board version: %d\n", board_version);
+        case getVersion: {
+            char *type = next_token(&afterCommand);
+
+            if (!type) {
+                printID();
+                printf("Board version: %d\n", board_version);
+                break;
+            }
+
+            if (strcmp(type, "sw") == 0) {
+                printID();
+            } else if (strcmp(type, "board") == 0) {
+                printf("Board version: %d\n", board_version);
+            } else {
+                printf("Unknown version info, must be 'sw' or 'board'\n");
+            }
             break;
         }
 
@@ -1605,12 +1613,19 @@ void RealConsoleTask(void)
             break;
         }
 
-        case getRSSI: {
+        case RSSI: {
             int err = parse_chan(&afterCommand, &chan, 0);
+            int rssi;
 
-            if (err)
+            if (err) {
+                for (chan = 0; chan < NUM_CHANNELS; chan++) {
+                    rssi = get_rssi(chan);
+                    printf("Channel %d RSSI is %02x = %d dBm\n",
+                           chan, rssi, ((int16_t)rssi) - 255);
+                }
                 break;
-            int rssi = get_rssi(chan);
+            }
+            rssi = get_rssi(chan);
             printf("Channel %d RSSI is %02x = %d dBm\n",
                    chan, rssi, ((int16_t)rssi) - 255);
             break;
