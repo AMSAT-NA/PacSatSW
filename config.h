@@ -224,12 +224,13 @@ typedef uint8_t rfchan;
 #define TAC_TIMER_SEND_TELEMETRY_PERIOD SECONDS(120) //SECONDS(120)
 #define TAC_TIMER_SAVE_WOD_PERIOD SECONDS(5*60)
 // Generate 2 WOD files a day
-#define TAC_FILE_SIZE_TO_ROLL_WOD 1000 // 30k - we want this to be about a third of a day, but not so large that it is hard to download
+#define TAC_FILE_SIZE_TO_ROLL_WOD 15000 // 10-35k - we want this to be about a third or a half of a day, but not so large that it is hard to download
 // Run maintenance every 5 mins
 #define TAC_TIMER_MAINTENANCE_PERIOD SECONDS(5*60)
 // Every second for reading ADC values, probably reduce this.
 #define TAC_TIMER_ADC_PERIOD CENTISECONDS(100)
 
+/* These are the default periods to keep files in the dir */
 #define DIR_MAX_FILE_AGE 5*24*60*60 // 5*24*60*60 5 days to keep files
 #define FTL0_MAX_UPLOAD_RECORD_AGE 3*60*60 // 3*24*60*60 3 days to keep upload records.  This is reset when a station uploads new data for a file.  Note that is should be long enough to make sure that files are not purged while a station is trying to upload it.  i.e. At least 3-5 mins
 

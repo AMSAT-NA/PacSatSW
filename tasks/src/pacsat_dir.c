@@ -673,7 +673,7 @@ void dir_file_queue_check(uint32_t now, char * folder, uint8_t file_type, char *
             uint32_t create_time = de->d_stat.st_mtime; /* We use the time of last modify as the create time.  So for a wod file this is the time the last data was written. */
             uint32_t file_size = de->d_stat.st_size;
             if (file_size > UNCOMPRESSED_FILE_SIZE_LIMIT) {
-                //TODO - compression is not yet implemented for internally generated files
+                //TODO - compression is not yet implemented for internally generated files - the code below is from a Unix implementation and wont work
                 /* Compress if more than 200 bytes used */
 //                char zip_command[MAX_FILE_PATH_LEN];
 //                char compressed_file_name[MAX_FILE_PATH_LEN];

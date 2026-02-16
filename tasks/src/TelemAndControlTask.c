@@ -69,7 +69,6 @@ void tac_roll_wod_file();
 
 /* Local variables */
 char wod_file_name[MAX_FILENAME_WITH_PATH_LEN];
-int wod_file_length = 0;
 
 /* timer to send the telemetry periodically */
 static xTimerHandle timerTelemSend;
@@ -548,6 +547,7 @@ void tac_store_wod() {
     int32_t fp;
     int32_t numOfBytesWritten = -1;
     int32_t rc;
+    int32_t wod_file_length;
 
     fp = red_open(wod_file_name, RED_O_CREAT | RED_O_APPEND | RED_O_WRONLY);
     if (fp == -1) {
@@ -575,8 +575,7 @@ void tac_store_wod() {
 }
 
 /**
- * Rename the WOD file so it will be processed in the file queue.  Reset the WOD
- * file name so a new one is assigned next time we write data.
+ * Rename the WOD file so it will be processed in the file queue.
  */
 void tac_roll_wod_file() {
     /* Make a new wod file name and start the file */
@@ -590,22 +589,37 @@ void tac_roll_wod_file() {
         // 10 Aug 2023 because that is when I wrote this line
         debug_print("Unix time seems to be in the past!");
         unixtime=0;
-    }
-    struct tm *time;
-    time_t t  = (time_t)(unixtime + 2208988800L - 6 * 60 * 60);
-    // Adjust because TI Time library used Epoch of 1-1-1900 UTC - 6
-    time = gmtime(&t);
-    if (time != NULL) {
-        strftime(file_id_str, sizeof(file_id_str), "%m%d%H%M", time);
-        strlcat(file_name, file_id_str, sizeof(file_name));
-    } else {
         strlcat(file_name, "---", sizeof(file_name));
+    } else {
+        struct tm *time;
+        time_t t  = (time_t)(unixtime + 2208988800L - 6 * 60 * 60);
+        // Adjust because TI Time library used Epoch of 1-1-1900 UTC - 6
+        time = gmtime(&t);
+        if (time != NULL) {
+            strftime(file_id_str, sizeof(file_id_str), "%m%d%H%M", time);
+            strlcat(file_name, file_id_str, sizeof(file_name));
+        } else {
+            strlcat(file_name, "---", sizeof(file_name));
+        }
     }
 
+    // Just in case the file already exists, we try to remove it and ignore any errors
+    red_unlink(file_name);
+    // Then we rename the file
     int rc = red_link(wod_file_name, file_name);
     if (rc == -1) {
         debug_print("Unable to link wod file: %s : %s\n", file_name, red_strerror(red_errno));
-        return; // TODO Check if this is because we ran out of space.  So exit and we will try again next time
+        switch (red_errno) {
+        case RED_EINVAL: // no mounted
+        case RED_EIO: // disk io, we hope it is temporary
+            //TODO - log this error, so that if a count is reached we reboot to try to fix this
+        case RED_ENOSPC: //this is because we ran out of space.  So exit and we will try again next time
+            return;
+        default:
+            // All other errors will be repeated in a loop, so we remove the file
+            red_unlink(wod_file_name);
+            return;
+        }
     }
 
     /* Otherwise File renamed, ready to be added to the dir.  Remove the tmp file*/
@@ -614,9 +628,6 @@ void tac_roll_wod_file() {
         debug_print("Unable to remove tmp wod file: %s : %s\n", wod_file_name, red_strerror(red_errno));
         // TODO this is not fatal but there needs to be a way to clean this up or we will keep trying to add it to the dir
     }
-
-    wod_file_name[0] = 0; // clear the file name
-    wod_file_length = 0;
 
     debug_print("Telem & Control: Rolled WOD file: %s\n", file_name);
 
