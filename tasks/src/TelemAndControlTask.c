@@ -65,10 +65,10 @@ void tac_collect_telemetry(telem_buffer_t *buffer);
 void tac_send_telemetry(telem_buffer_t *buffer);
 void tac_send_time();
 void tac_store_wod();
-void tac_roll_wod_file();
+void tac_roll_file(char *file_name_with_path, char *destination);
 
 /* Local variables */
-char wod_file_name[MAX_FILENAME_WITH_PATH_LEN];
+char wod_file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
 
 /* timer to send the telemetry periodically */
 static xTimerHandle timerTelemSend;
@@ -258,7 +258,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
                 //debug_print("TAC: Running FTL0 Maintenance\n");
                 ftl0_maintenance();
                 now = getUnixTime(); // Get the time in seconds since the unix epoch
-                dir_file_queue_check(now, WOD_FOLDER, PFH_TYPE_WL, "WOD");
+                dir_file_queue_check(now, QUE_FOLDER, PFH_TYPE_WL, WOD_DESTINATION, DIR_MAX_WOD_FILE_AGE);
                 break;
 
             case TacCollectMsg:
@@ -525,13 +525,14 @@ void tac_store_wod() {
     telem_buffer_t *buffer = &telem_buffer;
     if(!IsStabilizedAfterBoot()) return;
 
-    if (strlen(wod_file_name) == 0) {
+    if (strlen(wod_file_name_with_path) == 0) {
         /* Make a new wod file name and start the file */
         char file_name[MAX_FILENAME_WITH_PATH_LEN];
-        strlcpy(file_name, "wod.tmp", sizeof(file_name));
+        strlcpy(file_name, WOD_DESTINATION, sizeof(file_name));
+        strlcat(file_name, ".tmp", sizeof(file_name));
 
-        strlcpy(wod_file_name, WOD_FOLDER, sizeof(wod_file_name));
-        strlcat(wod_file_name, file_name, sizeof(wod_file_name));
+        strlcpy(wod_file_name_with_path, QUE_FOLDER, sizeof(wod_file_name_with_path));
+        strlcat(wod_file_name_with_path, file_name, sizeof(wod_file_name_with_path));
     }
 
     int len = 0;
@@ -549,39 +550,38 @@ void tac_store_wod() {
     int32_t rc;
     int32_t wod_file_length;
 
-    fp = red_open(wod_file_name, RED_O_CREAT | RED_O_APPEND | RED_O_WRONLY);
+    fp = red_open(wod_file_name_with_path, RED_O_CREAT | RED_O_APPEND | RED_O_WRONLY);
     if (fp == -1) {
-        debug_print("Unable to open %s for writing: %s\n", wod_file_name, red_strerror(red_errno));
+        debug_print("Unable to open %s for writing: %s\n", wod_file_name_with_path, red_strerror(red_errno));
     } else {
 
         numOfBytesWritten = red_write(fp, frame, len);
         if (numOfBytesWritten != len) {
             printf("Write returned: %d\n",numOfBytesWritten);
             if (numOfBytesWritten == -1) {
-                printf("Unable to write to %s: %s\n", wod_file_name, red_strerror(red_errno));
+                printf("Unable to write to %s: %s\n", wod_file_name_with_path, red_strerror(red_errno));
             }
         }
         wod_file_length = red_lseek(fp, 0, RED_SEEK_END);
         rc = red_close(fp);
         if (rc != 0) {
-            printf("Unable to close %s: %s\n", wod_file_name, red_strerror(red_errno));
+            printf("Unable to close %s: %s\n", wod_file_name_with_path, red_strerror(red_errno));
         }
     }
 
     debug_print("Telem & Control: Stored WOD: %d/%d size:%d\n", ttohs(realtimeFrame.header.resetCnt), htotl(realtimeFrame.header.uptime),wod_file_length);
     if (wod_file_length > TAC_FILE_SIZE_TO_ROLL_WOD)
-        tac_roll_wod_file();
-
+        tac_roll_file(wod_file_name_with_path, WOD_DESTINATION);
 }
 
 /**
- * Rename the WOD file so it will be processed in the file queue.
+ * Rename the QUE file so it will be processed in the file queue.
  */
-void tac_roll_wod_file() {
+void tac_roll_file(char *file_name_with_path, char *destination) {
     /* Make a new wod file name and start the file */
     char file_name[MAX_FILENAME_WITH_PATH_LEN];
-    strlcpy(file_name, WOD_FOLDER, sizeof(file_name));
-    strlcat(file_name, "wod", sizeof(file_name));
+    strlcpy(file_name, QUE_FOLDER, sizeof(file_name));
+    strlcat(file_name, destination, sizeof(file_name));
 
     char file_id_str[14];
     uint32_t unixtime = getUnixTime(); // Get the time in seconds since the unix epoch
@@ -606,9 +606,9 @@ void tac_roll_wod_file() {
     // Just in case the file already exists, we try to remove it and ignore any errors
     red_unlink(file_name);
     // Then we rename the file
-    int rc = red_link(wod_file_name, file_name);
+    int rc = red_link(file_name_with_path, file_name);
     if (rc == -1) {
-        debug_print("Unable to link wod file: %s : %s\n", file_name, red_strerror(red_errno));
+        debug_print("Unable to link que file: %s : %s\n", file_name, red_strerror(red_errno));
         switch (red_errno) {
         case RED_EINVAL: // no mounted
         case RED_EIO: // disk io, we hope it is temporary
@@ -617,19 +617,19 @@ void tac_roll_wod_file() {
             return;
         default:
             // All other errors will be repeated in a loop, so we remove the file
-            red_unlink(wod_file_name);
+            red_unlink(file_name_with_path);
             return;
         }
     }
 
     /* Otherwise File renamed, ready to be added to the dir.  Remove the tmp file*/
-    rc = red_unlink(wod_file_name);
+    rc = red_unlink(file_name_with_path);
     if (rc == -1) {
-        debug_print("Unable to remove tmp wod file: %s : %s\n", wod_file_name, red_strerror(red_errno));
+        debug_print("Unable to remove tmp que file: %s : %s\n", file_name_with_path, red_strerror(red_errno));
         // TODO this is not fatal but there needs to be a way to clean this up or we will keep trying to add it to the dir
     }
 
-    debug_print("Telem & Control: Rolled WOD file: %s\n", file_name);
+    debug_print("Telem & Control: Rolled QUE file: %s\n", file_name);
 
 }
 
@@ -642,7 +642,7 @@ void tac_roll_wod_file() {
 
 int tac_test_wod_file() {
     tac_store_wod();
-    tac_roll_wod_file();
+    tac_roll_file(wod_file_name_with_path, WOD_DESTINATION);
     printf("##### TEST MAKE WOD FILE: success\n");
 
     return EXIT_SUCCESS;

@@ -161,7 +161,7 @@ int32_t dir_check_folders() {
     if (ret == -1) return ret;
     ret = dir_check_folder(TMP_FOLDER);
     if (ret == -1) return ret;
-    ret = dir_check_folder(WOD_FOLDER);
+    ret = dir_check_folder(QUE_FOLDER);
     if (ret == -1) return ret;
 
     return 0;
@@ -642,8 +642,8 @@ void dir_maintenance() {
  * file_to_load: This is the name of the file in the dir without the path e,g, 0034
  *
  */
-void dir_file_queue_check(uint32_t now, char * folder, uint8_t file_type, char * destination) {
-    debug_print("Checking for files in queue: %s\n",folder);
+void dir_file_queue_check(uint32_t now, char * folder, uint8_t file_type, char * destination, uint32_t expire_time) {
+    debug_print("Checking for files in queue: %s of type %s\n",folder, destination);
     REDDIR *pDir;
     pDir = red_opendir(folder);
     if (pDir == NULL) {
@@ -662,7 +662,13 @@ void dir_file_queue_check(uint32_t now, char * folder, uint8_t file_type, char *
 //         strlcat(file_name, "/", sizeof(file_name));
         strlcat(file_name, de->d_name, sizeof(file_name));
         if (!RED_S_ISDIR(de->d_stat.st_mode)) {
+            // If its a .tmp file then it is still being written and we ignore it
             if (str_ends_with(de->d_name, PSF_FILE_TMP)) {
+              debug_print("Skipping file: %s\n",de->d_name);
+                continue;
+            }
+            // If it does not begin with the destination string, then we ignore it.  We are only looking for that type
+            if (!str_starts_with(de->d_name, destination)) {
               debug_print("Skipping file: %s\n",de->d_name);
                 continue;
             }
@@ -697,7 +703,7 @@ void dir_file_queue_check(uint32_t now, char * folder, uint8_t file_type, char *
             }
             HEADER pfh;
             int ret = pfh_make_internal_header(&pfh, now, file_type, id, "", BBS_CALLSIGN, destination, de->d_name, de->d_name,
-                    create_time, 0, compression_type);
+                    create_time, expire_time, compression_type);
             if (ret == EXIT_FAILURE)
                 continue;
 
@@ -731,6 +737,9 @@ void dir_file_queue_check(uint32_t now, char * folder, uint8_t file_type, char *
                 debug_print("Unable to remove file: %s : %s\n", file_name, red_strerror(red_errno));
             }
         }
+        ReportToWatchdog(CurrentTaskWD);
+        vTaskDelay(CENTISECONDS(10)); // yield some time so that other things can do work
+        ReportToWatchdog(CurrentTaskWD);
     }
     int32_t rc2 = red_closedir(pDir);
     if (rc2 != 0) {

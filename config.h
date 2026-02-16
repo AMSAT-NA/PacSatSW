@@ -196,7 +196,11 @@ typedef uint8_t rfchan;
 
 #define DIR_FOLDER "//dir/"
 #define TMP_FOLDER "//tmp/"
-#define WOD_FOLDER "//wod/"
+#define QUE_FOLDER "//que/"
+
+#define WOD_DESTINATION "WOD"
+#define TXT_DESTINATION "TXT
+#define EXP_DESTINATION "EXP"
 
 #define AX25_MAX_DATA_LEN 240 /* This is the maximum number of bytes a packet can have */
 #define AX25_MAX_INFO_BYTES_LEN 223 /* This is the maximum number of info bytes a packet can have */
@@ -223,15 +227,17 @@ typedef uint8_t rfchan;
 // Default is to send telemetry every 2 mins and save WOD every 5 mins
 #define TAC_TIMER_SEND_TELEMETRY_PERIOD SECONDS(120) //SECONDS(120)
 #define TAC_TIMER_SAVE_WOD_PERIOD SECONDS(5*60)
-// Generate 2 WOD files a day
-#define TAC_FILE_SIZE_TO_ROLL_WOD 15000 // 10-35k - we want this to be about a third or a half of a day, but not so large that it is hard to download
-// Run maintenance every 5 mins
+/* Generate WOD files one or more times a day.  The size depends on the WOD layout size and the WOD SAVE PERIOD
+ * we want this to be about a third or a half of a day, but not so large that it is hard to download */
+#define TAC_FILE_SIZE_TO_ROLL_WOD 15000 // 15k
+// Run maintenance every 5 mins.  Maintenance should run very quickly
 #define TAC_TIMER_MAINTENANCE_PERIOD SECONDS(5*60)
 // Every second for reading ADC values, probably reduce this.
 #define TAC_TIMER_ADC_PERIOD CENTISECONDS(100)
 
 /* These are the default periods to keep files in the dir */
 #define DIR_MAX_FILE_AGE 5*24*60*60 // 5*24*60*60 5 days to keep files
+#define DIR_MAX_WOD_FILE_AGE 2*24*60*60 // 2*24*60*60 2 days to keep WOD files
 #define FTL0_MAX_UPLOAD_RECORD_AGE 3*60*60 // 3*24*60*60 3 days to keep upload records.  This is reset when a station uploads new data for a file.  Note that is should be long enough to make sure that files are not purged while a station is trying to upload it.  i.e. At least 3-5 mins
 
 /* At least this many bytes should be free after a file is uploaded.  Each disk block is 256 Bytes.

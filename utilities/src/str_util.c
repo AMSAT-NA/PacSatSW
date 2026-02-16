@@ -27,7 +27,7 @@
 
 #include <sys/types.h>
 #include <string.h>
-
+#include <stdbool.h>
 /*
  * Copy string src to buffer dst of size dsize.  At most dsize-1
  * chars will be copied.  Always NUL terminates (unless dsize == 0).
@@ -95,14 +95,23 @@ strlcat(char *dst, const char *src, size_t dsize) {
 /**
  * Checks if a string ends with a suffix
  */
-int str_ends_with(const char *str, const char *suffix) {
+bool str_ends_with(const char *str, const char *suffix) {
     if (str == NULL || suffix == NULL)
-        return -1;
+        return 0;
     size_t lenstr = strlen(str);
     size_t lensuffix = strlen(suffix);
     if (lensuffix >  lenstr)
-        return -1;
+        return 0;
     return strncmp(str + lenstr - lensuffix, suffix, lensuffix) == 0;
 }
 
+/**
+ * Checks if a string starts with a prefix
+ */
+bool str_starts_with(const char *str, const char *prefix) {
+    if (str == NULL || prefix == NULL) return 0;
+    size_t lenprefix = strlen(prefix);
+    if (lenprefix > strlen(str)) return 0;
+    return strncmp(str, prefix, lenprefix) == 0;
+}
 

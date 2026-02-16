@@ -49,7 +49,7 @@ int32_t dir_fs_get_file_size(char *file_name_with_path);
 DIR_NODE * dir_get_pfh_by_date(DIR_DATE_PAIR pair, DIR_NODE *p );
 DIR_NODE * dir_get_node_by_id(int file_id);
 void dir_maintenance();
-void dir_file_queue_check(uint32_t now, char * folder, uint8_t file_type, char * destination);
+void dir_file_queue_check(uint32_t now, char * folder, uint8_t file_type, char * destination, uint32_t expire_time);
 void dir_debug_print(DIR_NODE *p);
 
 /* Test functions */

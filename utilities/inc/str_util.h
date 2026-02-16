@@ -21,10 +21,11 @@
 #ifndef UTILITIES_INC_STR_UTIL_H_
 #define UTILITIES_INC_STR_UTIL_H_
 
+#include <stdbool.h>
 
 size_t strlcpy(char *dst, const char *src, size_t dsize);
 size_t strlcat(char *dst, const char *src, size_t dsize);
-int str_ends_with(const char *str, const char *suffix);
-
+bool str_ends_with(const char *str, const char *suffix);
+bool str_starts_with(const char *str, const char *prefix);
 
 #endif /* UTILITIES_INC_STR_UTIL_H_ */
