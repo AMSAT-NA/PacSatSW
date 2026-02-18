@@ -16,6 +16,6 @@ void TelemAndControlTask(void *pvParameters);
 
 /* Test routines */
 bool tac_test_wod_file();
-
+bool tac_test_txt_file();
 
 #endif /* TASKS_SRC_TELEMANDCONTROLTASK_H_ */

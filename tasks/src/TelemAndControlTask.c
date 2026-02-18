@@ -61,11 +61,12 @@ void tac_telem_timer_callback(TimerHandle_t xTimer);
 void tac_wod_save_timer_callback(TimerHandle_t xTimer);
 void tac_adc_timer_callback(TimerHandle_t xTimer);
 void tac_maintenance_timer_callback(TimerHandle_t xTimer);
+void tac_check_file_queues_timer_callback(TimerHandle_t xTimer);
 void tac_collect_telemetry(telem_buffer_t *buffer);
 void tac_send_telemetry(telem_buffer_t *buffer);
 void tac_send_time();
 void tac_store_wod();
-void tac_roll_file(char *file_name_with_path, char *destination);
+void tac_roll_wod_file(char *file_name_with_path);
 
 /* Local variables */
 char wod_file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
@@ -78,6 +79,9 @@ static xTimerHandle timerWodSave;
 
 /* timer to perform maintenance periodically */
 static xTimerHandle timerMaintenance;
+
+/* timer to perform file queue checks periodically */
+static xTimerHandle timerCheckFileQueues;
 
 /* timer to send the PB status periodically */
 static xTimerHandle timerPbStatus;
@@ -187,6 +191,17 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
                     (int)"ERROR: Failed in starting Maintenance Timer");
     }
 
+    /* Create a periodic timer for file queues */
+    timerCheckFileQueues = xTimerCreate("Check File Queues",
+                                    TAC_TIMER_CHECK_FILE_QUEUES_PERIOD, TRUE,
+                                    NULL, tac_check_file_queues_timer_callback);
+    // Block time of zero as this can not block
+    timerStatus = xTimerStart(timerCheckFileQueues, 0);
+    if (timerStatus != pdPASS) {
+        ReportError(RTOSfailure, FALSE, CharString,
+                    (int)"ERROR: Failed in starting File Queue Check Timer");
+    }
+
     /* Create a periodic timer for reading the ADC */
     timerADC = xTimerCreate("ADC",
                             TAC_TIMER_ADC_PERIOD, TRUE,
@@ -257,9 +272,14 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
                 dir_maintenance();
                 //debug_print("TAC: Running FTL0 Maintenance\n");
                 ftl0_maintenance();
-                now = getUnixTime(); // Get the time in seconds since the unix epoch
-                dir_file_queue_check(now, QUE_FOLDER, PFH_TYPE_WL, WOD_DESTINATION, DIR_MAX_WOD_FILE_AGE);
                 break;
+
+            case TacCheckFileQueuesMsg:
+                now = getUnixTime(); // Get the time in seconds since the unix epoch
+                dir_file_queue_check(now, WOD_FOLDER, PFH_TYPE_WL, WOD_DESTINATION, DIR_MAX_WOD_FILE_AGE);
+                dir_file_queue_check(now, TXT_FOLDER, PFH_TYPE_ASCII, TXT_DESTINATION, DIR_MAX_WOD_FILE_AGE);
+                break;
+
 
             case TacCollectMsg:
                 tac_collect_telemetry(&telem_buffer);
@@ -365,6 +385,18 @@ void tac_maintenance_timer_callback(TimerHandle_t xTimer)
     statusMsg.MsgType = TacMaintenanceMsg;
     NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
 }
+
+/**
+ * tac_file_queue_check_timer_callback()
+ *
+ * This is called from a timer whenever the file queues should be checked
+ */
+void tac_check_file_queues_timer_callback(TimerHandle_t xTimer)
+{
+    statusMsg.MsgType = TacCheckFileQueuesMsg;
+    NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
+}
+
 
 void tac_collect_telemetry(telem_buffer_t *buffer)
 {
@@ -528,10 +560,10 @@ void tac_store_wod() {
     if (strlen(wod_file_name_with_path) == 0) {
         /* Make a new wod file name and start the file */
         char file_name[MAX_FILENAME_WITH_PATH_LEN];
-        strlcpy(file_name, WOD_DESTINATION, sizeof(file_name));
+        strlcpy(file_name, WOD_PREFIX, sizeof(file_name));
         strlcat(file_name, ".tmp", sizeof(file_name));
 
-        strlcpy(wod_file_name_with_path, QUE_FOLDER, sizeof(wod_file_name_with_path));
+        strlcpy(wod_file_name_with_path, WOD_FOLDER, sizeof(wod_file_name_with_path));
         strlcat(wod_file_name_with_path, file_name, sizeof(wod_file_name_with_path));
     }
 
@@ -571,17 +603,17 @@ void tac_store_wod() {
 
     debug_print("Telem & Control: Stored WOD: %d/%d size:%d\n", ttohs(realtimeFrame.header.resetCnt), htotl(realtimeFrame.header.uptime),wod_file_length);
     if (wod_file_length > TAC_FILE_SIZE_TO_ROLL_WOD)
-        tac_roll_file(wod_file_name_with_path, WOD_DESTINATION);
+        tac_roll_wod_file(wod_file_name_with_path);
 }
 
 /**
- * Rename the QUE file so it will be processed in the file queue.
+ * Rename the WOD file with a timestamp so it will be processed in the file queue.
  */
-void tac_roll_file(char *file_name_with_path, char *destination) {
+void tac_roll_wod_file(char *file_name_with_path) {
     /* Make a new wod file name and start the file */
     char file_name[MAX_FILENAME_WITH_PATH_LEN];
-    strlcpy(file_name, QUE_FOLDER, sizeof(file_name));
-    strlcat(file_name, destination, sizeof(file_name));
+    strlcpy(file_name, WOD_FOLDER, sizeof(file_name));
+    strlcat(file_name, WOD_PREFIX, sizeof(file_name));
 
     char file_id_str[14];
     uint32_t unixtime = getUnixTime(); // Get the time in seconds since the unix epoch
@@ -640,12 +672,40 @@ void tac_roll_file(char *file_name_with_path, char *destination) {
  *
  */
 
-int tac_test_wod_file() {
+bool tac_test_wod_file() {
     tac_store_wod();
-    tac_roll_file(wod_file_name_with_path, WOD_DESTINATION);
-    printf("##### TEST MAKE WOD FILE: success\n");
+    tac_roll_wod_file(wod_file_name_with_path);
+    printf("##### TEST MAKE WOD FILE: executed, check results in the dir\n");
 
-    return EXIT_SUCCESS;
+    return true;
 }
 
+bool tac_test_txt_file() {
+    char file_path[MAX_FILENAME_WITH_PATH_LEN];
+    char tmp_file_path[MAX_FILENAME_WITH_PATH_LEN];
+
+    strlcpy(file_path, TXT_FOLDER, sizeof(file_path));
+    strlcat(file_path, "data123", sizeof(file_path));
+
+    strlcpy(tmp_file_path, file_path, sizeof(tmp_file_path));
+    strlcat(tmp_file_path, ".tmp", sizeof(tmp_file_path));
+
+    char *msg = "Every PACSAT file will start with the byte 0xaa followed by the byte 0x55.  \n\
+This flag is followed by the rest of the PACSAT File Header (PFH).  A valid \n\
+PFH contains all of the items of the Mandatory Header (Section  3), and it may\n\
+also contain all items of the Extended Header (Section 4) and any number of\n\
+Optional Header items (Section 5).  All HEADER ITEMS are encoded using a \n\
+standard syntax, described in Section 2. ";
+
+    int rc = dir_fs_write_file_chunk(tmp_file_path, (uint8_t *)msg, strlen(msg), 0);
+    if (rc == -1) {  debug_print("Write file data - FAILED\n"); return false; }
+
+    // Rename it so the que watcher adds it to the dir
+    rc = red_link(tmp_file_path, file_path);
+    red_unlink(tmp_file_path);
+
+    printf("##### TEST MAKE TXT FILE: executed, check results in the dir\n");
+
+    return true;
+}
 #endif

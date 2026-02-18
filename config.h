@@ -194,13 +194,22 @@ typedef uint8_t rfchan;
 #define is_tx_chan(c) ((c) >= FIRST_TX_CHANNEL && (c) <= LAST_TX_CHANNEL)
 #define is_rx_chan(c) ((c) >= FIRST_RX_CHANNEL && (c) <= LAST_RX_CHANNEL)
 
+// These are the folders in the root of the filesystem.  Most are queues holding temp data until added to the dir
 #define DIR_FOLDER "//dir/"
 #define TMP_FOLDER "//tmp/"
-#define QUE_FOLDER "//que/"
+#define WOD_FOLDER "//wod/"
+#define TXT_FOLDER "//txt/"
+#define EXP_FOLDER "//exp/"
+#define CAN_FOLDER "//can/"
 
+// These are the prefixes for files stored in the filesystem
+#define WOD_PREFIX "wod"
+
+// These are the TO callsigns for files added to Queues
 #define WOD_DESTINATION "WOD"
-#define TXT_DESTINATION "TXT
+#define TXT_DESTINATION "TXT"
 #define EXP_DESTINATION "EXP"
+#define CAN_DESTINATION "CAN"
 
 #define AX25_MAX_DATA_LEN 240 /* This is the maximum number of bytes a packet can have */
 #define AX25_MAX_INFO_BYTES_LEN 223 /* This is the maximum number of info bytes a packet can have */
@@ -227,11 +236,17 @@ typedef uint8_t rfchan;
 // Default is to send telemetry every 2 mins and save WOD every 5 mins
 #define TAC_TIMER_SEND_TELEMETRY_PERIOD SECONDS(120) //SECONDS(120)
 #define TAC_TIMER_SAVE_WOD_PERIOD SECONDS(5*60)
+
 /* Generate WOD files one or more times a day.  The size depends on the WOD layout size and the WOD SAVE PERIOD
  * we want this to be about a third or a half of a day, but not so large that it is hard to download */
 #define TAC_FILE_SIZE_TO_ROLL_WOD 15000 // 15k
+
 // Run maintenance every 5 mins.  Maintenance should run very quickly
 #define TAC_TIMER_MAINTENANCE_PERIOD SECONDS(5*60)
+
+// Check the file queues every min
+#define TAC_TIMER_CHECK_FILE_QUEUES_PERIOD SECONDS(1*60)
+
 // Every second for reading ADC values, probably reduce this.
 #define TAC_TIMER_ADC_PERIOD CENTISECONDS(100)
 

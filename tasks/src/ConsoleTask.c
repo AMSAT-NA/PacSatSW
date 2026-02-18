@@ -181,7 +181,8 @@ enum {
     makePfhFiles,
     testDir,
     testInternalFile,
-    makeWodFile,
+    makeWodQueFile,
+    makeTxtQueFile,
     sendUplinkStatus,
     testRetransmission,
     testUploadTable,
@@ -205,7 +206,6 @@ enum {
     getRtc,
     regRtc,
     Modulation,
-    setDigi,
 };
 
 /*
@@ -374,9 +374,12 @@ commandPairs debugCommands[] = {
     { "test internal file",
       "Generate a test internal file and add it to the directory",
       testInternalFile},
-    { "test wod file",
+    { "test que wod",
      "Generate a test wod file and add it to the file queue",
-     makeWodFile},
+     makeWodQueFile},
+     { "test que txt",
+      "Generate a test txt file and add it to the file queue",
+      makeTxtQueFile},
     { "send uplink status",
       "Send Uplink status",
       sendUplinkStatus},
@@ -386,9 +389,6 @@ commandPairs debugCommands[] = {
     { "test upload table",
       "Test the storage of Upload records in the MRAM table",
       testUploadTable},
-    { "set digi",
-      "Set the digipeater mode",
-      setDigi},
 #endif
 };
 
@@ -1773,8 +1773,12 @@ void RealConsoleTask(void)
             bool rc = test_pfh_make_internal_file("//testfile");
             break;
         }
-        case makeWodFile:{
+        case makeWodQueFile:{
             bool rc = tac_test_wod_file();
+            break;
+        }
+        case makeTxtQueFile:{
+            bool rc = tac_test_txt_file();
             break;
         }
 

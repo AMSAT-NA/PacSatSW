@@ -161,7 +161,13 @@ int32_t dir_check_folders() {
     if (ret == -1) return ret;
     ret = dir_check_folder(TMP_FOLDER);
     if (ret == -1) return ret;
-    ret = dir_check_folder(QUE_FOLDER);
+    ret = dir_check_folder(WOD_FOLDER);
+    if (ret == -1) return ret;
+    ret = dir_check_folder(TXT_FOLDER);
+    if (ret == -1) return ret;
+    ret = dir_check_folder(EXP_FOLDER);
+    if (ret == -1) return ret;
+    ret = dir_check_folder(CAN_FOLDER);
     if (ret == -1) return ret;
 
     return 0;
@@ -643,7 +649,7 @@ void dir_maintenance() {
  *
  */
 void dir_file_queue_check(uint32_t now, char * folder, uint8_t file_type, char * destination, uint32_t expire_time) {
-    debug_print("Checking for files in queue: %s of type %s\n",folder, destination);
+    //debug_print("Checking for files in queue: %s of type %s\n",folder, destination);
     REDDIR *pDir;
     pDir = red_opendir(folder);
     if (pDir == NULL) {
@@ -667,13 +673,13 @@ void dir_file_queue_check(uint32_t now, char * folder, uint8_t file_type, char *
               debug_print("Skipping file: %s\n",de->d_name);
                 continue;
             }
-            // If it does not begin with the destination string, then we ignore it.  We are only looking for that type
-            if (!str_starts_with(de->d_name, destination)) {
-              debug_print("Skipping file: %s\n",de->d_name);
+
+            uint32_t id = dir_next_file_number();
+            if (id == 0) {
+                // For some reason we can not generate the next file number right now
+                // TODO - this could be an error that repeats in a loop.  It might need a reboot or a reset of the file system. LOG in telemetry
                 continue;
             }
-
-            uint32_t id = dir_next_file_number();  //TODO - if this fails, then should we roll this back
             char compression_type = BODY_NOT_COMPRESSED;
 
             uint32_t create_time = de->d_stat.st_mtime; /* We use the time of last modify as the create time.  So for a wod file this is the time the last data was written. */
@@ -709,7 +715,7 @@ void dir_file_queue_check(uint32_t now, char * folder, uint8_t file_type, char *
 
             //pfh_debug_print(&pfh);
             dir_get_file_path_from_file_id(id, DIR_FOLDER, psf_name, sizeof(psf_name));
-            debug_print("Trying to create file %s in queue: %s from file %s\n",psf_name, folder,file_name);
+            debug_print("Creating file %s in queue: %s from file %s\n",psf_name, folder,file_name);
 
             int rc;
             rc = pfh_make_internal_file(&pfh, DIR_FOLDER, file_name, file_size);
