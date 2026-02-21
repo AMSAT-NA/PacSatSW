@@ -385,10 +385,10 @@ void canInit(void)
     *     - Setup baud rate prescaler
     */
     canREG3->BTR = (uint32)((uint32)0U << 16U) |
-                   (uint32)((uint32)(1U - 1U) << 12U) |
-                   (uint32)((uint32)((7U + 1U) - 1U) << 8U) |
-                   (uint32)((uint32)(1U - 1U) << 6U) |
-                   (uint32)(uint32)7U;
+                   (uint32)((uint32)(3U - 1U) << 12U) |
+                   (uint32)((uint32)((1U + 3U) - 1U) << 8U) |
+                   (uint32)((uint32)(3U - 1U) << 6U) |
+                   (uint32)(uint32)9U;
 
 
     /** - CAN3 Port output values */
