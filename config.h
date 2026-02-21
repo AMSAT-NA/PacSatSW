@@ -417,4 +417,12 @@ extern const uint8_t DCT_DEFAULT_MODE[NUM_CHANNELS];
 #define CANA_ADDRESS	15
 #define CANB_ADDRESS	14
 
+/*
+ * The CAN busses.  Note that the numbering here does not necessarily
+ * match the CAN bus numbers on the actual chip.  These match what
+ * goes out the connector.
+ */
+#define CANA   0
+#define CANB   1
+
 #endif /* CONFIG_H_ */
