@@ -611,8 +611,8 @@ static bool mram_mounted(void)
 
     pDir = red_opendir("//");
     if (pDir) {
-	red_closedir(pDir);
-	return true;
+        red_closedir(pDir);
+        return true;
     }
     return false;
 }
@@ -622,9 +622,37 @@ static int parse_mramnr(char **str, uint8_t *mramnr)
     int err = parse_uint8(str, mramnr, 0);
 
     if (err || *mramnr >= PACSAT_MAX_MRAMS) {
-	printf("Invalid or out of range MRAM number\n");
+        printf("Invalid or out of range MRAM number\n");
+        return -1;
+    }
+    return 0;
+}
+
+static int parse_CAN_bus(char **str, uint8_t *canNum)
+{
+    char *t = next_token(str);
+
+    if (!t)
+        return -1;
+
+    if (strlen(t) != 1)
+        return -1;
+
+    switch(*t) {
+    case 'a':
+    case 'A':
+    case '0':
+	*canNum = CANA;
+	break;
+    case 'b':
+    case 'B':
+    case '1':
+	*canNum = CANB;
+	break;
+    default:
 	return -1;
     }
+
     return 0;
 }
 
@@ -863,7 +891,7 @@ void RealConsoleTask(void)
 
         case SendCANMsg: {
             uint8_t canNum, priority, type, dest;
-            int err = parse_uint8(&afterCommand, &canNum, 0);
+            int err = parse_CAN_bus(&afterCommand, &canNum);
             uint32_t id;
             uint8_t msg[64];
             unsigned int i;
@@ -926,14 +954,14 @@ void RealConsoleTask(void)
         }
 
         case SetCANLoopback: {
-            uint16_t canNum;
-            int err = parse_uint16(&afterCommand, &canNum, 0);
+            uint8_t canNum;
+            int err = parse_CAN_bus(&afterCommand, &canNum);
             bool enable;
 
             err |= parse_bool(&afterCommand, &enable);
 
             if (err) {
-                printf("Invalid format: set can loopback <num> 0|1\n");
+                printf("Invalid format: set can loopback <canbus> 0|1\n");
                 break;
             }
             if (canNum >= NUM_CAN_BUSSES) {
@@ -962,12 +990,12 @@ void RealConsoleTask(void)
         }
 
         case GetCANCounts: {
-            uint16_t canNum;
-            int err = parse_uint16(&afterCommand, &canNum, 0);
+            uint8_t canNum;
+            int err = parse_CAN_bus(&afterCommand, &canNum);
             struct can_counts c;
 
             if (err) {
-                printf("No can bus number given\n", canNum);
+                printf("Invalid or no can bus number given\n", canNum);
                 break;
             }
             if (canNum >= NUM_CAN_BUSSES) {

@@ -110,8 +110,8 @@ bool trace_can;
  * Maximum long message sizes.  This should not exceed 2047, though
  * that's pretty big.
  */
-#define CAN1_MAX_RECV 512
-#define CAN2_MAX_RECV 512
+#define CANA_MAX_RECV 512
+#define CANB_MAX_RECV 512
 
 /*
  * Just the portion of the registers used for the interface.  There are
@@ -183,8 +183,8 @@ struct CANInfo {
     int next_seq;
 };
 
-static uint8_t can_bus1_rx_data[CAN1_MAX_RECV];
-static uint8_t can_bus2_rx_data[CAN2_MAX_RECV];
+static uint8_t can_bus1_rx_data[CANA_MAX_RECV];
+static uint8_t can_bus2_rx_data[CANB_MAX_RECV];
 
 /*
  * For messages with id1 != 0, it's a multi-message send and this
@@ -197,19 +197,19 @@ static const uint16_t id1_lengths1[16] = {
     0,      0,      0,      0,
     0,      0,      0,      0,
     0,      0,      0,      0,
-    0,      0,      0,   4096 + CAN1_MAX_RECV,
+    0,      0,      0,   4096 + CANA_MAX_RECV,
 };
 static const uint16_t id1_lengths2[16] = {
     0,      0,      0,      0,
     0,      0,      0,      0,
     0,      0,      0,      0,
-    0,      0,      0,   4096 + CAN2_MAX_RECV,
+    0,      0,      0,   4096 + CANB_MAX_RECV,
 };
 
 static struct CANInfo can[NUM_CAN_BUSSES] = {
-    { .long_rx_msg = can_bus1_rx_data, .max_rx_msg_len = CAN1_MAX_RECV,
+    { .long_rx_msg = can_bus1_rx_data, .max_rx_msg_len = CANA_MAX_RECV,
       .id1_lengths = id1_lengths1 },
-    { .long_rx_msg = can_bus2_rx_data, .max_rx_msg_len = CAN2_MAX_RECV,
+    { .long_rx_msg = can_bus2_rx_data, .max_rx_msg_len = CANB_MAX_RECV,
       .id1_lengths = id1_lengths2 },
 };
 
@@ -219,8 +219,8 @@ void CANInit(void)
     unsigned int i;
 
     /* CAN bus 1 is not used. */
-    can[0].regs = canREG2;
-    can[1].regs = canREG3;
+    can[0].regs = canREG3; /* CAN A */
+    can[1].regs = canREG2; /* CAN B */
     for (i = 0; i < NUM_CAN_BUSSES; i++) {
         vSemaphoreCreateBinary(can[i].TxSemaphore);
         vSemaphoreCreateBinary(can[i].TxDoneSemaphore);
@@ -426,8 +426,8 @@ static bool CANSendOneMessage(int canNum, uint32_t id,
     if (trace_can) {
         unsigned int i;
 
-        printf("Sending CAN message on CAN %d to id 0x%8.8x:\n",
-               canNum, id);
+        printf("Sending CAN message on CAN %s to id 0x%8.8x:\n",
+               canNum ? "B" : "A", id);
         if (msglen > 0) {
             for (i = 0; i < msglen; i++)
                 printf(" %2.2x", msg[i]);
@@ -631,8 +631,8 @@ static void CANHandleReceive(int canNum, int box)
         if (trace_can) {
             unsigned int i;
 
-            printf("Got CAN message from CAN %d box %d id 0x%8.8x:\n",
-                   canNum, box, id);
+            printf("Got CAN message from CAN %s box %d id 0x%8.8x:\n",
+                   canNum ? "B" : "A", box, id);
             if (msglen > 0) {
                 for (i = 0; i < msglen; i++)
                     printf(" %2.2x", msg[i]);
@@ -870,9 +870,9 @@ void canStatusChangeNotification(canBASE_t *node, uint32 box)
     struct CANInfo *ci;
     BaseType_t higherPrioTaskWoken;
 
-    if (node == canREG2)
+    if (node == can[0].regs)
         canNum = 0;
-    else if (node == canREG3)
+    else if (node == can[1].regs)
         canNum = 1;
     else
         return;
