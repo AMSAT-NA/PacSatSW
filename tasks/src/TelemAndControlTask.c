@@ -36,6 +36,8 @@
 #include "inet.h"
 #include "str_util.h"
 #include "adc_proc.h"
+#include "CANTask.h"
+#include "exp_interface.h"
 
 #ifdef BLINKY_HARDWARE
 #include "Max31725Temp.h"
@@ -237,6 +239,8 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
      * telemetry, especially WOD or min/max.
      */
     METTelemetryReady();
+
+    CANRegisterReceiveHandler(1, exp_can_handler);  // bus index 1 = CANB
 
     while(1) {
         Intertask_Message messageReceived;
