@@ -240,7 +240,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
      */
     METTelemetryReady();
 
-    CANRegisterReceiveHandler(1, exp_can_handler);  // bus index 1 = CANB
+    CANRegisterReceiveHandler(CANA, exp_can_handler);  // bus index 0 = CANA, 1 = CANB
 
     while(1) {
         Intertask_Message messageReceived;
