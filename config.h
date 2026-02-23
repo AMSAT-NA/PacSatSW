@@ -233,13 +233,17 @@ typedef uint8_t rfchan;
 #define AX25_TIMER_T3_PERIOD SECONDS(30) /* Idle timeout if nothing heard */
 #define AX25_RETRIES_N2 10 /* Number of retries permitted by the Data Link State Machine */
 
-// Default is to send telemetry every 2 mins and save WOD every 5 mins
+// Default is to send telemetry every 2 mins, time every 5 mins and save WOD every 5 mins
 #define TAC_TIMER_SEND_TELEMETRY_PERIOD SECONDS(120) //SECONDS(120)
+#define TAC_TIMER_SEND_TIME_PERIOD SECONDS(5*60) //SECONDS(5*60)
 #define TAC_TIMER_SAVE_WOD_PERIOD SECONDS(5*60)
+#define TAC_TIMER_SEND_EXP_PERIOD SECONDS(5*60)
 
-/* Generate WOD files one or more times a day.  The size depends on the WOD layout size and the WOD SAVE PERIOD
- * we want this to be about a third or a half of a day, but not so large that it is hard to download */
+/* Generate WOD/EXP files one or more times a day.  The size depends on the layout size and the WOD SAVE PERIOD
+ * or the volume of CAN messages from the EXP.  We want this to be about a third or a half of a day, but not so
+ * large that it is hard to download */
 #define TAC_FILE_SIZE_TO_ROLL_WOD 15000 // 15k
+#define TAC_FILE_SIZE_TO_ROLL_EXP 15000 // 15k
 
 // Run maintenance every 5 mins.  Maintenance should run very quickly
 #define TAC_TIMER_MAINTENANCE_PERIOD SECONDS(5*60)
@@ -406,9 +410,6 @@ extern const uint8_t DCT_DEFAULT_MODE[NUM_CHANNELS];
 #endif
 
 #define RESETS_BEFORE_POWER_CYCLE 5 /* How many "short" resets before we power cycle? */
-#define DEFAULT_WOD_FREQUENCY 15 /* How many telemetry collections before we do a WOD save */
-#define DEFAULT_NUM_WOD_SAVED 150 /* This is what we think the "ideal" size is based on simulations */
-#define MAX_WOD_SAVED 600 /* This is the size of the arrays */
 
 #ifdef UNDEFINE_BEFORE_FLIGHT
 #define POST_LAUNCH_WAIT_TIME 2 /* Wait this long after we reach orbit before doing anything */

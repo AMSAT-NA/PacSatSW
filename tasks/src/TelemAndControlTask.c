@@ -129,7 +129,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
      * create a RTOS software timer - TODO period should be in MRAM
      * and changeable from the ground using xTimerChangePeriod()
      */
-    timerPbStatus = xTimerCreate("PB STATUS", PB_TIMER_SEND_STATUS_PERIOD,
+    timerPbStatus = xTimerCreate("PB STATUS", ReadMRAMPBStatusFreq(),
                                  TRUE, &pvtPbStatusTimerID,
                                  tac_pb_status_callback); // auto reload timer
     // Block time of zero as this can not block
@@ -147,7 +147,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
      * and changeable from the ground using xTimerChangePeriod()
      */
      timerUplinkStatus = xTimerCreate("UPLINK STATUS",
-                                      UPLINK_TIMER_SEND_STATUS_PERIOD, TRUE,
+                                      ReadMRAMFTL0StatusFreq(), TRUE,
                                       &pvtUplinkStatusTimerID,
                                       tac_ftl0_status_callback);
      // Block time of zero as this can not block
@@ -162,7 +162,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
 
     /* Create a periodic timer to send telemetry */
     timerTelemSend = xTimerCreate("TelemSend",
-                                  TAC_TIMER_SEND_TELEMETRY_PERIOD, TRUE,
+                                  ReadMRAMTelemFreq(), TRUE,
                                   NULL, tac_telem_timer_callback);
     // Block time of zero as this can not block
     timerStatus = xTimerStart(timerTelemSend, 0);
@@ -173,7 +173,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
 
     /* Create a periodic timer to save to the WOD file */
     timerWodSave = xTimerCreate("WodSave",
-                                TAC_TIMER_SAVE_WOD_PERIOD, TRUE,
+                                ReadMRAMWODFreq(), TRUE,
                                   NULL, tac_wod_save_timer_callback);
     // Block time of zero as this can not block
     timerStatus = xTimerStart(timerWodSave, 0);
@@ -606,7 +606,7 @@ void tac_store_wod() {
     }
 
     debug_print("Telem & Control: Stored WOD: %d/%d size:%d\n", ttohs(realtimeFrame.header.resetCnt), htotl(realtimeFrame.header.uptime),wod_file_length);
-    if (wod_file_length > TAC_FILE_SIZE_TO_ROLL_WOD)
+    if (wod_file_length > ReadMRAMWODMaxFileSize())
         tac_roll_wod_file(wod_file_name_with_path);
 }
 

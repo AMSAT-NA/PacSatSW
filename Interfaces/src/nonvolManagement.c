@@ -148,67 +148,20 @@ void SetBooleanVal(bool bit,uint8_t *data){
         ReportError(MRAMread, FALSE, ReturnAddr, (int)#field);\
     return DecodeUint8(states.field,defaultOnFail);}
 
-void WriteMRAMWODHkDownlinkIndex(uint32_t index){
-    WRITE_UINT32(WODHkDownlinkIndex,index);
-}
-
-uint32_t ReadMRAMWODHkDownlinkIndex(void){
-    READ_UINT32(WODHkDownlinkIndex,0);
-}
-void WriteMRAMWODHkStoreIndex(uint32_t index){
-    WRITE_UINT32(WODHkStoreIndex,index);
-}
-
-uint32_t ReadMRAMWODHkStoreIndex(void){
-    READ_UINT32(WODHkStoreIndex,0);
-}
-
-
-void WriteMRAMWODSciDownlinkIndex(uint32_t index){
-    WRITE_UINT32(WODSciDownlinkIndex,index);
-}
-
-uint32_t ReadMRAMWODSciDownlinkIndex(void){
-    READ_UINT32(WODSciDownlinkIndex,0);
-}
-
-void WriteMRAMWODSciStoreIndex(uint32_t index){
-    WRITE_UINT32(WODSciStoreIndex,index);
-}
-uint32_t ReadMRAMWODSciStoreIndex(void){
-    READ_UINT32(WODSciStoreIndex,0);
-}
-
-void WriteMRAMWODRagDownlinkIndex(uint32_t index){
-    WRITE_UINT32(WODRagDownlinkIndex,index);
-}
-
-uint32_t ReadMRAMWODRagDownlinkIndex(void){
-    READ_UINT32(WODRagDownlinkIndex,0);
-}
-
-void WriteMRAMWODRagStoreIndex(uint32_t index){
-    WRITE_UINT32(WODRagStoreIndex,index);
-}
-
-uint32_t ReadMRAMWODRagStoreIndex(void){
-    READ_UINT32(WODRagStoreIndex,0);
-}
-
 
 void WriteMRAMWODFreq(uint16_t freq){
     WRITE_UINT16(WODFrequency,freq);
 }
 
 uint16_t ReadMRAMWODFreq(void){
-    READ_UINT16(WODFrequency,DEFAULT_WOD_FREQUENCY);
+    READ_UINT16(WODFrequency,TAC_TIMER_SAVE_WOD_PERIOD);
 }
-void WriteMRAMWODSaved(uint16_t size){
-    WRITE_UINT16(WODSize,size);
+void WriteMRAMWODMaxFileSize(uint16_t size){
+    WRITE_UINT16(WODMaxFileSize,size);
 }
 
-uint16_t ReadMRAMWODSaved(void){
-    READ_UINT16(WODSize,DEFAULT_NUM_WOD_SAVED);
+uint16_t ReadMRAMWODMaxFileSize(void){
+    READ_UINT16(WODMaxFileSize,TAC_FILE_SIZE_TO_ROLL_WOD);
 }
 void WriteMRAMResets(uint16_t resets){
     WRITE_UINT16(NumberOfResets,resets);
@@ -253,6 +206,8 @@ void WriteMRAMExitAutosafe(uint16_t value){
 uint16_t ReadMRAMExitAutosafe(void){
     READ_UINT16(AutoSafeExit,DEFAULT_AUTOSAFE_OUTOF);
 }
+
+
 
 void WriteMRAMBoolState(int index,bool newState){
 
@@ -383,6 +338,53 @@ uint32_t ReadMRAMHighestFileNumber(void){
     READ_UINT32(HighestFileNumber,0); // default to zero if corrupt
 }
 
+void WriteMRAMPBStatusFreq(uint16_t freq){
+    WRITE_UINT16(PBStatusFrequency,freq);
+}
+
+uint16_t ReadMRAMPBStatusFreq(void){
+    READ_UINT16(PBStatusFrequency,PB_TIMER_SEND_STATUS_PERIOD);
+}
+
+void WriteMRAMFTL0StatusFreq(uint16_t freq){
+    WRITE_UINT16(FTL0StatusFrequency,freq);
+}
+
+uint16_t ReadMRAMFTL0StatusFreq(void){
+    READ_UINT16(FTL0StatusFrequency,UPLINK_TIMER_SEND_STATUS_PERIOD);
+}
+
+void WriteMRAMTelemFreq(uint16_t freq){
+    WRITE_UINT16(TelemFrequency,freq);
+}
+
+uint16_t ReadMRAMTelemFreq(void){
+    READ_UINT16(TelemFrequency,TAC_TIMER_SEND_TELEMETRY_PERIOD);
+}
+
+void WriteMRAMTimeFreq(uint16_t freq){
+    WRITE_UINT16(TimeFrequency,freq);
+}
+
+uint16_t ReadMRAMTimeFreq(void){
+    READ_UINT16(TimeFrequency,TAC_TIMER_SEND_TIME_PERIOD);
+}
+
+void WriteMRAMExpFreq(uint16_t freq){
+    WRITE_UINT16(EXPFrequency,freq);
+}
+
+uint16_t ReadMRAMExpFreq(void){
+    READ_UINT16(EXPFrequency,TAC_TIMER_SEND_EXP_PERIOD);
+}
+void WriteMRAMExpMaxFileSize(uint16_t size){
+    WRITE_UINT16(EXPMaxFileSize,size);
+}
+
+uint16_t ReadMRAMExpMaxFileSize(void){
+    READ_UINT16(EXPMaxFileSize,TAC_FILE_SIZE_TO_ROLL_EXP);
+}
+
 void WriteMRAMReceiverMode(uint8_t rxNum,uint8_t val){
     writeNV(&val, sizeof(uint8_t), NVConfigData,
                 (int) &(ptr->StatesInMRAM.RxChannelMode[rxNum][0]));
@@ -433,19 +435,18 @@ void SetupMRAMStates() {
 
     WriteMRAMBoolState(StateUplinkEnabled,false);
     WriteMRAMBoolState(StateDigiEnabled,false);
-    WriteMRAMWODFreq(DEFAULT_WOD_FREQUENCY);
-    WriteMRAMWODSaved(DEFAULT_NUM_WOD_SAVED);
-    WriteMRAMWODSciDownlinkIndex(0);
-    WriteMRAMWODHkDownlinkIndex(0);
-    WriteMRAMWODRagDownlinkIndex(0);
-    WriteMRAMWODSciStoreIndex(0);
-    WriteMRAMWODHkStoreIndex(0); //todo:  Should this be -1?  Is this called from preflight init?
-    WriteMRAMWODRagStoreIndex(0);
+    WriteMRAMWODFreq(TAC_TIMER_SAVE_WOD_PERIOD);
+    WriteMRAMWODMaxFileSize(TAC_FILE_SIZE_TO_ROLL_WOD);
     initSecondsInOrbit(); //Must use this to prevent an update from resetting the in orbit time
     WriteMRAMEnterAutosafe(DEFAULT_AUTOSAFE_INTO);
     WriteMRAMExitAutosafe(DEFAULT_AUTOSAFE_OUTOF);
 
     WriteMRAMHighestFileNumber(0);  // Start the file system at file 1, so the highest file number is zero.  File Id 0 is reserved and sent when a station does not have a file to upload.
+    WriteMRAMPBStatusFreq(PB_TIMER_SEND_STATUS_PERIOD);
+    WriteMRAMFTL0StatusFreq(UPLINK_TIMER_SEND_STATUS_PERIOD);
+    WriteMRAMTelemFreq(TAC_TIMER_SEND_TELEMETRY_PERIOD);
+    WriteMRAMTimeFreq(TAC_TIMER_SEND_TIME_PERIOD);
+
     for(i = 0; i < NUM_CHANNELS; i++)
         WriteMRAMModulation(i, DCT_DEFAULT_MODULATION[i]);
 

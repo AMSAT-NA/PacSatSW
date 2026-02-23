@@ -50,29 +50,25 @@ enum _StateTypes {
 
 typedef struct {
         /* Each entry has two because we want extra bits for checking */
-// These we don't want to change with each MRAM change.  They are generally set only once
-// for each processor.
+
+    /* These we don't want to change with each MRAM change.  They are generally set only once
+       for each processor. */
     uint32_t DCTFrequency[5][2];
     uint8_t  DCTModulation[5][2];
     uint8_t  unused1[3][2];
     uint32_t DCTDriveLowPower[2];
     uint32_t DCTDriveHighPower[2];
-// These are initted by init mram or preflight init
-        uint32_t WODHkDownlinkIndex[2];
-        uint32_t WODSciDownlinkIndex[2];
-        uint32_t WODRagDownlinkIndex[2];
-        uint32_t WODHkStoreIndex[2];
-        uint32_t WODSciStoreIndex[2];
-        uint32_t WODRagStoreIndex[2];
-        uint32_t TimeSinceFirstBoot[2];
+
+    /* These are initted by console commands like mram clear or preflight init */
+    uint32_t TimeSinceFirstBoot[2];
     uint32_t MinMaxResetTimeSecs[2];
     uint16_t MinMaxResetTimeEpoch[2];
-        uint16_t WODFrequency[2];
-        uint16_t WODSize[2];
-        uint16_t NumberOfResets[2];
-        uint16_t TimestampResets[2];
-        uint16_t AutoSafeEnter[2];
-        uint16_t AutoSafeExit[2];
+    uint16_t WODFrequency[2];
+    uint16_t WODMaxFileSize[2];
+    uint16_t NumberOfResets[2];
+    uint16_t TimestampResets[2];
+    uint16_t AutoSafeEnter[2];
+    uint16_t AutoSafeExit[2];
     uint32_t TimeoutTimes[MaxNumberOfTimeouts][2];
     uint32_t PostLVTimeout[2];
     uint16_t EclipseActionCommanded[2];
@@ -83,9 +79,15 @@ typedef struct {
      * Bits 2/3: 00 - No FTL0, 01 FTL0 supported, 10 FTL for Command stations only,
      * Bits 4/5: 00 - no digi, 01 - via Digi Callsign, 10 - APRS Digi, 11 - Digi All
      * Bits 6/7: Reserved */
-    /* TODO - is this used for anything? */
+    /* TODO - is this used for anything? They are planned to be used to allow separate config of each channel. G0KLA */
     uint32_t RxChannelMode[4][2];
-    uint32_t SpareData[13];
+    uint16_t PBStatusFrequency[2];
+    uint16_t FTL0StatusFrequency[2];
+    uint16_t TelemFrequency[2];
+    uint16_t TimeFrequency[2];
+    uint16_t EXPFrequency[2];
+    uint16_t EXPMaxFileSize[2];
+    uint32_t SpareData[8];
     uint8_t  NonVolatileStates[MaxStates][2];
 
 } StateSavingMRAM_t;

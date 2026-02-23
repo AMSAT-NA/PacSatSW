@@ -19,30 +19,11 @@ bool ReadMRAMBoolState(int index);
 void WriteMRAMBoolState(int index,bool state);
 void WriteMRAM2BoolState(int index1,bool state1,int index2,bool state2);
 
-void WriteMRAMWODHkStoreIndex(uint32_t index);
-uint32_t ReadMRAMWODHkStoreIndex(void);
-
-void WriteMRAMWODSciStoreIndex(uint32_t index);
-uint32_t ReadMRAMWODSciStoreIndex(void);
-
-void WriteMRAMWODHkDownlinkIndex(uint32_t index);
-uint32_t ReadMRAMWODHkDownlinkIndex(void);
-
-void WriteMRAMWODSciDownlinkIndex(uint32_t index);
-uint32_t ReadMRAMWODSciDownlinkIndex(void);
-
-void WriteMRAMWODRagStoreIndex(uint32_t index);
-uint32_t ReadMRAMWODRagStoreIndex(void);
-
-void WriteMRAMWODRagDownlinkIndex(uint32_t index);
-uint32_t ReadMRAMWODRagDownlinkIndex(void);
-
-
 void WriteMRAMWODFreq(uint16_t freq);
 uint16_t ReadMRAMWODFreq(void);
 
-void WriteMRAMWODSaved(uint16_t size);
-uint16_t ReadMRAMWODSaved(void);
+void WriteMRAMWODMaxFileSize(uint16_t size);
+uint16_t ReadMRAMWODMaxFileSize(void);
 
 void WriteMRAMResets(uint16_t resets);
 uint16_t ReadMRAMResets(void);
@@ -90,6 +71,19 @@ bool CheckMRAMVersionNumber(void);
 
 void WriteMRAMHighestFileNumber(uint32_t seconds);
 uint32_t ReadMRAMHighestFileNumber(void);
+
+void WriteMRAMPBStatusFreq(uint16_t freq);
+uint16_t ReadMRAMPBStatusFreq(void);
+void WriteMRAMFTL0StatusFreq(uint16_t freq);
+uint16_t ReadMRAMFTL0StatusFreq(void);
+void WriteMRAMTelemFreq(uint16_t freq);
+uint16_t ReadMRAMTelemFreq(void);
+void WriteMRAMTimeFreq(uint16_t freq);
+uint16_t ReadMRAMTimeFreq(void);
+void WriteMRAMExpFreq(uint16_t freq);
+uint16_t ReadMRAMExpFreq(void);
+void WriteMRAMExpMaxFileSize(uint16_t size);
+uint16_t ReadMRAMExpMaxFileSize(void);
 
 void WriteMRAMReceiverMode(uint8_t rxNum,uint8_t val);
 uint8_t ReadMRAMReceiverMode(uint8_t rxNum);
