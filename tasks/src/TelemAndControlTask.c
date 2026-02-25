@@ -37,6 +37,7 @@
 #include "str_util.h"
 #include "adc_proc.h"
 #include "CANTask.h"
+#include "TelemAndControlTask.h"
 #include "exp_interface.h"
 
 #ifdef BLINKY_HARDWARE
@@ -68,7 +69,6 @@ void tac_collect_telemetry(telem_buffer_t *buffer);
 void tac_send_telemetry(telem_buffer_t *buffer);
 void tac_send_time();
 void tac_store_wod();
-void tac_roll_wod_file(char *file_name_with_path);
 
 /* Local variables */
 char wod_file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
@@ -282,6 +282,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
                 now = getUnixTime(); // Get the time in seconds since the unix epoch
                 dir_file_queue_check(now, WOD_FOLDER, PFH_TYPE_WL, WOD_DESTINATION, DIR_MAX_WOD_FILE_AGE);
                 dir_file_queue_check(now, TXT_FOLDER, PFH_TYPE_ASCII, TXT_DESTINATION, DIR_MAX_WOD_FILE_AGE);
+                dir_file_queue_check(now, EXP_FOLDER, PFH_TYPE_CAN_PACKETS, EXP_DESTINATION, DIR_MAX_WOD_FILE_AGE);
                 break;
 
 
@@ -607,17 +608,17 @@ void tac_store_wod() {
 
     debug_print("Telem & Control: Stored WOD: %d/%d size:%d\n", ttohs(realtimeFrame.header.resetCnt), htotl(realtimeFrame.header.uptime),wod_file_length);
     if (wod_file_length > ReadMRAMWODMaxFileSize())
-        tac_roll_wod_file(wod_file_name_with_path);
+        tac_roll_file(wod_file_name_with_path, WOD_FOLDER, WOD_PREFIX);
 }
 
 /**
- * Rename the WOD file with a timestamp so it will be processed in the file queue.
+ * Rename the file with a timestamp so it will be processed in the file queue.
  */
-void tac_roll_wod_file(char *file_name_with_path) {
+void tac_roll_file(char *file_name_with_path, char *folder, char *prefix) {
     /* Make a new wod file name and start the file */
     char file_name[MAX_FILENAME_WITH_PATH_LEN];
-    strlcpy(file_name, WOD_FOLDER, sizeof(file_name));
-    strlcat(file_name, WOD_PREFIX, sizeof(file_name));
+    strlcpy(file_name, folder, sizeof(file_name));
+    strlcat(file_name, prefix, sizeof(file_name));
 
     char file_id_str[14];
     uint32_t unixtime = getUnixTime(); // Get the time in seconds since the unix epoch
@@ -678,7 +679,7 @@ void tac_roll_wod_file(char *file_name_with_path) {
 
 bool tac_test_wod_file() {
     tac_store_wod();
-    tac_roll_wod_file(wod_file_name_with_path);
+    tac_roll_file(wod_file_name_with_path, WOD_FOLDER, WOD_PREFIX);
     printf("##### TEST MAKE WOD FILE: executed, check results in the dir\n");
 
     return true;

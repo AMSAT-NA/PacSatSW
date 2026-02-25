@@ -77,6 +77,7 @@
 #define UNCOMPRESSED_FILE_SIZE_LIMIT 200 /* Compress files over this size before header added */
 
 #define PFH_TYPE_ASCII 0
+#define PFH_TYPE_CAN_PACKETS 50
 //#define PFH_TYPE_WOD 3 // This was WOD on historical sats
 #define PFH_TYPE_AL 223
 #define PFH_TYPE_BL 202

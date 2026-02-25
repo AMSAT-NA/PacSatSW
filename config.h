@@ -204,6 +204,7 @@ typedef uint8_t rfchan;
 
 // These are the prefixes for files stored in the filesystem
 #define WOD_PREFIX "wod"
+#define EXP_PREFIX "exp"
 
 // These are the TO callsigns for files added to Queues
 #define WOD_DESTINATION "WOD"
