@@ -39,51 +39,55 @@
  * message priority, message type and message id.  These are defined
  * as follows:
  *
- *  28-24 - Priority
- *  23-16 - ID2
- *  15-12 - Type
- *  11-8  - Source
- *  7-4   - ID1
- *  3-0   - Destination
+ *  28-25 (4 bits) Priority
+ *  24-24 (1 bit)  Multi-part message marker
+ *  23-20 (4 bits) Source
+ *  19-16 (4 bits) Type
+ *  15-12 (4 bits) Destination
+ *  0-11 (12 bits) Message ID
  *
  * Priority: These bits should be ignored by receiving software, and
  * filters should be set to “don’t care” for any of those
  * bits. Priority determines which packet will be sent if multiple
  * processors place packets on the bus at the same time. A 0 in this
- * field is the highest priority. A 31 (or 0x1F) is the lowest
+ * field is the highest priority. A 15 (or 0xF) is the lowest
  * priority.
  *
  * Source: Which processor sent the packet.
  *
  * Destination: The processor to receive the packet.
  *
- * ID1 and ID2: These values are more specific about the exact content
- * of the packet.  The ID may be from 0-255.  IDs from 1-15 may
- * be sent as multi-message sends up to 2048 bytes.
+ * Information about the message.
  *
- * If ID1 is 0, then ID2 contains the id for 255 different specific
- * types of sends, each with a data length of at most 8 bytes.
+ * ID: More specific information about the exact content of the
+ * packet.
  *
- * If ID1 is non-0, then ID1 contains the id, but these sends can be
- * as long as 2048 bytes. This is accomplished by sending the message
- * 8 bytes at a time with the ID1 the same and ID2 used as a serial
- * number that is incremented for each subsequent message. This allows
- * the receiver to re-assemble the send even if it does not arrive in
- * order.
+ * Multi-part message marker - If this bit is set, then the message is
+ * multi-part, meaning that the full message is carried in multiple
+ * individual CAN messages.  For this, the type and ID fields are used
+ * to carry sequencing and other information as follows:
  *
- * Some of the large messages are fixed length and the values are set
- * in the id1_lengths array.  They may be marked there as
- * variable-length.
+ * 19-19 (1 bit)       End of messages
+ * 18-16,11-8 (7 bits) Sequence number
+ * 7-0 (8 bits)        Type and ID (first two packets), message data otherwise
  *
- * For variable length send, the end of the send is marked with a
- * message length less than 8.  If the last length sent is 8, then a
- * zero-length message with is sent to mark the end of a message.
- * This means a variable length message may only be up to 2047 bytes
- * long, since the sequence would not be valid for the zero-length
- * message after 2048 bytes.
+ * When sending a multi-part message, the multi-part message marker is
+ * set to 1 in each packet.  The sequence number is zero in the first
+ * messages and increases in each subsequent message.  The first
+ * message carries bits 0-7 of the ID in bits 0-7.  The second message
+ * carries bits 8-11 of the ID in bits 0-3 and the Type in bits 4-7.
+ * Subsequent packets carry the next low data byte in bits 0-7.  So
+ * the first two packets carry data bytes 0-7 and 8-15, byte 16 is in
+ * the low 8 bits of the address and bytes 17-24 are in the data field.
+ * Then byte 25 is in the low 8 bits of the address and bytes 26-33 are
+ * in the data field, and so on.
  *
- * Each CAN bus has a single buffer for receiving long messages, any
- * new long message that comes in will abort any current long message.
+ * This gives a maximum multi-part message size of 128 * 8 + 126, or
+ * 1150 bytes.
+ *
+ * Each CAN bus has a single buffer for receiving multi-part messages,
+ * any new long message that comes in will abort any current long
+ * message.
  */
 
 /* How many time to we try to send a message before giving up. */
@@ -107,7 +111,7 @@ bool trace_can;
 #define CAN_BOX_RECEIVE 0
 
 /*
- * Maximum long message sizes.  This should not exceed 2047, though
+ * Maximum long message sizes.  This should not exceed 1150, though
  * that's pretty big.
  */
 #define CANA_MAX_RECV 512
@@ -176,41 +180,18 @@ struct CANInfo {
     uint8_t *long_rx_msg;
     uint16_t max_rx_msg_len;
     uint16_t long_rx_msg_len;
-    bool long_rx_msg_var; /* Variable length. */
     uint8_t long_rx_src;
     uint8_t long_rx_type;
-    uint8_t long_rx_id;
-    int next_seq;
+    uint16_t long_rx_msgid;
+    uint8_t next_seq;
 };
 
 static uint8_t can_bus1_rx_data[CANA_MAX_RECV];
 static uint8_t can_bus2_rx_data[CANB_MAX_RECV];
 
-/*
- * For messages with id1 != 0, it's a multi-message send and this
- * marks how to handle it.  Values of 0 say to ignore the messages.
- * Values 1-2048 are the message length of a fixed-length message.  A
- * value of 4096-6143 says it's a variable-length message and the
- * maximum length is val-4096.
- */
-static const uint16_t id1_lengths1[16] = {
-    0,      0,      0,      0,
-    0,      0,      0,      0,
-    0,      0,      0,      0,
-    0,      0,      0,   4096 + CANA_MAX_RECV,
-};
-static const uint16_t id1_lengths2[16] = {
-    0,      0,      0,      0,
-    0,      0,      0,      0,
-    0,      0,      0,      0,
-    0,      0,      0,   4096 + CANB_MAX_RECV,
-};
-
 static struct CANInfo can[NUM_CAN_BUSSES] = {
-    { .long_rx_msg = can_bus1_rx_data, .max_rx_msg_len = CANA_MAX_RECV,
-      .id1_lengths = id1_lengths1 },
-    { .long_rx_msg = can_bus2_rx_data, .max_rx_msg_len = CANB_MAX_RECV,
-      .id1_lengths = id1_lengths2 },
+    { .long_rx_msg = can_bus1_rx_data, .max_rx_msg_len = CANA_MAX_RECV },
+    { .long_rx_msg = can_bus2_rx_data, .max_rx_msg_len = CANB_MAX_RECV },
 };
 
 
@@ -478,55 +459,32 @@ static bool CANSendOneMessage(int canNum, uint32_t id,
  * and splits them up into individual messages.  See the top of the
  * file for the meaning of the various parameters.
  */
-bool CANSend(int canNum, int priority, int type, uint32_t id, int dest,
+bool CANSend(int canNum, uint8_t priority, uint8_t type,
+             uint16_t msgid, uint8_t dest,
              uint8_t *msg, unsigned int msglen)
 {
-    uint32_t id1, id2;
-    unsigned int i, left, dlc;
-    bool rv = true, variable = false;
+    uint32_t id, id_base;
+    unsigned int i, seq, multipart = 0, to_send;
+    bool rv = true;
     struct CANInfo *ci = &can[canNum];
 
     if (canNum >= NUM_CAN_BUSSES)
         return false;
-    if (priority >= 32)
+    if (priority >= 16)
         return false;
     if (type >= 16)
         return false;
     if (dest >= 16)
         return false;
-    if (id >= 256)
+    if (msgid >= 4096)
         return false;
-    if (msglen > 2048)
+    if (msglen > 1150)
         return false;
+
     if (msglen > 8) {
-        if (id >= 16 || id == 0)
-            return false;
-        if (ci->id1_lengths[id] == 0)
-            return false;
-        if (ci->id1_lengths[id] >= 4096) {
-            if (msglen > ci->id1_lengths[id] - 4096)
-                /* See the notes above on variable-length messages. */
-                return false;
-            variable = true;
-        } else if (ci->id1_lengths[id] != msglen) {
-            return false;
-        }
-        id1 = id;
-        id2 = 0;
+        /* It's a multi-part message. */
         ci->counts.tx_long_msgs++;
-    } else if (msglen == 8 && id > 0 && id < 16) {
-        /*
-         * Special case, a variable-length 8-byte message must be sent
-         * as two messages.
-         */
-        if (ci->id1_lengths[id] >= 4096)
-            variable = true;
-        id1 = id;
-        id2 = 0;
-        ci->counts.tx_long_msgs++;
-    } else {
-        id1 = 0;
-        id2 = id;
+        multipart = 1;
     }
 
     if (xSemaphoreTake(ci->TxSemaphore,
@@ -537,75 +495,82 @@ bool CANSend(int canNum, int priority, int type, uint32_t id, int dest,
         return false;
     }
 
-    left = msglen;
-    dlc = 0;
-    for (i = 0; i < msglen; i += 8, left -= 8) {
-        id = ((priority << 24)
-              | (id2 << 16)
-              | (type << 12)
-              | (ci->myID << 8)
-              | (id1 << 4)
-              | dest);
+    id_base = ((priority << 25)
+               | (multipart << 24)
+               | (ci->myID << 20)
+               | (dest << 12));
 
-        if (left > 8)
-            dlc = 8;
+    if (!multipart) {
+        /* Single part message. */
+        id = (id_base
+              | (type << 16)
+              | msgid);
+        if (!CANSendOneMessage(canNum, id, msg, msglen))
+            rv = false;
+        goto out_unlock;
+    }
+
+    /* Multi-part message. */
+    for (seq = 0, i = 0; i < msglen; i += 8, seq++) {
+        /* Sequence is in the type and top 4 bits of the message id. */
+        id = (id_base
+              | (((seq >> 4) & 0x7) << 16)
+              | ((seq & 0xf) << 8));
+        if (i == 0) {
+            /* First packet, Lower 8 bits of id in the bottom address byte */
+            id |= (msgid & 0xff);
+        } else if (i == 8) {
+            /*
+             * Second packet, type and upper 4 bits of id in the
+             * bottom address byte.
+             */
+            id |= ((type << 4)
+                   | (msgid >> 8));
+        } else {
+            /* Data in the bottom address byte */
+            id |= msg[i];
+            i++;
+        }
+
+        to_send = msglen - i;
+        if (to_send > 8)
+            to_send = 8;
         else
-            dlc = left;
+            id |= (1 << 19); /* End of message. */
 
-        if (!CANSendOneMessage(canNum, id, msg + i, dlc)) {
+        if (!CANSendOneMessage(canNum, id, msg + i, to_send)) {
             rv = false;
             break;
         }
-        id2++;
     }
-
-    if (rv && (msglen == 0 || (variable && msglen >= 8 && dlc == 8))) {
-       /*
-         * If it was an empty message, or if it was a variable sized
-         * multi-message send and the last message was 8 bytes, we
-         * send an empty message to mark the end of the send.
-         */
-        id = ((priority << 24)
-              | (id2 << 16)
-              | (type << 12)
-              | (ci->myID << 8)
-              | (id1 << 4)
-              | dest);
-
-        if (!CANSendOneMessage(canNum, id, NULL, 0))
-            rv = false;
-    }
-
+ out_unlock:
     xSemaphoreGive(ci->TxSemaphore);
 
     return rv;
 }
 
-/*
- * Used to set up information for a new long message.
- */
-static bool CANSetupNewRxMsg(struct CANInfo *ci,
-                             int type, int src, int msgid)
+static void
+deliver_can_msg(int canNum, uint8_t type, uint16_t msgid, uint8_t src,
+                uint8_t *msg, unsigned int msglen)
 {
-    if (ci->id1_lengths[msgid] == 0) {
-        /* Not a supported long message. */
-        ci->counts.rx_msgs_unsupported_long_msg++;
-        return false;
+    struct CANInfo *ci = &can[canNum];
+
+    if (trace_can) {
+        unsigned int i;
+
+        printf("CAN message on %s from %d type %d msgid %d:",
+               canNum ? "B" : "A", src, type, msgid);
+        for (i = 0; i < msglen; i++) {
+            if (i % 16 == 0)
+                printf("\n");
+            printf(" %2.2x", msg[i]);
+        }
+        printf("\n");
     }
 
-    if (ci->id1_lengths[msgid] >= 4096) {
-        ci->max_rx_msg_len = ci->id1_lengths[msgid] - 4096;
-        ci->long_rx_msg_var = true;
-    } else {
-        ci->max_rx_msg_len = ci->id1_lengths[msgid];
-        ci->long_rx_msg_var = false;
-    }
-    ci->next_seq = 0;
-    ci->long_rx_msg_len = 0;
-    ci->long_rx_src = src;
-    ci->long_rx_type = type;
-    ci->long_rx_id = msgid;
-    return true;
+    if (ci->rxhandler)
+        ci->rxhandler(canNum, type, msgid, src,
+                      msg, msglen);
 }
 
 /*
@@ -616,10 +581,11 @@ static bool CANSetupNewRxMsg(struct CANInfo *ci,
 static void CANHandleReceive(int canNum, int box)
 {
     uint32_t id;
-    uint8_t msg[8], *msgp;
+    uint8_t msg[8];
     unsigned int msglen;
-    bool msglost;
-    int id1, id2, type, src, msgid;
+    bool msglost, multipart;
+    uint8_t type, src, seq;
+    uint16_t msgid;
     struct CANInfo *ci = &can[canNum];
 
     while (canIsRxMessageArrived(ci->regs, box)) {
@@ -631,7 +597,7 @@ static void CANHandleReceive(int canNum, int box)
         if (trace_can) {
             unsigned int i;
 
-            printf("Got CAN message from CAN %s box %d id 0x%8.8x:\n",
+            printf("Got CAN message on CAN %s box %d id 0x%8.8x:\n",
                    canNum ? "B" : "A", box, id);
             if (msglen > 0) {
                 for (i = 0; i < msglen; i++)
@@ -646,94 +612,77 @@ static void CANHandleReceive(int canNum, int box)
             ci->counts.rx_msgs_lost++;
         }
 
-        id2 = (id >> 16) & 0xff;
-        id1 = (id >> 4) & 0xf;
-        src = (id >> 8) & 0xf;
-        type = (id >> 12) & 0xf;
-        if (id1 == 0)
-            msgid = id2;
-        else
-            msgid = id1;
-
-        if (id1 == 0 || (id2 == 0 && msglen < 8)) {
+        multipart = (id >> 24) & 1;
+        src = (id >> 20) & 0xf;
+        if (!multipart) {
             /* Single-buffer message. */
-            if (ci->rxhandler)
-                ci->rxhandler(canNum,
-                              (id >> 24) & 0x1f, /* priority */
-                              type,
-                              msgid,
-                              id & 0xf, /* dest */
-                              src,
-                              msg, msglen);
+            type = (id >> 16) & 0xf;
+            msgid = id & 0x3ff;
+
+            deliver_can_msg(canNum,
+                            type,
+                            msgid,
+                            src,
+                            msg, msglen);
+            continue;
+        }
+
+        /* A multi-part message. */
+        seq = ((id >> 16) & 0x7) << 4;
+        seq |= (id >> 8) & 0xf;
+        if (seq >= 2)
+            msglen++; /* A message byte is carried in the address. */
+
+        if (src != ci->long_rx_src || seq == 0) {
+            /*
+             * Got a new multi-part message, abort the previous one if
+             * necessary.
+             */
+
+            if (ci->next_seq != 0)
+                ci->counts.rx_msgs_new_source_in_long_msg++;
+
+            ci->next_seq = 0;
+            ci->long_rx_msg_len = 0;
+            ci->long_rx_src = src;
+        } else if (ci->next_seq != seq) {
+            ci->next_seq = 0;
+            ci->long_rx_msg_len = 0;
+            ci->counts.rx_msgs_sequence_mismatch++;
+            continue;
+        } else if (ci->long_rx_msg_len + msglen > ci->max_rx_msg_len) {
+            ci->next_seq = 0;
+            ci->long_rx_msg_len = 0;
+            ci->counts.rx_msgs_long_msg_too_long++;
+            continue;
+        }
+
+        /* Next message of a send. */
+        ci->next_seq++;
+        if (seq == 0) {
+            /* Low 8 bits of the ID. */
+            ci->long_rx_msgid = id & 0xff;
+        } else if (seq == 1) {
+            /* Top 4 bits of ID and type. */
+            ci->long_rx_msgid |= (id & 0xf) << 8;
+            ci->long_rx_type = (id >> 4) & 0xf;
         } else {
-            if (src != ci->long_rx_src || msgid != ci->long_rx_id ||
-                    type != ci->long_rx_type) {
-                /*
-                 * Got a new source for a long message, abort the
-                 * previous one.
-                 */
+            /* Next message byte. */
+            ci->long_rx_msg[ci->long_rx_msg_len] = id & 0xff;
+            ci->long_rx_msg_len++;
+            msglen--;
+        }
 
-                if (ci->next_seq != 0)
-                    ci->counts.rx_msgs_new_source_in_long_msg++;
+        memcpy(ci->long_rx_msg + ci->long_rx_msg_len, msg, msglen);
+        ci->long_rx_msg_len += msglen;
 
-                if (id2 != 0) {
-                    /* Ignore if not the first message. */
-                    ci->counts.rx_msgs_invalid_start_seq++;
-                    continue;
-                }
-                if (!CANSetupNewRxMsg(ci, type, src, msgid))
-                    continue;
-            } else if (id2 == 0) {
-                /* Start of a new message. */
-                if (!CANSetupNewRxMsg(ci, type, src, msgid))
-                    continue;
-            } else if (ci->next_seq != id2) {
-                ci->next_seq = 0;
-                ci->long_rx_msg_len = 0;
-                ci->counts.rx_msgs_sequence_mismatch++;
-            } else if (ci->long_rx_msg_len + msglen > ci->max_rx_msg_len) {
-                ci->next_seq = 0;
-                ci->long_rx_msg_len = 0;
-                ci->counts.rx_msgs_long_msg_too_long++;
-                continue;
-            }
-            /* Next message of a send. */
-            ci->next_seq++;
-            memcpy(ci->long_rx_msg + ci->long_rx_msg_len, msg, msglen);
-            ci->long_rx_msg_len += msglen;
-
-            if ((!ci->long_rx_msg_var &&
-                 ci->long_rx_msg_len == ci->max_rx_msg_len)
-                || (ci->long_rx_msg_var && msglen < 8)) {
-
-                msgp = ci->long_rx_msg;
-                msglen = ci->long_rx_msg_len;
-
-                if (trace_can) {
-                    unsigned int i;
-
-                    printf("Long CAN message from CAN %d box %d id 0x%8.8x:",
-                           canNum, box, id);
-                    for (i = 0; i < msglen; i++) {
-                        if (i % 16 == 0)
-                            printf("\n");
-                        printf(" %2.2x", msgp[i]);
-                    }
-                    printf("\n");
-                }
-
-                ci->counts.rx_long_msgs++;
-                if (ci->rxhandler)
-                    ci->rxhandler(canNum,
-                                  (id >> 24) & 0x1f, /* priority */
-                                  type,
-                                  msgid,
-                                  id & 0xf, /* dest */
-                                  src,
-                                  msgp, msglen);
-                ci->next_seq = 0;
-                ci->long_rx_msg_len = 0;
-            }
+        if ((id >> 19) & 1) {
+            /* End of message. */
+            ci->counts.rx_long_msgs++;
+            deliver_can_msg(canNum, ci->long_rx_type, ci->long_rx_msgid, src,
+                            ci->long_rx_msg, ci->long_rx_msg_len);
+            ci->next_seq = 0;
+            ci->long_rx_msg_len = 0;
         }
     }
 }
@@ -757,7 +706,7 @@ static void CANSetupRxBoxes(int canNum)
          i < CAN_RECEIVE_FIRST_BOX + CAN_RECEIVE_NUM_BOXES;
          i++) {
         CANSetOneBox(canNum, i, CAN_BOX_ENABLE, CAN_BOX_RECEIVE,
-                     can[canNum].myID, 0xf, NULL, 8);
+                     can[canNum].myID << 12, 0xf << 12, NULL, 8);
     }
 }
 

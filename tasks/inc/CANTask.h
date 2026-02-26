@@ -27,17 +27,18 @@
 void CANInit(void);
 void CANTask(void *pvParameters);
 
-bool CANSend(int canNum, int priority, int type, uint32_t id, int dest,
-	     uint8_t *msg, unsigned int msglen);
+bool CANSend(int canNum, uint8_t priority, uint8_t type,
+             uint16_t msgid, uint8_t dest,
+             uint8_t *msg, unsigned int msglen);
 void CANSetMyID(int canNum, int id);
 int CANGetMyID(int canNum);
 
 void CANEnableLoopback(int canNum, bool enable);
 
 typedef void (*CANReceiveHandler)(int canNum,
-				  int priority, int type, int id,
-				  int dest, int src,
-				  uint8_t *msg, unsigned int msglen);
+                                  unsigned int type, unsigned int id,
+                                  unsigned int src,
+                                  uint8_t *msg, unsigned int msglen);
 
 void CANRegisterReceiveHandler(int canNum, CANReceiveHandler rxhandler);
 

@@ -20,12 +20,12 @@ void exp_store_can(int msgid, uint8_t *data, unsigned int len);
 char exp_file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
 
 
-void exp_can_handler(int canNum, int priority, int type, int msgid,
-                  int dest, int src, uint8_t *data, unsigned int len)
+void exp_can_handler(int canNum, unsigned int type, unsigned int msgid,
+		     unsigned int src, uint8_t *data, unsigned int len)
 {
-    debug_print("EXP CAN Handler Received: canNum=%d priority=%d type=%d msgid=%d "
-           "dest=%d src=%d len=%d\n",
-           canNum, priority, type, msgid, dest, src, len);
+    debug_print("EXP CAN Handler Received: canNum=%d type=%d msgid=%d "
+           "src=%d len=%d\n",
+           canNum, type, msgid, src, len);
 
     unsigned int i;
     for (i = 0; i < len; i++)

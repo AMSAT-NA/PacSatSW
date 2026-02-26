@@ -900,10 +900,6 @@ void RealConsoleTask(void)
                 printf("Invalid or missing can bus\n");
                 break;
             }
-            if (canNum >= NUM_CAN_BUSSES) {
-                printf("Invalid can bus: %d\n", canNum);
-                break;
-            }
 
             err = parse_uint8(&afterCommand, &priority, 0);
             if (err) {
