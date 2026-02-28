@@ -722,9 +722,6 @@ void dir_file_queue_check(uint32_t now, char * folder, uint8_t file_type, char *
             if (rc != EXIT_SUCCESS) {
                 printf("** Failed to make pacsat file %s from file %s\n", psf_name, file_name);
                 rc = red_unlink(psf_name); // remove this in case it was partially written, ignore any error
-                if (rc == -1) {
-                    debug_print("Unable to remove file: %s : %s\n", psf_name, red_strerror(red_errno));
-                }
                 continue;
             }
 

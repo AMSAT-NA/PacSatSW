@@ -590,6 +590,7 @@ void tac_store_wod() {
     fp = red_open(wod_file_name_with_path, RED_O_CREAT | RED_O_APPEND | RED_O_WRONLY);
     if (fp == -1) {
         debug_print("Unable to open %s for writing: %s\n", wod_file_name_with_path, red_strerror(red_errno));
+        return;
     } else {
 
         numOfBytesWritten = red_write(fp, frame, len);
@@ -597,12 +598,15 @@ void tac_store_wod() {
             printf("Write returned: %d\n",numOfBytesWritten);
             if (numOfBytesWritten == -1) {
                 printf("Unable to write to %s: %s\n", wod_file_name_with_path, red_strerror(red_errno));
+                red_close(fp);
+                return;
             }
         }
         wod_file_length = red_lseek(fp, 0, RED_SEEK_END);
         rc = red_close(fp);
         if (rc != 0) {
             printf("Unable to close %s: %s\n", wod_file_name_with_path, red_strerror(red_errno));
+            return;
         }
     }
 
@@ -647,13 +651,14 @@ void tac_roll_file(char *file_name_with_path, char *folder, char *prefix) {
     if (rc == -1) {
         debug_print("Unable to link que file: %s : %s\n", file_name, red_strerror(red_errno));
         switch (red_errno) {
-        case RED_EINVAL: // no mounted
+        case RED_EINVAL: // not mounted
         case RED_EIO: // disk io, we hope it is temporary
             //TODO - log this error, so that if a count is reached we reboot to try to fix this
+        case RED_ENOENT: // File does not exist, so we have been called incorrectly
         case RED_ENOSPC: //this is because we ran out of space.  So exit and we will try again next time
             return;
         default:
-            // All other errors will be repeated in a loop, so we remove the file
+            // All other errors will be repeated in a loop, so we try to remove the file
             red_unlink(file_name_with_path);
             return;
         }
@@ -664,6 +669,7 @@ void tac_roll_file(char *file_name_with_path, char *folder, char *prefix) {
     if (rc == -1) {
         debug_print("Unable to remove tmp que file: %s : %s\n", file_name_with_path, red_strerror(red_errno));
         // TODO this is not fatal but there needs to be a way to clean this up or we will keep trying to add it to the dir
+        return;
     }
 
     debug_print("Telem & Control: Rolled QUE file: %s\n", file_name);
