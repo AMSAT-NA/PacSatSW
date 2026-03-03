@@ -195,7 +195,9 @@ enum {
     uplinkOpen,
     digiShut,
     digiOpen,
+    showPfh,
     mramHxd,
+    expireFile,
     dirLoad,
     dirClear,
     listDir,
@@ -274,9 +276,15 @@ commandPairs pacsatCommands[] = {
     { "send pb status",
       "Immediately transmit the status of the PB",
       testPbStatus},
+    { "pfh",
+        "Display the PACSAT File header for a file",
+        showPfh},
     { "hxd",
-      "Display Hex for file number",
+      "Display Hex for file",
       mramHxd},
+    { "expire file",
+        "set the expiry date for a file so it expires now",
+        expireFile},
     { "load dir",
       "Load the directory from the filesystem",
       dirLoad},
@@ -1960,6 +1968,21 @@ void RealConsoleTask(void)
         }
 
 
+        case showPfh: {
+            char *t = next_token(&afterCommand);
+            if (!t || strlen(t) == 0) {
+                printf("Usage: pfh <file name with path>\n");
+                break;
+            }
+            HEADER pfh;
+            int rc = pfh_load_from_file(t, &pfh);
+            if (rc == EXIT_SUCCESS) {
+                pfh_debug_print(&pfh);
+            } else {
+                debug_print("No valid PFH found in file %s\n",t);
+            }
+            break;
+        }
         case mramHxd: {
             char *t = next_token(&afterCommand);
 
@@ -2013,6 +2036,26 @@ void RealConsoleTask(void)
                        t, red_strerror(red_errno));
             }
             printf("\n");
+            break;
+        }
+
+        case expireFile: {
+            char *t = next_token(&afterCommand);
+            if (!t || strlen(t) == 0) {
+                printf("Usage: expire file <file name with path>\n");
+                break;
+            }
+            HEADER pfh;
+            int rc = pfh_load_from_file(t, &pfh);
+            if (rc == EXIT_SUCCESS) {
+                uint32_t now = 32000000; // don't set it to zero as this means use the default expiry period.  Just a date far in the past.
+                pfh.expireTime = now;
+                pfh_update_pacsat_header(&pfh,t);
+                dir_load();
+                debug_print("Reset expiry date for file %s\n",t);
+            } else {
+                debug_print("No valid PFH found in file %s\n",t);
+            }
             break;
         }
 

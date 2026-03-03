@@ -646,6 +646,7 @@ void tac_roll_file(char *file_name_with_path, char *folder, char *prefix) {
 
     // Just in case the file already exists, we try to remove it and ignore any errors
     red_unlink(file_name);
+    //TODO - use red_rename() here
     // Then we rename the file
     int rc = red_link(file_name_with_path, file_name);
     if (rc == -1) {

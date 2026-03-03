@@ -91,9 +91,13 @@
 #define BODY_OFFSET_BYTE_POS 65
 #define HEADER_CHECKSUM_BYTE_POS 60
 
-//#define PSF_FILE_EXT "act"
 //#define PSF_FILE_EXT ".act" // no need to store this extra info??
 #define PSF_FILE_TMP ".tmp"
+
+#define PFH_NUM_OF_SPARE_FIELDS 5
+#define PFH_SHORT_CHAR_FIELD_LEN 33
+#define PFH_LONG_CHAR_FIELD_LEN 65
+
 
 typedef struct {
   /* required Header Information */
@@ -138,8 +142,14 @@ typedef struct {
 }
 HEADER;
 
+int pfh_add_keyword(HEADER *pfh, char *key);
+int pfh_remove_keyword(HEADER *pfh, char *key);
+int pfh_contains_keyword(HEADER *pfh, char *key);
 int pfh_extract_header(HEADER  *hdr, uint8_t *buffer, uint16_t nBytes, uint16_t *size, bool *crc_passed);
+int pfh_load_from_file(char *filename, HEADER * pfh);
+int pfh_update_pacsat_header(HEADER *pfh, char *in_filename);
 int pfh_generate_header_bytes(HEADER *pfh, int body_size, uint8_t *header_bytes);
+void unix_to_time_str(uint32_t unix, char* buf, int buf_len);
 void pfh_debug_print(HEADER *pfh);
 uint8_t * pfh_store_short(uint8_t *buffer, uint16_t n);
 uint8_t * pfh_store_int(uint8_t *buffer, uint32_t n);

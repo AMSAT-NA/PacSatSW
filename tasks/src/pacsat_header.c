@@ -52,6 +52,10 @@
 #include "nonvolManagement.h"
 #include "MET.h"
 #include "redposix.h"
+#ifdef DEBUG
+#include "time.h"
+#endif
+
 
 
 /* Local forward headers */
@@ -334,6 +338,207 @@ int pfh_extract_header( HEADER  *hdr, uint8_t *buffer, uint16_t nBytes, uint16_t
     return TRUE;
 }
 
+int pfh_contains_keyword(HEADER *pfh, char *keyword) {
+    char *key = strtok(pfh->keyWords, " ");
+    while (key != NULL) {
+        if (strncmp(key, keyword, PFH_SHORT_CHAR_FIELD_LEN) == 0) {
+            return true;
+        }
+        key = strtok(NULL, " ");
+    }
+    return false;
+}
+
+int pfh_add_keyword(HEADER *pfh, char *keyword) {
+    if (pfh_contains_keyword(pfh, keyword))
+        return EXIT_SUCCESS;
+    if (strlen(pfh->keyWords) > 0)
+        strlcat(pfh->keyWords, " ", PFH_SHORT_CHAR_FIELD_LEN);
+    strlcat(pfh->keyWords, keyword, PFH_SHORT_CHAR_FIELD_LEN);
+
+    return EXIT_SUCCESS;
+}
+
+int pfh_remove_keyword(HEADER *pfh, char *keyword) {
+    char new_keywords[PFH_SHORT_CHAR_FIELD_LEN];
+    char *key = strtok(pfh->keyWords, " ");
+    strlcpy(new_keywords,"", PFH_SHORT_CHAR_FIELD_LEN);
+    while (key != NULL) {
+        if (strncmp(key, keyword, PFH_SHORT_CHAR_FIELD_LEN) != 0) {
+            strlcat(new_keywords,key, PFH_SHORT_CHAR_FIELD_LEN);
+            strlcat(new_keywords," ", PFH_SHORT_CHAR_FIELD_LEN);
+        }
+        key = strtok(NULL, " ");
+    }
+    if (strlen(new_keywords) > 0) {
+        new_keywords[strlen(new_keywords)-1] = 0; // we always have an extra space, so remove it
+    }
+    strlcpy(pfh->keyWords,new_keywords, PFH_SHORT_CHAR_FIELD_LEN);
+
+    return EXIT_SUCCESS;
+}
+
+/**
+ * pfh_update_pacsat_header()
+ *
+ * Update the header in a PACSAT file.  This will recalculate any checksums and
+ * save the new bytes to the start of the file.  All fields except the header
+ * checksum need to be correct.
+ *
+ * IMPORTANT NOTE - this does not preserve PFH fields that we do not know about. But it does
+ * allow 5 arbitrary fields that the ground station can add.  If more unknown fields are
+ * included then they will be lost in this update.
+ *
+ * NOTE: Some fields can be updated in place using the routines in dir.  But this
+ * is not possible for any field that changes the length of the PFH or that can be at an unknown
+ * offset.
+ *
+ */
+int pfh_update_pacsat_header(HEADER *pfh, char *in_filename) {
+//    char in_filename[MAX_FILE_PATH_LEN];
+//    dir_get_file_path_from_file_id(pfh->fileId, dir_folder, in_filename, MAX_FILE_PATH_LEN);
+
+    /* Build Pacsat File Header */
+    unsigned char pfh_buffer[MAX_PFH_LENGTH];
+    int original_body_offset = pfh->bodyOffset;
+    int body_size = pfh->fileSize - pfh->bodyOffset;
+    int pfh_len = pfh_generate_header_bytes(pfh, body_size, pfh_buffer);
+
+    char tmp_filename[MAX_FILENAME_WITH_PATH_LEN];
+    strlcpy(tmp_filename, in_filename, MAX_FILENAME_WITH_PATH_LEN);
+    strlcat(tmp_filename, ".", MAX_FILENAME_WITH_PATH_LEN);
+    strlcat(tmp_filename, "tmp", MAX_FILENAME_WITH_PATH_LEN); /* This will give it a name like 0005.act.tmp */
+
+    int32_t outfile = red_open(tmp_filename, RED_O_CREAT | RED_O_APPEND | RED_O_WRONLY);
+    if (outfile == -1) {
+        debug_print("Unable to open %s for writing: %s\n", tmp_filename, red_strerror(red_errno));
+        return EXIT_FAILURE;
+    }
+
+    /* Save the header bytes, which might be shorter or longer than the original header */
+    int numOfBytesWritten = red_write(outfile, &pfh_buffer, pfh_len);
+    if (numOfBytesWritten != pfh_len) {
+        printf("Write returned: %d\n",numOfBytesWritten);
+        if (numOfBytesWritten == -1) {
+            printf("Unable to write id to %s: %s\n", tmp_filename, red_strerror(red_errno));
+        }
+        red_close(outfile);
+        return EXIT_FAILURE;
+    }
+
+
+    /* Add the file contents */
+    int32_t infile=red_open(in_filename,RED_O_RDONLY);
+    if (infile == -1) {
+        debug_print("Unable to open %s for reading: %s\n", in_filename, red_strerror(red_errno));
+        return EXIT_FAILURE;
+    }
+
+    int rc = red_lseek(infile, original_body_offset, RED_SEEK_SET); /* Read from the start of the original body offset */
+    if (rc == -1) {
+        debug_print("Unable to seek %s  to offset %d: %s\n", in_filename, original_body_offset, red_strerror(red_errno));
+        rc = red_close(infile);
+        if (rc != 0) {
+            printf("Unable to close %s: %s\n", in_filename, red_strerror(red_errno));
+        }
+        return EXIT_FAILURE;
+    }
+
+    // TODO - is this more efficient with buffers, or does it make no difference given the data comes from memory over SPI?
+
+    int check_size = 0;
+    char ch[1] = {0};
+    int32_t num = red_read(infile,&ch,1);
+    if (num == 0) { // EOF on first read, error
+        red_close(infile);
+        red_close(outfile);
+        return EXIT_FAILURE; // we could not read from to the infile
+    }
+    while (num) {
+        check_size++;
+        int32_t rc = red_write(outfile,ch,1);
+        if (rc != 1) {
+            red_close(infile);
+            red_close(outfile);
+            return EXIT_FAILURE; // we could not write to the file
+        }
+        num = red_read(infile,ch,1);
+    }
+
+    red_close(infile);
+    red_close(outfile);
+    if (check_size != body_size)
+        debug_print("WARNING! Wrote different sized file body for %s\n",tmp_filename);
+//  if (remove(tmp_filename) != EXIT_SUCCESS) {
+//      error_print("Could not remove tmp file %s\n",tmp_filename)
+//  }
+    // TODO - use this    if (red_rename(tmp_filename, in_filename) != EXIT_SUCCESS) {
+    //    return EXIT_FAILURE;
+    //}
+    // Then we rename the file, first removing the file we will overwrite
+    rc = red_unlink(in_filename);
+    rc = red_link(tmp_filename, in_filename);
+    if (rc == -1) {
+        debug_print("Unable to link file: %s : %s\n", in_filename, red_strerror(red_errno));
+        return EXIT_FAILURE;
+    }
+    rc = red_unlink(tmp_filename);
+    if (rc == -1) {
+        debug_print("Relinked file but unable to remove tmp file: %s : %s\n", in_filename, red_strerror(red_errno));
+        // TODO this is not fatal but there needs to be a way to clean this up or we will keep trying to add it to the dir
+    }
+
+    // ***********************  UPDATE THE ENTRY IN THE DIR TABLE IF ONE OF THOSE FIELDS CHANGED.  OR RELOAD IT FROM DISK
+
+    return EXIT_SUCCESS;
+}
+
+
+/**
+ * pfh_load_from_file()
+ *
+ * Extract the header from a file on disk
+ * The filename needs to be the full path to the file
+ * This allocates the memory for a new header and returns it.  The caller must
+ * later free the memory.
+ *
+ * Returns: A pointer to the header or NULL if something went wrong
+ */
+int pfh_load_from_file(char *filename, HEADER * pfh) {
+    int32_t fp = red_open(filename, RED_O_RDONLY);
+    if (fp == -1) {
+        debug_print("Unable to open %s to read PFH: %s\n", filename, red_strerror(red_errno));
+        return EXIT_FAILURE;
+    }
+    unsigned char read_buffer[MAX_PFH_LENGTH]; // needs to be bigger than largest header but does not need to be the whole file
+    int32_t numOfBytesRead = red_read(fp, read_buffer, MAX_PFH_LENGTH);
+    if (numOfBytesRead <= 0 ) {
+        debug_print("Unable to read PFH from %s: %s\n", filename, red_strerror(red_errno));
+        red_close(fp);
+        return EXIT_FAILURE; // nothing was read
+    }
+    int rc = red_close(fp);
+
+    uint16_t size;
+    bool crc_passed;
+    bool ret = pfh_extract_header(pfh, read_buffer, numOfBytesRead, &size, &crc_passed);
+    if (!ret) {
+        debug_print("Extracted Header corrupt or missing\n");
+        return EXIT_FAILURE;
+    } else {
+        //debug_print("Read: %d Extracted Header size: %d\n",numOfBytesRead, size);
+    }
+
+    if (!crc_passed) {
+        debug_print("CRC failed when loading PFH from file\n");
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
+}
+
+
+
 /**
  * header_copy_to_str()
  *
@@ -351,6 +556,12 @@ void header_copy_to_str(uint8_t *header, int length, char *destination, int maxb
     *destination = '\0';
 }
 
+#ifdef DEBUG
+void unix_to_time_str(uint32_t unix, char* buf, int buf_len) {
+    time_t now = unix + 2208988800L;
+    strftime(buf, buf_len, "%Y-%m-%d %H:%M:%S", gmtime(&now));
+}
+
 /**
  * pfh_debug_print()
  *
@@ -361,22 +572,30 @@ void header_copy_to_str(uint8_t *header, int length, char *destination, int maxb
 void pfh_debug_print(HEADER *pfh) {
     if (pfh == NULL) return;
     debug_print("PFH: File:%4x - %s.%s ", (int)pfh->fileId, pfh->fileName, pfh->fileExt);
+    debug_print("Contains:%s ", pfh->userFileName);
+    debug_print("File Type:%d \n", pfh->fileType);
 
     debug_print("Source:%s ", pfh->source);
     debug_print("Dest:%s ", pfh->destination);
-    debug_print("Crc:%4x ", pfh->headerCRC);
+    debug_print("Header Crc:%4x ", pfh->headerCRC);
+    debug_print("Body Crc:%4x ", pfh->bodyCRC);
     debug_print("Size:%d\n", pfh->fileSize);
+    debug_print("Body Offset:%d\n", pfh->bodyOffset);
     debug_print("Title:'%s' ", pfh->title);
-//    char buf[30];
-//    time_t now = pfh->createTime;
-//    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", gmtime(&now));
-//    debug_print("Cr:%s ", buf);
-    debug_print("Upload Time: %d ",pfh->uploadTime);
-//    now = pfh->uploadTime;
-//    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", gmtime(&now));
-//    debug_print("Up:%s ", buf);
-    debug_print(" Contains:%s\n", pfh->userFileName);
+    char buf[30];
+    unix_to_time_str(pfh->createTime, buf, 30);
+    debug_print("Cr:%s ", buf);
+//    debug_print("Upload Time: %d ",pfh->uploadTime);
+    unix_to_time_str(pfh->uploadTime, buf, 30);
+    debug_print("Up:%s ", buf);
+    unix_to_time_str(pfh->expireTime, buf, 30);
+    debug_print("Ex:%s \n", buf);
+    debug_print("SEU Flag:%d ", pfh->SEUflag);
+    debug_print("Compression:%d \n", pfh->compression);
+    debug_print("Keywords:%s \n", pfh->keyWords);
+
 }
+#endif
 
 /**
  * pfh_generate_header_bytes()
@@ -676,7 +895,7 @@ int pfh_make_internal_header(HEADER *pfh,uint32_t now, uint8_t file_type, unsign
 }
 
 /**
- * test_pfh_make_pacsat_file()
+ * pfh_make_internal_file()
  *
  * Create a new PACSAT File based on a Header and the body file.  Save the new file
  * into out_filename which will be file_id.act and saved into dir_folder

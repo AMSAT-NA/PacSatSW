@@ -613,10 +613,10 @@ void dir_maintenance() {
             strlcpy(file_name_with_path, DIR_FOLDER, sizeof(file_name_with_path));
             strlcat(file_name_with_path, p->filename, sizeof(file_name_with_path));
 
-            //debug_print("Purging: %s\n",file_name_with_path);
+            debug_print("Purging: %s\n",file_name_with_path);
             int32_t fp = red_unlink(file_name_with_path);
             if (fp == -1) {
-                // This was probablly open because it is being update or broadcast.  So it is OK to skip until next time
+                // This was probably open because it is being update or broadcast.  So it is OK to skip until next time
                 debug_print("Unable to remove file: %s : %s\n", file_name_with_path, red_strerror(red_errno));
                 p = p->next;
             } else {
@@ -673,7 +673,7 @@ void dir_file_queue_check(uint32_t now, char * folder, uint8_t file_type, char *
         if (!RED_S_ISDIR(de->d_stat.st_mode)) {
             // If its a .tmp file then it is still being written and we ignore it
             if (str_ends_with(de->d_name, PSF_FILE_TMP)) {
-              debug_print("Skipping file: %s\n",de->d_name);
+              //debug_print("Skipping file: %s\n",de->d_name);
                 continue;
             }
 
