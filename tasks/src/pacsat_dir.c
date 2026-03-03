@@ -228,6 +228,7 @@ DIR_NODE * dir_add_pfh(char *file_name, HEADER *new_pfh) {
     strlcpy(new_node->filename, file_name, REDCONF_NAME_MAX+1U);
     new_node->body_offset = new_pfh->bodyOffset;
     new_node->upload_time = new_pfh->uploadTime;
+    new_node->expire_time = new_pfh->expireTime;
 
     uint32_t now = getUnixTime(); // Get the time in seconds since the unix epoch
     if (new_node == NULL) return NULL; // ERROR
@@ -589,14 +590,17 @@ DIR_NODE * dir_get_node_by_id(int file_id) {
     return NULL;
 }
 
-// TODO - this should do one file and return (remembering where it is) otherwise it will block the TELEM TASK when dir is large
+// TODO - this should do one file (or a small number) and return (remembering where it is) otherwise it will block when dir is large
 void dir_maintenance() {
     uint32_t now = getUnixTime();
 
     DIR_NODE *p = dir_head;
     while (p != NULL) {
         //debug_print("CHECKING: File id: %04x name: %s up:%d age:%d sec\n",p->file_id, p->filename, p->upload_time, now-p->upload_time);
-        int32_t age = now-p->upload_time;
+        int32_t age = now-p->expire_time;
+        if (age == 0) {
+            age = now-p->upload_time;
+        }
         if (age < 0) {
             // this looks wrong, something is corrupt.  Skip it
             p = p->next;
@@ -622,7 +626,6 @@ void dir_maintenance() {
                 dir_delete_node(node);
             }
         } else {
-            // TODO - Check if there is an expiry date in the header
             p = p->next;
         }
         ReportToWatchdog(CurrentTaskWD);
@@ -763,17 +766,24 @@ void dir_file_queue_check(uint32_t now, char * folder, uint8_t file_type, char *
 void dir_debug_print(DIR_NODE *p) {
     if (p == NULL)
         p = dir_head;
-
+    int i = 0;
+    debug_print("File Name Uploaded            Expire\n");
+    debug_print("---- ---- ------------------- -------------------\n");
     if (p == NULL)
         debug_print("..Empty Dir List\n");
     while (p != NULL) {
         //pfh_debug_print(p->pfh);
         char buf[30];
+        char exp_buf[30];
          time_t now = p->upload_time + 2208988800L;
+         time_t exp = p->expire_time + 2208988800L;
          strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", gmtime(&now));
-        debug_print("File id: %04x name: %s up:%d %s\n",p->file_id, p->filename, p->upload_time,buf);
+         strftime(exp_buf, sizeof(exp_buf), "%Y-%m-%d %H:%M:%S", gmtime(&exp));
+        debug_print("%04x %s %s %s\n",p->file_id, p->filename,buf, exp_buf);
         p = p->next;
+        i++;
     }
+    debug_print("(%d files)\n",i);
 }
 
 #endif /* DEBUG */

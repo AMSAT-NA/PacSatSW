@@ -667,7 +667,7 @@ void tac_roll_file(char *file_name_with_path, char *folder, char *prefix) {
     /* Otherwise File renamed, ready to be added to the dir.  Remove the tmp file*/
     rc = red_unlink(file_name_with_path);
     if (rc == -1) {
-        debug_print("Unable to remove tmp que file: %s : %s\n", file_name_with_path, red_strerror(red_errno));
+        debug_print("Rolled file but unable to remove tmp que file: %s : %s\n", file_name_with_path, red_strerror(red_errno));
         // TODO this is not fatal but there needs to be a way to clean this up or we will keep trying to add it to the dir
         return;
     }

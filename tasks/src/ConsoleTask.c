@@ -1205,19 +1205,21 @@ void RealConsoleTask(void)
             REDDIR *pDir;
             char *t = next_token(&afterCommand);
 
-            printf("%s:\n", t);
-            printf("Name       Blks  Size \n");
-            printf("---------- ----- --------\n");
-            if (strlen(t) == 0){
+            int i=0;
+            if (t == NULL || strlen(t) == 0){
                 pDir = red_opendir("//");
+                printf("//:\n");
             } else {
+                printf("%s:\n", t);
                 pDir = red_opendir(t);
             }
             if (pDir == NULL) {
-                printf("Unable to open dir: %s\n", red_strerror(red_errno));
+                printf("Unable to open dir %s: %s\n", t, red_strerror(red_errno));
                 printf("Make sure the path is fully qualified and starts with //\n");
                 break;
             }
+            printf("Name         Blks  Size \n");
+            printf("------------ ----- --------\n");
 
             uint32_t total_bytes = 0;
             uint32_t total_blocks = 0;
@@ -1230,13 +1232,15 @@ void RealConsoleTask(void)
             red_errno = 0;
             pDirEnt = red_readdir(pDir);
             while (pDirEnt != NULL) {
-                printf("%10s %5d %8d\n", pDirEnt->d_name,
+                printf("%12s %5d %8d\n", pDirEnt->d_name,
                        pDirEnt->d_stat.st_blocks,
                        (int) pDirEnt->d_stat.st_size);
                 total_bytes += pDirEnt->d_stat.st_size;
                 total_blocks += pDirEnt->d_stat.st_blocks;
                 pDirEnt = red_readdir(pDir);
+                i++;
             }
+            printf("(%d files)\n",i);
             if (red_errno != 0) {
                 printf("Error reading directory: %s\n",
                        red_strerror(red_errno));

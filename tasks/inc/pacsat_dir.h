@@ -27,6 +27,7 @@ typedef struct dir_node {
     uint32_t file_id; /* Cached from the PFH to allow searching by id */
     uint16_t body_offset; /* Cached from the PFH to allow load of PFH without having to overread the bytes */
     uint32_t upload_time; /* Cached from the PFH and used to sort the directory */
+    uint32_t expire_time; /* Cached from the PFH and used to purge files */
     struct dir_node *next;
     struct dir_node *prev;
 } DIR_NODE;
