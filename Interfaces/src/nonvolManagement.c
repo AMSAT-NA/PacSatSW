@@ -15,6 +15,22 @@
 
 static const MRAMmap_t *ptr = (MRAMmap_t *) 0;
 
+char * spacecraft_mode_str[3] = {
+    "SAFE",
+    "FILE SYSTEM",
+    "SCIENCE"
+};
+
+SpacecraftMode_t getSpacecraftMode() {
+    uint8_t m = ReadMRAMSpacecraftMode();
+    if (m > ScienceMode)
+        m = SafeMode;
+    return (SpacecraftMode_t)m;
+}
+
+char * getSpacecraftModeStr() {
+    return spacecraft_mode_str[getSpacecraftMode()];
+}
 
 void EncodeUint32(uint32_t number,uint32_t *data){
     data[0] = number;
@@ -385,6 +401,14 @@ uint16_t ReadMRAMExpMaxFileSize(void){
     READ_UINT16(EXPMaxFileSize,TAC_FILE_SIZE_TO_ROLL_EXP);
 }
 
+void WriteMRAMSpacecraftMode(uint8_t size){
+    WRITE_UINT8(SpacecraftMode,size);
+}
+
+uint8_t ReadMRAMSpacecraftMode(void){
+    READ_UINT8(SpacecraftMode,SafeMode);
+}
+
 void WriteMRAMReceiverMode(uint8_t rxNum,uint8_t val){
     writeNV(&val, sizeof(uint8_t), NVConfigData,
                 (int) &(ptr->StatesInMRAM.RxChannelMode[rxNum][0]));
@@ -446,6 +470,9 @@ void SetupMRAMStates() {
     WriteMRAMFTL0StatusFreq(UPLINK_TIMER_SEND_STATUS_PERIOD);
     WriteMRAMTelemFreq(TAC_TIMER_SEND_TELEMETRY_PERIOD);
     WriteMRAMTimeFreq(TAC_TIMER_SEND_TIME_PERIOD);
+    WriteMRAMExpFreq(TAC_TIMER_SEND_EXP_PERIOD);
+    WriteMRAMExpMaxFileSize(TAC_FILE_SIZE_TO_ROLL_EXP);
+    WriteMRAMSpacecraftMode(SafeMode);
 
     for(i = 0; i < NUM_CHANNELS; i++)
         WriteMRAMModulation(i, DCT_DEFAULT_MODULATION[i]);

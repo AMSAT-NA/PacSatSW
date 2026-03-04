@@ -48,6 +48,12 @@ enum _StateTypes {
     ,MaxStates
 };
 
+typedef enum _SpacecraftModeTypes {
+      SafeMode=0
+     ,FileSystemMode=1
+     ,ScienceMode=2
+} SpacecraftMode_t;
+
 typedef struct {
         /* Each entry has two because we want extra bits for checking */
 
@@ -87,9 +93,9 @@ typedef struct {
     uint16_t TimeFrequency[2];
     uint16_t EXPFrequency[2];
     uint16_t EXPMaxFileSize[2];
+    uint8_t  SpacecraftMode[2];
     uint32_t SpareData[8];
     uint8_t  NonVolatileStates[MaxStates][2];
-
 } StateSavingMRAM_t;
 
 

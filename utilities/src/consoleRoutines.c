@@ -360,6 +360,7 @@ char *modulation_to_str(enum radio_modulation mod)
 
 void DisplayTelemetry(uint32_t typeRequested)
 {
+    printf("Mode: %s\n", getSpacecraftModeStr());
     switch(typeRequested){
     case 0: {
         /*

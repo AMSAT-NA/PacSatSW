@@ -10,6 +10,9 @@
 
 #include "MRAMmap.h"
 
+SpacecraftMode_t getSpacecraftMode();
+char * getSpacecraftModeStr();
+
 int SetupMRAM(void);
 void IHUInitSaved(void);
 
@@ -84,7 +87,8 @@ void WriteMRAMExpFreq(uint16_t freq);
 uint16_t ReadMRAMExpFreq(void);
 void WriteMRAMExpMaxFileSize(uint16_t size);
 uint16_t ReadMRAMExpMaxFileSize(void);
-
+void WriteMRAMSpacecraftMode(uint8_t size);
+uint8_t ReadMRAMSpacecraftMode(void);
 void WriteMRAMReceiverMode(uint8_t rxNum,uint8_t val);
 uint8_t ReadMRAMReceiverMode(uint8_t rxNum);
 
