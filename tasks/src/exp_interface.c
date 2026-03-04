@@ -22,14 +22,14 @@ void exp_store_can(int type, int msgid, uint8_t *data, unsigned int len);
 void exp_can_handler(int canNum, unsigned int type, unsigned int msgid,
 		     unsigned int src, uint8_t *data, unsigned int len)
 {
-    debug_print("EXP CAN Handler Received: canNum=%d type=%d msgid=%d "
-           "src=%d len=%d\n",
-           canNum, type, msgid, src, len);
-
-    unsigned int i;
-    for (i = 0; i < len; i++)
-        debug_print(" %02x", data[i]);
-    debug_print("\n");
+//    debug_print("EXP CAN Handler Received: canNum=%d type=%d msgid=%d "
+//           "src=%d len=%d\n",
+//           canNum, type, msgid, src, len);
+//
+//    unsigned int i;
+//    for (i = 0; i < len; i++)
+//        debug_print(" %02x", data[i]);
+//    debug_print("\n");
 
     switch (type) {
     case can_msg_type_status:

@@ -247,7 +247,7 @@ typedef uint8_t rfchan;
 #define TAC_FILE_SIZE_TO_ROLL_EXP 15000 // 15k
 
 // Run maintenance every 5 mins.  Maintenance should run very quickly
-#define TAC_TIMER_MAINTENANCE_PERIOD SECONDS(5*60)
+#define TAC_TIMER_MAINTENANCE_PERIOD SECONDS(1*60) //SECONDS(5*60)
 
 // Check the file queues every min
 #define TAC_TIMER_CHECK_FILE_QUEUES_PERIOD SECONDS(1*60)

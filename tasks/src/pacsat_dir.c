@@ -594,18 +594,32 @@ DIR_NODE * dir_get_node_by_id(int file_id) {
 void dir_maintenance() {
     uint32_t now = getUnixTime();
 
+#ifdef DEBUG
+    char buf[30];
+    unix_to_time_str(now, buf, 30);
+    debug_print("dir_maintenance: Checking files against: %d - %s\n", now, buf);
+#endif
+
     DIR_NODE *p = dir_head;
     while (p != NULL) {
-        //debug_print("CHECKING: File id: %04x name: %s up:%d age:%d sec\n",p->file_id, p->filename, p->upload_time, now-p->upload_time);
-        int32_t age = now-p->expire_time;
-        if (age == 0) {
+        debug_print("CHECKING: File id: %04x up:%d ex: %d \n",p->file_id, p->filename, p->upload_time, p->expire_time);
+        int32_t age = 0;
+        if (p->expire_time == 0) {
+            /* Then expiry is based on a fixed time after upload */
             age = now-p->upload_time;
+        } else {
+            /* Then expiry is a fixed time stored in the file.  When we hit that date, it is expired.  But we
+             * check below vs DIR_MAX_FILE_AGE, so add that amount and keep the logic below simpler */
+            age = now - p->expire_time + DIR_MAX_FILE_AGE;
         }
+        debug_print("Age: %d\n", age);
         if (age < 0) {
-            // this looks wrong, something is corrupt.  Skip it
+            // We have not reached the expire time or this looks wrong, something is corrupt.  Skip it
+            debug_print("..age wrong, skipping\n");
             p = p->next;
         } else if (pb_is_file_in_use(p->file_id)) {
             // This file is currently being broadcast then skip it until next time
+            debug_print("..file in use, skipping\n");
             p = p->next;
         } else if (age > DIR_MAX_FILE_AGE) {
             // Remove this file it is over the max age
