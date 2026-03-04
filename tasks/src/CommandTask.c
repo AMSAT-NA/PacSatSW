@@ -121,6 +121,7 @@ void CommandTask(void *pvParameters)
             if(msg.MsgType == CmdTypeRawSoftware){
                 debug_print("COMMAND VIA MESSAGE NOT SUPPORTED!!\n");
             } else if(msg.MsgType == CmdTypeHardware){
+                debug_print("HW COMMAND!!\n");
                 int fixedUp=0;
                 //
                 // The data lines are not attached to adjacent pins
@@ -155,17 +156,27 @@ void SimulateHWCommand(UplinkCommands cmd){
     NotifyInterTask(ToCommand,WATCHDOG_SHORT_WAIT_TIME,(Intertask_Message *)&msg);
 }
 void SimulateSwCommand(uint8_t namesp, uint16_t cmd, const uint16_t *args,int numargs){
-    Intertask_Message msg;
+//    Intertask_Message msg;
+//    int i;
+//    msg.MsgType = CmdTypeValidatedSoftwareLocal;
+//    msg.argument = namesp;
+//    msg.argument2 = cmd;
+//    if(numargs > sizeof(msg.data))numargs=sizeof(msg.data);
+//    for(i=0;i<numargs;i++){
+//        msg.data[i] = args[i];
+//    }
+    debug_print("Simulated SW command %d\n",cmd);
+//    NotifyInterTask(ToCommand,WATCHDOG_SHORT_WAIT_TIME,(Intertask_Message *)&msg);
+
     int i;
-    msg.MsgType = CmdTypeValidatedSoftwareLocal;
-    msg.argument = namesp;
-    msg.argument2 = cmd;
-    if(numargs > sizeof(msg.data))numargs=sizeof(msg.data);
+    SWCmdUplink uplink;
+    uplink.comArg.command = cmd;
     for(i=0;i<numargs;i++){
-        msg.data[i] = args[i];
+        uplink.comArg.arguments[i] = args[i];
     }
-    //debug_print("Fake command %d\n",cmd);
-    NotifyInterTask(ToCommand,WATCHDOG_SHORT_WAIT_TIME,(Intertask_Message *)&msg);
+    uplink.namespaceNumber = namesp;
+    uplink.address = OUR_ADDRESS;
+    DispatchSoftwareCommand(&uplink, true);
 }
 static void DecodeHardwareCommand(UplinkCommands command){
 
@@ -258,16 +269,19 @@ bool OpsSWCommands(CommandAndArgs *comarg){
 
     case SWCmdOpsSafeMode:{
         command_print("Safe mode command\n");
+        setSpacecraftMode(SafeMode);
         //SendSafeModeMsg(false); // False forced it to not be autosafe
         break;
     }
-    case SWCmdOpsHealthMode:
-        command_print("Health mode \n");
+    case SWCmdOpsFSMode:
+        command_print("File System mode \n");
+        setSpacecraftMode(FileSystemMode);
         //SendHealthModeMsg();
         break;
     case SWCmdOpsScienceMode:{
         int timeout = comarg->arguments[0];
         if(timeout<=0)timeout = 1; // Just in case
+        setSpacecraftMode(ScienceMode);
         //SendScienceModeMsg(timeout);
         break;
     }
@@ -543,7 +557,8 @@ bool CommandTimeOK(SWCmdUplink *uplink){
 
 void NoCommandTimeoutCallback(void){
     printf("No command timeout\n");
-    SimulateSwCommand(SWCmdNSSpaceCraftOps,SWCmdOpsHealthMode,NULL,0);
+    SimulateSwCommand(SWCmdNSSpaceCraftOps,SWCmdOpsFSMode,NULL,0);
+    // TODO - it sounds like we would want this to be re-setup
     //SetInternalSchedules(NoCommandTimeout,TIMEOUT_NONE); // Set this timeout to never
 }
 void NoTimedSWCommandTimeoutCallback(void){

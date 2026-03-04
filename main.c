@@ -84,7 +84,7 @@ QueueHandle_t xPbPacketQueue; /* RTOS Queue for packets received and sent to the
 QueueHandle_t xUplinkEventQueue; /* RTOS Queue for events received and sent to the UPLINK task */
 QueueHandle_t xTxPacketQueue; /* RTOS Queue for packets sent to the TX */
 QueueHandle_t xIFrameQueue[NUM_RX_CHANNELS]; /* RTOS Queues for Data IFrames sent from Uplink to AX25 Data Link */
-bool rate_9600; /* The rate for the AX25 link.  Loaded from MRAM.  */
+//bool rate_9600; /* The rate for the AX25 link.  Loaded from MRAM.  */
 bool CANPrintTelemetry,CANPrintCoord,CANPrintCommands,CANPrintAny,CANPrintCount,CANPrintErrors,CANPrintEttus;
 bool monitorTxPackets, monitorRxPackets, monitorRSSI;
 
@@ -348,7 +348,6 @@ void ConsoleTask(void *pvParameters){
                 TELEMETRY_STACK_SIZE, NULL, TELEMETRY_PRIORITY, NULL);
 #endif
     debug_print("Free heap size after tasks launched: %d\n",xPortGetFreeHeapSize());
-
     //AlertFlashingWait(CENTISECONDS(50),CENTISECONDS(10),CENTISECONDS(3));
     AllTasksStarted = true;
     StartStableCount();

@@ -284,9 +284,6 @@ typedef uint8_t rfchan;
 #define CAN_STACK_SIZE configMINIMAL_STACK_SIZE*15//*6
 #define CAN_PRIORITY (tskIDLE_PRIORITY + 1)
 
-#define EXPERIMENT_STACK_SIZE configMINIMAL_STACK_SIZE*6
-#define EXPERIMENT_PRIORITY (tskIDLE_PRIORITY + 2)
-
 // PACSAT Task stack sizes and priorities
 #define RX_STACK_SIZE configMINIMAL_STACK_SIZE*11
 #define RX_PRIORITY (tskIDLE_PRIORITY + 4)

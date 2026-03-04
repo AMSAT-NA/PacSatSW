@@ -122,7 +122,9 @@ enum {
     telem0,
     pollI2c,
     dropBus,
-    healthMode,
+    safeMode,
+    fsMode,
+    sciMode,
     Tx,
     getState,
     testLED,
@@ -509,9 +511,15 @@ commandPairs commonCommands[] = {
       AxReg,
       "<chan> <startreg>[-<endreg>] [value]",
     },
-    { "health mode",
-      "Set health mode",
-      healthMode},
+    { "safe mode",
+      "Set safe mode",
+      safeMode},
+    { "fs mode",
+      "Set file system mode",
+      fsMode},
+    { "sci mode",
+      "Set science mode",
+      sciMode},
 #if 0
      { "set dct drive power",
        // "Set drive power for high and low power",
@@ -1426,8 +1434,18 @@ void RealConsoleTask(void)
             EnableCommandPrint(false);
             break;
 
-        case healthMode:{
-            SimulateSwCommand(SWCmdNSSpaceCraftOps,SWCmdOpsHealthMode,
+        case safeMode:{
+            SimulateSwCommand(SWCmdNSSpaceCraftOps,SWCmdOpsSafeMode,
+                              NULL, 0);
+            break;
+        }
+        case fsMode:{
+            SimulateSwCommand(SWCmdNSSpaceCraftOps,SWCmdOpsFSMode,
+                              NULL, 0);
+            break;
+        }
+        case sciMode:{
+            SimulateSwCommand(SWCmdNSSpaceCraftOps,SWCmdOpsScienceMode,
                               NULL, 0);
             break;
         }

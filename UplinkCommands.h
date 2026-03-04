@@ -116,7 +116,7 @@ typedef enum {
 typedef enum {
 	 SWCmdOpsReserved=0
 	,SWCmdOpsSafeMode
-	,SWCmdOpsHealthMode
+	,SWCmdOpsFSMode
 	,SWCmdOpsScienceMode
 	,SWCmdOpsDisableAutosafe
 	,SWCmdOpsEnableAutosafe

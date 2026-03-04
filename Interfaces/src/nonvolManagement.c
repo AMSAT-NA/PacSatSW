@@ -32,6 +32,10 @@ char * getSpacecraftModeStr() {
     return spacecraft_mode_str[getSpacecraftMode()];
 }
 
+void setSpacecraftMode(SpacecraftMode_t m) {
+    WriteMRAMSpacecraftMode(m);
+}
+
 void EncodeUint32(uint32_t number,uint32_t *data){
     data[0] = number;
     data[1] = ~number;

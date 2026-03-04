@@ -12,6 +12,7 @@
 
 SpacecraftMode_t getSpacecraftMode();
 char * getSpacecraftModeStr();
+void setSpacecraftMode(SpacecraftMode_t m);
 
 int SetupMRAM(void);
 void IHUInitSaved(void);
