@@ -789,10 +789,12 @@ void dir_debug_print(DIR_NODE *p) {
         //pfh_debug_print(p->pfh);
         char buf[30];
         char exp_buf[30];
-         time_t now = p->upload_time + 2208988800L;
-         time_t exp = p->expire_time + 2208988800L;
-         strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", gmtime(&now));
-         strftime(exp_buf, sizeof(exp_buf), "%Y-%m-%d %H:%M:%S", gmtime(&exp));
+         //time_t now = p->upload_time + 2208988800L;
+         //time_t exp = p->expire_time + 2208988800L;
+         //strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", gmtime(&now));
+         //strftime(exp_buf, sizeof(exp_buf), "%Y-%m-%d %H:%M:%S", gmtime(&exp));
+        unix_to_time_str(p->upload_time, buf, 30);
+        unix_to_time_str(p->expire_time, exp_buf, 30);
         debug_print("%04x %s %s %s\n",p->file_id, p->filename,buf, exp_buf);
         p = p->next;
         i++;

@@ -558,7 +558,9 @@ void header_copy_to_str(uint8_t *header, int length, char *destination, int maxb
 
 #ifdef DEBUG
 void unix_to_time_str(uint32_t unix, char* buf, int buf_len) {
-    time_t now = unix + 2208988800L;
+    // Adjust because TI Time library used Epoch of 1-1-1900 UTC - 6.
+    // Time protocol in RFC 868 specifies offset as 2208988800L
+    time_t now = unix + 2208988800L - 6 * 60 * 60;
     strftime(buf, buf_len, "%Y-%m-%d %H:%M:%S", gmtime(&now));
 }
 

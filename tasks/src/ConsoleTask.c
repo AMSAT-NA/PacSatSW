@@ -2048,7 +2048,7 @@ void RealConsoleTask(void)
             HEADER pfh;
             int rc = pfh_load_from_file(t, &pfh);
             if (rc == EXIT_SUCCESS) {
-                uint32_t now = 32000000; // don't set it to zero as this means use the default expiry period.  Just a date far in the past.
+                uint32_t now = getUnixTime(); //set this to the current time, which will expire the file
                 pfh.expireTime = now;
                 pfh_update_pacsat_header(&pfh,t);
                 dir_load();
