@@ -10,7 +10,7 @@
 
 #include "pacsat.h"
 
-enum MSG_TYPE {
+typedef enum CAN_MSG_TYPE {
     can_msg_type_reserved,
     can_msg_type_status,
     can_msg_type_telem,
@@ -23,8 +23,14 @@ enum MSG_TYPE {
     can_msg_type_eof2,
     can_msg_type_eof3,
     can_msg_type_eof4,
-};
+} can_msg_type_t;
 
+typedef enum CAN_STATUS_MSG_ID {
+    can_status_msg_id_reserved,
+    can_status_msg_id_enter_safe_mode,
+    can_status_msg_id_enter_fs_mode,
+    can_status_msg_id_enter_science_mode,
+} can_status_msg_id_t;
 
 void exp_can_handler(int canNum, unsigned int type, unsigned int msgid,
 		     unsigned int src, uint8_t *data, unsigned int len);

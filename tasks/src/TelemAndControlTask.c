@@ -246,6 +246,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
         Intertask_Message messageReceived;
         int status;
         uint32_t now = 0;
+        uint16_t mins = 0;
 
         ReportToWatchdog(CurrentTaskWD);
         status = WaitInterTask(ToTelemetryAndControl,
@@ -261,21 +262,43 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
             //            WaitingInterTask(ToTelemetryAndControl));
 
             switch(messageReceived.MsgType) {
+            case TacEnterSafeMode:
+                setSpacecraftMode(SafeMode);
+                debug_print("Entering SAFE mode\n");
+                // TODO - setup timers for telemetry to go in safe mode
+                break;
+            case TacEnterFsMode:
+                setSpacecraftMode(FileSystemMode);
+                debug_print("Entering FS mode\n");
+                // TODO - setup timers for telemetry to go in FS mode
+                break;
+            case TacEnterScienceMode:
+                setSpacecraftMode(ScienceMode);
+                mins = messageReceived.data[0];
+                if (mins > TAC_MAX_EXPERIMENT_TIMEOUT)
+                    mins = TAC_MAX_EXPERIMENT_TIMEOUT;
+                debug_print("Entering SCIENCE Mode with timeout: %d mins\n",mins);
+                // TODO telemetry timers OFF.  Just science telemetry / data
+                break;
             case TacSendPbStatus:
                 //debug_print("Telem & Control: Send the PB Status\n");
-                pb_send_status();
+                if (getSpacecraftMode() == FileSystemMode)
+                    pb_send_status();
                 break;
 
             case TacSendUplinkStatus:
                 //debug_print("Telem & Control: Send the FTL0 Status\n");
-                ax25_send_status();
+                if (getSpacecraftMode() == FileSystemMode)
+                    ax25_send_status();
                 break;
 
             case TacMaintenanceMsg:
                 //debug_print("TAC: Running DIR Maintenance\n");
                 dir_maintenance();
-                //debug_print("TAC: Running FTL0 Maintenance\n");
-                ftl0_maintenance();
+                if (getSpacecraftMode() == FileSystemMode) {
+                    //debug_print("TAC: Running FTL0 Maintenance\n");
+                    ftl0_maintenance();
+                }
                 break;
 
             case TacCheckFileQueuesMsg:
@@ -297,6 +320,8 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
                  */
                 tac_collect_telemetry(&telem_buffer);
                 tac_send_telemetry(&telem_buffer);
+
+                // TODO time should be a seperate timer.  Dont send with every telem!
                 tac_send_time();
                 break;
 

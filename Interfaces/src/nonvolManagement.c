@@ -22,10 +22,7 @@ char * spacecraft_mode_str[3] = {
 };
 
 SpacecraftMode_t getSpacecraftMode() {
-    uint8_t m = ReadMRAMSpacecraftMode();
-    if (m > ScienceMode)
-        m = SafeMode;
-    return (SpacecraftMode_t)m;
+    return (SpacecraftMode_t)spacecraftMode;
 }
 
 char * getSpacecraftModeStr() {
@@ -34,6 +31,7 @@ char * getSpacecraftModeStr() {
 
 void setSpacecraftMode(SpacecraftMode_t m) {
     WriteMRAMSpacecraftMode(m);
+    spacecraftMode = m; // cache this in memory so we do not have to read it from MRAM every time
 }
 
 void EncodeUint32(uint32_t number,uint32_t *data){

@@ -87,6 +87,7 @@ QueueHandle_t xIFrameQueue[NUM_RX_CHANNELS]; /* RTOS Queues for Data IFrames sen
 //bool rate_9600; /* The rate for the AX25 link.  Loaded from MRAM.  */
 bool CANPrintTelemetry,CANPrintCoord,CANPrintCommands,CANPrintAny,CANPrintCount,CANPrintErrors,CANPrintEttus;
 bool monitorTxPackets, monitorRxPackets, monitorRSSI;
+uint8_t spacecraftMode = SafeMode;
 
 bool time_valid;
 

@@ -3,6 +3,49 @@
  *
  *  Created on: Feb 20, 2026
  *      Author: g0kla
+ *
+ * This file handles data from an experiment that is attached over a CAN Bus.
+ *
+ * Can packets will contain an ID with the format defined in CANTask.c
+ * The ID contains a TYPE which will be interpretted as follows for data to/from the
+ * experiments:
+ *
+ * Type       Purpose
+ * -------    --------------------------------------------------------------------------
+ * 0          Reserved
+ * 1          Status packet,  message id indicates the action
+ * 2          Telemetry to be broadcast, where msgid indicates the type of telemetry
+ * 3          Telemetry to be stored in WOD, where msgid indicates the type of telemetry
+ * 4          Opaque data to save in file 1
+ * 5          Opaque data to save in file 2
+ * 6          Opaque data to save in file 3
+ * 7          Opaque data to save in file 4
+ * 8          EOF End of file 1 - this is the last packet in this file
+ * 9          EOF End of file 2 - this is the last packet in this file
+ * 10        EOF End of file 3 - this is the last packet in this file
+ * 11        EOF End of file 4 - this is the last packet in this file
+ * 13-15     Reserved
+ *
+ * Message IDs for Type 1 status packets:
+ * ID       Meaning                 Data
+ * -------  ----------------------  -------------------------------------------------------
+ * 0        Ignored
+ * 1        Enter Safe Mode          If PACSAT is source: Data 0=reason, 0=commanded, 1=low power
+ * 2        Enter File System Mode   Data 0=reason: 0=commanded; 1=power ok; 2= timeout of science
+ * 3        Enter Science Mode       Data 0=reason: 0=commanded; 1=scheduled time; Data 1=timeout (in mins)
+ *
+ * For types 2 and 3 the following MSG Ids indicate the type of telemetry
+ * ID       Meaning                 Data Units and Scale
+ * -------  ----------------------  -------------------------------------------------------
+ * 8        Solar Panel Temps       Data 0=+X, Data 1=-X, Data 2,3=+-Y Data 4,5=+-Z Unit: Degrees C, Scale: 0-255 = -20C to +107.5C
+ * 9        Other temperatures      Up to 8 temperatures in data 0-7 Unit: Degrees C Scale 0-255 = -20C to +107.5C
+ * 16       Solar Panel Volts       Data 0=+X, Data 1=-X, Data 2,3=+-Y Data 4,5=+-Z Unit: Volts Scale: 0-255 = 0-10V
+ * 17       Other voltages          Up to 8 voltages in data 0-7 Unit: Volts Scale: 0-255 = 0-10V
+ * 24       Binary Data 1           8 bits in data 0 Unit: True/False
+ * 25       Binary Data 2           8 bits in data 0 Unit: True/False
+ * 26       Binary Data 3           8 bits in data 0 Unit: True/False
+ * 27       Binary Data 4           8 bits in data 0 Unit: True/False
+ * 32       UTC Time                Data0=Year, Data1=Month (1-12), Data2=Day (1-31), Data3=Hour (0-23), Data 4=Minute (0-59), Data 5=Second (0-59)
  */
 
 #include "pacsat.h"
@@ -14,9 +57,13 @@
 #include "TelemAndControlTask.h"
 
 /* Forward declarations */
-void exp_store_can(int type, int msgid, uint8_t *data, unsigned int len);
+void exp_process_status_type(can_msg_type_t type, int msgid, uint8_t *data, unsigned int len);
+void exp_process_telem_type(can_msg_type_t type, int msgid, uint8_t *data, unsigned int len);
+void exp_process_wod_type(can_msg_type_t type, int msgid, uint8_t *data, unsigned int len);
+void exp_store_can(can_msg_type_t type, int msgid, uint8_t *data, unsigned int len);
 
 /* Local variables */
+static Intertask_Message statusMsg; // Storage used to send messages to the Telemetry and Control task
 
 
 void exp_can_handler(int canNum, unsigned int type, unsigned int msgid,
@@ -33,16 +80,58 @@ void exp_can_handler(int canNum, unsigned int type, unsigned int msgid,
 
     switch (type) {
     case can_msg_type_status:
+        exp_process_status_type((can_msg_type_t)type, msgid, data, len);
         break;
     case can_msg_type_telem:
+        exp_process_telem_type((can_msg_type_t)type, msgid, data, len);
         break;
     case can_msg_type_wod:
+        exp_process_wod_type((can_msg_type_t)type, msgid, data, len);
         break;
     default:
-        exp_store_can(type, msgid, data, len);
+        exp_store_can((can_msg_type_t)type, msgid, data, len);
         break;
     }
 }
+
+/**
+ * exp_process_status_type()
+ *
+ * Based on the message id, take appropriate action
+ *
+ */
+void exp_process_status_type(can_msg_type_t type, int msgid, uint8_t *data, unsigned int len) {
+    debug_print("EXP CAN Received Status Type: %d msgid=%d\n", type, msgid);
+    switch (msgid) {
+        case can_status_msg_id_enter_safe_mode:
+            statusMsg.MsgType = TacEnterSafeMode;
+            // TODO Log why this happened
+            NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
+            break;
+        case can_status_msg_id_enter_fs_mode:
+            statusMsg.MsgType = TacEnterFsMode;
+            // TODO Log why this happened
+            NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
+            break;
+        case can_status_msg_id_enter_science_mode:
+            statusMsg.MsgType = TacEnterScienceMode;
+            // TODO Log why this happened
+            statusMsg.data[0] = data[1]; // The Timeout is in data1.
+            NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
+            break;
+        default:
+            break;
+        }
+}
+
+void exp_process_telem_type(can_msg_type_t type, int msgid, uint8_t *data, unsigned int len) {
+
+}
+
+void exp_process_wod_type(can_msg_type_t type, int msgid, uint8_t *data, unsigned int len) {
+
+}
+
 
 void intToLetterString(int num, char *result) {
     if (num >= 1 && num <= 4) {
@@ -59,7 +148,7 @@ void intToLetterString(int num, char *result) {
  * matches the expectations at the ground station.  The actual data can be big or
  * little endian depending on the experiment and we pass it through unchanged.
  */
-void exp_store_can(int type, int msgid, uint8_t *data, unsigned int len) {
+void exp_store_can(can_msg_type_t type, int msgid, uint8_t *data, unsigned int len) {
     char exp_file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
     char file_id_str[4];
     unsigned int file_id = 1;

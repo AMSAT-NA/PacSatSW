@@ -612,7 +612,7 @@ void dir_maintenance() {
              * check below vs DIR_MAX_FILE_AGE, so add that amount and keep the logic below simpler */
             age = now - p->expire_time + DIR_MAX_FILE_AGE;
         }
-        debug_print("Age: %d\n", age);
+//        debug_print("Age: %d\n", age);
         if (age < 0) {
             // We have not reached the expire time or this looks wrong, something is corrupt.  Skip it
 //            debug_print("..age wrong, skipping\n");

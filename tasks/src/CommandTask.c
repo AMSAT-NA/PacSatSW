@@ -52,6 +52,8 @@ bool CommandTimeOK(SWCmdUplink *uplink);
 
 static bool PrintCommandInfo = false,CommandTimeEnabled = false;
 uint8_t SWCmdRing[4] = {0,0,0,0};
+static Intertask_Message statusMsg; // Storage used to send messages to the Telemetry and Control task
+
 
 //#define SPECIAL_RANDOM_NUMBER 49093  /* For little endian */
 #define SPECIAL_RANDOM_NUMBER 50623 /* For big endian */
@@ -269,20 +271,21 @@ bool OpsSWCommands(CommandAndArgs *comarg){
 
     case SWCmdOpsSafeMode:{
         command_print("Safe mode command\n");
-        setSpacecraftMode(SafeMode);
-        //SendSafeModeMsg(false); // False forced it to not be autosafe
+        statusMsg.MsgType = TacEnterSafeMode;
+        NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
         break;
     }
     case SWCmdOpsFSMode:
         command_print("File System mode \n");
-        setSpacecraftMode(FileSystemMode);
-        //SendHealthModeMsg();
+        statusMsg.MsgType = TacEnterFsMode;
+        NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
         break;
     case SWCmdOpsScienceMode:{
         int timeout = comarg->arguments[0];
         if(timeout<=0)timeout = 1; // Just in case
-        setSpacecraftMode(ScienceMode);
-        //SendScienceModeMsg(timeout);
+        statusMsg.MsgType = TacEnterScienceMode;
+        statusMsg.data[0] = timeout;
+        NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
         break;
     }
     case SWCmdOpsClearMinMax:

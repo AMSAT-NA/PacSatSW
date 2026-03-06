@@ -14,15 +14,15 @@ typedef enum {
     /* These messages are for the downlink task.
      * The explicit values are required since they index a table
      */
-    DwnlnkIdleTimeout=1, DwnlnkBeaconTimeout, DwnlnkTelemetryFrameComplete,
-    DwnlnkEnterSafeMode, DwnlnkEnterHealthMode, DwnlnkEnterAutoSafeMode,
-    DwnlnkInhibitTransmit,
-    DwnlnkEnableTransmit,
-    DwnlnkEnterScienceMode,
-    DwnlnkEnterEclipseSafeMode,
-    DWNLNK_NUMBER_OF_STATE_MESSAGES,
-    //End of table indices
-    DwnlnkCollectTelemetry, DwnlnkProgramModulator, DwnlnkControlChange,
+//    DwnlnkIdleTimeout=1, DwnlnkBeaconTimeout, DwnlnkTelemetryFrameComplete,
+//    DwnlnkEnterSafeMode, DwnlnkEnterHealthMode, DwnlnkEnterAutoSafeMode,
+//    DwnlnkInhibitTransmit,
+//    DwnlnkEnableTransmit,
+//    DwnlnkEnterScienceMode,
+//    DwnlnkEnterEclipseSafeMode,
+//    DWNLNK_NUMBER_OF_STATE_MESSAGES,
+//    //End of table indices
+//    DwnlnkCollectTelemetry, DwnlnkProgramModulator, DwnlnkControlChange,
 
     /*
      * These are for the command task
@@ -59,6 +59,9 @@ typedef enum {
     /*
      * Messages to the telemetry and Control task
      */
+    TacEnterSafeMode,
+    TacEnterFsMode,
+    TacEnterScienceMode,
     TacSendPbStatus,
     TacSendUplinkStatus,
     TacCollectMsg,
