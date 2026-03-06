@@ -452,4 +452,8 @@ extern const uint8_t DCT_DEFAULT_MODE[NUM_CHANNELS];
 #define CANA   0
 #define CANB   1
 
+/* Where is RAM?  Used for memory scrubbing in main.c. */
+#define RAM_START 0x08000000
+#define RAM_END (RAM_START + 0x20000)
+
 #endif /* CONFIG_H_ */
