@@ -371,12 +371,57 @@ void ConsoleTask(void *pvParameters){
     // Now head off to do the real work of the console task
     RealConsoleTask();
 }
-void vApplicationIdleHook(){
+
+/* Next memory address we need to scrub. */
+#include <reg_tcram.h>
+static size_t next_scrub_addr = RAM_START;
+
+void vApplicationIdleHook()
+{
+    uint32_t ram_err_count1, ram_err_count2;
+    volatile uint32_t *scrub;
+    volatile uint32_t val;
+
     ReportToWatchdog(IdleWD);
 
+#if 0
     /* Go standby in idle state, reduces power a bit. */
     asm volatile (" wfi");
+#else
+    /* Scrub a memory address on every idle call. */
+    scrub = (uint32_t *) next_scrub_addr;
+    /*
+     * This could be optimized to only fetch one depending on the RAM
+     * region we are accessing, but there is no documentation I can
+     * find saying where specifically tcram1 and tcram2 are, and I
+     * don't want to guess.
+     */
+    ram_err_count1 = tcram1REG->RAMOCCUR;
+    ram_err_count2 = tcram2REG->RAMOCCUR;
+    val = *scrub;
+    if (ram_err_count1 != tcram1REG->RAMOCCUR ||
+		ram_err_count2 != tcram2REG->RAMOCCUR) {
+	/*
+	 * We probably got an error.  Re-read the data, then write it
+	 * back to clean up the RAM address.  We want interrupts off
+	 * because we don't want anything to be able to change the
+	 * data while we do this.  But turning off interrupts is
+	 * somewhat expensive, so we don't want to do it every time.
+	 * We might occasionally run this part and the RAM error was
+	 * elsewhere because of an interrupt, but that's still much
+	 * better than turning off interrupts every time.
+	 */
+	taskDISABLE_INTERRUPTS();
+	val = *scrub;
+	*scrub = val;
+	taskENABLE_INTERRUPTS();
+    }
+    next_scrub_addr += sizeof(size_t);
+    if (next_scrub_addr >= RAM_END)
+	next_scrub_addr = RAM_START;
+#endif
 }
+
 #ifdef DEBUG
 void vApplicationMallocFailedHook(void){
     printf("Malloc Failed.  Heap is too small?  Current heap available is 0x%x\n",
