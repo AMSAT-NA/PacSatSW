@@ -99,9 +99,8 @@ static xTimerHandle timerADC;
 /* timer to end science mode */
 static xTimerHandle timerScienceMode;
 
-int pvtPbStatusTimerID = 0; // pb timer id
+/* timer to send the uplink status */
 static xTimerHandle timerUplinkStatus;
-int pvtUplinkStatusTimerID = 0; // uplink timer id
 
 // Storage used to send messages to the Telemetry and Control task
 static Intertask_Message statusMsg;
@@ -137,8 +136,8 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
      * create a RTOS software timer - TODO period should be in MRAM
      * and changeable from the ground using xTimerChangePeriod()
      */
-    timerPbStatus = xTimerCreate("PB STATUS", ReadMRAMPBStatusFreq(),
-                                 TRUE, &pvtPbStatusTimerID,
+    timerPbStatus = xTimerCreate("PB STATUS", SECONDS(ReadMRAMPBStatusFreq()),
+                                 TRUE, NULL,
                                  tac_pb_status_callback); // auto reload timer
     // Block time of zero as this can not block
     portBASE_TYPE timerStatus = xTimerStart(timerPbStatus, 0);
@@ -156,7 +155,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
      */
      timerUplinkStatus = xTimerCreate("UPLINK STATUS",
                                       ReadMRAMFTL0StatusFreq(), TRUE,
-                                      &pvtUplinkStatusTimerID,
+                                      NULL,
                                       tac_ftl0_status_callback);
      // Block time of zero as this can not block
      timerStatus = xTimerStart(timerUplinkStatus, 0);
@@ -349,6 +348,15 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
                     pb_send_status();
                 break;
 
+            case TacUpdatePbTimer:
+                if (timerPbStatus != NULL) {
+                    timerStatus = xTimerChangePeriod(timerPbStatus, SECONDS(ReadMRAMPBStatusFreq()), pdMS_TO_TICKS(100));
+                    if (timerStatus != pdPASS) {
+                        ReportError(RTOSfailure, FALSE, CharString,
+                                    (int)"ERROR: Failed to change Telem Timer period");
+                    }
+                }
+                break;
             case TacSendUplinkStatus:
                 //debug_print("Telem & Control: Send the FTL0 Status\n");
                 if (getSpacecraftMode() == SpacecraftFileSystemMode)

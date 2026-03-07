@@ -299,13 +299,22 @@ bool OpsSWCommands(CommandAndArgs *comarg){
     case SWCmdOpsEnablePb: {
         bool turnOn;
         turnOn = (comarg->arguments[0] != 0);
+        uint16_t period = comarg->arguments[1];
+        uint16_t timeout = comarg->arguments[2];
+        if (period == 0)
+            period = PB_DEFAULT_TIMER_SEND_STATUS_PERIOD_SECONDS;
+        if (timeout == 0)
+            timeout = PB_MAX_PERIOD_FOR_CLIENTS_IN_SECONDS;
+        WriteMRAMBoolState(StatePbEnabled,turnOn);
         if(turnOn){
+            WriteMRAMPBStatusFreq(period);
             command_print("Enable PB\n\r");
+            statusMsg.MsgType = TacUpdatePbTimer;
+            NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
 
         } else {
             command_print("Disable PB\n\r");
         }
-        WriteMRAMBoolState(StatePbEnabled,turnOn);
         break;
     }
     /* This command will wipe the file system but not reset the file numbers.  So a ground

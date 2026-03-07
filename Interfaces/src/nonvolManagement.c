@@ -374,7 +374,7 @@ void WriteMRAMPBStatusFreq(uint16_t freq){
 }
 
 uint16_t ReadMRAMPBStatusFreq(void){
-    READ_UINT16(PBStatusFrequency,PB_TIMER_SEND_STATUS_PERIOD);
+    READ_UINT16(PBStatusFrequency,PB_DEFAULT_TIMER_SEND_STATUS_PERIOD_SECONDS);
 }
 
 void WriteMRAMFTL0StatusFreq(uint16_t freq){
@@ -489,7 +489,7 @@ void SetupMRAMStates() {
     WriteMRAMExitAutosafe(DEFAULT_AUTOSAFE_OUTOF);
 
     WriteMRAMHighestFileNumber(0);  // Start the file system at file 1, so the highest file number is zero.  File Id 0 is reserved and sent when a station does not have a file to upload.
-    WriteMRAMPBStatusFreq(PB_TIMER_SEND_STATUS_PERIOD);
+    WriteMRAMPBStatusFreq(PB_DEFAULT_TIMER_SEND_STATUS_PERIOD_SECONDS);
     WriteMRAMFTL0StatusFreq(UPLINK_TIMER_SEND_STATUS_PERIOD);
     WriteMRAMTelemFreq(TAC_TIMER_SEND_TELEMETRY_PERIOD);
     WriteMRAMTimeFreq(TAC_TIMER_SEND_TIME_PERIOD);

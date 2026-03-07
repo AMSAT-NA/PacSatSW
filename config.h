@@ -221,7 +221,7 @@ typedef uint8_t rfchan;
 #define MAX_BYTES_IN_PACSAT_FILE_HEADER 1024 /* This sets the size of buffers that are used to generate PFH bytes or load from disk. */
 #define MAX_FILESIZE 512 * 1024 /* Any file over this size will be rejected as having no room.  This is really just to confirm that the upload size is not corrupt */
 
-#define PB_TIMER_SEND_STATUS_PERIOD SECONDS(30) //SECONDS(30)
+#define PB_DEFAULT_TIMER_SEND_STATUS_PERIOD_SECONDS 30 //SECONDS(30)
 #define UPLINK_TIMER_SEND_STATUS_PERIOD SECONDS(40) //SECONDS(30)
 
 #define PB_MAX_PERIOD_FOR_CLIENTS_IN_SECONDS 600  // TODO - Should be in MRAM and commandable.  10 mins

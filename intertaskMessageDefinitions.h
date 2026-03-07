@@ -64,6 +64,7 @@ typedef enum {
     TacEnterScienceMode,
     TacEndScienceMode,
     TacSendPbStatus,
+    TacUpdatePbTimer,
     TacSendUplinkStatus,
     TacCollectMsg,
     TacSendRealtimeMsg,

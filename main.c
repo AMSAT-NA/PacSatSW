@@ -363,12 +363,12 @@ void ConsoleTask(void *pvParameters){
         //debug_print("31331 RTC detected\n");
         uint32_t utime = 0;
         rtc = GetRtcTime31331(&utime);
-	if (!rtc) {
-	    debug_print("*** Unable to get RTC time, it's probably invalid.\n");
-	} else {
-	    setUnixTime(utime);
-	    time_valid = true;
-	}
+        if (!rtc) {
+            debug_print("*** Unable to get RTC time, it's probably invalid.\n");
+        } else {
+            setUnixTime(utime);
+            time_valid = true;
+        }
     }
 
     printID();
