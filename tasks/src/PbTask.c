@@ -96,11 +96,12 @@ When we store data in a value or structure internally we need to convert it to b
 #endif
 
 
-
+/* Local variables */
 static uint8_t data_buffer[AX25_MAX_DATA_LEN]; /* Static buffer used to store file bytes loaded from MRAM */
 static rx_radio_buffer_t pb_radio_buffer; /* Static buffer used to store packet as it is assembled and before copy to TX queue */
 //static uint8_t pb_packet_buffer[AX25_PKT_BUFFER_LEN];
 static char pb_status_buffer[135]; // 10 callsigns * 13 bytes + 4 + nul
+static uint16_t pb_client_timeout = PB_CLIENT_TIMEOUT_SECONDS;
 
 bool running_self_test = FALSE;
 
@@ -169,6 +170,8 @@ portTASK_FUNCTION_PROTO(PbTask, pvParameters)  {
 
     volatile portBASE_TYPE timerStatus;
 
+    pb_set_client_timeout(ReadMRAMPBClientTimeout());
+
     while(1) {
 
         ReportToWatchdog(PBTaskWD);
@@ -196,6 +199,10 @@ portTASK_FUNCTION_PROTO(PbTask, pvParameters)  {
     }
 }
 
+
+void pb_set_client_timeout(uint16_t timeout) {
+    pb_client_timeout = timeout;
+}
 /**
  * pb_send_ok()
  *
@@ -889,7 +896,7 @@ int pb_next_action() {
 
     uint32_t now = getUnixTime();
     int16_t age = now - pb_list[current_station_on_pb].request_time;
-    if (age > PB_MAX_PERIOD_FOR_CLIENTS_IN_SECONDS) {
+    if (age > pb_client_timeout) {
         /* This station has exceeded the time allowed on the PB */
         trace_pb("PB: TIMEOUT - Station %s on for %d secs and was removed\n", pb_list[current_station_on_pb].callsign, age);
         pb_remove_request(current_station_on_pb);

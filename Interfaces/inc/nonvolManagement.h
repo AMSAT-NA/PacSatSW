@@ -81,6 +81,8 @@ uint32_t ReadMRAMHighestFileNumber(void);
 
 void WriteMRAMPBStatusFreq(uint16_t freq);
 uint16_t ReadMRAMPBStatusFreq(void);
+void WriteMRAMPBClientTimeout(uint16_t freq);
+uint16_t ReadMRAMPBClientTimeout(void);
 void WriteMRAMFTL0StatusFreq(uint16_t freq);
 uint16_t ReadMRAMFTL0StatusFreq(void);
 void WriteMRAMTelemFreq(uint16_t freq);

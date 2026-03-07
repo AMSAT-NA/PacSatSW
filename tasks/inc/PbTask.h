@@ -105,6 +105,7 @@ typedef struct t_broadcast_request_header AX25_HEADER;
 /*
  * Routine prototypes
  */
+void pb_set_client_timeout(uint16_t timeout);
 void PbTask(void *pvParameters);
 void pb_send_status();
 bool pb_is_file_in_use(uint32_t file_id);

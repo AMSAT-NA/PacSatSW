@@ -377,6 +377,14 @@ uint16_t ReadMRAMPBStatusFreq(void){
     READ_UINT16(PBStatusFrequency,PB_DEFAULT_TIMER_SEND_STATUS_PERIOD_SECONDS);
 }
 
+void WriteMRAMPBClientTimeout(uint16_t freq){
+    WRITE_UINT16(PBClientTimeout,freq);
+}
+
+uint16_t ReadMRAMPBClientTimeout(void){
+    READ_UINT16(PBClientTimeout,PB_CLIENT_TIMEOUT_SECONDS);
+}
+
 void WriteMRAMFTL0StatusFreq(uint16_t freq){
     WRITE_UINT16(FTL0StatusFrequency,freq);
 }

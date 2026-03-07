@@ -88,6 +88,7 @@ typedef struct {
     /* TODO - is this used for anything? They are planned to be used to allow separate config of each channel. G0KLA */
     uint32_t RxChannelMode[4][2];
     uint16_t PBStatusFrequency[2];
+    uint16_t PBClientTimeout[2];
     uint16_t FTL0StatusFrequency[2];
     uint16_t TelemFrequency[2];
     uint16_t TimeFrequency[2];

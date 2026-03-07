@@ -11,6 +11,7 @@
 //Flight software headers
 #include "CommandTask.h"
 #include "TxTask.h"
+#include "PbTask.h"
 #include "gpioDriver.h"
 #include "serialDriver.h"
 #include "het.h"
@@ -304,14 +305,19 @@ bool OpsSWCommands(CommandAndArgs *comarg){
         if (period == 0)
             period = PB_DEFAULT_TIMER_SEND_STATUS_PERIOD_SECONDS;
         if (timeout == 0)
-            timeout = PB_MAX_PERIOD_FOR_CLIENTS_IN_SECONDS;
+            timeout = PB_CLIENT_TIMEOUT_SECONDS;
         WriteMRAMBoolState(StatePbEnabled,turnOn);
         if(turnOn){
+            /* The PB status packets are sent from Telemetry and control.  We notify that task of the
+             * change with a message as it needs to modify the RTOS timer and handle error conditions.
+             * The client timeout is checked in PbTask when it processes PB actions and can be set with
+             * just a function call. */
             WriteMRAMPBStatusFreq(period);
+            WriteMRAMPBClientTimeout(timeout);
             command_print("Enable PB\n\r");
             statusMsg.MsgType = TacUpdatePbTimer;
             NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
-
+            pb_set_client_timeout(timeout);
         } else {
             command_print("Disable PB\n\r");
         }

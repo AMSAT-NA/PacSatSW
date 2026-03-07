@@ -224,7 +224,7 @@ typedef uint8_t rfchan;
 #define PB_DEFAULT_TIMER_SEND_STATUS_PERIOD_SECONDS 30 //SECONDS(30)
 #define UPLINK_TIMER_SEND_STATUS_PERIOD SECONDS(40) //SECONDS(30)
 
-#define PB_MAX_PERIOD_FOR_CLIENTS_IN_SECONDS 600  // TODO - Should be in MRAM and commandable.  10 mins
+#define PB_CLIENT_TIMEOUT_SECONDS 600  // the maximum time a station can be on the PB
 #define MAX_PKTS_IN_TX_PKT_QUEUE_FOR_TNC_TO_BE_BUSY 2 // TODO - Should be in MRAM and commandable. 2
 
 /* T1 is the timeout for outstanding I frame or P bit.  Traditionally set to the Smoothed Rountrip Time (SRT), which is
