@@ -66,6 +66,7 @@ void tac_adc_timer_callback(TimerHandle_t xTimer);
 void tac_maintenance_timer_callback(TimerHandle_t xTimer);
 void tac_check_file_queues_timer_callback(TimerHandle_t xTimer);
 void tac_science_mode_timer_callback(TimerHandle_t xTimer);
+void tac_stop_science_mode_timer();
 void tac_collect_telemetry(telem_buffer_t *buffer);
 void tac_send_telemetry(telem_buffer_t *buffer);
 void tac_send_time();
@@ -288,12 +289,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
             case TacEnterSafeMode:
                 if (getSpacecraftMode() != SpacecraftSafeMode) {
                     if (getSpacecraftMode() == SpacecraftScienceMode) {
-                        timerStatus = xTimerStop(timerScienceMode, pdMS_TO_TICKS(100));
-                        if (timerStatus != pdPASS) {
-                            ReportError(RTOSfailure, FALSE, CharString,
-                                        (int)"ERROR: Failed to stop Science Mode Timer");
-                            // TODO - log this or perhaps try again with longer delay and then reboot if that fails.
-                        }
+                        tac_stop_science_mode_timer();
                     }
                     setSpacecraftMode(SpacecraftSafeMode);
                     debug_print("Entering SAFE mode\n");
@@ -302,12 +298,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
             case TacEnterFileSystemMode:
                 if (getSpacecraftMode() != SpacecraftFileSystemMode) {
                     if (getSpacecraftMode() == SpacecraftScienceMode) {
-                        timerStatus = xTimerStop(timerScienceMode, pdMS_TO_TICKS(100));
-                        if (timerStatus != pdPASS) {
-                            ReportError(RTOSfailure, FALSE, CharString,
-                                        (int)"ERROR: Failed to stop Science Mode Timer");
-                            // TODO - log this or perhaps try again with longer delay and then reboot if that fails.
-                        }
+                        tac_stop_science_mode_timer();
                     }
                     setSpacecraftMode(SpacecraftFileSystemMode);
                     debug_print("Entering FS mode\n");
@@ -326,6 +317,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
                     if (mins > TAC_MAX_EXPERIMENT_TIMEOUT_MINS)
                         mins = TAC_MAX_EXPERIMENT_TIMEOUT_MINS;
                     debug_print("Entering SCIENCE Mode with timeout: %d mins\n",mins);
+                    /* Start the science mode timer */
                     timerScienceMode = xTimerCreate("Science Mode",
                                                     SECONDS(mins*60), FALSE,
                                                     NULL, tac_science_mode_timer_callback);
@@ -522,6 +514,26 @@ void tac_science_mode_timer_callback(TimerHandle_t xTimer)
     NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
 }
 
+
+/**
+ * tac_stop_science_mode_timer()
+ *
+ * Stop the science mode timer if it is running
+ */
+void tac_stop_science_mode_timer() {
+    portBASE_TYPE timerStatus;
+
+    // Stop the Science mode timer, but f this timer is not actually runnning we will crash. So check first.
+    if (timerScienceMode != NULL && xTimerIsTimerActive(timerScienceMode) != pdFALSE) {
+        timerStatus = xTimerStop(timerScienceMode, pdMS_TO_TICKS(100));
+        if (timerStatus != pdPASS) {
+            ReportError(RTOSfailure, FALSE, CharString,
+                        (int)"ERROR: Failed to stop Science Mode Timer");
+            // TODO - log this or perhaps try again with longer delay and then reboot if that fails.
+        }
+    }
+
+}
 
 void tac_collect_telemetry(telem_buffer_t *buffer)
 {
