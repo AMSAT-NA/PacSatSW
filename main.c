@@ -210,11 +210,6 @@ void startup(void)
      * other tasks running or otherwise requiring the OS) for their initialization.
      */
 
-    /* Before we start up, initialize the spacecraft mode from MRAM */
-    spacecraftMode = ReadMRAMSpacecraftMode();
-    if (spacecraftMode == SpacecraftScienceMode)
-        setSpacecraftMode((SpacecraftMode_t)ReadMRAMLastSpacecraftMode());
-
     /* Start the tasks and timer running. */
     vTaskStartScheduler();
     // We won't be returning here.  Continue in Console Task below
@@ -226,7 +221,7 @@ void ConsoleTask(void *pvParameters){
     bool haveWaited,umbilicalAttached; //todo: Fix charger when we get that line in V1.2
     //GPIOInit(WatchdogFeed,NO_TASK,NO_MESSAGE);
     ResetAllWatchdogs(); // This is started before MET and other tasks so just reporting in does not help
-    debug_print("Starting console task\n");
+    //debug_print("Starting console task\n");
     /*
      * Now we have an OS going, so we call the init routines, which use OS structures like
      * semaphores and queues.
@@ -262,6 +257,12 @@ void ConsoleTask(void *pvParameters){
         WriteMRAMBoolState(StateInOrbit,true); // Don't get confused by in orbit state!
 #endif
     }
+    /* Before we start up, initialize the spacecraft mode from MRAM */
+    spacecraftMode = ReadMRAMSpacecraftMode();
+    if (spacecraftMode == SpacecraftScienceMode)
+        setSpacecraftMode((SpacecraftMode_t)ReadMRAMLastSpacecraftMode());
+    printf("Starting in Mode: %s\n", getSpacecraftModeStr());
+
     initMET();
 
     /* Poll the I2C devices to see which are working.
@@ -274,7 +275,7 @@ void ConsoleTask(void *pvParameters){
      */
 
     ResetAllWatchdogs(); // We waited a bit; better make sure the WDs are happy
-    printID();
+//    printID();
 
     if (red_init() == -1) {
         printf("Unable to initialize filesystem: %s\n",
@@ -351,7 +352,6 @@ void ConsoleTask(void *pvParameters){
     xTaskCreate(TelemAndControlTask, "Telem and Control Task",
                 TELEMETRY_STACK_SIZE, NULL, TELEMETRY_PRIORITY, NULL);
 #endif
-    debug_print("Free heap size after tasks launched: %d\n",xPortGetFreeHeapSize());
     //AlertFlashingWait(CENTISECONDS(50),CENTISECONDS(10),CENTISECONDS(3));
     AllTasksStarted = true;
     StartStableCount();
@@ -360,7 +360,7 @@ void ConsoleTask(void *pvParameters){
     if (rtc == FALSE) {
         debug_print("*** NO 31331 RTC: SET THE UNIX TIME BEFORE UPLOADING ANY TEST FILES ***\n");
     } else {
-        debug_print("31331 RTC detected\n");
+        //debug_print("31331 RTC detected\n");
         uint32_t utime = 0;
         rtc = GetRtcTime31331(&utime);
 	if (!rtc) {
@@ -370,6 +370,8 @@ void ConsoleTask(void *pvParameters){
 	    time_valid = true;
 	}
     }
+
+    printID();
 
     // Now head off to do the real work of the console task
     RealConsoleTask();
