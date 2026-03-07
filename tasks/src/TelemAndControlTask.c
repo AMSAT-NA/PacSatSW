@@ -56,15 +56,16 @@ typedef struct {
 
 realTimeFrame_t realtimeFrame;
 
-
 /* Forward declarations */
 void tac_pb_status_callback(TimerHandle_t xTimer);
 void tac_ftl0_status_callback(TimerHandle_t xTimer);
 void tac_telem_timer_callback(TimerHandle_t xTimer);
+void tac_time_timer_callback(TimerHandle_t xTimer);
 void tac_wod_save_timer_callback(TimerHandle_t xTimer);
 void tac_adc_timer_callback(TimerHandle_t xTimer);
 void tac_maintenance_timer_callback(TimerHandle_t xTimer);
 void tac_check_file_queues_timer_callback(TimerHandle_t xTimer);
+void tac_science_mode_timer_callback(TimerHandle_t xTimer);
 void tac_collect_telemetry(telem_buffer_t *buffer);
 void tac_send_telemetry(telem_buffer_t *buffer);
 void tac_send_time();
@@ -75,6 +76,9 @@ char wod_file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
 
 /* timer to send the telemetry periodically */
 static xTimerHandle timerTelemSend;
+
+/* timer to send the time periodically */
+static xTimerHandle timerTimeSend;
 
 /* timer to send the roll the WOD file periodically */
 static xTimerHandle timerWodSave;
@@ -90,6 +94,9 @@ static xTimerHandle timerPbStatus;
 
 /* timer to read the ADC periodically */
 static xTimerHandle timerADC;
+
+/* timer to end science mode */
+static xTimerHandle timerScienceMode;
 
 int pvtPbStatusTimerID = 0; // pb timer id
 static xTimerHandle timerUplinkStatus;
@@ -171,6 +178,18 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
                     (int)"ERROR: Failed in starting Telem Timer");
     }
 
+    /* Create a periodic timer to send time */
+    timerTimeSend = xTimerCreate("TimeSend",
+                                  ReadMRAMTimeFreq(), TRUE,
+                                  NULL, tac_time_timer_callback);
+    // Block time of zero as this can not block
+    timerStatus = xTimerStart(timerTimeSend, 0);
+    if (timerStatus != pdPASS) {
+        ReportError(RTOSfailure, FALSE, CharString,
+                    (int)"ERROR: Failed in starting Send Time Timer");
+    }
+
+
     /* Create a periodic timer to save to the WOD file */
     timerWodSave = xTimerCreate("WodSave",
                                 ReadMRAMWODFreq(), TRUE,
@@ -215,18 +234,21 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
                     (int)"ERROR: Failed in starting ADC Timer");
     }
 
+
     /*
      * After a short delay for things to settle, send the status to
      * indicate we have rebooted
      */
     vTaskDelay(WATCHDOG_SHORT_WAIT_TIME);
-    pb_send_status();
+    if (getSpacecraftMode() == SpacecraftFileSystemMode)
+        pb_send_status();
 
     ReportToWatchdog(TelemetryAndControlWD);
 
     /* Wait a bit longer and then send uplink status */
     vTaskDelay(WATCHDOG_SHORT_WAIT_TIME);
-    ax25_send_status();
+    if (getSpacecraftMode() == SpacecraftFileSystemMode)
+        ax25_send_status();
     ReportToWatchdog(TelemetryAndControlWD);
 
     //TODO - include any checks needed here to make sure hardware is available
@@ -247,6 +269,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
         int status;
         uint32_t now = 0;
         uint16_t mins = 0;
+        portBASE_TYPE timerStatus;
 
         ReportToWatchdog(CurrentTaskWD);
         status = WaitInterTask(ToTelemetryAndControl,
@@ -263,42 +286,88 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
 
             switch(messageReceived.MsgType) {
             case TacEnterSafeMode:
-                setSpacecraftMode(SafeMode);
-                debug_print("Entering SAFE mode\n");
-                // TODO - setup timers for telemetry to go in safe mode
+                if (getSpacecraftMode() != SpacecraftSafeMode) {
+                    if (getSpacecraftMode() == SpacecraftScienceMode) {
+                        timerStatus = xTimerStop(timerScienceMode, pdMS_TO_TICKS(100));
+                        if (timerStatus != pdPASS) {
+                            ReportError(RTOSfailure, FALSE, CharString,
+                                        (int)"ERROR: Failed to stop Science Mode Timer");
+                            // TODO - log this or perhaps try again with longer delay and then reboot if that fails.
+                        }
+                    }
+                    setSpacecraftMode(SpacecraftSafeMode);
+                    debug_print("Entering SAFE mode\n");
+                }
                 break;
-            case TacEnterFsMode:
-                setSpacecraftMode(FileSystemMode);
-                debug_print("Entering FS mode\n");
-                // TODO - setup timers for telemetry to go in FS mode
+            case TacEnterFileSystemMode:
+                if (getSpacecraftMode() != SpacecraftFileSystemMode) {
+                    if (getSpacecraftMode() == SpacecraftScienceMode) {
+                        timerStatus = xTimerStop(timerScienceMode, pdMS_TO_TICKS(100));
+                        if (timerStatus != pdPASS) {
+                            ReportError(RTOSfailure, FALSE, CharString,
+                                        (int)"ERROR: Failed to stop Science Mode Timer");
+                            // TODO - log this or perhaps try again with longer delay and then reboot if that fails.
+                        }
+                    }
+                    setSpacecraftMode(SpacecraftFileSystemMode);
+                    debug_print("Entering FS mode\n");
+                    pb_send_status();
+                    ReportToWatchdog(TelemetryAndControlWD);
+                    /* Wait a bit longer and then send uplink status */
+                    vTaskDelay(WATCHDOG_SHORT_WAIT_TIME);
+                    ax25_send_status();
+                }
                 break;
             case TacEnterScienceMode:
-                setSpacecraftMode(ScienceMode);
-                mins = messageReceived.data[0];
-                if (mins > TAC_MAX_EXPERIMENT_TIMEOUT)
-                    mins = TAC_MAX_EXPERIMENT_TIMEOUT;
-                debug_print("Entering SCIENCE Mode with timeout: %d mins\n",mins);
-                // TODO telemetry timers OFF.  Just science telemetry / data
+                if (getSpacecraftMode() != SpacecraftScienceMode) {
+                    setLastSpacecraftMode(getSpacecraftMode());
+                    setSpacecraftMode(SpacecraftScienceMode);
+                    mins = messageReceived.data[0];
+                    if (mins > TAC_MAX_EXPERIMENT_TIMEOUT_MINS)
+                        mins = TAC_MAX_EXPERIMENT_TIMEOUT_MINS;
+                    debug_print("Entering SCIENCE Mode with timeout: %d mins\n",mins);
+                    timerScienceMode = xTimerCreate("Science Mode",
+                                                    SECONDS(mins*60), FALSE,
+                                                    NULL, tac_science_mode_timer_callback);
+                    // Block time of zero as this can not block
+                    timerStatus = xTimerStart(timerScienceMode, 0);
+                    if (timerStatus != pdPASS) {
+                        ReportError(RTOSfailure, FALSE, CharString,
+                                    (int)"ERROR: Failed in starting Science Mode Timer");
+                        setSpacecraftMode(getLastSpacecraftMode());
+                    }
+                }
+                break;
+            case TacEndScienceMode:
+                debug_print("Telem & Control: Ending Science Mode\n");
+                switch(getLastSpacecraftMode()) {
+                case SpacecraftFileSystemMode:
+                    statusMsg.MsgType = TacEnterFileSystemMode;
+                    NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
+                    break;
+                default:
+                    statusMsg.MsgType = TacEnterSafeMode;
+                    NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
+                    break;
+                }
                 break;
             case TacSendPbStatus:
                 //debug_print("Telem & Control: Send the PB Status\n");
-                if (getSpacecraftMode() == FileSystemMode)
+                if (getSpacecraftMode() == SpacecraftFileSystemMode)
                     pb_send_status();
                 break;
 
             case TacSendUplinkStatus:
                 //debug_print("Telem & Control: Send the FTL0 Status\n");
-                if (getSpacecraftMode() == FileSystemMode)
+                if (getSpacecraftMode() == SpacecraftFileSystemMode)
                     ax25_send_status();
                 break;
 
             case TacMaintenanceMsg:
                 //debug_print("TAC: Running DIR Maintenance\n");
                 dir_maintenance();
-                if (getSpacecraftMode() == FileSystemMode) {
-                    //debug_print("TAC: Running FTL0 Maintenance\n");
-                    ftl0_maintenance();
-                }
+                //debug_print("TAC: Running FTL0 Maintenance\n");
+                ftl0_maintenance();
                 break;
 
             case TacCheckFileQueuesMsg:
@@ -308,21 +377,25 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
                 dir_file_queue_check(now, EXP_FOLDER, PFH_TYPE_CAN_PACKETS, EXP_DESTINATION, DIR_MAX_WOD_FILE_AGE);
                 break;
 
-
             case TacCollectMsg:
                 tac_collect_telemetry(&telem_buffer);
                 break;
 
             case TacSendRealtimeMsg:
-                /*
-                 * For real time telemetry we collect it and send it
-                 * at the same time.
-                 */
-                tac_collect_telemetry(&telem_buffer);
-                tac_send_telemetry(&telem_buffer);
+                if (getSpacecraftMode() != SpacecraftScienceMode) {
+                    /*
+                     * For real time telemetry we collect it and send it
+                     * at the same time.  This is sent in both SAFE and File System
+                     * Mode.
+                     */
+                    tac_collect_telemetry(&telem_buffer);
+                    tac_send_telemetry(&telem_buffer);
+                }
+                break;
 
-                // TODO time should be a seperate timer.  Dont send with every telem!
-                tac_send_time();
+            case TacSendTimeMsg:
+                if (getSpacecraftMode() == SpacecraftFileSystemMode)
+                    tac_send_time();
                 break;
 
             case TacSaveWodMsg:
@@ -380,6 +453,17 @@ void tac_telem_timer_callback(TimerHandle_t xTimer)
     NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
 }
 
+/**
+ * tac_time_timer_callback()
+ *
+ * This is called from a timer whenever the time should be sent.
+ */
+void tac_time_timer_callback(TimerHandle_t xTimer)
+{
+    statusMsg.MsgType = TacSendTimeMsg;
+    NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
+}
+
 
 /**
  * tac_wod_roll_timer_callback()
@@ -424,6 +508,17 @@ void tac_maintenance_timer_callback(TimerHandle_t xTimer)
 void tac_check_file_queues_timer_callback(TimerHandle_t xTimer)
 {
     statusMsg.MsgType = TacCheckFileQueuesMsg;
+    NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
+}
+
+/**
+ * tac_science_mode_timer_callback()
+ *
+ * This is called from a timer whenever science mode ends
+ */
+void tac_science_mode_timer_callback(TimerHandle_t xTimer)
+{
+    statusMsg.MsgType = TacEndScienceMode;
     NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
 }
 
@@ -478,6 +573,8 @@ void tac_collect_telemetry(telem_buffer_t *buffer)
         buffer->rtHealth.common.FSAvailable = htotl(redstatfs.f_bfree); // blocks free
         buffer->rtHealth.common.FSTotalFiles = htots((uint16)(redstatfs.f_files - redstatfs.f_ffree));
     }
+    ReportToWatchdog(CurrentTaskWD);
+
     short upload_kb = (uint16_t)(ftl0_get_space_reserved_by_upload_table()/1024);
     buffer->rtHealth.common.UploadQueueBytes = htots(upload_kb); // in kilobytes
     //debug_print("UploadBytes: %d",upload_kb);
@@ -487,6 +584,8 @@ void tac_collect_telemetry(telem_buffer_t *buffer)
     //debug_print("PB: %d\n", pb_state);
     buffer->rtHealth.common2.pbEnabled = pb_state;
     buffer->rtHealth.common2.uplinkEnabled = ReadMRAMBoolState(StateUplinkEnabled);
+
+    ReportToWatchdog(CurrentTaskWD);
 
 #ifdef BLINKY_HARDWARE
     uint8_t temp8;
@@ -541,9 +640,21 @@ void tac_send_telemetry(telem_buffer_t *buffer)
         realtimeFrame.rtHealth = buffer->rtHealth;
         len = sizeof(realtimeFrame);
 
-        debug_print("Telem & Control: Send SAFE telem at: %d/%d\n", ttohs(realtimeFrame.header.resetCnt), htotl(realtimeFrame.header.uptime));
+        switch (spacecraftMode) {
+            case SpacecraftSafeMode:
+                debug_print("Telem & Control: Send SAFE telem at: %d/%d\n", ttohs(realtimeFrame.header.resetCnt), htotl(realtimeFrame.header.uptime));
+                frame = (uint8_t *)&realtimeFrame;
+                break;
+            case SpacecraftFileSystemMode:
+                debug_print("Telem & Control: Send HEALTH telem at: %d/%d\n", ttohs(realtimeFrame.header.resetCnt), htotl(realtimeFrame.header.uptime));
+                frame = (uint8_t *)&realtimeFrame;
+                break;
+            case SpacecraftScienceMode:
+                return;
+            default:
+                break;
+        }
 
-        frame = (uint8_t *)&realtimeFrame;
         //debug_print("Sending Type 1 Frame %d:%d\n",
         //            realtimeFrame.header.resetCnt,
         //            realtimeFrame.header.uptime);
@@ -559,7 +670,10 @@ void tac_send_telemetry(telem_buffer_t *buffer)
         return;
     }
 
-    tx_send_ui_packet(BROADCAST_CALLSIGN, TLMP1, PID_NO_PROTOCOL,
+    ReportToWatchdog(CurrentTaskWD);
+
+    if (frame != NULL)
+        tx_send_ui_packet(BROADCAST_CALLSIGN, TLMP1, PID_NO_PROTOCOL,
                       frame, len, BLOCK, MODULATION_INVALID);
 
 }
@@ -634,6 +748,8 @@ void tac_store_wod() {
             return;
         }
     }
+
+    ReportToWatchdog(CurrentTaskWD);
 
     debug_print("Telem & Control: Stored WOD: %d/%d size:%d\n", ttohs(realtimeFrame.header.resetCnt), htotl(realtimeFrame.header.uptime),wod_file_length);
     if (wod_file_length > ReadMRAMWODMaxFileSize())

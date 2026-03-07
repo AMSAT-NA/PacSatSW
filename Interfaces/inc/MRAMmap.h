@@ -49,9 +49,9 @@ enum _StateTypes {
 };
 
 typedef enum _SpacecraftModeTypes {
-      SafeMode=0
-     ,FileSystemMode=1
-     ,ScienceMode=2
+      SpacecraftSafeMode=0
+     ,SpacecraftFileSystemMode=1
+     ,SpacecraftScienceMode=2
 } SpacecraftMode_t;
 
 typedef struct {
@@ -94,6 +94,7 @@ typedef struct {
     uint16_t EXPFrequency[2];
     uint16_t EXPMaxFileSize[2];
     uint8_t  SpacecraftMode[2];
+    uint8_t  LastSpacecraftMode[2];
     uint32_t SpareData[8];
     uint8_t  NonVolatileStates[MaxStates][2];
 } StateSavingMRAM_t;

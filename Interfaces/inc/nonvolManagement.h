@@ -13,6 +13,9 @@
 SpacecraftMode_t getSpacecraftMode();
 char * getSpacecraftModeStr();
 void setSpacecraftMode(SpacecraftMode_t m);
+SpacecraftMode_t getLastSpacecraftMode();
+char * getLastSpacecraftModeStr();
+void setLastSpacecraftMode(SpacecraftMode_t m);
 
 int SetupMRAM(void);
 void IHUInitSaved(void);
@@ -90,6 +93,8 @@ void WriteMRAMExpMaxFileSize(uint16_t size);
 uint16_t ReadMRAMExpMaxFileSize(void);
 void WriteMRAMSpacecraftMode(uint8_t size);
 uint8_t ReadMRAMSpacecraftMode(void);
+void WriteMRAMLastSpacecraftMode(uint8_t size);
+uint8_t ReadMRAMLastSpacecraftMode(void);
 void WriteMRAMReceiverMode(uint8_t rxNum,uint8_t val);
 uint8_t ReadMRAMReceiverMode(uint8_t rxNum);
 

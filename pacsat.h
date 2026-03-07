@@ -37,6 +37,7 @@ extern QueueHandle_t xTxPacketQueue; // This queue holds packets that are going 
 extern QueueHandle_t xIFrameQueue[NUM_RX_CHANNELS]; // Queue of frames to be transmitted
 
 extern uint8_t spacecraftMode;
+extern uint8_t lastSpacecraftMode;
 
 /* Let's skip stdio which has a lot of stuff and just define printf */
 extern int printf(const char *fmt, ...);

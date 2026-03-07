@@ -109,7 +109,7 @@ void exp_process_status_type(can_msg_type_t type, int msgid, uint8_t *data, unsi
             NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
             break;
         case can_status_msg_id_enter_fs_mode:
-            statusMsg.MsgType = TacEnterFsMode;
+            statusMsg.MsgType = TacEnterFileSystemMode;
             // TODO Log why this happened
             NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
             break;

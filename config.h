@@ -240,7 +240,7 @@ typedef uint8_t rfchan;
 #define TAC_TIMER_SAVE_WOD_PERIOD SECONDS(5*60)
 #define TAC_TIMER_SEND_EXP_PERIOD SECONDS(5*60)
 
-#define TAC_MAX_EXPERIMENT_TIMEOUT 90 // minutes
+#define TAC_MAX_EXPERIMENT_TIMEOUT_MINS 45 // default 45 minutes
 /* Generate WOD/EXP files one or more times a day.  The size depends on the layout size and the WOD SAVE PERIOD
  * or the volume of CAN messages from the EXP.  We want this to be about a third or a half of a day, but not so
  * large that it is hard to download */

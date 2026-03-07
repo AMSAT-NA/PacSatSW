@@ -60,12 +60,14 @@ typedef enum {
      * Messages to the telemetry and Control task
      */
     TacEnterSafeMode,
-    TacEnterFsMode,
+    TacEnterFileSystemMode,
     TacEnterScienceMode,
+    TacEndScienceMode,
     TacSendPbStatus,
     TacSendUplinkStatus,
     TacCollectMsg,
     TacSendRealtimeMsg,
+    TacSendTimeMsg,
     TacMaintenanceMsg,
     TacSendErrorsResetMsg,
     TacSendErrorsPowerCycleMsg,

@@ -515,11 +515,14 @@ void pb_process_frame(char *from_callsign, char *to_callsign, uint8_t *data, int
         struct t_broadcast_request_header *broadcast_request_header;
         broadcast_request_header = (struct t_broadcast_request_header *)data;
         if ((broadcast_request_header->pid & 0xff) == PID_DIRECTORY) {
-            pb_handle_dir_request(from_callsign, data, len);
+            // Dir request
+            if (spacecraftMode == SpacecraftFileSystemMode)
+                pb_handle_dir_request(from_callsign, data, len);
         }
         if ((broadcast_request_header->pid & 0xff) == PID_FILE) {
             // File Request
-            pb_handle_file_request(from_callsign, data, len);
+            if (spacecraftMode == SpacecraftFileSystemMode)
+                pb_handle_file_request(from_callsign, data, len);
         }
         if ((broadcast_request_header->pid & 0xff) == PID_COMMAND) {
             // COMMAND
@@ -876,6 +879,13 @@ int pb_next_action() {
     int rc = TRUE;
 
     //TODO - broadcast the number of bytes transmitted to BSTAT periodically so stations can calc efficiency
+
+    /* If we are not in File System mode, then do nothing */
+    if (spacecraftMode != SpacecraftFileSystemMode) {
+        trace_pb("PB: No longer in FS Mode - Station %s removed\n", pb_list[current_station_on_pb].callsign);
+        pb_remove_request(current_station_on_pb);
+        return TRUE;
+    }
 
     uint32_t now = getUnixTime();
     int16_t age = now - pb_list[current_station_on_pb].request_time;

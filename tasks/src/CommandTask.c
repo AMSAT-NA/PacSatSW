@@ -277,7 +277,7 @@ bool OpsSWCommands(CommandAndArgs *comarg){
     }
     case SWCmdOpsFSMode:
         command_print("File System mode \n");
-        statusMsg.MsgType = TacEnterFsMode;
+        statusMsg.MsgType = TacEnterFileSystemMode;
         NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
         break;
     case SWCmdOpsScienceMode:{

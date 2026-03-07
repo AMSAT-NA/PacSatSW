@@ -34,6 +34,19 @@ void setSpacecraftMode(SpacecraftMode_t m) {
     spacecraftMode = m; // cache this in memory so we do not have to read it from MRAM every time
 }
 
+SpacecraftMode_t getLastSpacecraftMode() {
+    return (SpacecraftMode_t)lastSpacecraftMode;
+}
+
+char * getLastSpacecraftModeStr() {
+    return spacecraft_mode_str[getLastSpacecraftMode()];
+}
+
+void setLastSpacecraftMode(SpacecraftMode_t m) {
+    WriteMRAMLastSpacecraftMode(m);
+    lastSpacecraftMode = m; // cache this in memory so we do not have to read it from MRAM every time
+}
+
 void EncodeUint32(uint32_t number,uint32_t *data){
     data[0] = number;
     data[1] = ~number;
@@ -408,7 +421,15 @@ void WriteMRAMSpacecraftMode(uint8_t size){
 }
 
 uint8_t ReadMRAMSpacecraftMode(void){
-    READ_UINT8(SpacecraftMode,SafeMode);
+    READ_UINT8(SpacecraftMode,SpacecraftSafeMode);
+}
+
+void WriteMRAMLastSpacecraftMode(uint8_t size){
+    WRITE_UINT8(LastSpacecraftMode,size);
+}
+
+uint8_t ReadMRAMLastSpacecraftMode(void){
+    READ_UINT8(LastSpacecraftMode,SpacecraftSafeMode);
 }
 
 void WriteMRAMReceiverMode(uint8_t rxNum,uint8_t val){
@@ -474,7 +495,8 @@ void SetupMRAMStates() {
     WriteMRAMTimeFreq(TAC_TIMER_SEND_TIME_PERIOD);
     WriteMRAMExpFreq(TAC_TIMER_SEND_EXP_PERIOD);
     WriteMRAMExpMaxFileSize(TAC_FILE_SIZE_TO_ROLL_EXP);
-    WriteMRAMSpacecraftMode(SafeMode);
+    WriteMRAMSpacecraftMode(SpacecraftSafeMode);
+    WriteMRAMLastSpacecraftMode(SpacecraftSafeMode);
 
     for(i = 0; i < NUM_CHANNELS; i++)
         WriteMRAMModulation(i, DCT_DEFAULT_MODULATION[i]);

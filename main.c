@@ -87,7 +87,8 @@ QueueHandle_t xIFrameQueue[NUM_RX_CHANNELS]; /* RTOS Queues for Data IFrames sen
 //bool rate_9600; /* The rate for the AX25 link.  Loaded from MRAM.  */
 bool CANPrintTelemetry,CANPrintCoord,CANPrintCommands,CANPrintAny,CANPrintCount,CANPrintErrors,CANPrintEttus;
 bool monitorTxPackets, monitorRxPackets, monitorRSSI;
-uint8_t spacecraftMode = SafeMode;
+uint8_t spacecraftMode = SpacecraftSafeMode;
+uint8_t lastSpacecraftMode = SpacecraftSafeMode;
 
 bool time_valid;
 
@@ -209,8 +210,10 @@ void startup(void)
      * other tasks running or otherwise requiring the OS) for their initialization.
      */
 
-
-
+    /* Before we start up, initialize the spacecraft mode from MRAM */
+    spacecraftMode = ReadMRAMSpacecraftMode();
+    if (spacecraftMode == SpacecraftScienceMode)
+        setSpacecraftMode((SpacecraftMode_t)ReadMRAMLastSpacecraftMode());
 
     /* Start the tasks and timer running. */
     vTaskStartScheduler();
