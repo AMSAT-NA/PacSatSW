@@ -6,7 +6,8 @@
 #error Wrong Archtecture
 #endif
 typedef struct  __attribute__((__packed__)) _commonRtWodPayload_t {
-    unsigned int pad202:4;       //Offset=0
+    unsigned int pad202:3;       //Offset=0
+    unsigned int DigiEnabled:1;       //Offset=3
     unsigned int uplinkEnabled:1;       //Offset=4
     unsigned int pbEnabled:1;       //Offset=5
     unsigned int AutoSafeModeActive:1;       //Offset=6
@@ -20,9 +21,9 @@ typedef struct  __attribute__((__packed__)) _commonRtWodPayload_t {
     uint16_t PbStatusPeriod;       //Offset=96
     uint16_t PbTimeout;       //Offset=112
     uint16_t UplinkStatusPeriod;       //Offset=128
-    uint8_t TLMresets;       //Offset=144
-    uint8_t swCmds;       //Offset=152
-    uint8_t swCmdCnt;       //Offset=160
-    uint8_t MRAMstatus;       //Offset=168
-} commonRtWodPayload_t; // Total Size=176 bits or 22 bytes with 0 left over
+    uint8_t swCmdCnt;       //Offset=144
+    uint8_t TLMresets;       //Offset=152
+    uint32_t swCmds;       //Offset=160
+    uint8_t MRAMstatus;       //Offset=192
+} commonRtWodPayload_t; // Total Size=200 bits or 25 bytes with 0 left over
 #endif

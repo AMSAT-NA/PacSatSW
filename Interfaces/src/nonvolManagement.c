@@ -498,6 +498,7 @@ void SetupMRAMStates() {
 
     WriteMRAMHighestFileNumber(0);  // Start the file system at file 1, so the highest file number is zero.  File Id 0 is reserved and sent when a station does not have a file to upload.
     WriteMRAMPBStatusFreq(PB_DEFAULT_TIMER_SEND_STATUS_PERIOD_SECONDS);
+    WriteMRAMPBClientTimeout(PB_CLIENT_TIMEOUT_SECONDS);
     WriteMRAMFTL0StatusFreq(UPLINK_TIMER_SEND_STATUS_PERIOD);
     WriteMRAMTelemFreq(TAC_TIMER_SEND_TELEMETRY_PERIOD);
     WriteMRAMTimeFreq(TAC_TIMER_SEND_TIME_PERIOD);

@@ -21,5 +21,7 @@ typedef struct  __attribute__((__packed__)) _commonRtMinmaxWodPayload_t {
     uint8_t RX2RSSI;       //Offset=136
     uint8_t RX3RSSI;       //Offset=144
     uint8_t IHUTemp;       //Offset=152
-} commonRtMinmaxWodPayload_t; // Total Size=160 bits or 20 bytes with 0 left over
+    uint8_t PATemp;       //Offset=160
+    uint8_t PowerTemp;       //Offset=168
+} commonRtMinmaxWodPayload_t; // Total Size=176 bits or 22 bytes with 0 left over
 #endif

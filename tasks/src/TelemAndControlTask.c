@@ -39,6 +39,7 @@
 #include "CANTask.h"
 #include "TelemAndControlTask.h"
 #include "exp_interface.h"
+#include "CommandTask.h"
 
 #ifdef BLINKY_HARDWARE
 #include "Max31725Temp.h"
@@ -568,7 +569,8 @@ void tac_collect_telemetry(telem_buffer_t *buffer)
 
 // debug_print("Telem & Control: Collect RT telem at: %d/%d\n",time.IHUresetCnt, time.METcount);
 
-    /* commonRtMinmaxWodPayload_t - These values also go into min / max */
+    /********** commonRtMinmaxWodPayload_t - These values also go into min / max ***********/
+    // TODO - put these in MIN MAX.  Make sure Min Max initialized with preflight init or similar
 
     /* File Storage */
     REDSTATFS redstatfs;
@@ -598,10 +600,27 @@ void tac_collect_telemetry(telem_buffer_t *buffer)
     //debug_print("UploadBytes: %d",upload_kb);
     buffer->common.UploadQueueFiles = ftl0_get_num_of_files_in_upload_table();
 
-    bool pb_state = ReadMRAMBoolState(StatePbEnabled);
-    //debug_print("PB: %d\n", pb_state);
-    buffer->common2.pbEnabled = pb_state;
-    buffer->common2.uplinkEnabled = ReadMRAMBoolState(StateUplinkEnabled);
+    /* TX Telemetry */
+    uint16_t rf_pwr = (ax5043ReadReg(FIRST_TX_CHANNEL, AX5043_TXPWRCOEFFB0)
+            + (ax5043ReadReg(FIRST_TX_CHANNEL, AX5043_TXPWRCOEFFB1) << 8));
+    buffer->common.TXPower = rf_pwr;
+    buffer->common.TXPwrMode = ax5043ReadReg(FIRST_TX_CHANNEL, AX5043_PWRMODE);
+
+    /* RX0 Telemetry */
+    uint8_t rssi = get_rssi(FIRST_RX_CHANNEL);
+    buffer->common.RX0RSSI = rssi;
+    buffer->common.RX0PwrMode = ax5043ReadReg(FIRST_RX_CHANNEL, AX5043_PWRMODE);
+#if NUM_RX_CHANNELS == 4
+    rssi = get_rssi(FIRST_RX_CHANNEL+1);
+    buffer->common.RX1RSSI = rssi;
+    buffer->common.RX1PwrMode = ax5043ReadReg(FIRST_RX_CHANNEL+1, AX5043_PWRMODE);
+    rssi = get_rssi(FIRST_RX_CHANNEL+2);
+    buffer->common.RX2RSSI = rssi;
+    buffer->common.RX2PwrMode = ax5043ReadReg(FIRST_RX_CHANNEL+2, AX5043_PWRMODE);
+    rssi = get_rssi(FIRST_RX_CHANNEL+3);
+    buffer->common.RX3RSSI = rssi;
+    buffer->common.RX3PwrMode = ax5043ReadReg(FIRST_RX_CHANNEL+3, AX5043_PWRMODE);
+#endif
 
     ReportToWatchdog(CurrentTaskWD);
 
@@ -612,23 +631,43 @@ void tac_collect_telemetry(telem_buffer_t *buffer)
     } else {
         //debug_print("TAC: ERROR I2C temp request failed\n");
     }
-#elif ASFK_HARDWARE
-    // TODO - add more temperatures here?
+#endif
+#ifdef AFSK_HARDWARE
+    printf("CPU temp: %d\n", board_temps[TEMPERATURE_VAL_CPU]);
+    printf("PA temp: %d\n", board_temps[TEMPERATURE_VAL_PA]);
+    printf("Power temp: %d\n", board_temps[TEMPERATURE_VAL_POWER]);
+
     buffer->common.IHUTemp = board_temps[TEMPERATURE_VAL_CPU];
+    buffer->common.PATemp = board_temps[TEMPERATURE_VAL_PA];
+    buffer->common.PowerTemp = board_temps[TEMPERATURE_VAL_POWER];
 #else
     buffer->common.IHUTemp = 0;
 #endif
 
-    /* TX Telemetry */
-    uint16_t rf_pwr = (ax5043ReadReg(FIRST_TX_CHANNEL, AX5043_TXPWRCOEFFB0)
-                       + (ax5043ReadReg(FIRST_TX_CHANNEL, AX5043_TXPWRCOEFFB1) << 8));
-    buffer->common.TXPower = rf_pwr;
-    buffer->common.TXPwrMode = ax5043ReadReg(FIRST_TX_CHANNEL, AX5043_PWRMODE);
 
-    /* RX0 Telemetry */
-    uint8_t rssi0 = get_rssi(FIRST_RX_CHANNEL);
-    buffer->common.RX0RSSI = rssi0;
-    buffer->common.RX0PwrMode = ax5043ReadReg(FIRST_RX_CHANNEL, AX5043_PWRMODE);
+    /********** commonRtWodPayload_t - These values are static values and not suitable to calculate min / max ***********/
+
+    // TODO - all these MRAM vars can be cached in memory and not read over SPI for every telem check.  e,g, like spacecraftMode.
+    buffer->common2.AutoSafeAllowed = ReadMRAMBoolState(StateAutoSafeAllow);
+    buffer->common2.AutoSafeModeActive = ReadMRAMBoolState(StateAutoSafe);
+    //debug_print("PB: %d\n", pb_state);
+    buffer->common2.pbEnabled = ReadMRAMBoolState(StatePbEnabled);
+    buffer->common2.uplinkEnabled = ReadMRAMBoolState(StateUplinkEnabled);
+    buffer->common2.DigiEnabled = ReadMRAMBoolState(StateDigiEnabled);
+
+    buffer->common2.LogLevel = 0; // TODO - implement when logging in place
+    buffer->common2.TimePeriod = ReadMRAMTimeFreq();
+    buffer->common2.TelemPeriod = ReadMRAMTelemFreq();
+    buffer->common2.WodPeriod = ReadMRAMWODFreq();
+    buffer->common2.MaxWodFileSize = ReadMRAMWODMaxFileSize();
+    buffer->common2.MaxExpFileSize = ReadMRAMExpMaxFileSize();
+    buffer->common2.PbStatusPeriod = ReadMRAMPBStatusFreq();
+    buffer->common2.PbTimeout = ReadMRAMPBClientTimeout();
+    buffer->common2.UplinkStatusPeriod = ReadMRAMFTL0StatusFreq();
+    buffer->common2.TLMresets = 0; // TODO - implement with clearMinMax() function and command
+    buffer->common2.swCmds = getCmdRingTelem();
+    buffer->common2.swCmdCnt = GetSWCmdCount();
+    buffer->common2.MRAMstatus = 0; // TODO connect this to status?  What is it?  Do we need 4?
 
     // Errors TODO - make sure that when these are written in error handling they were converted from host to little endian
     buffer->primaryErrors = localErrorCollection;
