@@ -6,31 +6,23 @@
 #error Wrong Archtecture
 #endif
 typedef struct  __attribute__((__packed__)) _commonRtWodPayload_t {
-//    unsigned int AutoSafeAllowed:1;       //Offset=0
-//    unsigned int AutoSafeModeActive:1;       //Offset=1
-//    unsigned int pbEnabled:1;       //Offset=2
-//    unsigned int uplinkEnabled:1;       //Offset=3
-//    unsigned int pad202:4;       //Offset=4
-
-    /* Big endian - must reverse the bit fields so they are the right order for little endian telem */
-    unsigned int pad202:4;       //Offset=4
-    unsigned int uplinkEnabled:1;       //Offset=3
-    unsigned int pbEnabled:1;       //Offset=2
-    unsigned int AutoSafeModeActive:1;       //Offset=1
-    unsigned int AutoSafeAllowed:1;       //Offset=0
-
-
-    uint8_t TLMresets;       //Offset=8
-    uint8_t pad316;       //Offset=16
-    uint8_t wodSize;       //Offset=24
-    uint32_t swCmds;       //Offset=32
-    uint8_t hwCmdCnt;       //Offset=64
-    uint8_t swCmdCntICR;       //Offset=72
-    uint8_t swCmdCntDCT;       //Offset=80
-    uint8_t DCT1Status;       //Offset=88
-    uint8_t DCT2Status;       //Offset=96
-    uint8_t LMRAMstatus;       //Offset=104
-    uint8_t PrimMRAMstatus;       //Offset=112
-    uint8_t SecndMRAMstatus;       //Offset=120
-} commonRtWodPayload_t; // Total Size=128 bits or 16 bytes with 0 left over
+    unsigned int pad202:4;       //Offset=0
+    unsigned int uplinkEnabled:1;       //Offset=4
+    unsigned int pbEnabled:1;       //Offset=5
+    unsigned int AutoSafeModeActive:1;       //Offset=6
+    unsigned int AutoSafeAllowed:1;       //Offset=7
+    uint8_t LogLevel;       //Offset=8
+    uint16_t TimePeriod;       //Offset=16
+    uint16_t TelemPeriod;       //Offset=32
+    uint16_t WodPeriod;       //Offset=48
+    uint16_t MaxWodFileSize;       //Offset=64
+    uint16_t MaxExpFileSize;       //Offset=80
+    uint16_t PbStatusPeriod;       //Offset=96
+    uint16_t PbTimeout;       //Offset=112
+    uint16_t UplinkStatusPeriod;       //Offset=128
+    uint8_t TLMresets;       //Offset=144
+    uint8_t swCmds;       //Offset=152
+    uint8_t swCmdCnt;       //Offset=160
+    uint8_t MRAMstatus;       //Offset=168
+} commonRtWodPayload_t; // Total Size=176 bits or 22 bytes with 0 left over
 #endif

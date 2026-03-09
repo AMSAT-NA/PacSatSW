@@ -1351,7 +1351,7 @@ void RealConsoleTask(void)
             printf("Frame sizes: \n"
                     "      Payload Only,   Current Filler   Current Size\n");
 
-            printf("RT1        %03d           \n",
+            printf("RT         %03d           \n",
 #if 0
                    "RT2        %03d          \n",
                    sizeof(realTimeFrame_t),
@@ -1363,8 +1363,8 @@ void RealConsoleTask(void)
             sizeof(realTimeMaxFrame_t) - memberSize(realTimeMaxFrame_t, filler),
             memberSize(realTimeMaxFrame_t, filler), sizeof(realTimeMaxFrame_t)
 #endif
-            printf("AllWOD1    %03d       \n",
-                   sizeof(allWOD1Frame_t));
+            printf("WOD        %03d       \n",
+                   sizeof(WODFrame_t));
 #if 0
             sizeof(allWOD1Frame_t) - memberSize(allWOD1Frame_t, filler),
             memberSize(allWOD1Frame_t, filler), sizeof(allWOD1Frame_t),
@@ -1373,10 +1373,9 @@ void RealConsoleTask(void)
             sizeof(allWOD3Frame_t) - memberSize(allWOD3Frame_t, filler),
             memberSize(allWOD3Frame_t, filler), sizeof(allWOD3Frame_t)
 #endif
-            printf("SafeData1  %03d       \n"
-                   "SafeWOD    %03d      \n",
-                   sizeof(safeData1Frame_t),
-                   sizeof(safeWODFrame_t));
+            printf("SafeData   %03d       \n",
+                   sizeof(safeDataFrame_t));
+//                   sizeof(safeWODFrame_t));
 #if 0
             sizeof(safeData1Frame_t) - memberSize(safeData1Frame_t, filler),
             memberSize(safeData1Frame_t, filler), sizeof(safeData1Frame_t),

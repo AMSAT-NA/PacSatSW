@@ -49,12 +49,18 @@
 
 typedef struct {
     header_t header;
-    realTimePayload_t rtHealth;
+    commonRtMinmaxWodPayload_t common;
+    commonRtWodPayload_t common2;
+    realtimeSpecific_t realTimeData;
+    wodSpecific_t wodInfo;
     minValuesPayload_t minVals;
     maxValuesPayload_t maxVals;
+    rt1Errors_t primaryErrors;
 } telem_buffer_t;
 
 realTimeFrame_t realtimeFrame;
+WODFrame_t wodFrame;
+errWODFrame_t errwodFrame;
 
 /* Forward declarations */
 void tac_pb_status_callback(TimerHandle_t xTimer);
@@ -558,25 +564,11 @@ void tac_collect_telemetry(telem_buffer_t *buffer)
     buffer->header.protocolVersion = 0;
     buffer->header.versionMajor = DownlinkVersionMajor;
     buffer->header.versionMinor = DownlinkVersionMinor;
-    buffer->header.inScienceMode = 0;
-    buffer->header.inHealthMode = 1;
-    buffer->header.inSafeMode = 0;
+    buffer->header.spacecraftMode = spacecraftMode;
 
 // debug_print("Telem & Control: Collect RT telem at: %d/%d\n",time.IHUresetCnt, time.METcount);
 
-    /**
-     * Initial telemetry for the protoype booster board:
-     * For each Radio RSSI
-     *  Radio Power
-     *  Radio mode
-     *  Radio temperature?
-     * PB enabled
-     * FTL0 enabled
-     * MODE - safe/health/exp
-     * CPU temp
-     * Errors
-     *
-     */
+    /* commonRtMinmaxWodPayload_t - These values also go into min / max */
 
     /* File Storage */
     REDSTATFS redstatfs;
@@ -590,50 +582,56 @@ void tac_collect_telemetry(telem_buffer_t *buffer)
         //       redstatfs.f_frsize * redstatfs.f_bfree);
         //printf("Available File Ids: %d of %d.  \n",
         //       redstatfs.f_ffree, redstatfs.f_files);
-        buffer->rtHealth.common.FSAvailable = htotl(redstatfs.f_bfree); // blocks free
-        buffer->rtHealth.common.FSTotalFiles = htots((uint16)(redstatfs.f_files - redstatfs.f_ffree));
+        buffer->common.FSAvailable = htotl(redstatfs.f_bfree); // blocks free
+        buffer->common.FSTotalFiles = htots((uint16)(redstatfs.f_files - redstatfs.f_ffree));
     }
+
+    if (buffer->minVals.common.FSAvailable > buffer->common.FSAvailable)
+        buffer->minVals.common.FSAvailable = buffer->common.FSAvailable;
+    if (buffer->maxVals.common.FSAvailable < buffer->common.FSAvailable)
+        buffer->maxVals.common.FSAvailable = buffer->common.FSAvailable;
+
     ReportToWatchdog(CurrentTaskWD);
 
     short upload_kb = (uint16_t)(ftl0_get_space_reserved_by_upload_table()/1024);
-    buffer->rtHealth.common.UploadQueueBytes = htots(upload_kb); // in kilobytes
+    buffer->common.UploadQueueBytes = htots(upload_kb); // in kilobytes
     //debug_print("UploadBytes: %d",upload_kb);
-    buffer->rtHealth.common.UploadQueueFiles = ftl0_get_num_of_files_in_upload_table();
+    buffer->common.UploadQueueFiles = ftl0_get_num_of_files_in_upload_table();
 
     bool pb_state = ReadMRAMBoolState(StatePbEnabled);
     //debug_print("PB: %d\n", pb_state);
-    buffer->rtHealth.common2.pbEnabled = pb_state;
-    buffer->rtHealth.common2.uplinkEnabled = ReadMRAMBoolState(StateUplinkEnabled);
+    buffer->common2.pbEnabled = pb_state;
+    buffer->common2.uplinkEnabled = ReadMRAMBoolState(StateUplinkEnabled);
 
     ReportToWatchdog(CurrentTaskWD);
 
 #ifdef BLINKY_HARDWARE
     uint8_t temp8;
     if (Get8BitTemp31725(CpuTemp, &temp8)) {
-        buffer->rtHealth.common.IHUTemp = temp8;
+        buffer->common.IHUTemp = temp8;
     } else {
         //debug_print("TAC: ERROR I2C temp request failed\n");
     }
 #elif ASFK_HARDWARE
     // TODO - add more temperatures here?
-    buffer->rtHealth.common.IHUTemp = board_temps[TEMPERATURE_VAL_CPU];
+    buffer->common.IHUTemp = board_temps[TEMPERATURE_VAL_CPU];
 #else
-    buffer->rtHealth.common.IHUTemp = 0;
+    buffer->common.IHUTemp = 0;
 #endif
 
     /* TX Telemetry */
     uint16_t rf_pwr = (ax5043ReadReg(FIRST_TX_CHANNEL, AX5043_TXPWRCOEFFB0)
                        + (ax5043ReadReg(FIRST_TX_CHANNEL, AX5043_TXPWRCOEFFB1) << 8));
-    buffer->rtHealth.common.TXPower = rf_pwr;
-    buffer->rtHealth.common.TXPwrMode = ax5043ReadReg(FIRST_TX_CHANNEL, AX5043_PWRMODE);
+    buffer->common.TXPower = rf_pwr;
+    buffer->common.TXPwrMode = ax5043ReadReg(FIRST_TX_CHANNEL, AX5043_PWRMODE);
 
     /* RX0 Telemetry */
     uint8_t rssi0 = get_rssi(FIRST_RX_CHANNEL);
-    buffer->rtHealth.common.RX0RSSI = rssi0;
-    buffer->rtHealth.common.RX0PwrMode = ax5043ReadReg(FIRST_RX_CHANNEL, AX5043_PWRMODE);
+    buffer->common.RX0RSSI = rssi0;
+    buffer->common.RX0PwrMode = ax5043ReadReg(FIRST_RX_CHANNEL, AX5043_PWRMODE);
 
     // Errors TODO - make sure that when these are written in error handling they were converted from host to little endian
-    buffer->rtHealth.primaryErrors = localErrorCollection;
+    buffer->primaryErrors = localErrorCollection;
 
     // TODO - calculate min max and store in MRAM
 }
@@ -657,7 +655,9 @@ void tac_send_telemetry(telem_buffer_t *buffer)
                 || ReadMRAMBoolState(StateAutoSafe)) {
         /* Setup Type 1 frame - This will copy the buffer into the frame */
         realtimeFrame.header = buffer->header;
-        realtimeFrame.rtHealth = buffer->rtHealth;
+        realtimeFrame.rtHealth.common = buffer->common;
+        realtimeFrame.rtHealth.common2 = buffer->common2;
+        realtimeFrame.rtHealth.realTimeData = buffer->realTimeData;
         len = sizeof(realtimeFrame);
 
         switch (spacecraftMode) {
@@ -734,11 +734,16 @@ void tac_store_wod() {
     int len = 0;
     uint8_t *frame;
     /* TODO - Use a Type 1 frame - but this should be the WOD layout */
-    realtimeFrame.header = buffer->header;
-    realtimeFrame.rtHealth = buffer->rtHealth;
-    len = sizeof(realtimeFrame);
+    wodFrame.header = buffer->header;
+    wodFrame.HKWod.common = buffer->common;
+    wodFrame.HKWod.common2 = buffer->common2;
+    wodFrame.HKWod.wodInfo = buffer->wodInfo;
+    errwodFrame.errWod.primaryErrors = buffer->primaryErrors;
+    //TODO - need to save the errWOD to another WOD file.
 
-    frame = (uint8_t *)&realtimeFrame;
+    len = sizeof(wodFrame);
+
+    frame = (uint8_t *)&wodFrame;
 
     /* Write bytes to the file */
     int32_t fp;

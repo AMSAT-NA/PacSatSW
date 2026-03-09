@@ -26,10 +26,10 @@
 /* Define the architecture to generate an error if we have the wrong version included in the downlink
  * Use LIHU for STM32 Little Endian processor.  Use RTIHU for big endian TMS570 or similar
  */
+
 #define RTIHU
-#define EXTENDED_ID 6 // If this is in the low 3 bits of the satellite ID, we use the new format header
-#define SAT_ID_SHIFT 3 //To make an 8-bit satellite ID, we shift the SAT ID by this and OR in the extended ID.
 #define MAJOR_VERSION_SHIFT 4 //To make 8-bit version, shift the major by this much and or the minor.
+
 
 #include "stdint.h"
 #include "errors.h"
@@ -49,7 +49,6 @@ typedef struct __attribute__((__packed__)) {
 	commonRtMinmaxWodPayload_t common; 		/* common telemetry fields */
 	commonRtWodPayload_t common2;
 	realtimeSpecific_t realTimeData;		/* fields unique to a type 1 payload */
-    rt1Errors_t primaryErrors;  // This structure is also used for local regardless of primary or secondary
 } realTimePayload_t;
 
 /* Maximum Values Telemetry Frame (Type-2) */
@@ -64,12 +63,25 @@ typedef struct __attribute__((__packed__)) {
 	minSpecific_t MinValuesData;	/* fields unique to a type 3 payload */
 } minValuesPayload_t;
 
+/* Experiment Telemetry Type 4 */
 
+/* Errors Telemetry Frame (Type-5) */
+typedef struct __attribute__((__packed__)) {
+    rt1Errors_t primaryErrors;  // This structure is also used for local regardless of primary or secondary
+} errorsPayload_t;
+
+
+/* WOD - saved to file */
 typedef struct __attribute__((__packed__)){
 	commonRtMinmaxWodPayload_t common;
     commonRtWodPayload_t common2;
 	wodSpecific_t wodInfo;
 } WODHousekeepingPayload_t;
+
+/* ERR WOD - saved to file */
+typedef struct __attribute__((__packed__)){
+    rt1Errors_t primaryErrors;  // This structure is also used for local regardless of primary or secondary
+} ERRWODHousekeepingPayload_t;
 
 
 /* define symbols for the telemetry payload types */
@@ -113,19 +125,19 @@ typedef struct __attribute__((__packed__)) { // Type 3
 } maxFrame_t;
 typedef struct __attribute__((__packed__)) { // Type 4
 	header_t header;
-	WODHousekeepingPayload_t HKWod[3];
-} allWOD1Frame_t;
+	WODHousekeepingPayload_t HKWod;
+} WODFrame_t;
 typedef struct __attribute__((__packed__)) { //Frame type 5
     header_t header;
     realTimePayload_t rtHealth;
     minValuesPayload_t minVals;
     maxValuesPayload_t maxVals;
-} safeData1Frame_t;
+} safeDataFrame_t;
 
 typedef struct __attribute__((__packed__)) { //Frame type 6
     header_t header;
-    WODHousekeepingPayload_t HKWod[3];
-} safeWODFrame_t;
+    ERRWODHousekeepingPayload_t errWod;
+} errWODFrame_t;
 
 
 #define DOWNLINK_IHU_TEMP_OFFSET 550 /* Subtract this from ADC reading to put in 8-bit downlink */
