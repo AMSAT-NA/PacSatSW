@@ -633,6 +633,8 @@ void tac_collect_telemetry(telem_buffer_t *buffer)
     }
 #endif
 #ifdef AFSK_HARDWARE
+    // TODO - these need to be in a suitable format for the telemetry.  e.g. 0-255 is -30 to 105.
+    // The value in the array is in C and is signed
     printf("CPU temp: %d\n", board_temps[TEMPERATURE_VAL_CPU]);
     printf("PA temp: %d\n", board_temps[TEMPERATURE_VAL_PA]);
     printf("Power temp: %d\n", board_temps[TEMPERATURE_VAL_POWER]);
