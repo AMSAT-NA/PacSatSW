@@ -13,13 +13,14 @@ You connect the TI launchpad board with a USB cable.  No other
 hardware is needed.  Once you have installed TIs CCS it should be
 recognized.
 
-Downloaded version 12.8.1 of TI CCS from Texas Instruments website.
-You can downloaded the "on-demand" version.  Extracted from the file.
-On linux you can pick an installation folder in ~/ti, on Windows
+Downloaded version 12.8.1 of TI CCS from Texas Instruments website.  You may be tempted by the newer v20, but it does not support the Hercules processor that we are using.  It is apparently possible to make it work, but it is easier to use the old version, perhaps.
+
+You can downloaded the "on-demand" version or full versions.  You might have more luck with the full version on newer versions of Linux.
+On linux you can pick an installation folder in ~/ti or ~/bin/ti, on Windows
 probably use the default.
 
-Run the installer.  It may say some dependancies were missing, though. This is likely easier on Windows.
-On Linux, such as Ubuntu v22, you can install missing dependancies with 
+Look at the README and then Run the installer.  It will say some dependancies were missing, though. This is likely easier on Windows.
+On older Linux, such as Ubuntu v22, you can install missing dependancies relatively easily with:
 ```sudo apt serach <name> ```
 To find the package that contained the dependancy.  You may have to omit the .so extension.
 Then use 
@@ -37,7 +38,7 @@ sudo apt install libusb-0.1-4
 ```
 Then go back then forward in the installer to rerun the dependency check until all were met.
 
-However, on Ubuntu v24 many of these dependancies have been depreciated.  Your first roadblock is a requirement for Python 2.7.  You can install the old python with:
+However, on modern Linux, like Ubuntu v24, many of these dependancies have been depreciated.  Your first roadblock is a requirement for Python 2.7.  You can install the old python with:
 ```
 echo "deb http://archive.ubuntu.com/ubuntu jammy universe" | sudo tee /etc/apt/sources.list.d/jammy-universe.list
 sudo apt update
@@ -72,8 +73,8 @@ sudo apt update
 sudo apt install libc6-i386 lib32stdc++6 lib32z1
 ```
 
+Then, once you can progress past the dependancies, pick custom installation.
 
-Then custom installation
 There is a list of devices.  You can click on them to see what each is.  The TMS570 is under 
 ![image](https://github.com/user-attachments/assets/bccb2661-04c3-45c5-94a7-e4b7a36ef4db)
 
