@@ -106,6 +106,8 @@ minicom -D /dev/ttyACM0 -b 38400
 ```
 Hitting return will show you a pacsat> prompt.  Type help or helpall to get the commands
 
+If the code in CCS compiled then you should be able to flash the board using the ICON on the toolbar.
+
 # Connecting to the PacSat booster board (Depreciated)
 If you have the Pacsat board connected to the launchpad then you will need a serial connection to read debug information.  You can use a USB Serial adapter as long as it uses 3.3V levels.  That is almost all of them.  If it mentions 5V that is almost always a seperate pass though voltage and not the TTL levels.  But check to make sure. Make up a cable to attach to connector J3 on the purple board.  The pins are marked on the PCB.  It is still 38k4 baud.
 
