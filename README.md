@@ -39,43 +39,40 @@ Then go back then forward in the installer to rerun the dependency check until a
 
 However, on Ubuntu v24 many of these dependancies have been depreciated.  Your first roadblock is a requirement for Python 2.7.  You can install the old python with:
 ```
+echo "deb http://archive.ubuntu.com/ubuntu jammy universe" | sudo tee /etc/apt/sources.list.d/jammy-universe.list
 echo "deb http://mirrors.kernel.org/ubuntu jammy universe" | sudo tee /etc/apt/sources.list.d/jammy-universe.list
 sudo apt update
+``
+Then you can install the following:
+``
 sudo apt install libpython2.7
+sudo apt install libgconf-2-4
+```
+And then remove this old repo like this:
+```
 sudo rm /etc/apt/sources.list.d/jammy-universe.list
 sudo apt update
 ```
 
-Then the other dependancies are in two depreciated repos that you will have to temporarily add like this:
+This one works as is:
 ```
-echo "deb http://mirrors.kernel.org/ubuntu jammy main" | sudo tee /etc/apt/sources.list.d/jammy-main.list
-echo "deb http://archive.ubuntu.com/ubuntu jammy universe" | sudo tee /etc/apt/sources.list.d/jammy-universe.list
-sudo apt update
-```
-That should work for all the following:
-```
-sudo apt install libgconf-2-4
-sudo apt install libtinfo5
+sudo apt install libusb-0.1-4
 ```
 
-You may need to pull down this library directly like this:
+You may need to pull down these directly like this:
 ```
+wget http://security.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb
+sudo dpkg -i libtinfo5_6.3-2ubuntu0.1_amd64.deb
 wget http://security.ubuntu.com/ubuntu/pool/universe/n/ncurses/libncurses5_6.3-2ubuntu0.1_amd64.deb
 sudo dpkg -i libncurses5_6.3-2ubuntu0.1_amd64.deb
 ```
-And this needs to be installed like this:
+And this one needs to be installed like this:
 ```
 sudo dpkg --add-architecture i386
 sudo apt update
 sudo apt install libc6-i386 lib32stdc++6 lib32z1
 ```
 
-When you have installed all the dependancies you can remove the old repos with:
-```
-sudo rm /etc/apt/sources.list.d/jammy-universe.list
-sudo rm /etc/apt/sources.list.d/jammy-main.list
-sudo apt update
-```
 
 Then custom installation
 There is a list of devices.  You can click on them to see what each is.  The TMS570 is under 
