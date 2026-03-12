@@ -81,9 +81,11 @@ There is a list of devices.  You can click on them to see what each is.  The TMS
 
 If you don't have any special Debug probes (and you likely don't), then ignored the next screen
 
-Then it downloads about 850MB..
+Then, if you are using the ondemand version it downloads about 850MB.  Otherwise it just gets on with the install.
 
-On windows this may not be needed, On Liunux then run the install_drivers.sh file with sudo
+On Linux you must then run the install_drivers.sh file with sudo.  It is in ~/ti/ccs1281/ccs/install_scripts
+
+On windows, you may need to install a TI driver for your debug probe, depending on what it is.
 
 On first run of CCS it asks for the workspace.  Pick a suitable folder, but if you have another version of Eclipse installed then pick a new workspace folder. The default is probablly OK.
 
@@ -97,11 +99,17 @@ Then select the main.c file and it should open fine.
 With Project > Build All it should compile, like this:
 ![image](https://github.com/user-attachments/assets/38456a9c-2e47-479d-8771-ab0a697b44f3)
 
+# Connecting to the V2 Pacsat Board
+The easiest probe to use is an XDS110, which also provides a serial connection.  Connect to the V2 board with a ribbon cable.  In Linux the TI USB devices are installed as /dev/ttyACM0 and /dev/ttyACM1.  ACM0 is the serial terminal on my system and I can connect to it with:
+```
+minicom -D /dev/ttyACM0 -b 38400
+```
+Hitting return will show you a pacsat> prompt.  Type help or helpall to get the commands
 
-# Connecting to the PacSat booster board
+# Connecting to the PacSat booster board (Depreciated)
 If you have the Pacsat board connected to the launchpad then you will need a serial connection to read debug information.  You can use a USB Serial adapter as long as it uses 3.3V levels.  That is almost all of them.  If it mentions 5V that is almost always a seperate pass though voltage and not the TTL levels.  But check to make sure. Make up a cable to attach to connector J3 on the purple board.  The pins are marked on the PCB.  It is still 38k4 baud.
 
-### Connect the Launchpad board
+### Connect the Launchpad board 
 The laucnhpad itself connects with a USB.  With it plugged in, In CCS press the "Flash" button:
 It does an initial firmware update for a probe then loads the code.
 
