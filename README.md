@@ -40,11 +40,10 @@ Then go back then forward in the installer to rerun the dependency check until a
 However, on Ubuntu v24 many of these dependancies have been depreciated.  Your first roadblock is a requirement for Python 2.7.  You can install the old python with:
 ```
 echo "deb http://archive.ubuntu.com/ubuntu jammy universe" | sudo tee /etc/apt/sources.list.d/jammy-universe.list
-echo "deb http://mirrors.kernel.org/ubuntu jammy universe" | sudo tee /etc/apt/sources.list.d/jammy-universe.list
 sudo apt update
-``
+```
 Then you can install the following:
-``
+```
 sudo apt install libpython2.7
 sudo apt install libgconf-2-4
 ```
