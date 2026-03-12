@@ -19,7 +19,7 @@ On linux you can pick an installation folder in ~/ti, on Windows
 probably use the default.
 
 Run the installer.  It may say some dependancies were missing, though. This is likely easier on Windows.
-On Linux, if necessary you can install missing dependancies with 
+On Linux, such as Ubuntu v22, you can install missing dependancies with 
 ```sudo apt serach <name> ```
 To find the package that contained the dependancy.  You may have to omit the .so extension.
 Then use 
@@ -36,6 +36,46 @@ libusb-0.1-4/jammy 2:0.1.12-32build3 amd64
 sudo apt install libusb-0.1-4
 ```
 Then go back then forward in the installer to rerun the dependency check until all were met.
+
+However, on Ubuntu v24 many of these dependancies have been depreciated.  Your first roadblock is a requirement for Python 2.7.  You can install the old python with:
+```
+echo "deb http://mirrors.kernel.org/ubuntu jammy universe" | sudo tee /etc/apt/sources.list.d/jammy-universe.list
+sudo apt update
+sudo apt install libpython2.7
+sudo rm /etc/apt/sources.list.d/jammy-universe.list
+sudo apt update
+```
+
+Then the other dependancies are in two depreciated repos that you will have to temporarily add like this:
+```
+echo "deb http://mirrors.kernel.org/ubuntu jammy main" | sudo tee /etc/apt/sources.list.d/jammy-main.list
+echo "deb http://archive.ubuntu.com/ubuntu jammy universe" | sudo tee /etc/apt/sources.list.d/jammy-universe.list
+sudo apt update
+```
+That should work for all the following:
+```
+sudo apt install libgconf-2-4
+sudo apt install libtinfo5
+```
+
+You may need to pull down this library directly like this:
+```
+wget http://security.ubuntu.com/ubuntu/pool/universe/n/ncurses/libncurses5_6.3-2ubuntu0.1_amd64.deb
+sudo dpkg -i libncurses5_6.3-2ubuntu0.1_amd64.deb
+```
+And this needs to be installed like this:
+```
+sudo dpkg --add-architecture i386
+sudo apt update
+sudo apt install libc6-i386 lib32stdc++6 lib32z1
+```
+
+When you have installed all the dependancies you can remove the old repos with:
+```
+sudo rm /etc/apt/sources.list.d/jammy-universe.list
+sudo rm /etc/apt/sources.list.d/jammy-main.list
+sudo apt update
+```
 
 Then custom installation
 There is a list of devices.  You can click on them to see what each is.  The TMS570 is under 
