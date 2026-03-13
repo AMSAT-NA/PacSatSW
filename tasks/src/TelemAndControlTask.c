@@ -635,13 +635,14 @@ void tac_collect_telemetry(telem_buffer_t *buffer)
 #ifdef AFSK_HARDWARE
     // TODO - these need to be in a suitable format for the telemetry.  e.g. 0-255 is -30 to 105.
     // The value in the array is in C and is signed
-    printf("CPU temp: %d\n", board_temps[TEMPERATURE_VAL_CPU]);
-    printf("PA temp: %d\n", board_temps[TEMPERATURE_VAL_PA]);
-    printf("Power temp: %d\n", board_temps[TEMPERATURE_VAL_POWER]);
+//    printf("CPU temp: %d\n", board_temps[TEMPERATURE_VAL_CPU]);
+//    printf("PA temp: %d\n", board_temps[TEMPERATURE_VAL_PA]);
+//    printf("Power temp: %d\n", board_temps[TEMPERATURE_VAL_POWER]);
 
-    buffer->common.IHUTemp = board_temps[TEMPERATURE_VAL_CPU];
-    buffer->common.PATemp = board_temps[TEMPERATURE_VAL_PA];
-    buffer->common.PowerTemp = board_temps[TEMPERATURE_VAL_POWER];
+    // Scale 0-255 = -20C to +107.5C
+    buffer->common.IHUTemp = (20+board_temps[TEMPERATURE_VAL_CPU])*2;
+    buffer->common.PATemp = (20+board_temps[TEMPERATURE_VAL_PA])*2;
+    buffer->common.PowerTemp = (20+board_temps[TEMPERATURE_VAL_POWER])*2;
 #else
     buffer->common.IHUTemp = 0;
 #endif
@@ -658,16 +659,16 @@ void tac_collect_telemetry(telem_buffer_t *buffer)
     buffer->common2.DigiEnabled = ReadMRAMBoolState(StateDigiEnabled);
 
     buffer->common2.LogLevel = 0; // TODO - implement when logging in place
-    buffer->common2.TimePeriod = ReadMRAMTimeFreq();
-    buffer->common2.TelemPeriod = ReadMRAMTelemFreq();
-    buffer->common2.WodPeriod = ReadMRAMWODFreq();
-    buffer->common2.MaxWodFileSize = ReadMRAMWODMaxFileSize();
-    buffer->common2.MaxExpFileSize = ReadMRAMExpMaxFileSize();
-    buffer->common2.PbStatusPeriod = ReadMRAMPBStatusFreq();
-    buffer->common2.PbTimeout = ReadMRAMPBClientTimeout();
-    buffer->common2.UplinkStatusPeriod = ReadMRAMFTL0StatusFreq();
+    buffer->common2.TimePeriod = htots(ReadMRAMTimeFreq());
+    buffer->common2.TelemPeriod = htots(ReadMRAMTelemFreq());
+    buffer->common2.WodPeriod = htots(ReadMRAMWODFreq());
+    buffer->common2.MaxWodFileSize = htots(ReadMRAMWODMaxFileSize());
+    buffer->common2.MaxExpFileSize = htots(ReadMRAMExpMaxFileSize());
+    buffer->common2.PbStatusPeriod = htots(ReadMRAMPBStatusFreq());
+    buffer->common2.PbTimeout = htots(ReadMRAMPBClientTimeout());
+    buffer->common2.UplinkStatusPeriod = htots(ReadMRAMFTL0StatusFreq());
     buffer->common2.TLMresets = 0; // TODO - implement with clearMinMax() function and command
-    buffer->common2.swCmds = getCmdRingTelem();
+    buffer->common2.swCmds = htotl(getCmdRingTelem());
     buffer->common2.swCmdCnt = GetSWCmdCount();
     buffer->common2.MRAMstatus = 0; // TODO connect this to status?  What is it?  Do we need 4?
 

@@ -384,6 +384,14 @@ void DisplayTelemetry(uint32_t typeRequested)
                ReadMRAMBoolState(StatePbEnabled),
                ReadMRAMBoolState(StateUplinkEnabled),
                ReadMRAMBoolState(StateDigiEnabled));
+        printf("MRAM Telem Values:\n\r"
+                " PB Status Period(s)=%d, PB Timeout(s)=%d\n\r"
+                " Time Period(s)=%d, Telem Period(s)=%d, WOD Period(s)=%d\\n\r",
+                ReadMRAMPBStatusFreq(),
+                ReadMRAMPBClientTimeout(),
+                ReadMRAMTimeFreq(),
+                ReadMRAMTelemFreq(),
+                ReadMRAMWODFreq());
         printf(" RX Modes:");
         for (i = 0; i < NUM_RX_CHANNELS; i++)
             printf(" [%d] %s", i, modulation_to_str(ReadMRAMModulation(i)));
