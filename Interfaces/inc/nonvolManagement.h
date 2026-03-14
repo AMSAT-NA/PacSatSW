@@ -29,8 +29,8 @@ void WriteMRAM2BoolState(int index1,bool state1,int index2,bool state2);
 void WriteMRAMWODFreq(uint16_t freq);
 uint16_t ReadMRAMWODFreq(void);
 
-void WriteMRAMWODMaxFileSize(uint16_t size);
-uint16_t ReadMRAMWODMaxFileSize(void);
+void WriteMRAMWODMaxFileSize4kBlocks(uint8_t size);
+uint8_t ReadMRAMWODMaxFileSize4kBlocks(void);
 
 void WriteMRAMResets(uint16_t resets);
 uint16_t ReadMRAMResets(void);
@@ -91,8 +91,8 @@ void WriteMRAMTimeFreq(uint16_t freq);
 uint16_t ReadMRAMTimeFreq(void);
 void WriteMRAMExpFreq(uint16_t freq);
 uint16_t ReadMRAMExpFreq(void);
-void WriteMRAMExpMaxFileSize(uint16_t size);
-uint16_t ReadMRAMExpMaxFileSize(void);
+void WriteMRAMExpMaxFileSize4kBlocks(uint8_t size);
+uint8_t ReadMRAMExpMaxFileSize4kBlocks(void);
 void WriteMRAMSpacecraftMode(uint8_t size);
 uint8_t ReadMRAMSpacecraftMode(void);
 void WriteMRAMLastSpacecraftMode(uint8_t size);

@@ -8,20 +8,20 @@
 typedef struct  __attribute__((__packed__)) _commonRtMinmaxWodPayload_t {
     uint32_t FSAvailable;       //Offset=0
     uint16_t FSTotalFiles;       //Offset=32
-    uint16_t UploadQueueBytes;       //Offset=48
-    uint8_t UploadQueueFiles;       //Offset=64
-    uint8_t TXPower;       //Offset=72
-    uint8_t TXPwrMode;       //Offset=80
-    uint8_t RX0PwrMode;       //Offset=88
-    uint8_t RX1PwrMode;       //Offset=96
-    uint8_t RX2PwrMode;       //Offset=104
-    uint8_t RX3PwrMode;       //Offset=112
-    uint8_t RX0RSSI;       //Offset=120
-    uint8_t RX1RSSI;       //Offset=128
-    uint8_t RX2RSSI;       //Offset=136
-    uint8_t RX3RSSI;       //Offset=144
-    uint8_t IHUTemp;       //Offset=152
-    uint8_t PATemp;       //Offset=160
-    uint8_t PowerTemp;       //Offset=168
-} commonRtMinmaxWodPayload_t; // Total Size=176 bits or 22 bytes with 0 left over
+    uint8_t UploadQueueBytes;       //Offset=48
+    uint8_t UploadQueueFiles;       //Offset=56
+    uint8_t TXPower;       //Offset=64
+    uint8_t TXPwrMode;       //Offset=72
+    uint8_t RX0PwrMode;       //Offset=80
+    uint8_t RX1PwrMode;       //Offset=88
+    uint8_t RX2PwrMode;       //Offset=96
+    uint8_t RX3PwrMode;       //Offset=104
+    uint8_t RX0RSSI;       //Offset=112
+    uint8_t RX1RSSI;       //Offset=120
+    uint8_t RX2RSSI;       //Offset=128
+    uint8_t RX3RSSI;       //Offset=136
+    uint8_t IHUTemp;       //Offset=144
+    uint8_t PATemp;       //Offset=152
+    uint8_t PowerTemp;       //Offset=160
+} commonRtMinmaxWodPayload_t; // Total Size=168 bits or 21 bytes with 0 left over
 #endif

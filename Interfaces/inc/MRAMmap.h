@@ -70,7 +70,7 @@ typedef struct {
     uint32_t MinMaxResetTimeSecs[2];
     uint16_t MinMaxResetTimeEpoch[2];
     uint16_t WODFrequency[2];
-    uint16_t WODMaxFileSize[2];
+    uint8_t WODMaxFileSize4kBlocks[2];
     uint16_t NumberOfResets[2];
     uint16_t TimestampResets[2];
     uint16_t AutoSafeEnter[2];
@@ -93,10 +93,11 @@ typedef struct {
     uint16_t TelemFrequency[2];
     uint16_t TimeFrequency[2];
     uint16_t EXPFrequency[2];
-    uint16_t EXPMaxFileSize[2];
+    uint8_t EXPMaxFileSize4kBlocks[2];
     uint8_t  SpacecraftMode[2];
     uint8_t  LastSpacecraftMode[2];
-    uint32_t SpareData[8];
+    uint16_t SoareData1[2];
+    uint32_t SpareData2[8];
     uint8_t  NonVolatileStates[MaxStates][2];
 } StateSavingMRAM_t;
 

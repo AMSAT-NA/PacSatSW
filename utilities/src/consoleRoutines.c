@@ -385,13 +385,17 @@ void DisplayTelemetry(uint32_t typeRequested)
                ReadMRAMBoolState(StateUplinkEnabled),
                ReadMRAMBoolState(StateDigiEnabled));
         printf("MRAM Telem Values:\n\r"
-                " PB Status Period(s)=%d, PB Timeout(s)=%d\n\r"
-                " Time Period(s)=%d, Telem Period(s)=%d, WOD Period(s)=%d\\n\r",
+                " PB Status Period(s)=%d, PB Timeout(s)=%d, Uplink Status Period(s)=%d\n\r"
+                " Time Period(s)=%d, Telem Period(s)=%d, WOD Period(s)=%d\n\r"
+                " Max WOD FileSize(bytes)=%d, Max EXP File Size(bytes)=%d\n\r",
                 ReadMRAMPBStatusFreq(),
                 ReadMRAMPBClientTimeout(),
+                ReadMRAMFTL0StatusFreq(),
                 ReadMRAMTimeFreq(),
                 ReadMRAMTelemFreq(),
-                ReadMRAMWODFreq());
+                ReadMRAMWODFreq(),
+                ReadMRAMWODMaxFileSize4kBlocks()*4096,
+                ReadMRAMExpMaxFileSize4kBlocks()*4096);
         printf(" RX Modes:");
         for (i = 0; i < NUM_RX_CHANNELS; i++)
             printf(" [%d] %s", i, modulation_to_str(ReadMRAMModulation(i)));
@@ -420,10 +424,10 @@ void DisplayTelemetry(uint32_t typeRequested)
         int bit;
 
         for (bit = 0; bit < 9; bit ++) {
-            printf("%20s = %d\n",TaskNames[bit+1],
+            printf("%10s=%d,",TaskNames[bit+1],
                    (localErrorCollection.wdReports>>bit) & 0x01);
         }
-
+        printf("\n");
         i = xPortGetFreeHeapSize();
         printf("Free heap size is %d\n\r", i);
         return;

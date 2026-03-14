@@ -222,7 +222,7 @@ typedef uint8_t rfchan;
 #define MAX_FILESIZE 512 * 1024 /* Any file over this size will be rejected as having no room.  This is really just to confirm that the upload size is not corrupt */
 
 #define PB_DEFAULT_TIMER_SEND_STATUS_PERIOD_SECONDS 30 //SECONDS(30)
-#define UPLINK_TIMER_SEND_STATUS_PERIOD SECONDS(40) //SECONDS(30)
+#define UPLINK_TIMER_SEND_STATUS_PERIOD_SECONDS 60 //SECONDS(30)
 
 #define PB_CLIENT_TIMEOUT_SECONDS 600  // the maximum time a station can be on the PB
 #define MAX_PKTS_IN_TX_PKT_QUEUE_FOR_TNC_TO_BE_BUSY 2 // TODO - Should be in MRAM and commandable. 2
@@ -235,17 +235,17 @@ typedef uint8_t rfchan;
 #define AX25_RETRIES_N2 10 /* Number of retries permitted by the Data Link State Machine */
 
 // Default is to send telemetry every 2 mins, time every 5 mins and save WOD every 5 mins
-#define TAC_TIMER_SEND_TELEMETRY_PERIOD SECONDS(120) //SECONDS(120)
-#define TAC_TIMER_SEND_TIME_PERIOD SECONDS(5*60) //SECONDS(5*60)
-#define TAC_TIMER_SAVE_WOD_PERIOD SECONDS(5*60)
-#define TAC_TIMER_SEND_EXP_PERIOD SECONDS(5*60)
+#define TAC_TIMER_SEND_TELEMETRY_PERIOD_SECONDS 120 //SECONDS(120)
+#define TAC_TIMER_SEND_TIME_PERIOD_SECONDS 5*60 //SECONDS(5*60)
+#define TAC_TIMER_SAVE_WOD_PERIOD_SECONDS 5*60
+#define TAC_TIMER_SEND_EXP_PERIOD_SECONDS 5*60
 
 #define TAC_MAX_EXPERIMENT_TIMEOUT_MINS 45 // default 45 minutes
 /* Generate WOD/EXP files one or more times a day.  The size depends on the layout size and the WOD SAVE PERIOD
  * or the volume of CAN messages from the EXP.  We want this to be about a third or a half of a day, but not so
  * large that it is hard to download */
-#define TAC_FILE_SIZE_TO_ROLL_WOD 15000 // 15k
-#define TAC_FILE_SIZE_TO_ROLL_EXP 15000 // 15k
+#define TAC_FILE_SIZE_TO_ROLL_WOD_4K_BLOCKS 3 // 12k
+#define TAC_FILE_SIZE_TO_ROLL_EXP_4K_BLOCKS 50 // 200k - This is just a safety limit as we expect them to tell us when a file is done.
 
 // Run maintenance every 5 mins.  Maintenance should run very quickly
 #define TAC_TIMER_MAINTENANCE_PERIOD SECONDS(5*60)

@@ -161,7 +161,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
      * and changeable from the ground using xTimerChangePeriod()
      */
      timerUplinkStatus = xTimerCreate("UPLINK STATUS",
-                                      ReadMRAMFTL0StatusFreq(), TRUE,
+                                      SECONDS(ReadMRAMFTL0StatusFreq()), TRUE,
                                       NULL,
                                       tac_ftl0_status_callback);
      // Block time of zero as this can not block
@@ -176,7 +176,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
 
     /* Create a periodic timer to send telemetry */
     timerTelemSend = xTimerCreate("TelemSend",
-                                  ReadMRAMTelemFreq(), TRUE,
+                                  SECONDS(ReadMRAMTelemFreq()), TRUE,
                                   NULL, tac_telem_timer_callback);
     // Block time of zero as this can not block
     timerStatus = xTimerStart(timerTelemSend, 0);
@@ -187,7 +187,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
 
     /* Create a periodic timer to send time */
     timerTimeSend = xTimerCreate("TimeSend",
-                                  ReadMRAMTimeFreq(), TRUE,
+                                 SECONDS(ReadMRAMTimeFreq()), TRUE,
                                   NULL, tac_time_timer_callback);
     // Block time of zero as this can not block
     timerStatus = xTimerStart(timerTimeSend, 0);
@@ -199,7 +199,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
 
     /* Create a periodic timer to save to the WOD file */
     timerWodSave = xTimerCreate("WodSave",
-                                ReadMRAMWODFreq(), TRUE,
+                                SECONDS(ReadMRAMWODFreq()), TRUE,
                                   NULL, tac_wod_save_timer_callback);
     // Block time of zero as this can not block
     timerStatus = xTimerStart(timerWodSave, 0);
@@ -550,6 +550,13 @@ void tac_stop_science_mode_timer() {
 
 }
 
+uint8_t tac_encode_period_30s_blocks(uint16_t period) {
+    if (2*period/60 > 255)
+        return 255;
+    return (uint8_t)(2*period/60);
+}
+
+
 void tac_collect_telemetry(telem_buffer_t *buffer)
 {
     logicalTime_t time;
@@ -595,8 +602,8 @@ void tac_collect_telemetry(telem_buffer_t *buffer)
 
     ReportToWatchdog(CurrentTaskWD);
 
-    short upload_kb = (uint16_t)(ftl0_get_space_reserved_by_upload_table()/1024);
-    buffer->common.UploadQueueBytes = htots(upload_kb); // in kilobytes
+    uint8_t upload_kb = (uint8_t)(ftl0_get_space_reserved_by_upload_table()/1024);
+    buffer->common.UploadQueueBytes = upload_kb; // in kilobytes
     //debug_print("UploadBytes: %d",upload_kb);
     buffer->common.UploadQueueFiles = ftl0_get_num_of_files_in_upload_table();
 
@@ -659,14 +666,14 @@ void tac_collect_telemetry(telem_buffer_t *buffer)
     buffer->common2.DigiEnabled = ReadMRAMBoolState(StateDigiEnabled);
 
     buffer->common2.LogLevel = 0; // TODO - implement when logging in place
-    buffer->common2.TimePeriod = htots(ReadMRAMTimeFreq());
-    buffer->common2.TelemPeriod = htots(ReadMRAMTelemFreq());
-    buffer->common2.WodPeriod = htots(ReadMRAMWODFreq());
-    buffer->common2.MaxWodFileSize = htots(ReadMRAMWODMaxFileSize());
-    buffer->common2.MaxExpFileSize = htots(ReadMRAMExpMaxFileSize());
-    buffer->common2.PbStatusPeriod = htots(ReadMRAMPBStatusFreq());
-    buffer->common2.PbTimeout = htots(ReadMRAMPBClientTimeout());
-    buffer->common2.UplinkStatusPeriod = htots(ReadMRAMFTL0StatusFreq());
+    buffer->common2.TimePeriod = tac_encode_period_30s_blocks(ReadMRAMTimeFreq());
+    buffer->common2.TelemPeriod = tac_encode_period_30s_blocks(ReadMRAMTelemFreq());
+    buffer->common2.WodPeriod = tac_encode_period_30s_blocks(ReadMRAMWODFreq());
+    buffer->common2.MaxWodFileSize = ReadMRAMWODMaxFileSize4kBlocks();
+    buffer->common2.MaxExpFileSize = ReadMRAMExpMaxFileSize4kBlocks();
+    buffer->common2.PbStatusPeriod = tac_encode_period_30s_blocks(ReadMRAMPBStatusFreq());
+    buffer->common2.PbTimeout = tac_encode_period_30s_blocks(ReadMRAMPBClientTimeout());
+    buffer->common2.UplinkStatusPeriod = tac_encode_period_30s_blocks(ReadMRAMFTL0StatusFreq());
     buffer->common2.TLMresets = 0; // TODO - implement with clearMinMax() function and command
     buffer->common2.swCmds = htotl(getCmdRingTelem());
     buffer->common2.swCmdCnt = GetSWCmdCount();
@@ -819,7 +826,7 @@ void tac_store_wod() {
     ReportToWatchdog(CurrentTaskWD);
 
     debug_print("Telem & Control: Stored WOD: %d/%d size:%d\n", ttohs(realtimeFrame.header.resetCnt), htotl(realtimeFrame.header.uptime),wod_file_length);
-    if (wod_file_length > ReadMRAMWODMaxFileSize())
+    if (wod_file_length > (ReadMRAMWODMaxFileSize4kBlocks()*4096))
         tac_roll_file(wod_file_name_with_path, WOD_FOLDER, WOD_PREFIX);
 }
 
