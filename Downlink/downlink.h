@@ -67,7 +67,7 @@ typedef struct __attribute__((__packed__)) {
 
 /* Errors Telemetry Frame (Type-5) */
 typedef struct __attribute__((__packed__)) {
-    rt1Errors_t primaryErrors;  // This structure is also used for local regardless of primary or secondary
+    rt1Errors_t errors;
 } errorsPayload_t;
 
 
@@ -80,7 +80,8 @@ typedef struct __attribute__((__packed__)){
 
 /* ERR WOD - saved to file */
 typedef struct __attribute__((__packed__)){
-    rt1Errors_t primaryErrors;  // This structure is also used for local regardless of primary or secondary
+    wodSpecific_t wodInfo;
+    rt1Errors_t errors;
 } ERRWODHousekeepingPayload_t;
 
 
@@ -90,36 +91,35 @@ typedef struct __attribute__((__packed__)){
 #define MAX_VALS_PAYLOAD		2		/* Maximum Values Telemetry */
 #define MIN_VALS_PAYLOAD		3		/* Minimum Values Telemetry */
 #define WOD_HK_PAYLOAD			4
-#define RT_RAD_PAYLOAD         	5       /* Vanderbilt realtime data */
-#define WOD_RAD_PAYLOAD			6
-#define RT_RAGNAROK_PAYLOAD  	7		/**/
-#define WOD_RAGNAROK_PAYLOAD	8
-#define FILLER_PAYLOAD          9
-#define DIAGNOSTIC_PAYLOAD      10
-#define MAX_LOW_SPEED_PAYLOADS  11		/* Number of low speed telemetry types */
+#define RT_EXP_PAYLOAD         	5       /* Experiment realtime data */
+#define WOD_EXP_PAYLOAD			6
+#define DIAGNOSTIC_PAYLOAD      7
+#define MAX_LOW_SPEED_PAYLOADS  8		/* Number of low speed telemetry types */
 
-/* Define symbols for telemetry frame types */
+#define PACKETS_PER_TELEMETRY_BEACON 2 // send two paylaods each time we beacon or send telemetry
 
-#define REALTIME_MIN_FRAME		0
-#define REALTIME_MAX_FRAME		1
-#define ALL_WOD1_FRAME			2
-#define SAFE_DATA1_FRAME        3
-#define SAFE_WOD_FRAME          4
+///* Define symbols for telemetry frame types */
+//
+//#define REALTIME_MIN_FRAME		0
+//#define REALTIME_MAX_FRAME		1
+//#define ALL_WOD1_FRAME			2
+//#define SAFE_DATA1_FRAME        3
+//#define SAFE_WOD_FRAME          4
 
-#define TOTAL_FRAME_SIZE 648 /* This will add some zeros to fill the frame to this size after the payloads*/
-#define CODE_WORDS_PER_FRAME 3 /* Every 223 bytes takes one code word */
-#define MAX_PAYLOADS_PER_FRAME 9 /*Does not include CRC; includes header and filler*/
+//#define TOTAL_FRAME_SIZE 648 /* This will add some zeros to fill the frame to this size after the payloads*/
+//#define CODE_WORDS_PER_FRAME 3 /* Every 223 bytes takes one code word */
+//#define MAX_PAYLOADS_PER_FRAME 9 /*Does not include CRC; includes header and filler*/
 
 typedef struct __attribute__((__packed__)) { //Frame type 1
 	header_t header;
 	realTimePayload_t rtHealth;
 
 } realTimeFrame_t;
-typedef struct __attribute__((__packed__)) { //Frame type 2
+typedef struct __attribute__((__packed__)) { //Frame type 3
     header_t header;
     minValuesPayload_t minVals;
 } minFrame_t;
-typedef struct __attribute__((__packed__)) { // Type 3
+typedef struct __attribute__((__packed__)) { // Type 2
 	header_t header;
 	maxValuesPayload_t maxVals;
 } maxFrame_t;
@@ -127,19 +127,17 @@ typedef struct __attribute__((__packed__)) { // Type 4
 	header_t header;
 	WODHousekeepingPayload_t HKWod;
 } WODFrame_t;
-typedef struct __attribute__((__packed__)) { //Frame type 5
+typedef struct __attribute__((__packed__)) { //Frame type 7
     header_t header;
-    realTimePayload_t rtHealth;
-    minValuesPayload_t minVals;
-    maxValuesPayload_t maxVals;
-} safeDataFrame_t;
+    errorsPayload_t err;
+} errFrame_t;
 
-typedef struct __attribute__((__packed__)) { //Frame type 6
+typedef struct __attribute__((__packed__)) { //Frame type x
     header_t header;
     ERRWODHousekeepingPayload_t errWod;
 } errWODFrame_t;
 
 
-#define DOWNLINK_IHU_TEMP_OFFSET 550 /* Subtract this from ADC reading to put in 8-bit downlink */
+//#define DOWNLINK_IHU_TEMP_OFFSET 550 /* Subtract this from ADC reading to put in 8-bit downlink */
 
 #endif /* DOWNLINK_H_ */

@@ -327,12 +327,12 @@ void ConsoleTask(void *pvParameters){
     int32_t ret = dir_check_folders();
     if (ret == -1) {
         debug_print("ERROR: Could not create the needed folders in MRAM\n");
-        // TODO - bad or fatal - need to handle or log this error
+        // TODO - bad but we can probablly carry on sending telemetry - need to handle or log this error
     }
     int rc = dir_load();
     if (rc != TRUE) {
         debug_print("ERROR: Could not load the directory from MRAM\n");
-        // TODO - bad or fatal - need to handle or log this error
+        // TODO - bad, but carry on sending telemetry and waiting for commands - need to handle or log this error
     }
 
     xTaskCreate(CommandTask, "Command", COMMAND_STACK_SIZE,

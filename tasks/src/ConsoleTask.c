@@ -151,6 +151,7 @@ enum {
     TestMemScrub,
     GetCommands,
     Gpio,
+    TraceTELEM,
     SendCANMsg,
     SetCANLoopback,
     TraceCAN,
@@ -431,6 +432,9 @@ commandPairs commonCommands[] = {
       RfPowPrint,
       "[on|off]",
     },
+    { "trace telem",
+      "Enable/Disable printing TELEMETRY messages",
+      TraceTELEM },
     { "version",
       "Get board and software version info",
       getVersion,
@@ -986,6 +990,21 @@ void RealConsoleTask(void)
             break;
         }
 
+        case TraceTELEM: {
+            extern bool trace_telem;
+            bool enable;
+            int err = parse_bool(&afterCommand, &enable);
+
+            if (err) {
+                printf("Must specify on/off to enable/disable TELEM trace\n");
+                break;
+            }
+
+            trace_telem = enable;
+            printf("TELEM tracing %s\n", enable ? "enabled" : "disabled");
+            break;
+        }
+
         case TraceCAN: {
             extern bool trace_can;
             bool enable;
@@ -1373,8 +1392,8 @@ void RealConsoleTask(void)
             sizeof(allWOD3Frame_t) - memberSize(allWOD3Frame_t, filler),
             memberSize(allWOD3Frame_t, filler), sizeof(allWOD3Frame_t)
 #endif
-            printf("SafeData   %03d       \n",
-                   sizeof(safeDataFrame_t));
+//            printf("SafeData   %03d       \n",
+//                   sizeof(safeDataFrame_t));
 //                   sizeof(safeWODFrame_t));
 #if 0
             sizeof(safeData1Frame_t) - memberSize(safeData1Frame_t, filler),

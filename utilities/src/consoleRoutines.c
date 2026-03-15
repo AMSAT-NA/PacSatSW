@@ -369,13 +369,13 @@ void DisplayTelemetry(uint32_t typeRequested)
         int i;
 
         printf("I2c device state:\n"
-                "    PacSat CPU Temp: %d, Transmitter Temp: %d, RealTimeClock: %d\n",
+                "  PacSat CPU Temp: %d, Transmitter Temp: %d, RealTimeClock: %d\n",
                 CpuTempIsOk(),TxTempIsOk(),RTCIsOk());
 
         printf("MRAM State Values:\n\r"
-                " CommandedSafeMode=%d,Autosafe=%d\n\r"
-                " CommandRcvd=%d,AllowAutoSafe=%d\n\r"
-                " AX25 PB Enabled=%d,FTL0 Enabled=%d,Digi Enabled=%d\n\r",
+                "  CommandedSafeMode=%d,Autosafe=%d\n\r"
+                "  CommandRcvd=%d,AllowAutoSafe=%d\n\r"
+                "  AX25 PB Enabled=%d,FTL0 Enabled=%d,Digi Enabled=%d\n\r",
 
                ReadMRAMBoolState(StateCommandedSafeMode),
                ReadMRAMBoolState(StateAutoSafe),
@@ -385,9 +385,9 @@ void DisplayTelemetry(uint32_t typeRequested)
                ReadMRAMBoolState(StateUplinkEnabled),
                ReadMRAMBoolState(StateDigiEnabled));
         printf("MRAM Telem Values:\n\r"
-                " PB Status Period(s)=%d, PB Timeout(s)=%d, Uplink Status Period(s)=%d\n\r"
-                " Time Period(s)=%d, Telem Period(s)=%d, WOD Period(s)=%d\n\r"
-                " Max WOD FileSize(bytes)=%d, Max EXP File Size(bytes)=%d\n\r",
+                "  PB Status Period(s)=%d, PB Timeout(s)=%d, Uplink Status Period(s)=%d\n\r"
+                "  Time Period(s)=%d, Telem Period(s)=%d, WOD Period(s)=%d\n\r"
+                "  Max WOD FileSize(bytes)=%d, Max EXP File Size(bytes)=%d\n\r",
                 ReadMRAMPBStatusFreq(),
                 ReadMRAMPBClientTimeout(),
                 ReadMRAMFTL0StatusFreq(),
@@ -396,19 +396,19 @@ void DisplayTelemetry(uint32_t typeRequested)
                 ReadMRAMWODFreq(),
                 ReadMRAMWODMaxFileSize4kBlocks()*4096,
                 ReadMRAMExpMaxFileSize4kBlocks()*4096);
-        printf(" RX Modes:");
+        printf("  TX Mode: %s\n",modulation_to_str(ReadMRAMModulation(FIRST_TX_CHANNEL)));
+        printf("  RX Modes:");
         for (i = 0; i < NUM_RX_CHANNELS; i++)
             printf(" [%d] %s", i, modulation_to_str(ReadMRAMModulation(i)));
-        printf("\n Uncommanded Seconds in Orbit=%d\n\r",
+        printf("\n  Uncommanded Seconds in Orbit=%d\n\r",
                 (unsigned int) ReadMRAMSecondsOnOrbit());
-        // todo:  Have to put the on-orbit flag somewhere
-        //        readNV(&onOrbit,sizeof(int),LocalEEPROMData,(int)&eepromMemMap->HaveWaitedInOrbit);
-        //        printf(" On-orbit flag is ");
-        //        if(onOrbit){
-        //            printf("TRUE\n\r");
-        //        } else {
-        //            printf("FALSE\n\r");
-        //        }
+                bool onOrbit = ReadMRAMBoolState(StateInOrbit);
+                printf("  On-orbit flag is: ");
+                if(onOrbit){
+                    printf("TRUE\n\r");
+                } else {
+                    printf("FALSE\n\r");
+                }
         printf("Errors:\n");
         printf(" IHU reset cause=0x%x,reset data=0x%x,IHUWdReport=0x%x,\n"
                 " LastTask=%s\n"
@@ -424,7 +424,7 @@ void DisplayTelemetry(uint32_t typeRequested)
         int bit;
 
         for (bit = 0; bit < 9; bit ++) {
-            printf("%10s=%d,",TaskNames[bit+1],
+            printf(" %s=%d,",TaskNames[bit+1],
                    (localErrorCollection.wdReports>>bit) & 0x01);
         }
         printf("\n");
