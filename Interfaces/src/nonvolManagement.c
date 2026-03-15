@@ -185,14 +185,14 @@ void WriteMRAMWODFreq(uint16_t freq){
 }
 
 uint16_t ReadMRAMWODFreq(void){
-    READ_UINT16(WODFrequency,TAC_TIMER_SAVE_WOD_PERIOD);
+    READ_UINT16(WODFrequency,TAC_TIMER_SAVE_WOD_PERIOD_SECONDS);
 }
-void WriteMRAMWODMaxFileSize(uint16_t size){
-    WRITE_UINT16(WODMaxFileSize,size);
+void WriteMRAMWODMaxFileSize4kBlocks(uint8_t size){
+    WRITE_UINT8(WODMaxFileSize4kBlocks,size);
 }
 
-uint16_t ReadMRAMWODMaxFileSize(void){
-    READ_UINT16(WODMaxFileSize,TAC_FILE_SIZE_TO_ROLL_WOD);
+uint8_t ReadMRAMWODMaxFileSize4kBlocks(void){
+    READ_UINT8(WODMaxFileSize4kBlocks,TAC_FILE_SIZE_TO_ROLL_WOD_4K_BLOCKS);
 }
 void WriteMRAMResets(uint16_t resets){
     WRITE_UINT16(NumberOfResets,resets);
@@ -390,7 +390,7 @@ void WriteMRAMFTL0StatusFreq(uint16_t freq){
 }
 
 uint16_t ReadMRAMFTL0StatusFreq(void){
-    READ_UINT16(FTL0StatusFrequency,UPLINK_TIMER_SEND_STATUS_PERIOD);
+    READ_UINT16(FTL0StatusFrequency,UPLINK_TIMER_SEND_STATUS_PERIOD_SECONDS);
 }
 
 void WriteMRAMTelemFreq(uint16_t freq){
@@ -398,7 +398,7 @@ void WriteMRAMTelemFreq(uint16_t freq){
 }
 
 uint16_t ReadMRAMTelemFreq(void){
-    READ_UINT16(TelemFrequency,TAC_TIMER_SEND_TELEMETRY_PERIOD);
+    READ_UINT16(TelemFrequency,TAC_TIMER_SEND_TELEMETRY_PERIOD_SECONDS);
 }
 
 void WriteMRAMTimeFreq(uint16_t freq){
@@ -406,7 +406,7 @@ void WriteMRAMTimeFreq(uint16_t freq){
 }
 
 uint16_t ReadMRAMTimeFreq(void){
-    READ_UINT16(TimeFrequency,TAC_TIMER_SEND_TIME_PERIOD);
+    READ_UINT16(TimeFrequency,TAC_TIMER_SEND_TIME_PERIOD_SECONDS);
 }
 
 void WriteMRAMExpFreq(uint16_t freq){
@@ -414,14 +414,14 @@ void WriteMRAMExpFreq(uint16_t freq){
 }
 
 uint16_t ReadMRAMExpFreq(void){
-    READ_UINT16(EXPFrequency,TAC_TIMER_SEND_EXP_PERIOD);
+    READ_UINT16(EXPFrequency,TAC_TIMER_SEND_EXP_PERIOD_SECONDS);
 }
-void WriteMRAMExpMaxFileSize(uint16_t size){
-    WRITE_UINT16(EXPMaxFileSize,size);
+void WriteMRAMExpMaxFileSize4kBlocks(uint8_t size){
+    WRITE_UINT8(EXPMaxFileSize4kBlocks,size);
 }
 
-uint16_t ReadMRAMExpMaxFileSize(void){
-    READ_UINT16(EXPMaxFileSize,TAC_FILE_SIZE_TO_ROLL_EXP);
+uint8_t ReadMRAMExpMaxFileSize4kBlocks(void){
+    READ_UINT8(EXPMaxFileSize4kBlocks,TAC_FILE_SIZE_TO_ROLL_EXP_4K_BLOCKS);
 }
 
 void WriteMRAMSpacecraftMode(uint8_t size){
@@ -490,19 +490,20 @@ void SetupMRAMStates() {
 
     WriteMRAMBoolState(StateUplinkEnabled,false);
     WriteMRAMBoolState(StateDigiEnabled,false);
-    WriteMRAMWODFreq(TAC_TIMER_SAVE_WOD_PERIOD);
-    WriteMRAMWODMaxFileSize(TAC_FILE_SIZE_TO_ROLL_WOD);
+    WriteMRAMWODFreq(TAC_TIMER_SAVE_WOD_PERIOD_SECONDS);
+    WriteMRAMWODMaxFileSize4kBlocks(TAC_FILE_SIZE_TO_ROLL_WOD_4K_BLOCKS);
     initSecondsInOrbit(); //Must use this to prevent an update from resetting the in orbit time
     WriteMRAMEnterAutosafe(DEFAULT_AUTOSAFE_INTO);
     WriteMRAMExitAutosafe(DEFAULT_AUTOSAFE_OUTOF);
 
     WriteMRAMHighestFileNumber(0);  // Start the file system at file 1, so the highest file number is zero.  File Id 0 is reserved and sent when a station does not have a file to upload.
     WriteMRAMPBStatusFreq(PB_DEFAULT_TIMER_SEND_STATUS_PERIOD_SECONDS);
-    WriteMRAMFTL0StatusFreq(UPLINK_TIMER_SEND_STATUS_PERIOD);
-    WriteMRAMTelemFreq(TAC_TIMER_SEND_TELEMETRY_PERIOD);
-    WriteMRAMTimeFreq(TAC_TIMER_SEND_TIME_PERIOD);
-    WriteMRAMExpFreq(TAC_TIMER_SEND_EXP_PERIOD);
-    WriteMRAMExpMaxFileSize(TAC_FILE_SIZE_TO_ROLL_EXP);
+    WriteMRAMPBClientTimeout(PB_CLIENT_TIMEOUT_SECONDS);
+    WriteMRAMFTL0StatusFreq(UPLINK_TIMER_SEND_STATUS_PERIOD_SECONDS);
+    WriteMRAMTelemFreq(TAC_TIMER_SEND_TELEMETRY_PERIOD_SECONDS);
+    WriteMRAMTimeFreq(TAC_TIMER_SEND_TIME_PERIOD_SECONDS);
+    WriteMRAMExpFreq(TAC_TIMER_SEND_EXP_PERIOD_SECONDS);
+    WriteMRAMExpMaxFileSize4kBlocks(TAC_FILE_SIZE_TO_ROLL_EXP_4K_BLOCKS);
     WriteMRAMSpacecraftMode(SpacecraftSafeMode);
     WriteMRAMLastSpacecraftMode(SpacecraftSafeMode);
 

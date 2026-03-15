@@ -39,6 +39,7 @@
 #include "CANTask.h"
 #include "TelemAndControlTask.h"
 #include "exp_interface.h"
+#include "CommandTask.h"
 
 #ifdef BLINKY_HARDWARE
 #include "Max31725Temp.h"
@@ -49,12 +50,57 @@
 
 typedef struct {
     header_t header;
-    realTimePayload_t rtHealth;
+    commonRtMinmaxWodPayload_t common;
+    commonRtWodPayload_t common2;
+    realtimeSpecific_t realTimeData;
+    wodSpecific_t wodInfo;
     minValuesPayload_t minVals;
     maxValuesPayload_t maxVals;
+    rt1Errors_t errors;
 } telem_buffer_t;
 
+bool trace_telem;
+
 realTimeFrame_t realtimeFrame;
+WODFrame_t wodFrame;
+errFrame_t errFrame;
+errWODFrame_t errwodFrame;
+
+uint8_t payload_counter = 0;
+
+uint8_t safe_mode_payload_sequence[] = {
+     DIAGNOSTIC_PAYLOAD,
+     RT_HK_PAYLOAD,
+     RT_EXP_PAYLOAD,
+     RT_HK_PAYLOAD,
+     MAX_VALS_PAYLOAD,
+     RT_HK_PAYLOAD,
+     RT_EXP_PAYLOAD,
+     RT_HK_PAYLOAD,
+     MIN_VALS_PAYLOAD,
+     RT_HK_PAYLOAD,
+     RT_EXP_PAYLOAD,
+     RT_HK_PAYLOAD,
+};
+
+uint8_t filesystem_mode_payload_sequence[] = {
+     RT_HK_PAYLOAD,
+     RT_HK_PAYLOAD,
+     RT_HK_PAYLOAD,
+     MAX_VALS_PAYLOAD,
+     RT_HK_PAYLOAD,
+     RT_HK_PAYLOAD,
+     RT_HK_PAYLOAD,
+     MIN_VALS_PAYLOAD
+};
+
+uint8_t science_mode_payload_sequence[] = {
+     RT_EXP_PAYLOAD,
+     RT_EXP_PAYLOAD,
+     RT_EXP_PAYLOAD,
+     RT_EXP_PAYLOAD,
+     RT_HK_PAYLOAD,
+};
 
 /* Forward declarations */
 void tac_pb_status_callback(TimerHandle_t xTimer);
@@ -154,7 +200,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
      * and changeable from the ground using xTimerChangePeriod()
      */
      timerUplinkStatus = xTimerCreate("UPLINK STATUS",
-                                      ReadMRAMFTL0StatusFreq(), TRUE,
+                                      SECONDS(ReadMRAMFTL0StatusFreq()), TRUE,
                                       NULL,
                                       tac_ftl0_status_callback);
      // Block time of zero as this can not block
@@ -169,7 +215,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
 
     /* Create a periodic timer to send telemetry */
     timerTelemSend = xTimerCreate("TelemSend",
-                                  ReadMRAMTelemFreq(), TRUE,
+                                  SECONDS(ReadMRAMTelemFreq()), TRUE,
                                   NULL, tac_telem_timer_callback);
     // Block time of zero as this can not block
     timerStatus = xTimerStart(timerTelemSend, 0);
@@ -180,7 +226,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
 
     /* Create a periodic timer to send time */
     timerTimeSend = xTimerCreate("TimeSend",
-                                  ReadMRAMTimeFreq(), TRUE,
+                                 SECONDS(ReadMRAMTimeFreq()), TRUE,
                                   NULL, tac_time_timer_callback);
     // Block time of zero as this can not block
     timerStatus = xTimerStart(timerTimeSend, 0);
@@ -192,7 +238,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
 
     /* Create a periodic timer to save to the WOD file */
     timerWodSave = xTimerCreate("WodSave",
-                                ReadMRAMWODFreq(), TRUE,
+                                SECONDS(ReadMRAMWODFreq()), TRUE,
                                   NULL, tac_wod_save_timer_callback);
     // Block time of zero as this can not block
     timerStatus = xTimerStart(timerWodSave, 0);
@@ -291,7 +337,8 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
                         tac_stop_science_mode_timer();
                     }
                     setSpacecraftMode(SpacecraftSafeMode);
-                    debug_print("Entering SAFE mode\n");
+                    if (trace_telem)
+                        printf("Entering SAFE mode\n");
                 }
                 break;
             case TacEnterFileSystemMode:
@@ -300,7 +347,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
                         tac_stop_science_mode_timer();
                     }
                     setSpacecraftMode(SpacecraftFileSystemMode);
-                    debug_print("Entering FS mode\n");
+                    if (trace_telem) printf("Entering FS mode\n");
                     pb_send_status();
                     ReportToWatchdog(TelemetryAndControlWD);
                     /* Wait a bit longer and then send uplink status */
@@ -315,7 +362,8 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
                     mins = messageReceived.data[0];
                     if (mins > TAC_MAX_EXPERIMENT_TIMEOUT_MINS)
                         mins = TAC_MAX_EXPERIMENT_TIMEOUT_MINS;
-                    debug_print("Entering SCIENCE Mode with timeout: %d mins\n",mins);
+                    if (trace_telem)
+                        printf("Entering SCIENCE Mode with timeout: %d mins\n",mins);
                     /* Start the science mode timer */
                     timerScienceMode = xTimerCreate("Science Mode",
                                                     SECONDS(mins*60), FALSE,
@@ -330,7 +378,8 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
                 }
                 break;
             case TacEndScienceMode:
-                debug_print("Telem & Control: Ending Science Mode\n");
+                if (trace_telem)
+                    printf("Telem & Control: Ending Science Mode\n");
                 switch(getLastSpacecraftMode()) {
                 case SpacecraftFileSystemMode:
                     statusMsg.MsgType = TacEnterFileSystemMode;
@@ -543,6 +592,13 @@ void tac_stop_science_mode_timer() {
 
 }
 
+uint8_t tac_encode_period_30s_blocks(uint16_t period) {
+    if (2*period/60 > 255)
+        return 255;
+    return (uint8_t)(2*period/60);
+}
+
+
 void tac_collect_telemetry(telem_buffer_t *buffer)
 {
     logicalTime_t time;
@@ -558,25 +614,12 @@ void tac_collect_telemetry(telem_buffer_t *buffer)
     buffer->header.protocolVersion = 0;
     buffer->header.versionMajor = DownlinkVersionMajor;
     buffer->header.versionMinor = DownlinkVersionMinor;
-    buffer->header.inScienceMode = 0;
-    buffer->header.inHealthMode = 1;
-    buffer->header.inSafeMode = 0;
+    buffer->header.spacecraftMode = spacecraftMode;
 
 // debug_print("Telem & Control: Collect RT telem at: %d/%d\n",time.IHUresetCnt, time.METcount);
 
-    /**
-     * Initial telemetry for the protoype booster board:
-     * For each Radio RSSI
-     *  Radio Power
-     *  Radio mode
-     *  Radio temperature?
-     * PB enabled
-     * FTL0 enabled
-     * MODE - safe/health/exp
-     * CPU temp
-     * Errors
-     *
-     */
+    /********** commonRtMinmaxWodPayload_t - These values also go into min / max ***********/
+    // TODO - put these in MIN MAX.  Make sure Min Max initialized with preflight init or similar
 
     /* File Storage */
     REDSTATFS redstatfs;
@@ -590,50 +633,100 @@ void tac_collect_telemetry(telem_buffer_t *buffer)
         //       redstatfs.f_frsize * redstatfs.f_bfree);
         //printf("Available File Ids: %d of %d.  \n",
         //       redstatfs.f_ffree, redstatfs.f_files);
-        buffer->rtHealth.common.FSAvailable = htotl(redstatfs.f_bfree); // blocks free
-        buffer->rtHealth.common.FSTotalFiles = htots((uint16)(redstatfs.f_files - redstatfs.f_ffree));
+        buffer->common.FSAvailable = htotl(redstatfs.f_bfree); // blocks free
+        buffer->common.FSTotalFiles = htots((uint16)(redstatfs.f_files - redstatfs.f_ffree));
     }
+
+    if (buffer->minVals.common.FSAvailable > buffer->common.FSAvailable)
+        buffer->minVals.common.FSAvailable = buffer->common.FSAvailable;
+    if (buffer->maxVals.common.FSAvailable < buffer->common.FSAvailable)
+        buffer->maxVals.common.FSAvailable = buffer->common.FSAvailable;
+
     ReportToWatchdog(CurrentTaskWD);
 
-    short upload_kb = (uint16_t)(ftl0_get_space_reserved_by_upload_table()/1024);
-    buffer->rtHealth.common.UploadQueueBytes = htots(upload_kb); // in kilobytes
+    uint8_t upload_kb = (uint8_t)(ftl0_get_space_reserved_by_upload_table()/1024);
+    buffer->common.UploadQueueBytes = upload_kb; // in kilobytes
     //debug_print("UploadBytes: %d",upload_kb);
-    buffer->rtHealth.common.UploadQueueFiles = ftl0_get_num_of_files_in_upload_table();
+    buffer->common.UploadQueueFiles = ftl0_get_num_of_files_in_upload_table();
 
-    bool pb_state = ReadMRAMBoolState(StatePbEnabled);
-    //debug_print("PB: %d\n", pb_state);
-    buffer->rtHealth.common2.pbEnabled = pb_state;
-    buffer->rtHealth.common2.uplinkEnabled = ReadMRAMBoolState(StateUplinkEnabled);
+    /* TX Telemetry */
+    uint16_t rf_pwr = (ax5043ReadReg(FIRST_TX_CHANNEL, AX5043_TXPWRCOEFFB0)
+            + (ax5043ReadReg(FIRST_TX_CHANNEL, AX5043_TXPWRCOEFFB1) << 8));
+    buffer->common.TXPower = rf_pwr;
+    buffer->common.TXPwrMode = ax5043ReadReg(FIRST_TX_CHANNEL, AX5043_PWRMODE);
+    buffer->common.TxModMode = ReadMRAMModulation(FIRST_TX_CHANNEL);
+    /* RX0 Telemetry */
+    uint8_t rssi = get_rssi(FIRST_RX_CHANNEL);
+    buffer->common.RX0RSSI = rssi;
+    buffer->common.RX0PwrMode = ax5043ReadReg(FIRST_RX_CHANNEL, AX5043_PWRMODE);
+    buffer->common.RX0ModMode = ReadMRAMModulation(FIRST_RX_CHANNEL);
+#if NUM_RX_CHANNELS == 4
+    rssi = get_rssi(FIRST_RX_CHANNEL+1);
+    buffer->common.RX1RSSI = rssi;
+    buffer->common.RX1PwrMode = ax5043ReadReg(FIRST_RX_CHANNEL+1, AX5043_PWRMODE);
+    buffer->common.RX1ModMode = ReadMRAMModulation(FIRST_RX_CHANNEL+1);
+    rssi = get_rssi(FIRST_RX_CHANNEL+2);
+    buffer->common.RX2RSSI = rssi;
+    buffer->common.RX2PwrMode = ax5043ReadReg(FIRST_RX_CHANNEL+2, AX5043_PWRMODE);
+    buffer->common.RX2ModMode = ReadMRAMModulation(FIRST_RX_CHANNEL+2);
+    rssi = get_rssi(FIRST_RX_CHANNEL+3);
+    buffer->common.RX3RSSI = rssi;
+    buffer->common.RX3PwrMode = ax5043ReadReg(FIRST_RX_CHANNEL+3, AX5043_PWRMODE);
+    buffer->common.RX3ModMode = ReadMRAMModulation(FIRST_RX_CHANNEL+3);
+#endif
 
     ReportToWatchdog(CurrentTaskWD);
 
 #ifdef BLINKY_HARDWARE
     uint8_t temp8;
     if (Get8BitTemp31725(CpuTemp, &temp8)) {
-        buffer->rtHealth.common.IHUTemp = temp8;
+        buffer->common.IHUTemp = temp8;
     } else {
         //debug_print("TAC: ERROR I2C temp request failed\n");
     }
-#elif ASFK_HARDWARE
-    // TODO - add more temperatures here?
-    buffer->rtHealth.common.IHUTemp = board_temps[TEMPERATURE_VAL_CPU];
+#endif
+#ifdef AFSK_HARDWARE
+    // TODO - these need to be in a suitable format for the telemetry.  e.g. 0-255 is -30 to 105.
+    // The value in the array is in C and is signed
+//    printf("CPU temp: %d\n", board_temps[TEMPERATURE_VAL_CPU]);
+//    printf("PA temp: %d\n", board_temps[TEMPERATURE_VAL_PA]);
+//    printf("Power temp: %d\n", board_temps[TEMPERATURE_VAL_POWER]);
+
+    // Scale 0-255 = -20C to +107.5C
+    buffer->common.IHUTemp = (20+board_temps[TEMPERATURE_VAL_CPU])*2;
+    buffer->common.PATemp = (20+board_temps[TEMPERATURE_VAL_PA])*2;
+    buffer->common.PowerTemp = (20+board_temps[TEMPERATURE_VAL_POWER])*2;
 #else
-    buffer->rtHealth.common.IHUTemp = 0;
+    buffer->common.IHUTemp = 0;
 #endif
 
-    /* TX Telemetry */
-    uint16_t rf_pwr = (ax5043ReadReg(FIRST_TX_CHANNEL, AX5043_TXPWRCOEFFB0)
-                       + (ax5043ReadReg(FIRST_TX_CHANNEL, AX5043_TXPWRCOEFFB1) << 8));
-    buffer->rtHealth.common.TXPower = rf_pwr;
-    buffer->rtHealth.common.TXPwrMode = ax5043ReadReg(FIRST_TX_CHANNEL, AX5043_PWRMODE);
 
-    /* RX0 Telemetry */
-    uint8_t rssi0 = get_rssi(FIRST_RX_CHANNEL);
-    buffer->rtHealth.common.RX0RSSI = rssi0;
-    buffer->rtHealth.common.RX0PwrMode = ax5043ReadReg(FIRST_RX_CHANNEL, AX5043_PWRMODE);
+    /********** commonRtWodPayload_t - These values are static values and not suitable to calculate min / max ***********/
+
+    // TODO - all these MRAM vars can be cached in memory and not read over SPI for every telem check.  e,g, like spacecraftMode.
+    buffer->common2.AutoSafeAllowed = ReadMRAMBoolState(StateAutoSafeAllow);
+    buffer->common2.AutoSafeModeActive = ReadMRAMBoolState(StateAutoSafe);
+    //debug_print("PB: %d\n", pb_state);
+    buffer->common2.pbEnabled = ReadMRAMBoolState(StatePbEnabled);
+    buffer->common2.uplinkEnabled = ReadMRAMBoolState(StateUplinkEnabled);
+    buffer->common2.DigiEnabled = ReadMRAMBoolState(StateDigiEnabled);
+
+    buffer->common2.LogLevel = 0; // TODO - implement when logging in place
+    buffer->common2.TimePeriod = tac_encode_period_30s_blocks(ReadMRAMTimeFreq());
+    buffer->common2.TelemPeriod = tac_encode_period_30s_blocks(ReadMRAMTelemFreq());
+    buffer->common2.WodPeriod = tac_encode_period_30s_blocks(ReadMRAMWODFreq());
+    buffer->common2.MaxWodFileSize = ReadMRAMWODMaxFileSize4kBlocks();
+    buffer->common2.MaxExpFileSize = ReadMRAMExpMaxFileSize4kBlocks();
+    buffer->common2.PbStatusPeriod = tac_encode_period_30s_blocks(ReadMRAMPBStatusFreq());
+    buffer->common2.PbTimeout = tac_encode_period_30s_blocks(ReadMRAMPBClientTimeout());
+    buffer->common2.UplinkStatusPeriod = tac_encode_period_30s_blocks(ReadMRAMFTL0StatusFreq());
+    buffer->common2.TLMresets = 0; // TODO - implement with clearMinMax() function and command
+    buffer->common2.swCmds = htotl(getCmdRingTelem());
+    buffer->common2.swCmdCnt = GetSWCmdCount();
+    buffer->common2.MRAMstatus = 0; // TODO connect this to status?  What is it?  Do we need 4?
 
     // Errors TODO - make sure that when these are written in error handling they were converted from host to little endian
-    buffer->rtHealth.primaryErrors = localErrorCollection;
+    buffer->errors = localErrorCollection;
 
     // TODO - calculate min max and store in MRAM
 }
@@ -651,51 +744,93 @@ void tac_send_telemetry(telem_buffer_t *buffer)
     if (!IsStabilizedAfterBoot())
         return;
 
+    char * to_callsign = TLMP1;
+    int payload = RT_HK_PAYLOAD;
     int len = 0;
     uint8_t *frame;
-    if (ReadMRAMBoolState(StateCommandedSafeMode)
-                || ReadMRAMBoolState(StateAutoSafe)) {
-        /* Setup Type 1 frame - This will copy the buffer into the frame */
-        realtimeFrame.header = buffer->header;
-        realtimeFrame.rtHealth = buffer->rtHealth;
-        len = sizeof(realtimeFrame);
+//    if (ReadMRAMBoolState(StateCommandedSafeMode)
+//                || ReadMRAMBoolState(StateAutoSafe)) {
 
-        switch (spacecraftMode) {
+        int i;
+        for (i=0; i<PACKETS_PER_TELEMETRY_BEACON; i++) {
+            switch (spacecraftMode) {
             case SpacecraftSafeMode:
-                debug_print("Telem & Control: Send SAFE telem at: %d/%d\n", ttohs(realtimeFrame.header.resetCnt), htotl(realtimeFrame.header.uptime));
-                frame = (uint8_t *)&realtimeFrame;
+                if (trace_telem)
+                    printf("Telem & Control: Send SAFE telem");
+                if (payload_counter >= sizeof(safe_mode_payload_sequence))
+                    payload_counter=0;
+                payload = safe_mode_payload_sequence[payload_counter++];
                 break;
             case SpacecraftFileSystemMode:
-                debug_print("Telem & Control: Send HEALTH telem at: %d/%d\n", ttohs(realtimeFrame.header.resetCnt), htotl(realtimeFrame.header.uptime));
-                frame = (uint8_t *)&realtimeFrame;
+                if (trace_telem)
+                    printf("Telem & Control: Send HEALTH telem at: %d/%d\n", ttohs(realtimeFrame.header.resetCnt), htotl(realtimeFrame.header.uptime));
+                if (payload_counter >= sizeof(filesystem_mode_payload_sequence))
+                    payload_counter=0;
+                payload = filesystem_mode_payload_sequence[payload_counter];
                 break;
             case SpacecraftScienceMode:
+                if (trace_telem)
+                    printf("Telem & Control: Send SCIENCE telem at: %d/%d\n", ttohs(realtimeFrame.header.resetCnt), htotl(realtimeFrame.header.uptime));
+                if (payload_counter >= sizeof(science_mode_payload_sequence))
+                    payload_counter=0;
+                payload = science_mode_payload_sequence[payload_counter];
                 return;
             default:
                 break;
+            }
+
+
+            switch (payload) {
+            case RT_HK_PAYLOAD:
+                to_callsign = TLMP1;
+                realtimeFrame.header = buffer->header;
+                realtimeFrame.rtHealth.common = buffer->common;
+                realtimeFrame.rtHealth.common2 = buffer->common2;
+                realtimeFrame.rtHealth.realTimeData = buffer->realTimeData;
+                len = sizeof(realtimeFrame);
+                frame = (uint8_t *)&realtimeFrame;
+                break;
+            case MAX_VALS_PAYLOAD:
+                to_callsign = TLMP2;
+                break;
+            case MIN_VALS_PAYLOAD:
+                to_callsign = TLMP3;
+                break;
+            case RT_EXP_PAYLOAD:
+                to_callsign = TLMP5;
+                break;
+            case DIAGNOSTIC_PAYLOAD:
+                to_callsign = TLMP_ERROR;
+                errFrame.header = buffer->header;
+                errFrame.err.errors = buffer->errors;
+                len = sizeof(errFrame);
+                frame = (uint8_t *)&errFrame;
+                break;
+            default:
+                break;
+            }
+
+            if (trace_telem)
+                printf("  Type %d Frame to %s at: %d/%d\n", payload, to_callsign,ttohs(buffer->header.resetCnt), htotl(buffer->header.uptime));
+
+            //debug_print("Bytes sent:");
+            //int i=0;
+            //for (i=0; i<11; i++) {
+            //    debug_print("%0x ",frame[i]);
+            //}
+            //debug_print("\n");
+            //    }
+            if (len == 0 || len > AX25_MAX_INFO_BYTES_LEN) {
+                debug_print("ERROR: Telemetry frame length of %d is not valid.  Frame not sent\n",len);
+                continue;
+            }
+
+            ReportToWatchdog(CurrentTaskWD);
+
+            if (frame != NULL)
+                tx_send_ui_packet(BROADCAST_CALLSIGN, to_callsign, PID_NO_PROTOCOL,
+                                  frame, len, BLOCK, MODULATION_INVALID);
         }
-
-        //debug_print("Sending Type 1 Frame %d:%d\n",
-        //            realtimeFrame.header.resetCnt,
-        //            realtimeFrame.header.uptime);
-        //debug_print("Bytes sent:");
-        //int i=0;
-        //for (i=0; i<11; i++) {
-        //    debug_print("%0x ",frame[i]);
-        //}
-        //debug_print("\n");
-    }
-    if (len == 0 || len > AX25_MAX_INFO_BYTES_LEN) {
-        debug_print("ERROR: Telemetry frame length of %d is not valid.  Frame not sent\n",len);
-        return;
-    }
-
-    ReportToWatchdog(CurrentTaskWD);
-
-    if (frame != NULL)
-        tx_send_ui_packet(BROADCAST_CALLSIGN, TLMP1, PID_NO_PROTOCOL,
-                      frame, len, BLOCK, MODULATION_INVALID);
-
 }
 
 void tac_send_time() {
@@ -734,11 +869,17 @@ void tac_store_wod() {
     int len = 0;
     uint8_t *frame;
     /* TODO - Use a Type 1 frame - but this should be the WOD layout */
-    realtimeFrame.header = buffer->header;
-    realtimeFrame.rtHealth = buffer->rtHealth;
-    len = sizeof(realtimeFrame);
+    wodFrame.header = buffer->header;
+    wodFrame.HKWod.common = buffer->common;
+    wodFrame.HKWod.common2 = buffer->common2;
+    wodFrame.HKWod.wodInfo = buffer->wodInfo;
+    errFrame.err.errors = buffer->errors;
+    errwodFrame.errWod.errors = buffer->errors;
+    //TODO - need to save the errWOD to another WOD file.
 
-    frame = (uint8_t *)&realtimeFrame;
+    len = sizeof(wodFrame);
+
+    frame = (uint8_t *)&wodFrame;
 
     /* Write bytes to the file */
     int32_t fp;
@@ -771,8 +912,9 @@ void tac_store_wod() {
 
     ReportToWatchdog(CurrentTaskWD);
 
-    debug_print("Telem & Control: Stored WOD: %d/%d size:%d\n", ttohs(realtimeFrame.header.resetCnt), htotl(realtimeFrame.header.uptime),wod_file_length);
-    if (wod_file_length > ReadMRAMWODMaxFileSize())
+    if (trace_telem)
+        printf("Telem & Control: Stored WOD: %d/%d size:%d\n", ttohs(realtimeFrame.header.resetCnt), htotl(realtimeFrame.header.uptime),wod_file_length);
+    if (wod_file_length > (ReadMRAMWODMaxFileSize4kBlocks()*4096))
         tac_roll_file(wod_file_name_with_path, WOD_FOLDER, WOD_PREFIX);
 }
 
@@ -789,7 +931,7 @@ void tac_roll_file(char *file_name_with_path, char *folder, char *prefix) {
     uint32_t unixtime = getUnixTime(); // Get the time in seconds since the unix epoch
     if (unixtime < 1691675756) {
         // 10 Aug 2023 because that is when I wrote this line
-        debug_print("Unix time seems to be in the past!");
+        debug_print("ERROR: Unix time seems to be in the past!");
         unixtime=0;
         strlcat(file_name, "---", sizeof(file_name));
     } else {
@@ -834,7 +976,8 @@ void tac_roll_file(char *file_name_with_path, char *folder, char *prefix) {
         return;
     }
 
-    debug_print("Telem & Control: Rolled QUE file: %s\n", file_name);
+    if (trace_telem)
+        printf("Telem & Control: Rolled QUE file: %s\n", file_name);
 
 }
 

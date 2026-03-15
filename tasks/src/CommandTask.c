@@ -224,6 +224,8 @@ bool DispatchSoftwareCommand(SWCmdUplink *uplink,bool local){
         //SetInternalSchedules(NoTimeCommandTimeout,TIMEOUT_NONE);
     }
 
+    SWCmdCount++;
+
     command_print("Namespace=%d,command=%d,arg=%d\n",nameSpace,uplink->comArg.command,
                   uplink->comArg.arguments[0]);
 
@@ -593,6 +595,13 @@ uint8_t GetHWCmdCount(void){
 }
 uint8_t GetSWCmdCount(void){
     return SWCmdCount;
+}
+
+uint32_t getCmdRingTelem() {
+    return (uint32_t)SWCmdRing[0]       |
+            (uint32_t)SWCmdRing[1] << 8  |
+            (uint32_t)SWCmdRing[2] << 16 |
+            (uint32_t)SWCmdRing[3] << 24;
 }
 
 //void test_auth() {

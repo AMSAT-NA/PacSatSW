@@ -6,6 +6,6 @@
 #error Wrong Archtecture
 #endif
 typedef struct  __attribute__((__packed__)) _realtimeSpecific_t {
-    uint32_t Pad5;       //Offset=0
-} realtimeSpecific_t; // Total Size=32 bits or 4 bytes with 0 left over
+    uint8_t Pad5;       //Offset=0
+} realtimeSpecific_t; // Total Size=8 bits or 1 bytes with 0 left over
 #endif

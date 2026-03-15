@@ -31,6 +31,7 @@ void NoTimedSWCommandTimeoutCallback(void);
 
 uint8_t GetHWCmdCount(void);
 uint8_t GetSWCmdCount(void);
+uint32_t getCmdRingTelem();
 
 #define SW_UPLINK_BUFFERS 1
 

@@ -521,7 +521,7 @@ int dir_validate_file(HEADER *pfh, char *file_name_with_path, WdReporters_t repo
         ReportToWatchdog(reporter);
     }
 
-    debug_print("File check loop done\n");
+    //debug_print("File check loop done\n");
     if (pfh->bodyCRC != body_checksum) {
         debug_print("** Body check failed for %s\n",file_name_with_path);
         return ER_BODY_CHECK;

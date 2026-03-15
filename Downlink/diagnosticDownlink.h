@@ -8,6 +8,8 @@
 #ifndef DOWNLINK_DIAGNOSTICDOWNLINK_H_
 #define DOWNLINK_DIAGNOSTICDOWNLINK_H_
 
+#ifdef 0
+
 typedef struct __attribute__((__packed__)) {
     unsigned int wdReports : 9;
     unsigned int errorCode : 5;
@@ -119,6 +121,6 @@ void print_diagnostictelemetry(diagnostictelemetry_t payload) {
 
 
 
-
+#endif
 
 #endif /* DOWNLINK_DIAGNOSTICDOWNLINK_H_ */

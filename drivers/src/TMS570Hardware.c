@@ -141,7 +141,7 @@ void esmGroup1Notification(uint32_t channel){
         break;
     }
     case DCC2Error:{
-        localErrorCollection.DCC1ErrorCnt++;
+        localErrorCollection.DCC2ErrorCnt++; // TODO - surely this should be DCC2ErrorCnt++, updated from DCC1ErrorCnt. g0kla
         //nError, log, power cycle
     }
     }

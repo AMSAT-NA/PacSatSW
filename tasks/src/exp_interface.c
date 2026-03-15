@@ -214,6 +214,6 @@ void exp_store_can(can_msg_type_t type, int msgid, uint8_t *data, unsigned int l
     }
 
     debug_print("Telem & Control: Stored EXP ID: %d size:%ld %s\n", combined,exp_file_length, exp_file_name_with_path);
-    if ( (type >= can_msg_type_eof1) || (exp_file_length > ReadMRAMExpMaxFileSize()) )
+    if ( (type >= can_msg_type_eof1) || (exp_file_length > (ReadMRAMExpMaxFileSize4kBlocks() * 4096)) )
         tac_roll_file(exp_file_name_with_path, EXP_FOLDER, file_name);
 }
