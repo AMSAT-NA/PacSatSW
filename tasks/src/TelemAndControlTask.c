@@ -293,8 +293,11 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
 
     /* Wait a bit longer and then send uplink status */
     vTaskDelay(WATCHDOG_SHORT_WAIT_TIME);
-    if (getSpacecraftMode() == SpacecraftFileSystemMode)
-        ax25_send_status();
+    if (getSpacecraftMode() == SpacecraftFileSystemMode) {
+        uint32_t now = getUnixTime(); // Get the time in seconds since the unix epoch
+        if (now > CLOCK_MIN_UNIX_SECS)
+            ax25_send_status();
+    }
     ReportToWatchdog(TelemetryAndControlWD);
 
     //TODO - include any checks needed here to make sure hardware is available
@@ -703,16 +706,15 @@ void tac_collect_telemetry(telem_buffer_t *buffer)
     buffer->common.IHUTemp = 0;
 #endif
 
-
     /********** commonRtWodPayload_t - These values are static values and not suitable to calculate min / max ***********/
 
     // TODO - all these MRAM vars can be cached in memory and not read over SPI for every telem check.  e,g, like spacecraftMode.
     buffer->common2.AutoSafeAllowed = ReadMRAMBoolState(StateAutoSafeAllow);
     buffer->common2.AutoSafeModeActive = ReadMRAMBoolState(StateAutoSafe);
-    //debug_print("PB: %d\n", pb_state);
     buffer->common2.pbEnabled = ReadMRAMBoolState(StatePbEnabled);
     buffer->common2.uplinkEnabled = ReadMRAMBoolState(StateUplinkEnabled);
     buffer->common2.DigiEnabled = ReadMRAMBoolState(StateDigiEnabled);
+    //debug_print("PB: %d\n", buffer->common2.pbEnabled);
 
     buffer->common2.LogLevel = 0; // TODO - implement when logging in place
     buffer->common2.TimePeriod = tac_encode_period_30s_blocks(ReadMRAMTimeFreq());
