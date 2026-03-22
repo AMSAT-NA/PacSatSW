@@ -667,10 +667,13 @@ void dir_maintenance() {
  */
 void dir_file_queue_check(uint32_t now, char * folder, uint8_t file_type, char * destination, uint32_t expire_time) {
     //debug_print("Checking for files in queue: %s of type %s\n",folder, destination);
+    if (now < 1691675756) {
+        return; // the clock is not set, we can't add anything to the dir
+    }
     REDDIR *pDir;
     pDir = red_opendir(folder);
     if (pDir == NULL) {
-        debug_print("Unable to open dir:550 %s\n", red_strerror(red_errno));
+        debug_print("Unable to open folder: %s\n", red_strerror(red_errno));
         return;
     }
 

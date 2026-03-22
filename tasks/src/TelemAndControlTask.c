@@ -933,7 +933,12 @@ void tac_roll_file(char *file_name_with_path, char *folder, char *prefix) {
         // 10 Aug 2023 because that is when I wrote this line
         debug_print("ERROR: Unix time seems to be in the past!");
         unixtime=0;
-        strlcat(file_name, "---", sizeof(file_name));
+        logicalTime_t time;
+
+        getTimestamp(&time);
+//        strlcat(file_name, "---", sizeof(file_name));
+        snprintf(file_id_str,sizeof(file_id_str),"%09d",time.METcount); // we put the uptime in the filename to make it unique.
+        strlcat(file_name, file_id_str, sizeof(file_name));
     } else {
         struct tm *time;
         time_t t  = (time_t)(unixtime + 2208988800L - 6 * 60 * 60);
@@ -943,7 +948,7 @@ void tac_roll_file(char *file_name_with_path, char *folder, char *prefix) {
             strftime(file_id_str, sizeof(file_id_str), "%m%d%H%M", time);
             strlcat(file_name, file_id_str, sizeof(file_name));
         } else {
-            strlcat(file_name, "---", sizeof(file_name));
+            strlcat(file_name, "---", sizeof(file_name)); // we put nothing in the filename as this was an error.
         }
     }
 
