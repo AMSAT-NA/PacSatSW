@@ -408,6 +408,9 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
                 break;
             case TacSendUplinkStatus:
                 //debug_print("Telem & Control: Send the FTL0 Status\n");
+                now = getUnixTime(); // Get the time in seconds since the unix epoch
+                if (now < CLOCK_MIN_UNIX_SECS)
+                    break;
                 if (getSpacecraftMode() == SpacecraftFileSystemMode)
                     ax25_send_status();
                 break;
@@ -929,14 +932,11 @@ void tac_roll_file(char *file_name_with_path, char *folder, char *prefix) {
 
     char file_id_str[14];
     uint32_t unixtime = getUnixTime(); // Get the time in seconds since the unix epoch
-    if (unixtime < 1691675756) {
-        // 10 Aug 2023 because that is when I wrote this line
+    if (unixtime < CLOCK_MIN_UNIX_SECS) {
         debug_print("ERROR: Unix time seems to be in the past!");
         unixtime=0;
         logicalTime_t time;
-
         getTimestamp(&time);
-//        strlcat(file_name, "---", sizeof(file_name));
         snprintf(file_id_str,sizeof(file_id_str),"%09d",time.METcount); // we put the uptime in the filename to make it unique.
         strlcat(file_name, file_id_str, sizeof(file_name));
     } else {

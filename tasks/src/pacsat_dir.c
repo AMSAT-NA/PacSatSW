@@ -667,7 +667,7 @@ void dir_maintenance() {
  */
 void dir_file_queue_check(uint32_t now, char * folder, uint8_t file_type, char * destination, uint32_t expire_time) {
     //debug_print("Checking for files in queue: %s of type %s\n",folder, destination);
-    if (now < 1691675756) {
+    if (now < CLOCK_MIN_UNIX_SECS) {
         return; // the clock is not set, we can't add anything to the dir
     }
     REDDIR *pDir;

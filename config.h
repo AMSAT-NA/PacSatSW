@@ -133,6 +133,8 @@ void NullPrint(char *, ...);
 #define RETRY_TIMEOUT CENTISECONDS(50) /* If something feils we want to retry in 1/2 second*/
 #define ANTENNA_DEPLOY_WAIT_TIME SECONDS(5)  /* Burn wires run for 5 seconds */
 
+#define CLOCK_MIN_UNIX_SECS 1691675756   // 10 Aug 2023 because that is when I wrote this line
+
 /*
  * For authenticated software commands the command will include a timestamp.  The timestamp is intended to
  * be the LAST SATELLITE TIME that the command will be accepted.  But we don't want it to be forever, so

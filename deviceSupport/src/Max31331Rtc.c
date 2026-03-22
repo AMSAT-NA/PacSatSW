@@ -265,11 +265,16 @@ bool SetRtcTime31331(uint32_t *unixtime)
     /* All values in this structure are 1 byte, so the cast is safe. */
     regs = (max3133x_rtc_time_regs_t *) &regbuf[1];
 
-    if (*unixtime < 1691675756) {
-        // 10 Aug 2023 because that is when I wrote this line
-        debug_print("Unix time seems to be in the past!");
-        return false;
+#ifdef DEBUG
+    if (*unixtime != 999999999) { // test value
+#endif
+        if (*unixtime < CLOCK_MIN_UNIX_SECS) {
+            debug_print("Unix time seems to be in the past!");
+            return false;
+        }
+#ifdef DEBUG
     }
+#endif
     time_t t  = (time_t)(*unixtime + 2208988800L - 6 * 60 * 60);
     // Adjust because TI Time library used Epoch of 1-1-1900 UTC - 6
     time = gmtime(&t);

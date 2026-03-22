@@ -620,6 +620,8 @@ variables to UL_CMD_WAIT
 bool ftl0_connection_received(char *from_callsign, char *to_callsign, uint8_t channel) {
     //trace_ftl0("FTL0: Connection for File Upload from: %s\n",from_callsign);
 
+    uint32_t now = getUnixTime(); // Get the time in seconds since the unix epoch
+
     /* Add the request, which initializes their uplink state machine. At this point we don't know the
      * file number, offset or dir node */
     bool rc = ftl0_add_request(from_callsign, channel);
@@ -640,7 +642,7 @@ bool ftl0_connection_received(char *from_callsign, char *to_callsign, uint8_t ch
     flag |= 1UL << FTL0_VERSION_BIT2;
     flag |= 1UL << FTL0_PFH_BIT; // Set the bit to require PFHs
 
-    login_data.login_time = htotl(getUnixTime());
+    login_data.login_time = htotl(now);
     login_data.login_flags = flag;
 
     rc = ftl0_make_packet(send_event_buffer.packet.data, (uint8_t *)&login_data, sizeof(login_data), frame_type);
@@ -661,6 +663,17 @@ bool ftl0_connection_received(char *from_callsign, char *to_callsign, uint8_t ch
     } else {
         trace_ftl0("FTL0:[%d]: Sending FTL0 LOGIN PKT\n",channel);
     }
+
+    /* Safety Check - we do this here after sending the connection packet, so that we respect the state machine in
+     * the ground station.  But we should never get to this point with a well behaved groundstation as we will
+     * not have send Open: if the clock is not set. A badly behaved ground station will probably repeat this in a loop,
+     * but there is not much we can do about that. */
+    if (now < CLOCK_MIN_UNIX_SECS) {
+        debug_print("** Could not login %s as the clock is not set\n", from_callsign);
+        ftl0_disconnect(from_callsign, channel);
+        return FALSE;
+    }
+
     return TRUE;
 }
 
@@ -1065,6 +1078,14 @@ int ftl0_process_data_end_cmd(ftl0_state_machine_t *state, uint8_t *data, int le
     if (rc == -1) {
         debug_print("Unable to link new file: %s : %s\n", new_file_name_with_path, red_strerror(red_errno));
         return ER_NO_ROOM;
+    }
+
+    /* We should never get here if the clock is not set, but if we do, then reject the upload */
+    uint32_t now = getUnixTime(); // Get the time in seconds since the unix epoch
+    if (now < CLOCK_MIN_UNIX_SECS) {
+        debug_print("** Could not add %s to dir as the clock is not set\n", new_file_name_with_path);
+        ReportToWatchdog(UplinkTaskWD);
+        return ER_NO_ROOM; // the clock is not set, we can't add anything to the dir
     }
 
     /* We pass just the filename without the path into the dir add function */
