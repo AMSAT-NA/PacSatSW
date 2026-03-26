@@ -392,6 +392,7 @@ static bool tx_make_packet(AX25_PACKET *packet,
 
 
 }
+
 /**
  * tx_send_ui_packet()
  * Create and queue an AX25 packet on the TX queue
@@ -411,17 +412,20 @@ bool tx_send_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid,
     TickType_t xTicksToWait = 0;
 
     if (block)
-        xTicksToWait = CENTISECONDS(1);
+        xTicksToWait = CENTISECONDS(20);
 
     BaseType_t xStatus = xQueueSendToBack(xTxPacketQueue, &tmp_packet_buffer,
                                           xTicksToWait);
     if (xStatus != pdPASS) {
         /* The send operation could not complete because the queue was full */
-        debug_print("TX QUEUE FULL: Could not add UI frame to Packet Queue\n");
-        // TODO - we should log this error and downlink in telemetry
+        debug_print("TX QUEUE FULL: Could not add UI frame to Packet Queue.\n");
+        ReportError(TxPacketDropped, FALSE, CharString,
+                    (int)"AX25: ERROR: UI Packet QUEUE FULL");
+        ReportToWatchdog(CurrentTaskWD);
         return false;
     }
 
+    ReportToWatchdog(CurrentTaskWD);
     return true;
 }
 
@@ -470,8 +474,9 @@ bool tx_send_packet(AX25_PACKET *packet, bool expedited, bool block,
     if (xStatus != pdPASS) {
         /*
          * The send operation could not complete because the queue was
-         * full.  The caller should log this error.
-         */
+         * full.  */
+        ReportError(TxPacketDropped, FALSE, CharString,
+                    (int)"AX25: ERROR: TX Packet QUEUE FULL");
         return false;
     }
 

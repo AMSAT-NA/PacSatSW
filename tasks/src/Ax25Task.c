@@ -141,13 +141,30 @@ portTASK_FUNCTION_PROTO(Ax25Task, pvParameters)
     ReportToWatchdog(Ax25TaskWD);
 //    printf("Initializing Ax25 Data Link Task\n");
 
+    // TODO - when we create this items it is a fatal error if we can not allocate them.  This could cause a boot loop.
+    //        of course, we should never get this situation unless the memory size changes somehow. But another solution
+    //        might be to retry with less channels.  Or to accept that the uplink wont work and the rest of the sat can carry
+    //        on.  So FATAL, in this case, would mean FATAL to that channel of the AX25 state machine and not the whole sat.
     for (chan = 0; chan < NUM_RX_CHANNELS; chan++) {
         /* create RTOS software timers for T1 and T3.  Both for each channel.*/
 
         timerT1[chan] = xTimerCreate("T1", AX25_TIMER_T1_PERIOD, FALSE,
                                      (void *)chan, ax25_t1_expired);
+        if (timerT1[chan] == NULL) {
+            /* The timer could not be created.  This is fatal and should only happen in test if we are short of memory at startup */
+            debug_print("FATAL ERROR: Could not create T1 Timer for channel %d\n",chan);
+            ReportError(RTOSfailure, TRUE, CharString,
+                        (int)"RTOS FATAL ERROR: Could not create T1 timer");
+
+        }
         timerT3[chan] = xTimerCreate("T3", AX25_TIMER_T3_PERIOD, FALSE,
                                      (void *)chan, ax25_t3_expired);
+        if (timerT3[chan] == NULL) {
+            /* The timer could not be created.  This is fatal and should only happen in test if we are short of memory at startup */
+            debug_print("FATAL ERROR: Could not create T3 Timer for channel %d\n",chan);
+            ReportError(RTOSfailure, TRUE, CharString,
+                         (int)"RTOS FATAL ERROR: Could not create T3 timer");
+       }
         ReportToWatchdog(Ax25TaskWD);
 
         /* Create a queue for I frames that we are sending */
@@ -156,7 +173,8 @@ portTASK_FUNCTION_PROTO(Ax25Task, pvParameters)
         if (xIFrameQueue[chan] == NULL) {
             /* The queue could not be created.  This is fatal and should only happen in test if we are short of memory at startup */
             debug_print("FATAL ERROR: Could not create IFRAME Queue for channel %d\n",chan);
-            //TODO - log this
+            ReportError(RTOSfailure, TRUE, CharString,
+                         (int)"RTOS FATAL ERROR: Could not create IFRAME Queue");
         }
         ReportToWatchdog(Ax25TaskWD);
     }
@@ -256,9 +274,6 @@ portTASK_FUNCTION_PROTO(Ax25Task, pvParameters)
  *
  * Returns void to be compatible with timer callbacks
  *
- * NOTE -  that ax25_status_buffer is declared static because allocating
- * a buffer of this size causes a crash when this is called from a
- * timer.
  */
 void ax25_send_status() {
     ReportToWatchdog(CurrentTaskWD);
@@ -292,10 +307,12 @@ void ax25_send_status() {
         if (channels_available) {
             trace_ftl0("SENDING: %s |%s|\n",BBSTAT, buffer);
 
-	    // TODO - handle return value.
-            tx_send_ui_packet(BBS_CALLSIGN, BBSTAT, PID_NO_PROTOCOL,
+            int rc = tx_send_ui_packet(BBS_CALLSIGN, BBSTAT, PID_NO_PROTOCOL,
 			      (uint8_t *)buffer, len, BLOCK,
 			      MODULATION_INVALID);
+            if (!rc) {
+                /* The send operation could not complete because the queue was full */
+            }
         } else {
             trace_ftl0("OPEN: Uplink is Full, nothing sent\n");
         }
@@ -380,7 +397,9 @@ void restart_timer(TimerHandle_t timer)
     // Block time of zero as this can not block
     timerT1Status = xTimerReset(timer, 0);
     if (timerT1Status != pdPASS) {
-        debug_print("ERROR: Failed to restart T1 Timer\n");
+        ReportError(RTOSfailure, FALSE, CharString,
+                                (int)"ERROR: Failed to restart T1 Timer");
+//        debug_print("ERROR: Failed to restart T1 Timer\n");
     }
 }
 
@@ -394,7 +413,8 @@ void stop_timer(TimerHandle_t timer)
     // Block time of zero as this can not block
     timerStatus = xTimerStop(timer, 0);
     if (timerStatus != pdPASS) {
-        debug_print("ERROR: Failed to stop T1 Timer\n");
+        ReportError(RTOSfailure, FALSE, CharString,
+                                (int)"ERROR: Failed to stop T1 Timer");
     }
 }
 
@@ -843,8 +863,8 @@ void ax25_state_wait_conn_prim(AX25_data_link_state_machine_t *state,
                                             CENTISECONDS(1));
                 if (xStatus != pdPASS) {
                     /* The send operation could not complete because the queue was full */
-                    debug_print("AX25: IFRAME QUEUE FULL Channel %d: Could not push back to IFrame Queue for frame received in wrong state\n",state->channel);
-                    // TODO - this can perhaps be ignored.  We are doing our best to conserve info received in the wrong state
+                    // debug_print("AX25: IFRAME QUEUE FULL Channel %d: Could not push back to IFrame Queue for frame received in wrong state\n",state->channel);
+                    // This can be ignored.  We are doing our best to conserve info received in the wrong state
                 }
                 debug_print("*** LOGIC ERROR?: Pushed I-Frame back on queue because Layer 3 Initiated while awaiting connection\n");
             }

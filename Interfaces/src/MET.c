@@ -78,7 +78,7 @@ void initMET() {
     /* start the timer */
     timerStatus = xTimerStart(handle, 0);
     if (timerStatus != pdPASS){
-        ReportError(RTOSfailure, FALSE, ReturnAddr, (int) initMET); /* failed to create the RTOS timer */
+        ReportError(RTOSfailure, FALSE, ReturnAddr, (int) initMET); /* failed to create the RTOS timer TODO - do we really just carry on here?  How about retrying after a wait? */
     }
 
     ResetAllWatchdogs(); // We have spent some time; better make sure the WDs are happy
@@ -147,7 +147,7 @@ static void METupdate(xTimerHandle x) {
     timestampSeconds++;
     secondsInOrbit++;
 
-    unixTime++; // TODO - this is a quick implementation before we have a real time clock
+    unixTime++; // This was initialized by the real time clock but we keep track of it here
     TicksAtLastSecond = xTaskGetTickCount();
     if(METcount > MET_STABLE_TIME*2) {  // No longer a short boot.
         ClearShortBootFlag();

@@ -537,7 +537,7 @@ bool updateCRC(uint32_t address, uint32_t size) {
         // read a data word from MRAM
         NVstat = readNV(&datum, 4, NVConfigData, address);
         if (NVstat == FALSE) {
-            ReportError(MRAMread, FALSE, ReturnAddr, (int) updateCRC); // NVread service failure
+            ReportError(MRAMread, FALSE, ReturnAddr, (int) updateCRC); // NVread service failure, TODO - should this be the MRAMCrc error code?  Does it matter?
             returnCode = FALSE;
         }
         //todo: Calculate

@@ -239,19 +239,23 @@ void ReportError(ErrorType_t code, bool fatal, ErrorInfoType_t infoType, int inf
             break;
         }
         case MRAMcrc:
-            nonfatalCount = localErrorCollection.MramCRCCnt++; /* This it for downlinking */
+            nonfatalCount = localErrorCollection.MramCRCCnt++; /* This is for downlinking */
             break;
         case MRAMread:
-            nonfatalCount = localErrorCollection.MramRdErrorCnt++; /* This it for downlinking */
+            nonfatalCount = localErrorCollection.MramRdErrorCnt++; /* This is for downlinking */
             break;
         case MRAMwrite:
-            nonfatalCount = localErrorCollection.MramWtErrorCnt++; /* This it for downlinking */
+            nonfatalCount = localErrorCollection.MramWtErrorCnt++; /* This is for downlinking */
             break;
         case TxPacketDropped:
-            nonfatalCount = localErrorCollection.TxDroppedPkts++; /* This it for downlinking */
+            nonfatalCount = localErrorCollection.TxDroppedPkts++; /* This is for downlinking */
+            break;
+        case RTOSfailure:
+            // This will get counted in nonFatalErrors and cause a reboot if there are many of them
             break;
         default:
-            nonfatalCount = 0;
+            nonfatalCount = 0; /* This means that ONLY the SOFT error types listed above can trigger a reboot if there are too many errors.  All other
+            reported SOFT errors are for debugging only. */
             break;
         }
 

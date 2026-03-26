@@ -68,6 +68,9 @@ errWODFrame_t errwodFrame;
 
 uint8_t payload_counter = 0;
 
+/* List the payload send sequence.  These are sent in pairs.
+ * TODO: We should store payloads and send the last and the latest if two of the same type are listed one after the other.
+ * For now, do not list two payloads of the same type one after the other or we will send duplicates. */
 uint8_t safe_mode_payload_sequence[] = {
      DIAGNOSTIC_PAYLOAD,
      RT_HK_PAYLOAD,
@@ -85,19 +88,16 @@ uint8_t safe_mode_payload_sequence[] = {
 
 uint8_t filesystem_mode_payload_sequence[] = {
      RT_HK_PAYLOAD,
-     RT_HK_PAYLOAD,
+     RT_EXP_PAYLOAD,
      RT_HK_PAYLOAD,
      MAX_VALS_PAYLOAD,
      RT_HK_PAYLOAD,
+     RT_EXP_PAYLOAD,
      RT_HK_PAYLOAD,
-     RT_HK_PAYLOAD,
-     MIN_VALS_PAYLOAD
+     MIN_VALS_PAYLOAD,
 };
 
 uint8_t science_mode_payload_sequence[] = {
-     RT_EXP_PAYLOAD,
-     RT_EXP_PAYLOAD,
-     RT_EXP_PAYLOAD,
      RT_EXP_PAYLOAD,
      RT_HK_PAYLOAD,
 };
