@@ -338,7 +338,8 @@ void ax25_t1_expired(TimerHandle_t xTimer)
     xStatus = xQueueSendToBack(xRxEventQueue, &timer_event, 0);
     if( xStatus != pdPASS ) {
         debug_print("EVENT QUEUE FULL: Could not add T1 expire to Event Queue\n");
-        // TODO - we should log this error and downlink in telemetry
+        // TODO - we should log this error and handle it and downlink in telemetry.  This is not fatal but it messes up the AX25 state machine logic
+        // However, given this is called from a timer, we do not want to wait around here and retry.
     }
     taskYIELD();
 }
