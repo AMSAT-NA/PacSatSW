@@ -21,6 +21,7 @@
 #include <time.h>
 #include "pacsat.h"
 #include "MET.h"
+#include "mram.h"
 #include "MRAMmap.h"
 #include "nonvolManagement.h"
 #include "redposix.h"
@@ -175,64 +176,71 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
     ResetAllWatchdogs();
 //    debug_print("Initializing Telem and Control Task\n");
 
-
+    portBASE_TYPE timerStatus = pdFAIL;
     /* Setup a timer to send the PB status periodically */
-
-    /*
-     * create a RTOS software timer - TODO period should be in MRAM
-     * and changeable from the ground using xTimerChangePeriod()
-     */
     timerPbStatus = xTimerCreate("PB STATUS", SECONDS(ReadMRAMPBStatusFreq()),
                                  TRUE, NULL,
                                  tac_pb_status_callback); // auto reload timer
-    // Block time of zero as this can not block
-    portBASE_TYPE timerStatus = xTimerStart(timerPbStatus, 0);
-    if (timerStatus != pdPASS) {
+    if (timerPbStatus != NULL) {
+        // Block time of zero as this can not block
+        timerStatus = xTimerStart(timerPbStatus, 0);
+        if (timerStatus != pdPASS) {
+            ReportError(RTOSfailure, FALSE, CharString,
+                        (int)"TAC: ERROR: Could not start PB Timer");
+        }
+    } else {
         ReportError(RTOSfailure, FALSE, CharString,
-                    (int)"ERROR: Failed in starting PB Status Timer");
-        // TODO - it's possible this might fail.  Somehow we should
-        // recover from that.
+                    (int)"TAC: ERROR: Could not create PB Timer");
     }
 
     /* Setup a timer to send the uplink status periodically */
-    /*
-     * create a RTOS software timer - TODO period should be in MRAM
-     * and changeable from the ground using xTimerChangePeriod()
-     */
-     timerUplinkStatus = xTimerCreate("UPLINK STATUS",
-                                      SECONDS(ReadMRAMFTL0StatusFreq()), TRUE,
-                                      NULL,
-                                      tac_ftl0_status_callback);
-     // Block time of zero as this can not block
-     timerStatus = xTimerStart(timerUplinkStatus, 0);
-     if (timerStatus != pdPASS) {
-         ReportError(RTOSfailure, FALSE, CharString,
-                     (int)"ERROR: Failed in starting Uplink Status Timer");
-         debug_print("ERROR: Failed in init PB Status Timer\n");
-         // TODO - it's possible this might fail.  Somehow we should
-         // recover from that.
-     }
+    timerUplinkStatus = xTimerCreate("UPLINK STATUS",
+                                     SECONDS(ReadMRAMFTL0StatusFreq()), TRUE,
+                                     NULL,
+                                     tac_ftl0_status_callback);
+    if (timerUplinkStatus != NULL) {
+        // Block time of zero as this can not block
+        timerStatus = xTimerStart(timerUplinkStatus, 0);
+        if (timerStatus != pdPASS) {
+            ReportError(RTOSfailure, FALSE, CharString,
+                        (int)"ERROR: Failed in starting Uplink Status Timer");
+        }
+    } else {
+        ReportError(RTOSfailure, FALSE, CharString,
+                    (int)"TAC: ERROR: Could not create Uplink Status Timer");
+    }
 
     /* Create a periodic timer to send telemetry */
     timerTelemSend = xTimerCreate("TelemSend",
                                   SECONDS(ReadMRAMTelemFreq()), TRUE,
                                   NULL, tac_telem_timer_callback);
-    // Block time of zero as this can not block
-    timerStatus = xTimerStart(timerTelemSend, 0);
-    if (timerStatus != pdPASS) {
+    if (timerTelemSend != NULL) {
+        // Block time of zero as this can not block
+        timerStatus = xTimerStart(timerTelemSend, 0);
+        if (timerStatus != pdPASS) {
+            ReportError(RTOSfailure, FALSE, CharString,
+                        (int)"ERROR: Failed in starting Telem send Timer");
+        }
+    } else {
         ReportError(RTOSfailure, FALSE, CharString,
-                    (int)"ERROR: Failed in starting Telem Timer");
+                    (int)"TAC: ERROR: Could not create Telem send Timer");
     }
+
 
     /* Create a periodic timer to send time */
     timerTimeSend = xTimerCreate("TimeSend",
                                  SECONDS(ReadMRAMTimeFreq()), TRUE,
-                                  NULL, tac_time_timer_callback);
-    // Block time of zero as this can not block
-    timerStatus = xTimerStart(timerTimeSend, 0);
-    if (timerStatus != pdPASS) {
+                                 NULL, tac_time_timer_callback);
+    if (timerTimeSend != NULL) {
+        // Block time of zero as this can not block
+        timerStatus = xTimerStart(timerTimeSend, 0);
+        if (timerStatus != pdPASS) {
+            ReportError(RTOSfailure, FALSE, CharString,
+                        (int)"ERROR: Failed in starting Send Time Timer");
+        }
+    } else {
         ReportError(RTOSfailure, FALSE, CharString,
-                    (int)"ERROR: Failed in starting Send Time Timer");
+                    (int)"TAC: ERROR: Could not create Send Time Timer");
     }
 
 
@@ -240,46 +248,65 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
     timerWodSave = xTimerCreate("WodSave",
                                 SECONDS(ReadMRAMWODFreq()), TRUE,
                                   NULL, tac_wod_save_timer_callback);
-    // Block time of zero as this can not block
-    timerStatus = xTimerStart(timerWodSave, 0);
-    if (timerStatus != pdPASS) {
+    if (timerWodSave != NULL) {
+        // Block time of zero as this can not block
+        timerStatus = xTimerStart(timerWodSave, 0);
+        if (timerStatus != pdPASS) {
+            ReportError(RTOSfailure, FALSE, CharString,
+                        (int)"ERROR: Failed in starting WOD Save Timer");
+        }
+    } else {
         ReportError(RTOSfailure, FALSE, CharString,
-                    (int)"ERROR: Failed in starting WOD Save Timer");
+                    (int)"TAC: ERROR: Could not create WOD Save Timer");
     }
 
     /* Create a periodic timer for maintenance */
     timerMaintenance = xTimerCreate("Maintenance",
                                     TAC_TIMER_MAINTENANCE_PERIOD, TRUE,
                                     NULL, tac_maintenance_timer_callback);
-    // Block time of zero as this can not block
-    timerStatus = xTimerStart(timerMaintenance, 0);
-    if (timerStatus != pdPASS) {
+    if (timerMaintenance != NULL) {
+        // Block time of zero as this can not block
+        timerStatus = xTimerStart(timerMaintenance, 0);
+        if (timerStatus != pdPASS) {
+            ReportError(RTOSfailure, FALSE, CharString,
+                        (int)"ERROR: Failed in starting Maintenance Timer");
+        }
+    } else {
         ReportError(RTOSfailure, FALSE, CharString,
-                    (int)"ERROR: Failed in starting Maintenance Timer");
+                    (int)"TAC: ERROR: Could not create Maintenance Timer");
     }
 
     /* Create a periodic timer for file queues */
     timerCheckFileQueues = xTimerCreate("Check File Queues",
                                     TAC_TIMER_CHECK_FILE_QUEUES_PERIOD, TRUE,
                                     NULL, tac_check_file_queues_timer_callback);
-    // Block time of zero as this can not block
-    timerStatus = xTimerStart(timerCheckFileQueues, 0);
-    if (timerStatus != pdPASS) {
+    if (timerCheckFileQueues != NULL) {
+        // Block time of zero as this can not block
+        timerStatus = xTimerStart(timerCheckFileQueues, 0);
+        if (timerStatus != pdPASS) {
+            ReportError(RTOSfailure, FALSE, CharString,
+                        (int)"ERROR: Failed in starting File Queue Check Timer");
+        }
+    } else {
         ReportError(RTOSfailure, FALSE, CharString,
-                    (int)"ERROR: Failed in starting File Queue Check Timer");
+                    (int)"TAC: ERROR: Could not create File Queue Check Timer");
     }
 
     /* Create a periodic timer for reading the ADC */
     timerADC = xTimerCreate("ADC",
                             TAC_TIMER_ADC_PERIOD, TRUE,
                             NULL, tac_adc_timer_callback);
+    if (timerADC != NULL) {
     // Block time of zero as this can not block
     timerStatus = xTimerStart(timerADC, 0);
     if (timerStatus != pdPASS) {
         ReportError(RTOSfailure, FALSE, CharString,
                     (int)"ERROR: Failed in starting ADC Timer");
     }
-
+    } else {
+        ReportError(RTOSfailure, FALSE, CharString,
+                    (int)"TAC: ERROR: Could not create ADC Timer");
+    }
 
     /*
      * After a short delay for things to settle, send the status to
@@ -586,13 +613,12 @@ void tac_science_mode_timer_callback(TimerHandle_t xTimer)
 void tac_stop_science_mode_timer() {
     portBASE_TYPE timerStatus;
 
-    // Stop the Science mode timer, but f this timer is not actually runnning we will crash. So check first.
+    // Stop the Science mode timer, but if this timer is not actually runnning we will crash. So check first.
     if (timerScienceMode != NULL && xTimerIsTimerActive(timerScienceMode) != pdFALSE) {
         timerStatus = xTimerStop(timerScienceMode, pdMS_TO_TICKS(100));
         if (timerStatus != pdPASS) {
             ReportError(RTOSfailure, FALSE, CharString,
                         (int)"ERROR: Failed to stop Science Mode Timer");
-            // TODO - log this or perhaps try again with longer delay and then reboot if that fails.
         }
     }
 
@@ -692,8 +718,7 @@ void tac_collect_telemetry(telem_buffer_t *buffer)
     }
 #endif
 #ifdef AFSK_HARDWARE
-    // TODO - these need to be in a suitable format for the telemetry.  e.g. 0-255 is -30 to 105.
-    // The value in the array is in C and is signed
+    // The temp value in the array is in deg C and is signed
 //    printf("CPU temp: %d\n", board_temps[TEMPERATURE_VAL_CPU]);
 //    printf("PA temp: %d\n", board_temps[TEMPERATURE_VAL_PA]);
 //    printf("Power temp: %d\n", board_temps[TEMPERATURE_VAL_POWER]);
@@ -708,7 +733,6 @@ void tac_collect_telemetry(telem_buffer_t *buffer)
 
     /********** commonRtWodPayload_t - These values are static values and not suitable to calculate min / max ***********/
 
-    // TODO - all these MRAM vars can be cached in memory and not read over SPI for every telem check.  e,g, like spacecraftMode.
     buffer->common2.AutoSafeAllowed = ReadMRAMBoolState(StateAutoSafeAllow);
     buffer->common2.AutoSafeModeActive = ReadMRAMBoolState(StateAutoSafe);
     buffer->common2.pbEnabled = ReadMRAMBoolState(StatePbEnabled);
@@ -728,9 +752,13 @@ void tac_collect_telemetry(telem_buffer_t *buffer)
     buffer->common2.TLMresets = 0; // TODO - implement with clearMinMax() function and command
     buffer->common2.swCmds = htotl(getCmdRingTelem());
     buffer->common2.swCmdCnt = GetSWCmdCount();
-    buffer->common2.MRAMstatus = 0; // TODO connect this to status?  What is it?  Do we need 4?
+    buffer->common2.MRAMstatus0 = readMRAMStatus(0);
+    buffer->common2.MRAMstatus1 = readMRAMStatus(1);
+    buffer->common2.MRAMstatus2 = readMRAMStatus(2);
+    buffer->common2.MRAMstatus3 = readMRAMStatus(3);
 
-    // Errors TODO - make sure that when these are written in error handling they were converted from host to little endian
+    /* We need to make sure that when these are written in error handling they were converted from host to little endian
+     * Note: that we do not do that for the TMS570 hardware values like RAMCorAddr1.  These are left big endian */
     buffer->errors = localErrorCollection;
 
     // TODO - calculate min max and store in MRAM
@@ -873,7 +901,6 @@ void tac_store_wod() {
 
     int len = 0;
     uint8_t *frame;
-    /* TODO - Use a Type 1 frame - but this should be the WOD layout */
     wodFrame.header = buffer->header;
     wodFrame.HKWod.common = buffer->common;
     wodFrame.HKWod.common2 = buffer->common2;
@@ -956,7 +983,7 @@ void tac_roll_file(char *file_name_with_path, char *folder, char *prefix) {
 
     // Just in case the file already exists, we try to remove it and ignore any errors
     red_unlink(file_name);
-    //TODO - use red_rename() here
+    //TODO - use red_rename() here?  Currently that feature is not enabled, but we are recreating it here
     // Then we rename the file
     int rc = red_link(file_name_with_path, file_name);
     if (rc == -1) {
@@ -964,7 +991,10 @@ void tac_roll_file(char *file_name_with_path, char *folder, char *prefix) {
         switch (red_errno) {
         case RED_EINVAL: // not mounted
         case RED_EIO: // disk io, we hope it is temporary
-            //TODO - log this error, so that if a count is reached we reboot to try to fix this
+            //log this error, so that if a count is reached we reboot to try to fix this
+            ReportError(REDFSIOerror, FALSE, CharString,
+                        (int)"ERROR: Disk IO Error linking file after rolling");
+
         case RED_ENOENT: // File does not exist, so we have been called incorrectly
         case RED_ENOSPC: //this is because we ran out of space.  So exit and we will try again next time
             return;
@@ -979,7 +1009,10 @@ void tac_roll_file(char *file_name_with_path, char *folder, char *prefix) {
     rc = red_unlink(file_name_with_path);
     if (rc == -1) {
         debug_print("Rolled file but unable to remove tmp que file: %s : %s\n", file_name_with_path, red_strerror(red_errno));
-        // TODO this is not fatal but there needs to be a way to clean this up or we will keep trying to add it to the dir
+        // This is not fatal but there needs to be a way to clean this up or we will keep trying to add it to the dir. So we log it
+        // and if it happens repeatedly we will reboot to heopefully fix it
+        ReportError(REDFSIOerror, FALSE, CharString,
+             (int)"ERROR: Disk IO Error removing temp file after rolling");
         return;
     }
 

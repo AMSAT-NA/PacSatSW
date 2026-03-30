@@ -695,8 +695,6 @@ int pb_handle_dir_request(char *from_callsign, uint8_t *data, int len) {
  *
  * Returns TRUE if the station was added to the PB, otherwise it
  * returns FALSE
- * TODO - this does not seem to be true from the logic below.  e.g. if there is an error transmitting rc is set to
- * FALSE and that will be returned.  Even though the station may have been added to the PB.
  *
  */
 int pb_handle_file_request(char *from_callsign, uint8_t *data, int len) {
@@ -731,9 +729,9 @@ int pb_handle_file_request(char *from_callsign, uint8_t *data, int len) {
         file_size = dir_fs_get_file_size(file_name_with_path);
         if (file_size == -1) {
             // We could not get the file size
-            // TODO - we should either remove the file from the directory as well, or send a temporary error
-            //        This will permanently mark the file as unavailable at the ground station, but it is still
-            //        in the DIR.  Most likely the disk was full or another process held a lock
+            // We could remove the file from the directory as well, or send a temporary error
+            // This will permanently mark the file as unavailable at the ground station, but it is still
+            // in the DIR.  Most likely the disk was full or another process held a lock
             rc = pb_send_err(from_callsign, PB_ERR_FILE_NOT_AVAILABLE);
             if (rc != TRUE) {
                 debug_print("\n Error : Could not send ERR Response to TNC \n");
@@ -753,7 +751,7 @@ int pb_handle_file_request(char *from_callsign, uint8_t *data, int len) {
             rc = pb_send_ok(from_callsign);
             if (rc != TRUE) {
                 debug_print("\n Error : Could not send OK Response to TNC \n");
-                //exit(FALSE);
+                // Station is on the PB but we failed to send a packet to confirm
             }
         } else {
             // the protocol says NO -1 means temporary problem. e.g. shut and -2 means permanent
@@ -762,7 +760,7 @@ int pb_handle_file_request(char *from_callsign, uint8_t *data, int len) {
                 debug_print("\n Error : Could not send ERR Response to TNC \n");
                 //exit(FALSE);
             }
-            return FALSE;
+            return FALSE; // station was not added to the PB
         }
         break;
 
@@ -807,7 +805,7 @@ int pb_handle_file_request(char *from_callsign, uint8_t *data, int len) {
             rc = pb_send_ok(from_callsign);
             if (rc != TRUE) {
                 debug_print("Error : Could not send OK Response to TNC \n");
-                //exit(FALSE);
+                // station is added to the PB but OK not sent
             }
         } else {
             return FALSE;
@@ -825,7 +823,7 @@ int pb_handle_file_request(char *from_callsign, uint8_t *data, int len) {
     }
 
     } /* switch */
-    return rc;
+    return TRUE;
 }
 
 /**
@@ -955,9 +953,9 @@ int pb_next_action() {
             uint32_t offset = pb_list[current_station_on_pb].offset;
             int data_len = pb_make_dir_broadcast_packet(node, data_buffer, &offset);
             if (data_len == 0) {
-                debug_print("ERROR: ** Could not create the test DIR Broadcast frame\n");
+                debug_print("ERROR: ** Could not create the test DIR Broadcast frame because file could not be read\n");
                 /* To avoid a loop where we keep hitting this error, we remove the station from the PB */
-                // TODO - this only occirs if we cant read from file system, so requested file is corrupt perhaps.  Mark as unavailable?
+                // This only occurs if we cant read from file system, so requested file is corrupt or has been purged perhaps.
                 pb_remove_request(current_station_on_pb);
                 return FALSE;
             }
@@ -972,7 +970,6 @@ int pb_next_action() {
             if (rc != TRUE) {
                 debug_print("ERROR: Could not send broadcast packet to TNC \n");
                 /* To avoid a loop where we keep hitting this error, we remove the station from the PB */
-                // TODO - we could not send the packet.  We should log/report it in telemetry
                 pb_remove_request(current_station_on_pb);
                 return FALSE;
             }
@@ -1226,7 +1223,7 @@ int pb_broadcast_next_file_chunk(DIR_NODE *node, uint32_t offset, int length, ui
         length = PB_FILE_DEFAULT_BLOCK_SIZE;
     uint32_t number_of_bytes_read = length;
 
-    // TODO - this is where the logic would go to check the block size that the client sends and potentially use that
+    // This is where the logic would go to check the block size that the client sends and potentially use that
 
     /* Read the data into the mram_data_bytes buffer after the header bytes */
     if (number_of_bytes_read > file_size - offset)
@@ -1251,12 +1248,9 @@ int pb_broadcast_next_file_chunk(DIR_NODE *node, uint32_t offset, int length, ui
 
     int data_len = pb_make_file_broadcast_packet(node, data_buffer, number_of_bytes_read, offset, chunk_includes_last_byte);
     if (data_len == 0) {
-        /* Hmm, something went badly wrong here.
-         * TODO: We better remove this request or we will keep
-         * hitting this error.  It's unclear what went wrong do we mark the file as not available?
-         * Or just remove this request without an error?  But then the client will automatically
-         * request this file again.. */
-        debug_print("ERROR: ** Could not create the test DIR Broadcast frame\n");
+        /* Hmm, it looks like we can't actually generate this error.  If we can generate it in future then
+         * we need to avoid being in a loop, as the station will request it again. */
+        debug_print("ERROR: ** Could not create the DIR Broadcast frame\n");
         return TRUE;
     }
 

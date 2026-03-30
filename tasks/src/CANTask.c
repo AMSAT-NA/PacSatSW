@@ -235,7 +235,8 @@ static canIfRegs *CANGetIfRegs(int canNum)
 
     if (xSemaphoreTake(can[canNum].IFSemaphore,
                        WATCHDOG_SHORT_WAIT_TIME) != pdTRUE) {
-        /* If we can't get it within a few seconds...trouble */ // TODO - OK, but if its trouble, how do we handle it.  This just logs it.  The calling function returns false, but above that the return code is not checked.
+        /* If we can't get it within a few seconds...trouble */
+        // TODO - OK, but if its trouble, how do we handle it.  This just logs it.  The calling function returns false, but above that the return code is not checked.
         ReportToWatchdog(CurrentTaskWD);
         ReportError(CANInUse, false, TaskNumber, 0);
         return NULL;

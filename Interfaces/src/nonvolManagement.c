@@ -440,19 +440,19 @@ uint8_t ReadMRAMLastSpacecraftMode(void){
     READ_UINT8(LastSpacecraftMode,SpacecraftSafeMode);
 }
 
-void WriteMRAMReceiverMode(uint8_t rxNum,uint8_t val){
+void WriteMRAMReceiverConfig(uint8_t rxNum,uint8_t val){
     writeNV(&val, sizeof(uint8_t), NVConfigData,
-                (int) &(ptr->StatesInMRAM.RxChannelMode[rxNum][0]));
+                (int) &(ptr->StatesInMRAM.RxChannelConfig[rxNum][0]));
     writeNV(&val, sizeof(uint8_t), NVConfigData,
-                (int) &(ptr->StatesInMRAM.RxChannelMode[rxNum][1]));
+                (int) &(ptr->StatesInMRAM.RxChannelConfig[rxNum][1]));
  }
 
-uint8_t ReadMRAMReceiverMode(uint8_t rxNum){
+uint8_t ReadMRAMReceiverConfig(uint8_t rxNum){
     uint8_t val1, val2;
     readNV(&val1, sizeof(uint8_t), NVConfigData,
-            (int) &(ptr->StatesInMRAM.RxChannelMode[rxNum][0]));
+            (int) &(ptr->StatesInMRAM.RxChannelConfig[rxNum][0]));
     readNV(&val2, sizeof(uint8_t), NVConfigData,
-            (int) &(ptr->StatesInMRAM.RxChannelMode[rxNum][1]));
+            (int) &(ptr->StatesInMRAM.RxChannelConfig[rxNum][1]));
     if (val1 == val2)
         return val1;
     else

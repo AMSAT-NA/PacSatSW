@@ -49,7 +49,6 @@ uint16_t getEpoch(void);
 uint32_t getSecondsInOrbit(void);
 void SaveSecondsInOrbit(); // Periodically called to ensure current value is in NVRam. Also look for things to do at this time
 
-// TODO - these are for debugging until we have a Real Time Clock
 uint32_t getUnixTime(void);
 void setUnixTime(uint32_t time_in_seconds);
 

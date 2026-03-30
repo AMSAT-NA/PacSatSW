@@ -78,7 +78,8 @@ void initMET() {
     /* start the timer */
     timerStatus = xTimerStart(handle, 0);
     if (timerStatus != pdPASS){
-        ReportError(RTOSfailure, FALSE, ReturnAddr, (int) initMET); /* failed to create the RTOS timer TODO - do we really just carry on here?  How about retrying after a wait? */
+        debug_print("FATAL ERROR: Can not start the MET timer.\n");
+        ReportError(RTOSfailure, FALSE, ReturnAddr, (int) initMET); /* failed to create the RTOS timer.  This is a program logic bug as this is should only fail if not enough memory */
     }
 
     ResetAllWatchdogs(); // We have spent some time; better make sure the WDs are happy

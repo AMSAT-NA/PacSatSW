@@ -11,6 +11,6 @@ typedef struct  __attribute__((__packed__)) _minSpecific_t {
     uint16_t minmaxResetEpoch;       //Offset=48
     uint32_t minmaxResetSecs;       //Offset=64
     uint8_t minCRCerror;       //Offset=96
-    uint8_t Pad192[3];       //Offset=104
+    uint8_t pad4[3];       //Offset=104
 } minSpecific_t; // Total Size=128 bits or 16 bytes with 0 left over
 #endif

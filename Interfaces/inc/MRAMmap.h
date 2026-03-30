@@ -79,14 +79,14 @@ typedef struct {
     uint32_t PostLVTimeout[2];
     uint16_t EclipseActionCommanded[2];
     uint32_t HighestFileNumber[2];
-    /* RxChannelMode
+    /* RxChannelConfig
      * 8 bits for each channel
      * Bit 0/1: 00 - No PB, 01 - PB supported, 10 - PB for Command stations only,
      * Bits 2/3: 00 - No FTL0, 01 FTL0 supported, 10 FTL for Command stations only,
      * Bits 4/5: 00 - no digi, 01 - via Digi Callsign, 10 - APRS Digi, 11 - Digi All
      * Bits 6/7: Reserved */
-    /* TODO - is this used for anything? They are planned to be used to allow separate config of each channel. G0KLA */
-    uint32_t RxChannelMode[4][2];
+    /* These are currently unused but planned to be used to allow separate config of each channel. G0KLA */
+    uint32_t RxChannelConfig[4][2];
     uint16_t PBStatusFrequency[2];
     uint16_t PBClientTimeout[2];
     uint16_t FTL0StatusFrequency[2];

@@ -97,8 +97,8 @@ void WriteMRAMSpacecraftMode(uint8_t size);
 uint8_t ReadMRAMSpacecraftMode(void);
 void WriteMRAMLastSpacecraftMode(uint8_t size);
 uint8_t ReadMRAMLastSpacecraftMode(void);
-void WriteMRAMReceiverMode(uint8_t rxNum,uint8_t val);
-uint8_t ReadMRAMReceiverMode(uint8_t rxNum);
+void WriteMRAMReceiverConfig(uint8_t rxNum,uint8_t val);
+uint8_t ReadMRAMReceiverConfig(uint8_t rxNum);
 
 #define ReadMRAMSafeMode() ReadMRAMBoolState(StateSafeMode)
 #define WriteMRAMAutoSafe(value) WriteMRAMBoolState(StateAutoSafe,value)

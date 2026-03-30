@@ -48,9 +48,9 @@ typedef enum _error {
 	,TxPacketDropped
 	,RxPacketDropped
 	,CANInUse
-	,EndOfErrors //34 -TODO -- this used to have a max of 32,  Make sure that is not still the case in any telemetry
+	,REDFSIOerror
+	,EndOfErrors //34 -TODO -- this used to have a max of 32,  Need to reduce to 32 or extend the 5 bits in the telemetry that store this code
 } ErrorType_t;
-//#define EndOfErrors I2C2InUse+1
 
 /* These are the structures that we downlink to the ground...32 bits each*/
 #if 0
@@ -200,7 +200,7 @@ typedef enum _erInfoType {
 /* Public interfaces to the error support */
 
 void InitErrors(void);
-void ReportError(ErrorType_t code, bool fatal, ErrorInfoType_t info, int data);
+void ReportError(ErrorType_t code, bool fatal, ErrorInfoType_t info, uint32_t data);
 void RotateDiagnosticDownlink();
 void RecordNewTask(uint32_t taskNo);
 void ClearShortBootFlag(void);

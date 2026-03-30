@@ -9,6 +9,6 @@ typedef struct  __attribute__((__packed__)) _maxSpecific_t {
     uint32_t maxTimestampUptime;       //Offset=0
     uint16_t maxTimestampEpoch;       //Offset=32
     uint8_t maxCRCerror;       //Offset=48
-    uint8_t pad0;       //Offset=56
+    uint8_t pad3;       //Offset=56
 } maxSpecific_t; // Total Size=64 bits or 8 bytes with 0 left over
 #endif

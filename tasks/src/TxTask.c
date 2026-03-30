@@ -115,8 +115,6 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
 
         GPIOSetOn(LED1);
         GPIOSetOn(SSPAPower);
-        // FIXME - do we need a delay here?
-        //vTaskDelay(MILLISECONDS(1));
 
         /* Transmit until we have no more packets. */
         while (xStatus == pdPASS) {

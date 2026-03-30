@@ -338,8 +338,10 @@ void ax25_t1_expired(TimerHandle_t xTimer)
     xStatus = xQueueSendToBack(xRxEventQueue, &timer_event, 0);
     if( xStatus != pdPASS ) {
         debug_print("EVENT QUEUE FULL: Could not add T1 expire to Event Queue\n");
-        // TODO - we should log this error and handle it and downlink in telemetry.  This is not fatal but it messes up the AX25 state machine logic
+        // we log this error and downlink in telemetry.  This is not fatal but it messes up the AX25 state machine logic
         // However, given this is called from a timer, we do not want to wait around here and retry.
+        ReportError(RTOSfailure, FALSE, CharString,
+                            (int)"AX25: ERROR: Could not add RxEvent to Queue");
     }
     taskYIELD();
 }
@@ -358,7 +360,9 @@ void ax25_t3_expired(TimerHandle_t xTimer)
     xStatus = xQueueSendToBack(xRxEventQueue, &timer_event, 0);
     if(xStatus != pdPASS) {
         debug_print("EVENT QUEUE FULL: Could not add T3 expire to Event Queue\n");
-        // TODO - we should log this error and downlink in telemetry
+        ReportError(RTOSfailure, FALSE, CharString,
+                            (int)"AX25: ERROR: Could not add RxEvent to Queue");
+
     }
     taskYIELD();
 }
@@ -473,11 +477,12 @@ void ax25_process_lm_frame(uint8_t channel)
         /* Add to the queue and wait for 10ms to see if space is available */
         BaseType_t xStatus = xQueueSendToBack(xPbPacketQueue,
                                               &ax25_radio_buffer,
-                                              CENTISECONDS(1));
+                                              CENTISECONDS(10));
         if (xStatus != pdPASS) {
             /* The send operation could not complete because the queue was full */
             debug_print("AX25: PB QUEUE FULL: Could not add to Packet Queue\n");
-            // TODO - we should log this error and downlink in telemetry
+            ReportError(RTOSfailure, FALSE, CharString,
+                                (int)"AX25: ERROR: Could not add packet to PB Queue");
         }
     } else if (ReadMRAMBoolState(StateDigiEnabled)) {
         if (dp->via_callsign[0] != 0) {
@@ -494,7 +499,7 @@ void ax25_process_lm_frame(uint8_t channel)
                 ax25_radio_buffer.bytes[20] |= 0x80;
                 BaseType_t xStatus = xQueueSendToBack(xTxPacketQueue,
                                                       &ax25_radio_buffer,
-                                                      CENTISECONDS(1));
+                                                      CENTISECONDS(10));
                 ReportToWatchdog(CurrentTaskWD);
 
                 if (xStatus != pdPASS) {
@@ -503,7 +508,8 @@ void ax25_process_lm_frame(uint8_t channel)
                      * the queue was full
                      */
                     debug_print("TX QUEUE FULL: Could not add Digi UI frame to Packet Queue\n");
-                    // TODO - we should log this error and downlink in telemetry
+                    ReportError(RTOSfailure, FALSE, CharString,
+                                        (int)"AX25: ERROR: Could not add Digi UI Frame to Queue");
                 }
             }
         }
@@ -563,11 +569,12 @@ bool ax25_send_event(AX25_data_link_state_machine_t *state,
     if (packet != NULL)
         ax25_copy_packet(packet, &send_event_buffer.packet);
     xStatus = xQueueSendToBack(xUplinkEventQueue, &send_event_buffer,
-                               CENTISECONDS(1) );
+                               CENTISECONDS(10) );
     if(xStatus != pdPASS) {
         /* The send operation could not complete because the queue was full */
         debug_print("UPLINK QUEUE FULL: Could not add to Event Queue\n");
-        // TODO - we should log this error and downlink in telemetry
+        ReportError(RTOSfailure, FALSE, CharString,
+                            (int)"AX25: ERROR: Could not add Event to Uplink Queue");
         return FALSE;
     }
     taskYIELD();
@@ -588,11 +595,12 @@ bool ax25_send_lm_event(AX25_data_link_state_machine_t *state,
     lm_event.rx_channel = state->channel;
     lm_event.primitive = prim;
     lm_event.error_num = NO_ERROR;
-    xStatus = xQueueSendToBack(xRxEventQueue, &lm_event, CENTISECONDS(1));
+    xStatus = xQueueSendToBack(xRxEventQueue, &lm_event, CENTISECONDS(10));
     if(xStatus != pdPASS) {
         /* The send operation could not complete because the queue was full */
         debug_print("RX EVENT QUEUE FULL: Could not add to Event Queue\n");
-        // TODO - we should log this error and downlink in telemetry
+        ReportError(RTOSfailure, FALSE, CharString,
+                            (int)"AX25: ERROR: Could not add Event to Queue");
         return FALSE;
     }
     taskYIELD();
@@ -753,8 +761,6 @@ void ax25_state_disc_packet(AX25_data_link_state_machine_t *state,
 
             // Send DL_CONNECT_Indication to Layer 3
             ax25_send_event(state, DL_CONNECT_Indicate, packet, NO_ERROR);
-            // TODO - what action to take if the return code is FALSE
-            // and we can not send the event.
             // NOT IMPLEMENTED - SRT and T1V are not calculated and set
 
             // Make sure T1 is stopped as we start a new connection
@@ -1714,22 +1720,22 @@ void iframe_pops_off_queue(AX25_data_link_state_machine_t *state,
         // push iframe back on queue
         trace_dl("POP Iframe, but.. Peer Busy, Iframe put back on queue\n");
         xStatus = xQueueSendToFront(xIFrameQueue[state->channel], event,
-                                    CENTISECONDS(1));
+                                    CENTISECONDS(10));
         if(xStatus != pdPASS) {
             debug_print("AX25: PROGRAM LOGIC ERROR: IFRAME QUEUE FULL: Could not push back to IFrame Queue\n");
-            // TODO - this must be prevented.  The Layer 3 machine
-            // should be throttled if this queue is full
+            ReportError(RTOSfailure, FALSE, CharString,
+                                (int)"AX25: ERROR: Could not add packet to IFrame Queue");
             return;
         }
     } else if (state->VS == ((state->VA + K)%MODULO)) {
         // push iframe back on queue
         trace_dl("POP Iframe but .. VS == VA + K, Iframe put back on queue\n");
         xStatus = xQueueSendToFront(xIFrameQueue[state->channel], event,
-                                    CENTISECONDS(1));
+                                    CENTISECONDS(10));
         if( xStatus != pdPASS ) {
             debug_print("AX25: PROGRAM LOGIC ERROR: IFRAME QUEUE FULL: Could not push back to IFrame Queue\n");
-            // TODO - this must be prevented.  The Layer 3 machine
-            // should be throttled if this queue is full
+            ReportError(RTOSfailure, FALSE, CharString,
+                                (int)"AX25: ERROR: Could not add packet to IFrame Queue");
             return;
         }
     } else {
@@ -1750,10 +1756,11 @@ void iframe_pops_off_queue(AX25_data_link_state_machine_t *state,
                                         CENTISECONDS(20));
             if(xStatus != pdPASS) {
                 /* The send operation could not complete because the queue was full */
+                ReportError(RTOSfailure, FALSE, CharString,
+                                    (int)"AX25: ERROR: Could not add packet to IFrame Queue");
                 ReportError(TxPacketDropped, FALSE, CharString,
                             (int)"AX25: ERROR: IFRAME QUEUE FULL: Could not push back to IFrame Queue");
-                /* Ideally this should be prevented.  The Layer 3
-                 * machine should be throttled if this queue is full.
+                /* We have tried to pause for the queue to clear
                  * At this point we drop the packet */
                 return;
             }
@@ -2043,13 +2050,13 @@ void invoke_retransmission(AX25_data_link_state_machine_t *state, int NR)
             send_event_buffer.packet = state->I_frames_sent[vs];
             send_event_buffer.error_num = NO_ERROR;
             xStatus = xQueueSendToFront(xIFrameQueue[state->channel],
-                                        &send_event_buffer, CENTISECONDS(1));
+                                        &send_event_buffer, CENTISECONDS(10));
             if(xStatus != pdPASS) {
                 /* The send operation could not complete because the queue was full */
                 debug_print("AX25: SERIOUS IFRAME QUEUE FULL Channel %d: Could not push back to IFrame Queue for retransmission\n",
                             state->channel);
-                // TODO - this must be prevented.  The Layer 3 machine
-                // should be throttled if this queue is full
+                ReportError(RTOSfailure, FALSE, CharString,
+                                    (int)"AX25: ERROR: Could not add packet to IFrame Queue");
                 return;
             }
 #ifdef DEBUG

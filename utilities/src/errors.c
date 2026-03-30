@@ -12,6 +12,7 @@
 #include "errors.h"
 #include "TMS570Hardware.h"
 #include "downlink.h"
+#include "inet.h"
 
 resetMemory_t SaveAcrossReset; // These will not be defined in errors.h
 bool ErrorInProgress = false;
@@ -75,7 +76,10 @@ char *ErrMsg[EndOfErrors]={
                            ,"Debug Startup "
                            ,"TX dropped packet"
                            ,"RX dropped packet"
+                           ,"CAN In Use"
+                           ,"REDFS IO Error"
 };
+#ifdef LEGACY_AND_NOT_USED
 char *LIHUErrMsg[EndOfErrors]={
                                 " Int Watchdog "
                                ,"  PowerCycle  "
@@ -109,6 +113,7 @@ char *LIHUErrMsg[EndOfErrors]={
                                ,"ExperimentFailure"
                                ,"IHUStateChange"
 };
+#endif
 
 /* These task names need to correspond to the id returned by xTaskGetApplicationTaskTag(0)
  * These need to be in the same order as the WdReporters_t enum in watchdogSupport.h
@@ -213,7 +218,7 @@ void InitErrors(void){
     localErrorCollection.SWVersion[1] = VERSION[1];
 }
 
-void ReportError(ErrorType_t code, bool fatal, ErrorInfoType_t infoType, int info)
+void ReportError(ErrorType_t code, bool fatal, ErrorInfoType_t infoType, uint32_t info)
 {
 
 #define I2C_RETRY_RESET_MASK 0x3 /*Must be (power of 2) - 1 */
@@ -251,7 +256,17 @@ void ReportError(ErrorType_t code, bool fatal, ErrorInfoType_t infoType, int inf
             nonfatalCount = localErrorCollection.TxDroppedPkts++; /* This is for downlinking */
             break;
         case RTOSfailure:
-            // This will get counted in nonFatalErrors and cause a reboot if there are many of them
+            // This will get counted as a nonFatalError and cause a reboot if there are many of them
+            nonfatalCount = localErrorCollection.RTOSfailure++;  /* This is for downlinking */
+            break;
+        case CANInUse:
+            /* TODO - handle or count these?? */
+            break;
+        case REDFSIOerror:
+            /* These should only be errors that mean something is wrong.  We should not log every time a file
+             * is not found because a user requested the wrong file number.  If we get too many of these then
+             * it should indicate the the FS is not working and we restart*/
+            nonfatalCount = localErrorCollection.REDFSIOerror++; /* This is for downlinking */
             break;
         default:
             nonfatalCount = 0; /* This means that ONLY the SOFT error types listed above can trigger a reboot if there are too many errors.  All other
@@ -268,9 +283,9 @@ void ReportError(ErrorType_t code, bool fatal, ErrorInfoType_t infoType, int inf
         }
     } else {
         /* Save the reason we are going to crash */
-        SaveAcrossReset.fields.errorCode = code;
+        SaveAcrossReset.fields.errorCode = code; // TODO - code has a max value of 34, not 32, so we need 6 bits.  But probablly better to shorten number of error codes.
         SaveAcrossReset.fields.taskNumber = (int)xTaskGetApplicationTaskTag(0);
-        SaveAcrossReset.fields.errorData = info; /* Get bottom 8 bits of info */
+        SaveAcrossReset.fields.errorData = htotl(info); /* Get bottom 8 bits of info */
     }
 
 #ifdef DEBUG_AIDS

@@ -9,5 +9,6 @@ typedef struct  __attribute__((__packed__)) _wodSpecific_t {
     uint32_t WODTimestampUptime;       //Offset=0
     uint16_t WODTimestampReset;       //Offset=32
     uint8_t WodCRCError;       //Offset=48
-} wodSpecific_t; // Total Size=56 bits or 7 bytes with 0 left over
+    uint8_t pad5;       //Offset=56
+} wodSpecific_t; // Total Size=64 bits or 8 bytes with 0 left over
 #endif

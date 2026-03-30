@@ -86,7 +86,9 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
          * only happen in test if we are short of memory at startup
          */
         debug_print("FATAL ERROR: Could not create RX Packet Queue\n");
-        //TODO - log this
+        ReportError(RTOSfailure, FALSE, CharString,
+                    (int)"RxTask: ERROR: Could not create RX Packet Queue");
+
     }
     if (xRxEventQueue == NULL) {
         /*
@@ -94,7 +96,8 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
          * only happen in test if we are short of memory at startup
          */
         debug_print("FATAL ERROR: Could not create RX Event Queue\n");
-        //TODO - log this
+        ReportError(RTOSfailure, FALSE, CharString,
+                    (int)"RxTask: ERROR: Could not create RX Event Queue");
     }
     if (xPbPacketQueue == NULL) {
         /*
@@ -102,7 +105,8 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
          * only happen in test if we are short of memory at startup
          */
         debug_print("FATAL ERROR: Could not create PB Packet Queue\n");
-        //TODO - log this
+        ReportError(RTOSfailure, FALSE, CharString,
+                    (int)"RxTask: ERROR: Could not create PB Packet Queue");
     }
     if (xUplinkEventQueue == NULL) {
         /*
@@ -110,7 +114,9 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
          * only happen in test if we are short of memory at startup
          */
         debug_print("FATAL ERROR: Could not create UPLINK Packet Queue\n");
-        //TODO - log this
+        ReportError(RTOSfailure, FALSE, CharString,
+                    (int)"RxTask: ERROR: Could not create Uplink Packet Queue");
+
     }
 
     vSemaphoreCreateBinary(RxFIFOReady);
@@ -180,8 +186,9 @@ static void handle_fifo_data(rfchan chan, uint8_t fifo_flags, uint8_t len)
 
     //debug_print("FIFO CMD:%d LEN:%d FLAGS:%x\n",fifo_cmd,len, fifo_flags);
     if (fifo_flags != 0x03) {
-        // TODO - log something here?  This should never happen??
+        // This should never happen??  Corrupt somehow, and we should ignore.
         debug_print("ERROR in received FIFO Flags\n");
+        return;
     }
 
     for (loc = 0; loc < len; loc++)
@@ -189,7 +196,6 @@ static void handle_fifo_data(rfchan chan, uint8_t fifo_flags, uint8_t len)
 
     if (len < 2) {
         /* Shouldn't happen, the CRC at the end is still there. */
-        /* TODO - log this? */
         return;
     }
 
@@ -207,18 +213,19 @@ static void handle_fifo_data(rfchan chan, uint8_t fifo_flags, uint8_t len)
     rx_radio_buffer.channel = chan;
 
     /*
-     * Add to the queue and wait for 10ms to see if space
+     * Add to the queue and wait for 100ms to see if space
      * is available
      */
     BaseType_t xStatus = xQueueSendToBack(xRxPacketQueue, &rx_radio_buffer,
-                                          CENTISECONDS(1));
+                                          CENTISECONDS(10));
     if (xStatus != pdPASS) {
         /*
          * The send operation could not complete because
          * the queue was full
          */
         debug_print("RX QUEUE FULL: Could not add to Packet Queue\n");
-        // TODO - we should log this error and downlink in telemetry
+        ReportError(TxPacketDropped, FALSE, CharString,
+                    (int)"AX25: ERROR: RX Packet QUEUE FULL");
     }
 }
 

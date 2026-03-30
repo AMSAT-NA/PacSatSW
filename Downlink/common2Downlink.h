@@ -24,6 +24,9 @@ typedef struct  __attribute__((__packed__)) _commonRtWodPayload_t {
     uint8_t swCmdCnt;       //Offset=80
     uint8_t TLMresets;       //Offset=88
     uint32_t swCmds;       //Offset=96
-    uint8_t MRAMstatus;       //Offset=128
-} commonRtWodPayload_t; // Total Size=136 bits or 17 bytes with 0 left over
+    uint8_t MRAMstatus0;       //Offset=128
+    uint8_t MRAMstatus1;       //Offset=136
+    uint8_t MRAMstatus2;       //Offset=144
+    uint8_t MRAMstatus3;       //Offset=152
+} commonRtWodPayload_t; // Total Size=160 bits or 20 bytes with 0 left over
 #endif

@@ -13,7 +13,7 @@ typedef struct  __attribute__((__packed__)) _rt1Errors_t {
     unsigned int earlyResetCount:3;       //Offset=22
     unsigned int wasStillEarlyInBoot:1;       //Offset=25
     unsigned int valid:1;       //Offset=26
-    unsigned int pad316:5;       //Offset=27
+    unsigned int pad6:5;       //Offset=27
     uint32_t errorData;       //Offset=32
     uint32_t RAMCorAddr1;       //Offset=64
     uint32_t RAMCorAddr2;       //Offset=96
@@ -49,6 +49,8 @@ typedef struct  __attribute__((__packed__)) _rt1Errors_t {
     uint8_t nonFatalCnt;       //Offset=408
     uint8_t SWVersion[2];       //Offset=416
     uint8_t TxDroppedPkts;       //Offset=432
-    uint8_t pad362;       //Offset=440
-} rt1Errors_t; // Total Size=448 bits or 56 bytes with 0 left over
+    uint8_t RTOSfailure;       //Offset=440
+    uint8_t REDFSIOerror;       //Offset=448
+    uint8_t pad7[3];       //Offset=456
+} rt1Errors_t; // Total Size=480 bits or 60 bytes with 0 left over
 #endif

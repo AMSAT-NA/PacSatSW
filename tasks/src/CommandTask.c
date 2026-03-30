@@ -400,7 +400,6 @@ bool OpsSWCommands(CommandAndArgs *comarg){
         break;
     }
     case SWCmdOpsDCTTxInhibit:
-        // TODO - not implemented
         if(comarg->arguments[0] != 0) { // True means to inhibit it
             command_print("SW:Inhibit transmitting\n");
             inhibitTransmit = true;
@@ -578,7 +577,6 @@ bool CommandTimeOK(SWCmdUplink *uplink){
 void NoCommandTimeoutCallback(void){
     printf("No command timeout\n");
     SimulateSwCommand(SWCmdNSSpaceCraftOps,SWCmdOpsFSMode,NULL,0);
-    // TODO - it sounds like we would want this to be re-setup
     //SetInternalSchedules(NoCommandTimeout,TIMEOUT_NONE); // Set this timeout to never
 }
 void NoTimedSWCommandTimeoutCallback(void){

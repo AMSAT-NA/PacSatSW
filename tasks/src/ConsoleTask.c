@@ -92,7 +92,6 @@ const enum radio_modulation DCT_DEFAULT_MODULATION[NUM_CHANNELS] = {
     MODULATION_AFSK_1200,
 };
 
-// default all channels - TODO - is this used?
 const uint8_t DCT_DEFAULT_MODE[NUM_CHANNELS] = { 0x15, 0x15, 0x15, 0x15, 15 };
 
 extern bool InSafeMode, InScienceMode, InHealthMode;

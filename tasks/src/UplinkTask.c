@@ -1393,7 +1393,7 @@ void ftl0_maintenance() {
         if (!ftl0_mram_get_file_upload_record(i, &rec)) {
             // skip and keep going in case this is temporary;
         }
-        // TODO - do not remove file this is currently in the upload FTL0 state machine
+        // TODO - do not remove file if this is currently in the upload FTL0 state machine
         if (rec.file_id != 0) {
             uint32_t now = getUnixTime();
             int32_t age = now-rec.request_time;
