@@ -218,7 +218,7 @@ int32_t dir_check_folder(char *path) {
  *
  * TODO Currently this memory is allocated on the heap with pvPortMalloc and pPortFree.  We may
  * want to change that to a completely static allocation and hold a free list for nodes that
- * are not used.  This could guarantee no memory fragmentation and the expense of complexity.
+ * are not used.  This could guarantee no memory fragmentation at the expense of complexity.
  *
  */
 DIR_NODE * dir_add_pfh(char *file_name, HEADER *new_pfh) {
@@ -255,10 +255,12 @@ DIR_NODE * dir_add_pfh(char *file_name, HEADER *new_pfh) {
         /* Insert this at the right point, searching from the back*/
         DIR_NODE *p = dir_tail;
         while (p != NULL) {
-            if (p->upload_time == new_node->upload_time) {
+            if (p->upload_time == new_node->upload_time) { // which should never happen normally
                 debug_print("ERROR: Attempt to insert duplicate PFH: ");
                 //pfh_debug_print(mram_file);
-                // TODO - IMPORTANT - Don't we need to free the new_node??  Memory leak??
+                // we need to free the new_node
+                if (new_node != NULL)
+                    vPortFree(new_node);
                 return NULL; // this is a duplicate
             } else if (p->upload_time < new_node->upload_time) {
                 insert_after(p, new_node);
@@ -400,7 +402,9 @@ bool dir_load_pacsat_file(char *file_name) {
         return FALSE;
     }
     /* TODO - do we want to validate the files every time we boot and load the dir?
-     * We would need to take an action if it fails
+     * We would need to take an action if it fails.
+     * One action is to confirm that we can still load it into the dir and read the expiry_date.  If so
+     * we could leave it and let it expire naturally.  If the expire date can not be read, then delete it.
      */
 //    int err = dir_validate_file(&pfh_buffer, file_name_with_path);
 //    if (err != ER_NONE) {
@@ -559,7 +563,7 @@ int dir_validate_file(HEADER *pfh, char *file_name_with_path, WdReporters_t repo
  */
 DIR_NODE * dir_get_pfh_by_date(DIR_DATE_PAIR pair, DIR_NODE *p ) {
     if (p == NULL) {
-        /* Then we are starting the search from the head.  TODO - could later optimize if search from head or tail */
+        /* Then we are starting the search from the head - could later optimize if search from head or tail */
         p = dir_head;
     }
     while (p != NULL) {

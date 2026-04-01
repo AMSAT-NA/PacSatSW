@@ -62,11 +62,10 @@
 #define  COMPRESSION_DESCRIPTION 0x25
 #define  USER_FILE_NAME 0x26
 
-// TODO - need a more flexible way to store additional fields
+// Would be nice to have a more flexible way to store additional fields, but this is what we have
 #define  WISP1 0x2a
 #define  WISP2 0x2e
 #define  WISP3 0x2f
-
 
 // Compression types
 #define  BODY_NOT_COMPRESSED 0x00

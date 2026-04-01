@@ -116,7 +116,7 @@ void esmGroup1Notification(uint32_t channel){
     }
 
     case RAMOddBankCorrectableECC:{
-        uint32_t *errorLoc = &localErrorCollection.RAMCorAddr2;  // g0kla - changed from RAMCorAddr1 to RAMCorAddr2.  TODO - confirm this is correct
+        uint32_t *errorLoc = &localErrorCollection.RAMCorAddr1;  // g0kla - should this changed from RAMCorAddr1 to RAMCorAddr2.  TODO - confirm this is correct
         errorLoc[ramErrNumber] = (uint32_t)tcram1REG->RAMSERRADDR;;
         tcram1REG->RAMERRSTATUS |= SERR; //Clear the bits the freeze the corrected address register
         if(ramErrNumber==0)ramErrNumber=1;

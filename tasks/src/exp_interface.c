@@ -105,17 +105,17 @@ void exp_process_status_type(can_msg_type_t type, int msgid, uint8_t *data, unsi
     switch (msgid) {
         case can_status_msg_id_enter_safe_mode:
             statusMsg.MsgType = TacEnterSafeMode;
-            // TODO Log why this happened
+            // TODO Log this happened - not an error
             NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
             break;
         case can_status_msg_id_enter_fs_mode:
             statusMsg.MsgType = TacEnterFileSystemMode;
-            // TODO Log why this happened
+            // TODO Log this happened - not an error
             NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
             break;
         case can_status_msg_id_enter_science_mode:
             statusMsg.MsgType = TacEnterScienceMode;
-            // TODO Log why this happened
+            // TODO Log this happened - not an error
             statusMsg.data[0] = data[1]; // The Timeout is in data1.
             NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
             break;

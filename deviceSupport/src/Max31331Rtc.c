@@ -363,10 +363,10 @@ void rtc_regs_to_time(struct tm *time, const max3133x_rtc_time_regs_t *regs,
         time->tm_year = BCD2BIN(regs->year_reg.bcd.value) + 100;
 
     /* tm_yday day of year [0,365] */
-    time->tm_yday = 0; /* TODO */
+    time->tm_yday = 0; /* Not used */
 
     /* tm_isdst daylight savings flag */
-    time->tm_isdst = 0; /* TODO */
+    time->tm_isdst = 0; /* Always false as we use UTC */
 }
 
 int time_to_rtc_regs(max3133x_rtc_time_regs_t *regs, const struct tm *time,

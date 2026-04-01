@@ -283,7 +283,7 @@ void ReportError(ErrorType_t code, bool fatal, ErrorInfoType_t infoType, uint32_
         }
     } else {
         /* Save the reason we are going to crash */
-        SaveAcrossReset.fields.errorCode = code; // TODO - code has a max value of 34, not 32, so we need 6 bits.  But probablly better to shorten number of error codes.
+        SaveAcrossReset.fields.errorCode = code; // TODO - code has a max value of 34, not 32, so we need 6 bits.  But probably better to shorten number of error codes.
         SaveAcrossReset.fields.taskNumber = (int)xTaskGetApplicationTaskTag(0);
         SaveAcrossReset.fields.errorData = htotl(info); /* Get bottom 8 bits of info */
     }

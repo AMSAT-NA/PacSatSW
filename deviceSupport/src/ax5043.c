@@ -75,16 +75,12 @@ static uint8_t ax5043_init_registers_rx(rfchan device,
                                         unsigned int flags);
 static uint8_t ax5043_reset(rfchan device);
 
-// Global variables for radio physical layer.  These are used by the
-// radio and read by telemetry or the console
-
-// TODO - need to go through all these things and figure out what they
-// do and make it work correctly and document it.
-
 static const uint8_t axradio_phy_chanpllrnginit = 0x09;
 static const uint8_t axradio_phy_vcocalib = 0;
 static const uint8_t axradio_phy_chanvcoiinit = 0x97;
 
+// Global variables for radio physical layer.  These are used by the
+// radio and can be read by telemetry or the console.  Not currently in telemetry
 static uint8_t axradio_phy_chanpllrng[NUM_CHANNELS];
 static uint8_t axradio_phy_chanvcoi[NUM_CHANNELS];
 
@@ -833,8 +829,7 @@ static void ax5043_init_registers(rfchan device,
 }
 
 /**
- * TODO - need to understand what this does.
- * It seems to get the VCO bias current
+ * This seems to get the VCO bias current
  */
 static uint8_t axradio_get_pllvcoi(rfchan device)
 {

@@ -489,7 +489,8 @@ bool ftl0_send_event(AX25_event_t *received_event, AX25_event_t *send_event) {
         if( xStatus != pdPASS ) {
             /* The send operation could not complete because the queue was full */
             debug_print("I FRAME QUEUE FULL: Could not add to Event Queue for channel %d\n",received_event->rx_channel);
-            // TODO - we should log this error and downlink in telemetry
+            ReportError(RTOSfailure, FALSE, CharString,
+                              (int)"ERROR: Could not add to Event Queue");
             return FALSE;
         }
     } else {
@@ -498,7 +499,8 @@ bool ftl0_send_event(AX25_event_t *received_event, AX25_event_t *send_event) {
         if( xStatus != pdPASS ) {
             /* The send operation could not complete because the queue was full */
             debug_print("RX Event QUEUE FULL: Could not add to Event Queue\n");
-            // TODO - we should log this error and downlink in telemetry
+            ReportError(RTOSfailure, FALSE, CharString,
+                              (int)"ERROR: Could not add to Event Queue");
             return FALSE;
         } else {
             trace_ftl0("FTL0[%d]: Sending Event %d\n",send_event->rx_channel, send_event->primitive);
@@ -656,8 +658,7 @@ bool ftl0_connection_received(char *from_callsign, char *to_callsign, uint8_t ch
     rc = ftl0_send_event(&ax25_event, &send_event_buffer);
 
     if (rc != TRUE) {
-        // TODO - log error
-        // Disconnect??  Retry??
+        // TODO Disconnect??  Retry??  ftl0_send_event() has already logged the error
         debug_print("Could not send FTL0 LOGIN packet to Data Link State Machine \n");
         return FALSE;
     } else {
@@ -691,8 +692,6 @@ bool ftl0_disconnect(char *to_callsign, uint8_t channel) {
     bool rc = ftl0_send_event(&ax25_event, &send_event_buffer);
 
     if (rc != TRUE) {
-        // TODO - log error
-        // Disconnect??  Retry??
         debug_print("Could not send FTL0 Disconnect Event to Data Link State Machine \n");
         return FALSE;
     }
@@ -830,7 +829,7 @@ int ftl0_process_upload_cmd(ftl0_state_machine_t *state, uint8_t *data, int len)
         state->file_id = dir_next_file_number();
         if (state->file_id == 0) {
             debug_print("Unable to allocated new file id: %s\n", red_strerror(red_errno));
-            return ER_NO_ROOM;  // TODO - is this the best error to send?  File system is unavailable it seems
+            return ER_NO_ROOM;  // File system is unavailable it seems
         }
         ul_go_data.server_file_no = htotl(state->file_id);
         trace_ftl0("Allocated file id: %04x\n",state->file_id);
@@ -844,7 +843,7 @@ int ftl0_process_upload_cmd(ftl0_state_machine_t *state, uint8_t *data, int len)
         int32_t fp = red_open(file_name_with_path, RED_O_CREAT | RED_O_WRONLY);
         if (fp == -1) {
             debug_print("Unable to open %s for writing: %s\n", file_name_with_path, red_strerror(red_errno));
-            return ER_NO_ROOM;  // TODO - is this the best error to send?  File system is unavailable
+            return ER_NO_ROOM;  // File system is unavailable
         }
         int32_t cc = red_close(fp);
         if (cc == -1) {
