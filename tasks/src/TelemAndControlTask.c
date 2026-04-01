@@ -1036,11 +1036,11 @@ bool tac_test_wod_file() {
     return true;
 }
 
-bool tac_test_txt_file() {
+bool tac_test_txt_file(char * dir) {
     char file_path[MAX_FILENAME_WITH_PATH_LEN];
     char tmp_file_path[MAX_FILENAME_WITH_PATH_LEN];
 
-    strlcpy(file_path, TXT_FOLDER, sizeof(file_path));
+    strlcpy(file_path, dir, sizeof(file_path));
     strlcat(file_path, "data123", sizeof(file_path));
 
     strlcpy(tmp_file_path, file_path, sizeof(tmp_file_path));

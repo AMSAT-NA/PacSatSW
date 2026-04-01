@@ -442,7 +442,8 @@ void ax25_process_lm_frame(uint8_t channel)
     AX25_PACKET *dp = &state->decoded_packet;
     uint8_t *pkt = ax25_radio_buffer.bytes;
 
-    ax25_decode_packet(pkt, ax25_radio_buffer.len, dp);
+    int rc = ax25_decode_packet(pkt, ax25_radio_buffer.len, dp);
+    if (!rc) return;
     from_callsign = dp->from_callsign;
     to_callsign = dp->to_callsign;
 

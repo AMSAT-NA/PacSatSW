@@ -126,30 +126,30 @@ void esmGroup1Notification(uint32_t channel){
         break;
     }
     case DCC1Error:{
-        //nError, log, power cycle
+        //nError, log, power cycle TODO - does this mean we should actually reboot if this happens
         localErrorCollection.DCC1ErrorCnt++;
         break;
     }
     case N2HET2RamParity:{
-        //nError,reboot
+        //nError,reboot TODO - does this mean we should actually reboot if this happens
         localErrorCollection.N2HET2RamParityCnt++;
         break;
     }
     case IOMMAccvio:{
         localErrorCollection.IOMMAccvioCnt++;
-        //Software bug - nERROR, log, reboot
+        //Software bug - nERROR, log, reboot - TODO - does this mean we should actually reboot if this happens
         break;
     }
     case DCC2Error:{
         localErrorCollection.DCC2ErrorCnt++; // TODO - surely this should be DCC2ErrorCnt++, updated from DCC1ErrorCnt. g0kla
-        //nError, log, power cycle
+        //nError, log, power cycle - TODO - does this mean we should actually reboot if this happens
     }
     }
 }
 
 void esmGroup2Notification(uint32_t channel){
     /*
-     * The error signalling module will call here if we get some group2 errors.  The channel
+     * The error signaling module will call here if we get some group2 errors.  The channel
      * specifies which particular error we have gotten.
      */
     // For the moment we log all of these if possible and reboot.  We may want to power cycle, so it will

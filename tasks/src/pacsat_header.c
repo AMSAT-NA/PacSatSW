@@ -77,7 +77,6 @@ bool make_test_header(HEADER *pfh, uint32_t fh, unsigned int file_id, char *file
  * creating the space and must pass in a pointer.
  *
  */
-// TODO - refactor name to INIT
 void pfh_new_header(HEADER  *hdr) {
 
     if (hdr == NULL) {
@@ -472,7 +471,7 @@ int pfh_update_pacsat_header(HEADER *pfh, char *in_filename) {
 //  if (remove(tmp_filename) != EXIT_SUCCESS) {
 //      error_print("Could not remove tmp file %s\n",tmp_filename)
 //  }
-    // TODO - use this    if (red_rename(tmp_filename, in_filename) != EXIT_SUCCESS) {
+    // TODO - use this   if (red_rename(tmp_filename, in_filename) != EXIT_SUCCESS) {
     //    return EXIT_FAILURE;
     //}
     // Then we rename the file, first removing the file we will overwrite
@@ -485,10 +484,13 @@ int pfh_update_pacsat_header(HEADER *pfh, char *in_filename) {
     rc = red_unlink(tmp_filename);
     if (rc == -1) {
         debug_print("Relinked file but unable to remove tmp file: %s : %s\n", in_filename, red_strerror(red_errno));
-        // TODO this is not fatal but there needs to be a way to clean this up or we will keep trying to add it to the dir
+        ReportError(REDFSIOerror, FALSE, CharString,
+                                (int)"ERROR: Removing tmp file when writing pacsat header");
+
+        // This is not fatal but there needs to be a way to clean this up or at least ignore it.
     }
 
-    // ***********************  UPDATE THE ENTRY IN THE DIR TABLE IF ONE OF THOSE FIELDS CHANGED.  OR RELOAD IT FROM DISK
+    // TODO IMPORTANT ***********************  UPDATE THE ENTRY IN THE DIR TABLE IF ONE OF THOSE FIELDS CHANGED.  OR RELOAD IT FROM DISK
 
     return EXIT_SUCCESS;
 }

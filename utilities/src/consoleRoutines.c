@@ -332,10 +332,7 @@ void PreflightInitNow(CanIDNode cameFrom)
 
     size=SetupMRAM(); //This should be first.  It might overwrite part of MRAM.
     WriteMRAMBoolState(StateInOrbit, false);
-    //todo: The rest of the stuff has not been implemented yet
-    printf("WOD Frequency,size set to Default, and WOD Indices initialized\n");
-
-    printf("WOD Storage and All variables initialized and ready for flight\n");
+//    printf("WOD Frequency,size set to Default, and WOD Indices initialized\n");
 
     printf("MRAM size found to be %d bytes\n", size);
     printf("Size of MRAM data structure is %d\n", sizeof(MRAMmap_t));

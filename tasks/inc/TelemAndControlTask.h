@@ -17,6 +17,6 @@ void tac_roll_file(char *file_name_with_path, char *folder, char *prefix);
 
 /* Test routines */
 bool tac_test_wod_file();
-bool tac_test_txt_file();
+bool tac_test_txt_file(char *dir);
 
 #endif /* TASKS_SRC_TELEMANDCONTROLTASK_H_ */

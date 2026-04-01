@@ -47,7 +47,7 @@
  *  0-11 (12 bits) Message ID
  *
  * Priority: These bits should be ignored by receiving software, and
- * filters should be set to “don’t care” for any of those
+ * filters should be set to don't care for any of those
  * bits. Priority determines which packet will be sent if multiple
  * processors place packets on the bus at the same time. A 0 in this
  * field is the highest priority. A 15 (or 0xF) is the lowest
@@ -238,7 +238,7 @@ static canIfRegs *CANGetIfRegs(int canNum)
         /* If we can't get it within a few seconds...trouble */
         // TODO - OK, but if its trouble, how do we handle it.  This just logs it.  The calling function returns false, but above that the return code is not checked.
         ReportToWatchdog(CurrentTaskWD);
-        ReportError(CANInUse, false, TaskNumber, 0);
+        ReportError(CANInUse, false, TaskNumber, 0); // Force reboot here with TRUE flag?
         return NULL;
     }
     return (struct canIfRegs *) (((uint8_t *) can[canNum].regs) + offset);

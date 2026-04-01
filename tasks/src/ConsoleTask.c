@@ -388,7 +388,7 @@ commandPairs debugCommands[] = {
      "Generate a test wod file and add it to the file queue",
      makeWodQueFile},
      { "test que txt",
-      "Generate a test txt file and add it to the file queue",
+      "test que txt <dir> Generate a test txt file and add it to the given dir",
       makeTxtQueFile},
     { "send uplink status",
       "Send Uplink status",
@@ -1849,7 +1849,8 @@ void RealConsoleTask(void)
             break;
         }
         case makeTxtQueFile:{
-            bool rc = tac_test_txt_file();
+            char *t = next_token(&afterCommand);
+            bool rc = tac_test_txt_file(t);
             break;
         }
 

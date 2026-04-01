@@ -153,7 +153,7 @@ int encode_call(char *name, uint8_t *buf, int final_call, int command)
  * allocate the structure
  *
  * If the packet is too short or there is any other error, then
- * 0 is retuned.
+ * 0 is returned.
  *
  */
 uint8_t ax25_decode_packet(uint8_t *packet, int len,
@@ -211,8 +211,6 @@ uint8_t ax25_decode_packet(uint8_t *packet, int len,
         }
         if ((len - offset - 2) > AX25_MAX_INFO_BYTES_LEN) {
             debug_print("ERR: ax25_decode_packet() Too many bytes for an I-frame.  Data would overflow.\n");
-            // TODO - per the AX25 spec, this sort of error should cause re-establishment of the data link if in connected mode.
-            // We should return a negative number with an AX25 ERROR code if this fails then the state machine can process the error
             return FALSE;
         }
         decoded_packet->frame_type = TYPE_I;
@@ -357,9 +355,11 @@ int print_packet(char *label, uint8_t *packet, int len)
 {
     AX25_PACKET decoded;
 
-    ax25_decode_packet(packet, len, &decoded);
-    print_decoded_packet(label, &decoded);
-    return true;
+    if (ax25_decode_packet(packet, len, &decoded)) {
+        print_decoded_packet(label, &decoded);
+        return true;
+    }
+    return false;
 }
 
 int print_decoded_packet(char *label, AX25_PACKET *decoded)

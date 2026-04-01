@@ -446,7 +446,7 @@ static void ax5043_set_modulation_base(rfchan device,
         break;
 
     case MODULATION_GMSK_9600:
-        // TX only TODO - radio lab says 00, but is that for FSK or
+        // TX only - radio lab says 00, but is that for FSK or
         // because I selected wrong.  Surely we want filtering
         ax5043WriteReg(device, AX5043_MODCFGF, 0x03);
         break;
@@ -1425,7 +1425,8 @@ static int start_ax5043_tx(rfchan device,
     return AXRADIO_ERR_NOERROR;
 }
 
-// TODO - This is commented out in ax5043.h and called from TelemetryRadio.c
+#if 0
+// This is commented out in ax5043.h and called from TelemetryRadio.c, which is legacy
 // with the wrong parameters.
 void fifo_send_sync(rfchan device, int final)
 {
@@ -1448,6 +1449,7 @@ void fifo_send_sync(rfchan device, int final)
         ax5043WriteReg(device, AX5043_FIFODATA, sync_left_just_with_stop_bit[i]);
     }
 }
+#endif
 
 void fifo_commit(rfchan device)
 {

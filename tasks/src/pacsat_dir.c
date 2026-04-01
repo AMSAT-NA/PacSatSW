@@ -24,7 +24,7 @@
  * that uses the file_id as the file handle.
  *
  */
-#include <stdlib.h> //TODO - only added for strtol - hex conversion.  Is this really needed?
+#include <stdlib.h>
 #include <assert.h>
 #include "MRAMmap.h"
 #include "nonvol.h"
@@ -95,6 +95,8 @@ uint32_t dir_next_file_number() {
             } else {
                 /* Some other file-io error */
                 debug_print("dir: err %s\n",red_strerror(red_errno));
+                ReportError(REDFSIOerror, FALSE, CharString,
+                                        (int)"ERROR: Checking next file number");
                 return 0;
             }
         } else {
@@ -103,6 +105,8 @@ uint32_t dir_next_file_number() {
             if (rc2 != 0) {
                 debug_print("*** Unable to close tmp file: %s\n", red_strerror(red_errno));
                 /* If we carry on here then we might use all the open files.  Something is wrong, return */
+                ReportError(REDFSIOerror, FALSE, CharString,
+                                        (int)"ERROR: Checking next file number");
                 return 0;
             }
             file_id = file_id + 1;
@@ -396,21 +400,33 @@ bool dir_load_pacsat_file(char *file_name) {
     strlcpy(file_name_with_path, DIR_FOLDER, sizeof(file_name_with_path));
     strlcat(file_name_with_path, file_name, sizeof(file_name_with_path));
 
+    if (str_ends_with(file_name, PSF_FILE_TMP)) {
+        debug_print("Removing file: %s\n",file_name);
+        // This avoids trying to add a file that was saved with a tmp extension and cleans them up.  e.g. when a PSH was being modified and we crash
+        int rc = red_unlink(file_name_with_path); // remove the file now that it is processed
+        if (rc == -1) {
+            debug_print("Unable to remove file: %s : %s\n", file_name_with_path, red_strerror(red_errno));
+            ReportError(REDFSIOerror, TRUE, CharString,
+                        (int)"ERROR: Unable to unlink tmp file when loading dir");
+        }
+        return FALSE;
+    }
+
     int len = dir_load_header(file_name_with_path, pfh_byte_buffer, sizeof(pfh_byte_buffer), &pfh_buffer);
     if (len == -1) {
         debug_print("** Could not extract header from %s\n", file_name_with_path);
+        debug_print("Removing file: %s\n",file_name);
+        // This avoids keeping a file where we can not read the PFH.  It will never be expired or downloaded
+        int rc = red_unlink(file_name_with_path); // remove the file now that it is processed
+        if (rc == -1) {
+            debug_print("Unable to remove file: %s : %s\n", file_name_with_path, red_strerror(red_errno));
+            ReportError(REDFSIOerror, TRUE, CharString,
+                        (int)"ERROR: Unable to unlink tmp file when loading dir");
+        }
         return FALSE;
     }
-    /* TODO - do we want to validate the files every time we boot and load the dir?
-     * We would need to take an action if it fails.
-     * One action is to confirm that we can still load it into the dir and read the expiry_date.  If so
-     * we could leave it and let it expire naturally.  If the expire date can not be read, then delete it.
-     */
-//    int err = dir_validate_file(&pfh_buffer, file_name_with_path);
-//    if (err != ER_NONE) {
-//        debug_print("Err: %d - validating: %s\n", err, file_name_with_path);
-//        return FALSE;
-//    }
+    /* We dont validate the file further.  If its Pacsat Header can be read then we assume the file can be downloaded and expired, even if it is corrupt.
+     * As a safety check we could see if the expire time is valid. */
     DIR_NODE *p = dir_add_pfh(file_name, &pfh_buffer);
     if (p == NULL) {
         debug_print("** Could not add %s to dir\n", file_name_with_path);
@@ -449,7 +465,7 @@ int dir_load() {
             //debug_print("Loading: %s\n",pDirEnt->d_name);
             rc = dir_load_pacsat_file(pDirEnt->d_name);
             if (rc != TRUE) {
-                debug_print("May need to remove potentially corrupt or duplicate PACSAT file\n");
+                debug_print("Could not load PACSAT file %s\n",pDirEnt->d_name);
                 /* Don't automatically remove here, otherwise loading the dir twice actually deletes all the
                  * files! */
             }
@@ -701,7 +717,7 @@ void dir_file_queue_check(uint32_t now, char * folder, uint8_t file_type, char *
             uint32_t id = dir_next_file_number();
             if (id == 0) {
                 // For some reason we can not generate the next file number right now
-                // TODO - this could be an error that repeats in a loop.  It might need a reboot or a reset of the file system. LOG in telemetry
+                // This could be an error that repeats in a loop. dir_next_file_number() reports the error and we will reboot if it happens repeatedly.  It is logged in telem.
                 continue;
             }
             char compression_type = BODY_NOT_COMPRESSED;
@@ -760,8 +776,10 @@ void dir_file_queue_check(uint32_t now, char * folder, uint8_t file_type, char *
 
             rc = red_unlink(file_name); // remove the file now that it is processed
             if (rc == -1) {
-                //TODO - this is a critical error as we will keep adding it and fill the file system
+                //This is a critical error as we will keep adding it and fill the file system. REDFS guarantees that we can remove a file even if disk is full, so report it and force a reboot
                 debug_print("Unable to remove file: %s : %s\n", file_name, red_strerror(red_errno));
+                ReportError(REDFSIOerror, TRUE, CharString,
+                                        (int)"ERROR: Unable to unlink tmp file in queue");
             }
         }
         ReportToWatchdog(CurrentTaskWD);

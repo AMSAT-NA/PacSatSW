@@ -537,7 +537,7 @@ bool updateCRC(uint32_t address, uint32_t size) {
         // read a data word from MRAM
         NVstat = readNV(&datum, 4, NVConfigData, address);
         if (NVstat == FALSE) {
-            ReportError(MRAMread, FALSE, ReturnAddr, (int) updateCRC); // NVread service failure, TODO - should this be the MRAMCrc error code?  Does it matter?
+            ReportError(MRAMread, FALSE, ReturnAddr, (int) updateCRC); // NVread service failure, TODO - should this be the MRAMCrc error code vs MRAMread?  Does it matter?
             returnCode = FALSE;
         }
         //todo: Calculate
@@ -574,7 +574,8 @@ int SetupMRAM(void){
 
     SetupMRAMStates(); //This should be first.  It might overwrite part of MRAM.
     printf("Set to start in safe mode\n");
-    printf("WOD Frequency,size set to Default, and WOD Indices initialized\n");
+    printf("PB, Uplink, Digi variables disabled. Broadcast periods set to defaults.\n");
+    printf("Next File number set to 0\n");
 
     WriteMinMaxResetSeconds(0); // Clear sets reset time to THIS epoch.  We need preflight init epoch
     WriteMinMaxResetEpoch(0);
