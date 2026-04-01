@@ -231,15 +231,17 @@ void ReportError(ErrorType_t code, bool fatal, ErrorInfoType_t infoType, uint32_
         case I2C1failure:{
             // I2C1 is for the radiation experiment
             nonfatalCount = localErrorCollection.I2C1RetryCnt;
+            /* We will Restart after too many errors */
             if((localErrorCollection.I2C1RetryCnt & I2C_RETRY_RESET_MASK) == I2C_RETRY_RESET_MASK){
-                //todo: What to do here? I2cInit(I2c1Port); /* Restart after too many errors */
+                //What to do here? I2cInit(I2c1Port);
             }
             break;
         }
         case I2C2failure:{
             nonfatalCount = localErrorCollection.I2C2RetryCnt++;
+            /* We will Restart after too many errors */
             if((localErrorCollection.I2C2RetryCnt & I2C_RETRY_RESET_MASK) == I2C_RETRY_RESET_MASK){
-                //todo: What to do here? I2cInit(I2c2Port); /* Restart after too many errors */
+                //What to do here? I2cInit(I2c2Port);
             }
             break;
         }

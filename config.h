@@ -235,7 +235,7 @@ typedef uint8_t rfchan;
 
 /* T1 is the timeout for outstanding I frame or P bit.  Traditionally set to the Smoothed Rountrip Time (SRT), which is
  * calculated for the channel.  For a full duplex sat this is perhaps not appropriate.
- * TODO - what is the optimal value for this? */
+ */
 #define AX25_TIMER_T1_PERIOD SECONDS(3)
 #define AX25_TIMER_T3_PERIOD SECONDS(30) /* Idle timeout if nothing heard */
 #define AX25_RETRIES_N2 10 /* Number of retries permitted by the Data Link State Machine */

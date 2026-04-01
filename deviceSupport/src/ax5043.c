@@ -64,6 +64,7 @@
 #include "config.h"
 #include "os_task.h"
 #include "radio.h"
+#include "errors.h"
 
 /* Forward declarations */
 static uint8_t ax5043_init_registers_common(rfchan device);
@@ -1103,8 +1104,8 @@ static uint8_t axradio_init(rfchan device, int32_t freq,
     //debug_print("Starting ranging from: %d\n", r); //RBG DEBUG
 
     //printf("INFO: Waiting for PLL ranging process\n");
-    // TODO - add a timeout for this loop.
-    while ((ax5043ReadReg(device, AX5043_PLLRANGINGA) & 0x10) != 0) {
+    int safetyLimit = 500; // Try for 5s maximum, which is really too long!
+    while ((ax5043ReadReg(device, AX5043_PLLRANGINGA) & 0x10) != 0 && safetyLimit-- > 0) {
         vTaskDelay(CENTISECONDS(1));
     }
 
@@ -1114,7 +1115,7 @@ static uint8_t axradio_init(rfchan device, int32_t freq,
     axradio_phy_chanpllrng[device] = ax5043ReadReg(device, AX5043_PLLRANGINGA);
 
 #if 0
-    // TODO - What is this?
+    // TODO -Do we need this?
     // VCOI Calibration
 
     // Primary and secondary frequencies.  There are two per radio
@@ -1340,6 +1341,8 @@ static int start_ax5043_rx(rfchan device,
     status = axradio_init(device, freq, mod, flags, true);
     if (status != AXRADIO_ERR_NOERROR) {
         printf("ERROR: In start_rx, axradio_init returned: %d\n", status);
+        ReportError(AX5043error, FALSE, CharString,
+                                     (int)"ax5043: ERROR: In start_ax5043_rx");
         return status;
     }
 
@@ -1379,8 +1382,8 @@ static int start_ax5043_tx(rfchan device,
     status = axradio_init(device, freq, mod, flags, true);
     if (status != AXRADIO_ERR_NOERROR) {
         printf("ERROR: In start_tx, axradio_init_70cm returned: %d\n", status);
-        // TODO - what do we do if this error is returned?  Wait and
-        // try again?  Same issue for RX
+        ReportError(AX5043error, FALSE, CharString,
+                              (int)"ax5043: ERROR: In start_tx, axradio_init_70cm");
         return status;
     }
 
@@ -1716,13 +1719,6 @@ uint8_t ax5043_off(rfchan device)
 
 /*********************************************************************
  * Everything below here is generic radio interface.
- */
-
-/**
- * TODO - this now starts the AX25 RX.  It should be setup to start
- * multiple receivers We also need another function to start the
- * command receiver.
- *
  */
 void start_rx(rfchan device, uint32_t freq, enum radio_modulation mod)
 {

@@ -610,7 +610,7 @@ DIR_NODE * dir_get_node_by_id(int file_id) {
     return NULL;
 }
 
-// TODO - this should do one file (or a small number) and return (remembering where it is) otherwise it will block when dir is large
+// TODO - this should do one file (or a small number) and return (remembering where it is). Though it has a task delay so other things can carry on.
 void dir_maintenance() {
     uint32_t now = getUnixTime();
 
@@ -1035,7 +1035,7 @@ bool dir_fs_update_header(char *file_name_with_path, HEADER *pfh) {
  */
 int32_t dir_fs_get_file_size(char *file_name_with_path) {
     int32_t rc;
-    int64_t numOfBytesRead; // we need room for a 32 bit size and a negative number for an error.  TODO - we could limit to u32 bits if we never have files over 31 bits in size
+    int64_t numOfBytesRead; // we need room for a 32 bit size and a negative number for an error.
 
     int32_t fp = red_open(file_name_with_path, RED_O_RDONLY);
     if (fp == -1) {

@@ -49,6 +49,7 @@ typedef enum _error {
 	,RxPacketDropped
 	,CANInUse
 	,REDFSIOerror
+	,AX5043error
 	,EndOfErrors //34 -TODO -- this used to have a max of 32,  Need to reduce to 32 or extend the 5 bits in the telemetry that store this code
 } ErrorType_t;
 

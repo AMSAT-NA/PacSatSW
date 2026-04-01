@@ -611,7 +611,7 @@ void pfh_debug_print(HEADER *pfh) {
  *
  * The checksums will be calculated.
  *
- * TODO - wer should pass in the maximum length of header_bytes and confirm before writing that we do not overflow at any point.
+ * TODO - we should pass in the maximum length of header_bytes and confirm before writing that we do not overflow at any point.
  *
  */
 int pfh_generate_header_bytes(HEADER *pfh, int body_size, uint8_t *header_bytes) {

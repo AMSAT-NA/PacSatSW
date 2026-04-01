@@ -951,7 +951,7 @@ int ftl0_process_upload_cmd(ftl0_state_machine_t *state, uint8_t *data, int len)
     int rc = ftl0_make_packet(send_event_buffer.packet.data, (uint8_t *)&ul_go_data, sizeof(ul_go_data), UL_GO_RESP);
     if (rc != TRUE) {
         debug_print("Could not make FTL0 UL GO packet \n");
-        return ER_ILL_FORMED_CMD; // TODO This will cause err 1 to be sent and the station to be offloaded.  Is that right..
+        return ER_ILL_FORMED_CMD;
     }
 
     send_event_buffer.packet.data_len = sizeof(ul_go_data)+2;
@@ -959,7 +959,7 @@ int ftl0_process_upload_cmd(ftl0_state_machine_t *state, uint8_t *data, int len)
     rc = ftl0_send_event(&ax25_event, &send_event_buffer);
     if (rc != TRUE) {
         debug_print("Could not send FTL0 UL GO packet to TNC \n");
-        return ER_ILL_FORMED_CMD; // TODO This will cause err 1 to be sent and the station to be offloaded.  Is that right..
+        return ER_NO_ROOM; // This means the queue was full.
     } else {
         trace_ftl0("FTL0:[%d]: Sending FTL0 UL_GO PKT\n",state->channel);
     }
@@ -1057,6 +1057,8 @@ int ftl0_process_data_end_cmd(ftl0_state_machine_t *state, uint8_t *data, int le
         int32_t fp = red_unlink(file_name_with_path);
         if (fp == -1) {
             debug_print("Unable to remove tmp file: %s : %s\n", file_name_with_path, red_strerror(red_errno));
+            ReportError(REDFSIOerror, FALSE, CharString,
+                                   (int)"ERROR: Disk IO Error removing failed file after uploading");
         }
         ReportToWatchdog(UplinkTaskWD);
         return err;
@@ -1076,6 +1078,8 @@ int ftl0_process_data_end_cmd(ftl0_state_machine_t *state, uint8_t *data, int le
     rc = red_link(file_name_with_path, new_file_name_with_path);
     if (rc == -1) {
         debug_print("Unable to link new file: %s : %s\n", new_file_name_with_path, red_strerror(red_errno));
+        ReportError(REDFSIOerror, FALSE, CharString,
+                                           (int)"ERROR: Disk IO Error renaming file after uploading");
         return ER_NO_ROOM;
     }
 
@@ -1098,6 +1102,8 @@ int ftl0_process_data_end_cmd(ftl0_state_machine_t *state, uint8_t *data, int le
         rc = red_unlink(new_file_name_with_path);
         if (rc == -1) {
             debug_print("Unable to remove file: %s : %s\n", new_file_name_with_path, red_strerror(red_errno));
+            ReportError(REDFSIOerror, FALSE, CharString,
+                        (int)"ERROR: Disk IO Error removing tmp file after uploading");
         }
         ReportToWatchdog(UplinkTaskWD);
         return ER_NO_ROOM; /* This is a bit of a guess at the error, but it is unclear why else this would fail. */
@@ -1108,7 +1114,8 @@ int ftl0_process_data_end_cmd(ftl0_state_machine_t *state, uint8_t *data, int le
     rc = red_unlink(file_name_with_path);
     if (rc == -1) {
         debug_print("Unable to remove tmp file: %s : %s\n", file_name_with_path, red_strerror(red_errno));
-        // TODO this is not fatal to the upload, but there needs to be a routine to clean up expired upload files
+        ReportError(REDFSIOerror, FALSE, CharString,
+                    (int)"ERROR: Disk IO Error removing tmp file after uploading");
     }
 
     return ER_NONE;
@@ -1230,7 +1237,6 @@ bool ftl0_set_file_upload_record(InProcessFileUpload_t * file_upload_record) {
     if (oldest_id != -1) {
         //debug_print("Store in oldest slot %d\n",oldest_id);
         bool rc3 = ftl0_mram_set_file_upload_record(oldest_id, file_upload_record);
-        //TODO - this has to purge the old tmp file as well or it needs to be cleaned up by maintenance func
         if (rc3 == FALSE) return FALSE;
         return TRUE;
     }
