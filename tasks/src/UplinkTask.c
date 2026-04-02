@@ -1382,7 +1382,7 @@ bool ftl0_clear_upload_table() {
  *
  */
 void ftl0_maintenance() {
-    debug_print("Running FTL0 Maintenance\n");
+//    debug_print("Running FTL0 Maintenance\n");
 
     // First remove any expired entries in the table
     int i;
@@ -1423,7 +1423,7 @@ void ftl0_maintenance() {
     // Next remove any orphaned tmp files
     REDDIR *pDir;
     char * path = TMP_FOLDER;
-    printf("Checking TMP Directory from %s:\n",path);
+//    printf("Checking TMP Directory from %s:\n",path);
     pDir = red_opendir(path);
     if (pDir == NULL) {
         debug_print("Unable to open tmp folder: %s\n", red_strerror(red_errno));
@@ -1435,7 +1435,7 @@ void ftl0_maintenance() {
     pDirEnt = red_readdir(pDir);
     while (pDirEnt != NULL) {
         if (!RED_S_ISDIR(pDirEnt->d_stat.st_mode)) {
-            debug_print("Checking: %s\n",pDirEnt->d_name);
+//            debug_print("Checking: %s\n",pDirEnt->d_name);
             uint32_t id = dir_get_file_id_from_filename(pDirEnt->d_name);
 //            if (id == 0) {
 //                debug_print("Could not get file id for file %s\n",pDirEnt->d_name);
