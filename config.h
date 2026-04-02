@@ -426,7 +426,7 @@ extern const uint8_t DCT_DEFAULT_MODE[NUM_CHANNELS];
  * Default voltages
  *
  * These voltages are based on the CIU voltage divider and a/d converter so that 99 is 5.2V.
- *
+ * TODO - these values are not going to be correct for PAC
  */
 #define DEFAULT_AUTOSAFE_INTO 92
 #define DEFAULT_AUTOSAFE_OUTOF 98

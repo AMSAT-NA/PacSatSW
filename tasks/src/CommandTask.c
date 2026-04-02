@@ -255,20 +255,10 @@ bool OpsSWCommands(CommandAndArgs *comarg){
 
     // This first group is intended to write states into the MRAM
 
-    case SWCmdOpsDisableAutosafe:
-        command_print("Disable Autosafe Command\n\r");
-        //DisableAutosafe();
-        break;
     case SWCmdOpsEnableAutosafe:
         command_print("Enable Autosafe Command\n\r");
         //EnableAutosafe();
         break;
-    case SWCmdOpsSetAutosafeVoltages:{
-        uint16_t into=comarg->arguments[0],outof=comarg->arguments[1];
-        command_print("Set autosafe voltages %d %d\n",into,outof);
-        //SetAutosafe(into,outof);
-        break;
-    }
 
     //Now we get to other stuff
 
@@ -384,21 +374,21 @@ bool OpsSWCommands(CommandAndArgs *comarg){
         }
         break;
     }
-    case SWCmdOpsResetSpecified:{
+    case SWCmdOpsResetIHU:{
             command_print("Reset IHU\n");
             // This will execute when we return to the PB task
         break;
     }
-    case SWCmdOpsEnableCommandTimeCheck:{
-        EnableCommandTimeCheck(comarg->arguments[0] != 0);
-        if(CommandTimeEnabled){
-            command_print("Enable command time check\n\r");
-
-        } else {
-            command_print("Disable command time check\n\r");
-        }
-        break;
-    }
+//    case SWCmdOpsEnableCommandTimeCheck:{
+//        EnableCommandTimeCheck(comarg->arguments[0] != 0);
+//        if(CommandTimeEnabled){
+//            command_print("Enable command time check\n\r");
+//
+//        } else {
+//            command_print("Disable command time check\n\r");
+//        }
+//        break;
+//    }
     case SWCmdOpsDCTTxInhibit:
         if(comarg->arguments[0] != 0) { // True means to inhibit it
             command_print("SW:Inhibit transmitting\n");

@@ -118,19 +118,17 @@ typedef enum {
 	,SWCmdOpsSafeMode
 	,SWCmdOpsFSMode
 	,SWCmdOpsScienceMode
-	,SWCmdOpsDisableAutosafe
 	,SWCmdOpsEnableAutosafe
 	,SWCmdOpsClearMinMax
 	,SWCmdOpsNoop
-	,SWCmdOpsEnablePb
-    ,SWCmdOpsFormatFs = 9
+	,SWCmdOpsEnablePb = 8
+    ,SWCmdOpsFormatFs
     ,SWCmdOpsEnableDigi
 	,SWCmdOpsEnableUplink=12
 	,SWCmdOpsDeployAntennas   // Args = (bus, antennaNumber,time, override)
 	,SWCmdOpsSetTime // Args = (unix time)
 	,SWCmdOpsEnableCommandTimeCheck //16
-	,SWCmdOpsSetAutosafeVoltages //17
-	,SWCmdOpsResetSpecified = 21 //Args = (LIHU, RTPrimary, RTSecondary), each one 1 or 0
+	,SWCmdOpsResetIHU = 21 //Args = (LIHU, RTPrimary, RTSecondary), each one 1 or 0
 	,SWCmdOpsDCTTxInhibit // 22
 	,SWCmdOpsSelectDCTRFPower
     ,SWCmdOpsSpare
@@ -140,7 +138,10 @@ const static uint8_t SWCmdOpsArgSize[SWCmdOpsNumberOfCommands]={0,0,0,1,0,0,0};
 
 typedef enum {
     SWCmdTlmReserved=0
-   ,SWCmdTlmFrequency
+   ,SWCmdTlmEnableTelemBroadcast
+   ,SWCmdTlmEnableTimeBroadcast
+   ,SWCmdTlmEnableWod
+   ,SWCmdTlmEnableErrWod
    ,SWCmdTlmNumberOfCommands
 }SWTlmCommands;
 
