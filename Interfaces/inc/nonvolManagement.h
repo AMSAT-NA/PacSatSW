@@ -28,7 +28,8 @@ void WriteMRAM2BoolState(int index1,bool state1,int index2,bool state2);
 
 void WriteMRAMWODFreq(uint16_t freq);
 uint16_t ReadMRAMWODFreq(void);
-
+void WriteMRAMErrWODFreq(uint16_t freq);
+uint16_t ReadMRAMErrWODFreq(void);
 void WriteMRAMWODMaxFileSize4kBlocks(uint8_t size);
 uint8_t ReadMRAMWODMaxFileSize4kBlocks(void);
 
@@ -85,6 +86,8 @@ void WriteMRAMPBClientTimeout(uint16_t freq);
 uint16_t ReadMRAMPBClientTimeout(void);
 void WriteMRAMFTL0StatusFreq(uint16_t freq);
 uint16_t ReadMRAMFTL0StatusFreq(void);
+void WriteMRAMFTL0MaxFileAgeInDays(uint8_t freq);
+uint16_t ReadMRAMFTL0MaxFileAgeInDays(void);
 void WriteMRAMTelemFreq(uint16_t freq);
 uint16_t ReadMRAMTelemFreq(void);
 void WriteMRAMTimeFreq(uint16_t freq);

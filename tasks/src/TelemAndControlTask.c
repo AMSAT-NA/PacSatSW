@@ -109,6 +109,7 @@ void tac_ftl0_status_callback(TimerHandle_t xTimer);
 void tac_telem_timer_callback(TimerHandle_t xTimer);
 void tac_time_timer_callback(TimerHandle_t xTimer);
 void tac_wod_save_timer_callback(TimerHandle_t xTimer);
+void tac_errwod_save_timer_callback(TimerHandle_t xTimer);
 void tac_adc_timer_callback(TimerHandle_t xTimer);
 void tac_maintenance_timer_callback(TimerHandle_t xTimer);
 void tac_check_file_queues_timer_callback(TimerHandle_t xTimer);
@@ -118,6 +119,7 @@ void tac_collect_telemetry(telem_buffer_t *buffer);
 void tac_send_telemetry(telem_buffer_t *buffer);
 void tac_send_time();
 void tac_store_wod();
+void tac_store_errwod();
 
 /* Local variables */
 char wod_file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
@@ -130,6 +132,7 @@ static xTimerHandle timerTimeSend;
 
 /* timer to send the roll the WOD file periodically */
 static xTimerHandle timerWodSave;
+static xTimerHandle timerErrWodSave;
 
 /* timer to perform maintenance periodically */
 static xTimerHandle timerMaintenance;
@@ -156,6 +159,7 @@ static Intertask_Message statusMsg;
 /* A buffer to store telemetry values as they are collected.  We do not need to double buffer as they are copied to
  * a TX queue before being sent */
 static telem_buffer_t telem_buffer;
+static uint8_t minMaxResets = 0;
 
 /* Globals we need access to */
 extern bool InSafeMode;
@@ -244,7 +248,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
     }
 
 
-    /* Create a periodic timer to save to the WOD file */
+    /* Create a periodic timer to save to the WOD files */
     timerWodSave = xTimerCreate("WodSave",
                                 SECONDS(ReadMRAMWODFreq()), TRUE,
                                   NULL, tac_wod_save_timer_callback);
@@ -259,7 +263,20 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
         ReportError(RTOSfailure, FALSE, CharString,
                     (int)"TAC: ERROR: Could not create WOD Save Timer");
     }
-
+    timerErrWodSave = xTimerCreate("ErrWodSave",
+                                SECONDS(ReadMRAMErrWODFreq()), TRUE,
+                                NULL, tac_errwod_save_timer_callback);
+    if (timerErrWodSave != NULL) {
+        // Block time of zero as this can not block
+        timerStatus = xTimerStart(timerErrWodSave, 0);
+        if (timerStatus != pdPASS) {
+            ReportError(RTOSfailure, FALSE, CharString,
+                        (int)"ERROR: Failed in starting ERR WOD Save Timer");
+        }
+    } else {
+        ReportError(RTOSfailure, FALSE, CharString,
+                    (int)"TAC: ERROR: Could not create WOD Save Timer");
+    }
     /* Create a periodic timer for maintenance */
     timerMaintenance = xTimerCreate("Maintenance",
                                     TAC_TIMER_MAINTENANCE_PERIOD, TRUE,
@@ -423,8 +440,9 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
                 break;
             case TacSendPbStatus:
                 //debug_print("Telem & Control: Send the PB Status\n");
-                if (getSpacecraftMode() == SpacecraftFileSystemMode)
-                    pb_send_status();
+                if (ReadMRAMBoolState(StatePbEnabled))
+                    if (getSpacecraftMode() == SpacecraftFileSystemMode)
+                        pb_send_status();
                 break;
 
             case TacUpdatePbTimer:
@@ -432,19 +450,29 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
                     timerStatus = xTimerChangePeriod(timerPbStatus, SECONDS(ReadMRAMPBStatusFreq()), pdMS_TO_TICKS(100));
                     if (timerStatus != pdPASS) {
                         ReportError(RTOSfailure, FALSE, CharString,
-                                    (int)"ERROR: Failed to change Telem Timer period");
+                                    (int)"ERROR: Failed to change PB Timer period");
                     }
                 }
                 break;
             case TacSendUplinkStatus:
                 //debug_print("Telem & Control: Send the FTL0 Status\n");
-                now = getUnixTime(); // Get the time in seconds since the unix epoch
-                if (now < CLOCK_MIN_UNIX_SECS)
-                    break;
-                if (getSpacecraftMode() == SpacecraftFileSystemMode)
-                    ax25_send_status();
+                if (ReadMRAMBoolState(StateUplinkEnabled)) {
+                    now = getUnixTime(); // Get the time in seconds since the unix epoch
+                    if (now < CLOCK_MIN_UNIX_SECS)
+                        break;
+                    if (getSpacecraftMode() == SpacecraftFileSystemMode)
+                        ax25_send_status();
+                }
                 break;
-
+            case TacUpdateUplinkTimer:
+                if (timerUplinkStatus != NULL) {
+                    timerStatus = xTimerChangePeriod(timerUplinkStatus, SECONDS(ReadMRAMFTL0StatusFreq()), pdMS_TO_TICKS(100));
+                    if (timerStatus != pdPASS) {
+                        ReportError(RTOSfailure, FALSE, CharString,
+                                    (int)"ERROR: Failed to change FTL0 Uplink Timer period");
+                    }
+                }
+                break;
             case TacMaintenanceMsg:
                 //debug_print("TAC: Running DIR Maintenance\n");
                 dir_maintenance();
@@ -464,26 +492,68 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
                 break;
 
             case TacSendRealtimeMsg:
-                if (getSpacecraftMode() != SpacecraftScienceMode) {
-                    /*
-                     * For real time telemetry we collect it and send it
-                     * at the same time.  This is sent in both SAFE and File System
-                     * Mode.
-                     */
-                    tac_collect_telemetry(&telem_buffer);
-                    tac_send_telemetry(&telem_buffer);
+                if (ReadMRAMBoolState(StateTelemBroadcastEnabled)) {
+                    if (getSpacecraftMode() != SpacecraftScienceMode) {
+                        /*
+                         * For real time telemetry we collect it and send it
+                         * at the same time.  This is sent in both SAFE and File System
+                         * Mode.
+                         */
+                        tac_collect_telemetry(&telem_buffer);
+                        tac_send_telemetry(&telem_buffer);
+                    }
                 }
                 break;
-
+            case TacUpdateTelemTimer:
+                if (timerTelemSend != NULL) {
+                    timerStatus = xTimerChangePeriod(timerTelemSend, SECONDS(ReadMRAMTelemFreq()), pdMS_TO_TICKS(100));
+                    if (timerStatus != pdPASS) {
+                        ReportError(RTOSfailure, FALSE, CharString,
+                                    (int)"ERROR: Failed to change Telem Timer period");
+                    }
+                }
+                break;
             case TacSendTimeMsg:
-                if (getSpacecraftMode() == SpacecraftFileSystemMode)
-                    tac_send_time();
+                if (ReadMRAMBoolState(StateTimeBroadcastEnabled)) {
+                    if (getSpacecraftMode() == SpacecraftFileSystemMode)
+                        tac_send_time();
+                }
                 break;
-
+            case TacUpdateTimeBroadcastTimer:
+                if (timerTimeSend != NULL) {
+                    timerStatus = xTimerChangePeriod(timerTimeSend, SECONDS(ReadMRAMTimeFreq()), pdMS_TO_TICKS(100));
+                    if (timerStatus != pdPASS) {
+                        ReportError(RTOSfailure, FALSE, CharString,
+                                    (int)"ERROR: Failed to change Time Broadcast Timer period");
+                    }
+                }
+                break;
             case TacSaveWodMsg:
-                tac_store_wod();
+                if (ReadMRAMBoolState(StateWodEnabled))
+                    tac_store_wod();
                 break;
-
+            case TacUpdateWodTimer:
+                if (timerWodSave != NULL) {
+                    timerStatus = xTimerChangePeriod(timerWodSave, SECONDS(ReadMRAMWODFreq()), pdMS_TO_TICKS(100));
+                    if (timerStatus != pdPASS) {
+                        ReportError(RTOSfailure, FALSE, CharString,
+                                    (int)"ERROR: Failed to change WOD save Timer period");
+                    }
+                }
+                break;
+            case TacSaveErrWodMsg:
+                if (ReadMRAMBoolState(StateErrWodEnabled))
+                    tac_store_errwod();
+                break;
+            case TacUpdateErrWodTimer:
+                if (timerErrWodSave != NULL) {
+                    timerStatus = xTimerChangePeriod(timerErrWodSave, SECONDS(ReadMRAMErrWODFreq()), pdMS_TO_TICKS(100));
+                    if (timerStatus != pdPASS) {
+                        ReportError(RTOSfailure, FALSE, CharString,
+                                    (int)"ERROR: Failed to change ERR WOD save Timer period");
+                    }
+                }
+                break;
             case TacADCStartMsg:
                 adc_start_conversion();
                 break;
@@ -553,6 +623,17 @@ void tac_time_timer_callback(TimerHandle_t xTimer)
  * This is called from a timer whenever the WOD file should be rolled.
  */
 void tac_wod_save_timer_callback(TimerHandle_t xTimer)
+{
+    statusMsg.MsgType = TacSaveWodMsg;
+    NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
+}
+
+/**
+ * tac_errwod_roll_timer_callback()
+ *
+ * This is called from a timer whenever the ERR WOD file should be rolled.
+ */
+void tac_errwod_save_timer_callback(TimerHandle_t xTimer)
 {
     statusMsg.MsgType = TacSaveWodMsg;
     NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
@@ -659,6 +740,7 @@ void tac_collect_telemetry(telem_buffer_t *buffer)
     if (rc != 0) {
         printf("TAC: Unable to check disk space with statvfs: %s\n",
                red_strerror(red_errno));
+        ReportError(REDFSIOerror, FALSE, ErrorBits,(int)red_errno);
     } else {
         //printf("Free blocks: %d of %d.  Free Bytes: %d\n",
         //       redstatfs.f_bfree, redstatfs.f_blocks,
@@ -749,7 +831,7 @@ void tac_collect_telemetry(telem_buffer_t *buffer)
     buffer->common2.PbStatusPeriod = tac_encode_period_30s_blocks(ReadMRAMPBStatusFreq());
     buffer->common2.PbTimeout = tac_encode_period_30s_blocks(ReadMRAMPBClientTimeout());
     buffer->common2.UplinkStatusPeriod = tac_encode_period_30s_blocks(ReadMRAMFTL0StatusFreq());
-    buffer->common2.TLMresets = 0; // TODO - implement with clearMinMax() function and command
+    buffer->common2.TLMresets = minMaxResets;
     buffer->common2.swCmds = htotl(getCmdRingTelem());
     buffer->common2.swCmdCnt = GetSWCmdCount();
     buffer->common2.MRAMstatus0 = readMRAMStatus(0);
@@ -922,6 +1004,7 @@ void tac_store_wod() {
     fp = red_open(wod_file_name_with_path, RED_O_CREAT | RED_O_APPEND | RED_O_WRONLY);
     if (fp == -1) {
         debug_print("Unable to open %s for writing: %s\n", wod_file_name_with_path, red_strerror(red_errno));
+        ReportError(REDFSIOerror, FALSE, ErrorBits,(int)red_errno);
         return;
     } else {
 
@@ -930,6 +1013,7 @@ void tac_store_wod() {
             printf("Write returned: %d\n",numOfBytesWritten);
             if (numOfBytesWritten == -1) {
                 printf("Unable to write to %s: %s\n", wod_file_name_with_path, red_strerror(red_errno));
+                ReportError(REDFSIOerror, FALSE, ErrorBits,(int)red_errno);
                 red_close(fp);
                 return;
             }
@@ -948,6 +1032,13 @@ void tac_store_wod() {
         printf("Telem & Control: Stored WOD: %d/%d size:%d\n", ttohs(realtimeFrame.header.resetCnt), htotl(realtimeFrame.header.uptime),wod_file_length);
     if (wod_file_length > (ReadMRAMWODMaxFileSize4kBlocks()*4096))
         tac_roll_file(wod_file_name_with_path, WOD_FOLDER, WOD_PREFIX);
+}
+
+/**
+ * Store one line of telemetry data into the ERR WOD file
+ */
+void tac_store_errwod() {
+    debug_print("ERR WOD storage not yet implemented..\n");
 }
 
 /**
@@ -992,8 +1083,7 @@ void tac_roll_file(char *file_name_with_path, char *folder, char *prefix) {
         case RED_EINVAL: // not mounted
         case RED_EIO: // disk io, we hope it is temporary
             //log this error, so that if a count is reached we reboot to try to fix this
-            ReportError(REDFSIOerror, FALSE, CharString,
-                        (int)"ERROR: Disk IO Error linking file after rolling");
+            ReportError(REDFSIOerror, FALSE, ErrorBits,(int)red_errno);
 
         case RED_ENOENT: // File does not exist, so we have been called incorrectly
         case RED_ENOSPC: //this is because we ran out of space.  So exit and we will try again next time
@@ -1011,14 +1101,22 @@ void tac_roll_file(char *file_name_with_path, char *folder, char *prefix) {
         debug_print("Rolled file but unable to remove tmp que file: %s : %s\n", file_name_with_path, red_strerror(red_errno));
         // This is not fatal but there needs to be a way to clean this up or we will keep trying to add it to the dir. So we log it
         // and if it happens repeatedly we will reboot to heopefully fix it
-        ReportError(REDFSIOerror, FALSE, CharString,
-             (int)"ERROR: Disk IO Error removing temp file after rolling");
+        ReportError(REDFSIOerror, FALSE, ErrorBits,(int)red_errno);
         return;
     }
 
     if (trace_telem)
         printf("Telem & Control: Rolled QUE file: %s\n", file_name);
 
+}
+
+void ClearMinMax() {
+    /* First clear the max to zero */
+    memset(&telem_buffer.maxVals, 0, sizeof(telem_buffer.maxVals));
+    /* Then zero only the time stamps for min and set the min values to their maximum */
+    memset(&telem_buffer.minVals.MinValuesData, 0, sizeof(telem_buffer.minVals.MinValuesData));
+    memset(&telem_buffer.minVals.common, 0xff, sizeof(telem_buffer.minVals.common));
+    minMaxResets++;
 }
 
 #ifdef DEBUG

@@ -228,7 +228,7 @@ typedef uint8_t rfchan;
 #define MAX_FILESIZE 512 * 1024 /* Any file over this size will be rejected as having no room.  This is really just to confirm that the upload size is not corrupt */
 
 #define PB_DEFAULT_TIMER_SEND_STATUS_PERIOD_SECONDS 30 //SECONDS(30)
-#define UPLINK_TIMER_SEND_STATUS_PERIOD_SECONDS 60 //SECONDS(30)
+#define UPLINK_DEFAULT_TIMER_SEND_STATUS_PERIOD_SECONDS 60 //SECONDS(30)
 
 #define PB_CLIENT_TIMEOUT_SECONDS 600  // the maximum time a station can be on the PB
 #define MAX_PKTS_IN_TX_PKT_QUEUE_FOR_TNC_TO_BE_BUSY 2 // TODO - Should be in MRAM and commandable. 2
@@ -244,6 +244,7 @@ typedef uint8_t rfchan;
 #define TAC_TIMER_SEND_TELEMETRY_PERIOD_SECONDS 120 //SECONDS(120)
 #define TAC_TIMER_SEND_TIME_PERIOD_SECONDS 5*60 //SECONDS(5*60)
 #define TAC_TIMER_SAVE_WOD_PERIOD_SECONDS 5*60
+#define TAC_TIMER_SAVE_ERRWOD_PERIOD_SECONDS 5*60
 #define TAC_TIMER_SEND_EXP_PERIOD_SECONDS 5*60
 
 #define TAC_MAX_EXPERIMENT_TIMEOUT_MINS 45 // default 45 minutes
@@ -251,6 +252,7 @@ typedef uint8_t rfchan;
  * or the volume of CAN messages from the EXP.  We want this to be about a third or a half of a day, but not so
  * large that it is hard to download */
 #define TAC_FILE_SIZE_TO_ROLL_WOD_4K_BLOCKS 3 // 12k
+#define TAC_FILE_SIZE_TO_ROLL_ERRWOD_4K_BLOCKS 3 // 12k
 #define TAC_FILE_SIZE_TO_ROLL_EXP_4K_BLOCKS 50 // 200k - This is just a safety limit as we expect them to tell us when a file is done.
 
 // Run maintenance every 5 mins.  Maintenance should run very quickly
@@ -265,7 +267,7 @@ typedef uint8_t rfchan;
 /* These are the default periods to keep files in the dir */
 #define DIR_MAX_FILE_AGE 5*24*60*60 // 5*24*60*60 5 days to keep files
 #define DIR_MAX_WOD_FILE_AGE 2*24*60*60 // 2*24*60*60 2 days to keep WOD files
-#define FTL0_MAX_UPLOAD_RECORD_AGE 3*60*60 // 3*24*60*60 3 days to keep upload records.  This is reset when a station uploads new data for a file.  Note that is should be long enough to make sure that files are not purged while a station is trying to upload it.  i.e. At least 3-5 mins
+#define FTL0_DEFAULT_MAX_UPLOAD_RECORD_AGE_IN_DAYS 3 //3 days to keep upload records.  This is reset when a station uploads new data for a file.  Note that is should be long enough to make sure that files are not purged while a station is trying to upload it.  i.e. At least 3-5 mins
 
 /* At least this many bytes should be free after a file is uploaded.  Each disk block is 256 Bytes.
  * If this is set to 4*256 then we can run out of space while uploading.  Some investigation is needed

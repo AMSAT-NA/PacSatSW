@@ -1402,7 +1402,7 @@ void ftl0_maintenance() {
         if (rec.file_id != 0) {
             uint32_t now = getUnixTime();
             int32_t age = now-rec.request_time;
-            if (age > FTL0_MAX_UPLOAD_RECORD_AGE) {
+            if (age > ReadMRAMFTL0MaxFileAgeInDays()*24*60*60) {
                 debug_print("REMOVING RECORD: %d- File: %04x by %s length: %d offset: %d for %d seconds\n",i, rec.file_id, rec.callsign, rec.length, rec.offset, now-rec.request_time);
                 if (ftl0_mram_set_file_upload_record(i, &blank_file_upload_record)) {
                     // Remove the tmp file
@@ -1427,6 +1427,7 @@ void ftl0_maintenance() {
     pDir = red_opendir(path);
     if (pDir == NULL) {
         debug_print("Unable to open tmp folder: %s\n", red_strerror(red_errno));
+        ReportError(REDFSIOerror, FALSE, ErrorBits,(int)red_errno);
         return;
     }
 
@@ -1458,6 +1459,7 @@ void ftl0_maintenance() {
     }
     if (red_errno != 0) {
         debug_print("*** Error reading tmp directory: %s\n", red_strerror(red_errno));
+        ReportError(REDFSIOerror, FALSE, ErrorBits,(int)red_errno);
     }
     int32_t rc2 = red_closedir(pDir);
     if (rc2 != 0) {

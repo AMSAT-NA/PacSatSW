@@ -693,7 +693,8 @@ void dir_file_queue_check(uint32_t now, char * folder, uint8_t file_type, char *
     REDDIR *pDir;
     pDir = red_opendir(folder);
     if (pDir == NULL) {
-        debug_print("Unable to open folder: %s\n", red_strerror(red_errno));
+        debug_print("Unable to open queue folder: %s - %s\n", folder, red_strerror(red_errno));
+        ReportError(REDFSIOerror, FALSE, ErrorBits,(int)red_errno);
         return;
     }
 

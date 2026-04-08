@@ -187,6 +187,14 @@ void WriteMRAMWODFreq(uint16_t freq){
 uint16_t ReadMRAMWODFreq(void){
     READ_UINT16(WODFrequency,TAC_TIMER_SAVE_WOD_PERIOD_SECONDS);
 }
+
+void WriteMRAMErrWODFreq(uint16_t freq){
+    WRITE_UINT16(ErrWODFrequency,freq);
+}
+
+uint16_t ReadMRAMErrWODFreq(void){
+    READ_UINT16(ErrWODFrequency,TAC_TIMER_SAVE_ERRWOD_PERIOD_SECONDS);
+}
 void WriteMRAMWODMaxFileSize4kBlocks(uint8_t size){
     WRITE_UINT8(WODMaxFileSize4kBlocks,size);
 }
@@ -390,7 +398,14 @@ void WriteMRAMFTL0StatusFreq(uint16_t freq){
 }
 
 uint16_t ReadMRAMFTL0StatusFreq(void){
-    READ_UINT16(FTL0StatusFrequency,UPLINK_TIMER_SEND_STATUS_PERIOD_SECONDS);
+    READ_UINT16(FTL0StatusFrequency,UPLINK_DEFAULT_TIMER_SEND_STATUS_PERIOD_SECONDS);
+}
+void WriteMRAMFTL0MaxFileAgeInDays(uint8_t freq){
+    WRITE_UINT8(FTL0UploadFileMaxAgeInDays,freq);
+}
+
+uint16_t ReadMRAMFTL0MaxFileAgeInDays(void){
+    READ_UINT8(FTL0UploadFileMaxAgeInDays,FTL0_DEFAULT_MAX_UPLOAD_RECORD_AGE_IN_DAYS);
 }
 
 void WriteMRAMTelemFreq(uint16_t freq){
@@ -483,13 +498,18 @@ void SetupMRAMStates() {
     /*
      * For now the experiment is not in place and causes I2c errors
      */
-    WriteMRAMBoolState(StateExp1Disabled,true);
+    WriteMRAMBoolState(StateExp1Enabled,false);
 #else
     WriteMRAMBoolState(StateExp1Disabled,false);
 #endif
 
     WriteMRAMBoolState(StateUplinkEnabled,false);
     WriteMRAMBoolState(StateDigiEnabled,false);
+    WriteMRAMBoolState(StateTelemBroadcastEnabled,true);
+    WriteMRAMBoolState(StateTimeBroadcastEnabled,true);
+    WriteMRAMBoolState(StateWodEnabled,true);
+    WriteMRAMBoolState(StateErrWodEnabled,false);
+
     WriteMRAMWODFreq(TAC_TIMER_SAVE_WOD_PERIOD_SECONDS);
     WriteMRAMWODMaxFileSize4kBlocks(TAC_FILE_SIZE_TO_ROLL_WOD_4K_BLOCKS);
     initSecondsInOrbit(); //Must use this to prevent an update from resetting the in orbit time
@@ -499,7 +519,8 @@ void SetupMRAMStates() {
     WriteMRAMHighestFileNumber(0);  // Start the file system at file 1, so the highest file number is zero.  File Id 0 is reserved and sent when a station does not have a file to upload.
     WriteMRAMPBStatusFreq(PB_DEFAULT_TIMER_SEND_STATUS_PERIOD_SECONDS);
     WriteMRAMPBClientTimeout(PB_CLIENT_TIMEOUT_SECONDS);
-    WriteMRAMFTL0StatusFreq(UPLINK_TIMER_SEND_STATUS_PERIOD_SECONDS);
+    WriteMRAMFTL0StatusFreq(UPLINK_DEFAULT_TIMER_SEND_STATUS_PERIOD_SECONDS);
+    WriteMRAMFTL0MaxFileAgeInDays(FTL0_DEFAULT_MAX_UPLOAD_RECORD_AGE_IN_DAYS);
     WriteMRAMTelemFreq(TAC_TIMER_SEND_TELEMETRY_PERIOD_SECONDS);
     WriteMRAMTimeFreq(TAC_TIMER_SEND_TIME_PERIOD_SECONDS);
     WriteMRAMExpFreq(TAC_TIMER_SEND_EXP_PERIOD_SECONDS);
@@ -585,8 +606,10 @@ int SetupMRAM(void){
     InitResetCnt();
     printf("Reset Count set to 0\n");
 
+    // TODO Need to zero out FileUploadsTable
+
     //SaveAcrossReset.errorInfo.nonFatalErrorCount = 0; //todo: This should be a routine in errors.h
-    printf("Nonfatal error count zeroed (TBD)\n");
+    //printf("Nonfatal error count zeroed (TBD)\n");
 
     //POST_CalculateAndSaveCRC(); /* Initialize correct Flash CRC */
     printf("CRC calculated for init code and full code (TBD)\n");

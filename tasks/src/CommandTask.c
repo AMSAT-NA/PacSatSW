@@ -29,6 +29,7 @@
 #include "ADS7828.h"
 #include "I2cPoll.h"
 #include "redposix.h"
+#include "TelemAndControlTask.h"
 
 #define command_print if(PrintCommandInfo)printf
 
@@ -245,34 +246,40 @@ bool DispatchSoftwareCommand(SWCmdUplink *uplink,bool local){
 }
 
 /*
- * Just for initial pacsat code most of the operations that commands do are commented out.  We just
- * print the command so the uplink can be tested.
+ * PACSAT Ops Commands
  */
 
 bool OpsSWCommands(CommandAndArgs *comarg){
 
     switch((int)comarg->command){
 
-    // This first group is intended to write states into the MRAM
-
-    case SWCmdOpsEnableAutosafe:
+    case SWCmdOpsEnableAutosafe: {
         command_print("Enable Autosafe Command\n\r");
-        //EnableAutosafe();
+        bool turnOn;
+        turnOn = (comarg->arguments[0] != 0);
+        uint16_t into_voltage = comarg->arguments[1];
+        uint16_t outof_voltage = comarg->arguments[2];
+        if (into_voltage == 0)
+            into_voltage = DEFAULT_AUTOSAFE_INTO;
+        if (outof_voltage == 0)
+            outof_voltage = DEFAULT_AUTOSAFE_OUTOF;
+        WriteMRAMBoolState(StateAutoSafeAllow,turnOn);
+        WriteMRAMEnterAutosafe(into_voltage);
+        WriteMRAMExitAutosafe(outof_voltage);
         break;
-
-    //Now we get to other stuff
-
+    }
     case SWCmdOpsSafeMode:{
         command_print("Safe mode command\n");
         statusMsg.MsgType = TacEnterSafeMode;
         NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
         break;
     }
-    case SWCmdOpsFSMode:
+    case SWCmdOpsFSMode: {
         command_print("File System mode \n");
         statusMsg.MsgType = TacEnterFileSystemMode;
         NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
         break;
+    }
     case SWCmdOpsScienceMode:{
         int timeout = comarg->arguments[0];
         if(timeout<=0)timeout = 1; // Just in case
@@ -281,11 +288,11 @@ bool OpsSWCommands(CommandAndArgs *comarg){
         NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
         break;
     }
-    case SWCmdOpsClearMinMax:
+    case SWCmdOpsClearMinMax: {
         command_print("Clear minmax\n");
-        //ClearMinMax();
+        ClearMinMax();
         break;
-
+    }
     case SWCmdOpsNoop:
         command_print("No-op command\n\r");
         break;
@@ -351,13 +358,25 @@ bool OpsSWCommands(CommandAndArgs *comarg){
     case SWCmdOpsEnableUplink: {
         bool turnOn;
         turnOn = (comarg->arguments[0] != 0);
+        uint16_t period = comarg->arguments[1];
+        uint16_t timeout = comarg->arguments[2];
+        if (period == 0)
+            period = UPLINK_DEFAULT_TIMER_SEND_STATUS_PERIOD_SECONDS;
+        if (timeout == 0)
+            timeout = FTL0_DEFAULT_MAX_UPLOAD_RECORD_AGE_IN_DAYS;
+        WriteMRAMBoolState(StateUplinkEnabled,turnOn);
         if(turnOn){
+            /* The Uplink status packets are sent from Telemetry and control.  We notify that task of the
+             * change with a message as it needs to modify the RTOS timer and handle error conditions.
+             * The client timeout is checked in UplinkTask when it processes actions. */
+            WriteMRAMFTL0StatusFreq(period);
+            WriteMRAMFTL0MaxFileAgeInDays(timeout);
             command_print("Enable Uplink\n\r");
-
+            statusMsg.MsgType = TacUpdatePbTimer;
+            NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
         } else {
             command_print("Disable Uplink\n\r");
         }
-        WriteMRAMBoolState(StateUplinkEnabled,turnOn);
         break;
     }
     case SWCmdOpsSetTime:{
@@ -379,16 +398,16 @@ bool OpsSWCommands(CommandAndArgs *comarg){
             // This will execute when we return to the PB task
         break;
     }
-//    case SWCmdOpsEnableCommandTimeCheck:{
-//        EnableCommandTimeCheck(comarg->arguments[0] != 0);
-//        if(CommandTimeEnabled){
-//            command_print("Enable command time check\n\r");
-//
-//        } else {
-//            command_print("Disable command time check\n\r");
-//        }
-//        break;
-//    }
+    case SWCmdOpsEnableCommandTimeCheck:{
+        EnableCommandTimeCheck(comarg->arguments[0] != 0);
+        if(CommandTimeEnabled){
+            command_print("Enable command time check\n\r");
+
+        } else {
+            command_print("Disable command time check\n\r");
+        }
+        break;
+    }
     case SWCmdOpsDCTTxInhibit:
         if(comarg->arguments[0] != 0) { // True means to inhibit it
             command_print("SW:Inhibit transmitting\n");
@@ -436,11 +455,92 @@ void EnableCommandTimeCheck(bool enable){
 }
 bool TlmSWCommands(CommandAndArgs *comarg){
     switch(comarg->command){
-
+    case SWCmdTlmEnableTelemBroadcast:{
+        bool turnOn;
+        turnOn = (comarg->arguments[0] != 0);
+        uint16_t period = comarg->arguments[1];
+        if (period == 0)
+            period = TAC_TIMER_SEND_TELEMETRY_PERIOD_SECONDS;
+        WriteMRAMBoolState(StateTelemBroadcastEnabled,turnOn);
+        if(turnOn){
+            /* The telem packets are sent from Telemetry and Control.  We notify that task of the
+             * change with a message as it needs to modify the RTOS timer and handle error conditions. */
+            WriteMRAMTelemFreq(period);
+            command_print("Enable Telem Broadcast\n\r");
+            statusMsg.MsgType = TacUpdateTelemTimer;
+            NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
+        } else {
+            command_print("Disable Telem Broadcast\n\r");
+        }
+        break;
+    }
+    case SWCmdTlmEnableTimeBroadcast:{
+        bool turnOn;
+        turnOn = (comarg->arguments[0] != 0);
+        uint16_t period = comarg->arguments[1];
+        if (period == 0)
+            period = TAC_TIMER_SEND_TIME_PERIOD_SECONDS;
+        WriteMRAMBoolState(StateTimeBroadcastEnabled,turnOn);
+        if(turnOn){
+            /* The time packets are sent from Telemetry and Control.  We notify that task of the
+             * change with a message as it needs to modify the RTOS timer and handle error conditions. */
+            WriteMRAMTimeFreq(period);
+            command_print("Enable Time Broadcast\n\r");
+            statusMsg.MsgType = TacUpdateTimeBroadcastTimer;
+            NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
+        } else {
+            command_print("Disable Time Broadcast\n\r");
+        }
+        break;
+    }
+    case SWCmdTlmEnableWod:{
+            bool turnOn;
+            turnOn = (comarg->arguments[0] != 0);
+            uint16_t period = comarg->arguments[1];
+            uint16_t size = comarg->arguments[2];
+            if (period == 0)
+                period = TAC_TIMER_SAVE_WOD_PERIOD_SECONDS;
+            if (size == 0)
+                size = TAC_FILE_SIZE_TO_ROLL_WOD_4K_BLOCKS;
+            WriteMRAMBoolState(StateWodEnabled,turnOn);
+            if(turnOn){
+                /* The WOD save happens in Telemetry and Control.  We notify that task of the
+                 * change with a message as it needs to modify the RTOS timer and handle error conditions. */
+                WriteMRAMWODFreq(period);
+                command_print("Enable WOD Saves\n\r");
+                statusMsg.MsgType = TacUpdateWodTimer;
+                NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
+            } else {
+                command_print("Disable WOD Saves\n\r");
+            }
+            break;
+        }
+    case SWCmdTlmEnableErrWod:{
+        bool turnOn;
+        turnOn = (comarg->arguments[0] != 0);
+        uint16_t period = comarg->arguments[1];
+        uint16_t size = comarg->arguments[2];
+        if (period == 0)
+            period = TAC_TIMER_SAVE_ERRWOD_PERIOD_SECONDS;
+        if (size == 0)
+            size = TAC_FILE_SIZE_TO_ROLL_ERRWOD_4K_BLOCKS;
+        WriteMRAMBoolState(StateErrWodEnabled,turnOn);
+        if(turnOn){
+            /* The WOD save happens in Telemetry and Control.  We notify that task of the
+             * change with a message as it needs to modify the RTOS timer and handle error conditions. */
+            WriteMRAMErrWODFreq(period);
+            command_print("Enable ERR WOD Saves\n\r");
+            statusMsg.MsgType = TacUpdateErrWodTimer;
+            NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
+        } else {
+            command_print("Disable ERR WOD Saves\n\r");
+        }
+        break;
+    }
     default:
         localErrorCollection.DCTCmdFailCommandCnt++;
         printf("Unknown Tlm Command\n\r");
-        break;
+        return FALSE;
     }
     return TRUE;
 }
