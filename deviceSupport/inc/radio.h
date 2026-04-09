@@ -14,22 +14,24 @@
 #include "spiDriver.h"
 
 void start_rx(rfchan chan, uint32_t freq, enum radio_modulation mod);
-void stop_rx(rfchan chan);
 void start_tx(rfchan chan, uint32_t freq, enum radio_modulation mod);
-void stop_tx(rfchan chan);
+void stop_chan(rfchan chan);
 
 bool rxing(rfchan chan);
 bool rx_working(rfchan chan);
 
 void set_modulation(rfchan chan, enum radio_modulation modulation, bool tx);
+
 void set_tx_power(rfchan chan, uint32_t power);
+uint16_t get_tx_power(rfchan chan);
 
 uint8_t get_rssi(rfchan chan);
-uint16_t get_tx_power(rfchan chan);
 void test_freq(rfchan chan, uint32_t freq,
                enum radio_modulation modulation, unsigned int flags);
 void test_pll_range(rfchan chan, enum radio_modulation modulation,
                     unsigned int flags, uint32_t start, uint32_t end,
                     uint32_t incr);
+
+void quick_setfreq(rfchan chan, int32_t f);
 
 #endif /* DRIVERS_INC_AX5043_ACCESS_H_ */
