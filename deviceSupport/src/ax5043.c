@@ -892,20 +892,9 @@ static void ax5043_init_registers_tx(rfchan device, enum radio_modulation mod,
      // Per programming manual
      ax5043WriteReg(device, AX5043_0xF00, 0x0F);
      ax5043WriteReg(device, AX5043_0xF18, 0x06);
-}
 
-static void ax5043_prepare_tx(rfchan device, enum radio_modulation mod,
-                              unsigned int flags)
-{
-    ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_XTAL_ON);
-    ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_FIFO_ON);
-    ax5043_init_registers_tx(device, mod, flags);
-    ax5043WriteReg(device, AX5043_FIFOTHRESH1, 0);
-    ax5043WriteReg(device, AX5043_FIFOTHRESH0, 0x80);
-    axradio_wait_for_xtal(device);
     ax5043ReadReg(device, AX5043_POWSTICKYSTAT); // clear pwr management sticky status --> brownout gate works
 }
-
 
 /**
  * THEN SETTINGS THAT ARE JUST FOR THE RX
@@ -1350,7 +1339,7 @@ static int start_ax5043_tx(rfchan device,
     //printf("axradio_init_70cm status: %d\n", status);
 
     modulation_tx(device, mod, flags);
-    ax5043_prepare_tx(device, mod, flags);
+    ax5043_init_registers_tx(device, mod, flags);
 
     /* Set up IRQ on FIFO_FREE > THRESHOLD */
     ax5043WriteReg(device, AX5043_FIFOTHRESH1, 0);
