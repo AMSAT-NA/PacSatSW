@@ -132,7 +132,6 @@ static void PORT_setDirectionOut(const GPIOHandler *h, uint16_t pinNum, bool v)
     else
         info->direction &= ~(1 << pinNum);
     port->DIR = info->direction;
-    port->PULDIS = info->direction;
 }
 
 static void PORT_setOpenDrain(const GPIOHandler *h, uint16_t pinNum, bool v)
