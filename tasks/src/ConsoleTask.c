@@ -1508,7 +1508,7 @@ void RealConsoleTask(void)
 
             if (err)
                 break;
-            stop_rx(chan);
+            stop_chan(chan);
             break;
         }
 
@@ -2237,7 +2237,6 @@ void RealConsoleTask(void)
                  */
                 tx_modulation = mod;
             } else if (rxing(chan)) {
-                stop_rx(chan);
                 start_rx(chan, DCTFreq[chan], DCTModulation[chan]);
             }
             break;

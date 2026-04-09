@@ -132,7 +132,7 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
     for (chan = FIRST_RX_CHANNEL; chan <= LAST_RX_CHANNEL; chan++) {
 #ifdef BLINKY_HARDWARE
         if (chan == 1) {
-            ax5043_off(1); // dev1 is broken on blinky.
+            stop_chan(1); // dev1 is broken on blinky.
             continue;
         }
 #endif
