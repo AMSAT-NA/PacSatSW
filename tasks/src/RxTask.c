@@ -136,7 +136,7 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
             continue;
         }
 #endif
-        start_rx(chan, ReadMRAMFreq(chan), ReadMRAMModulation(chan));
+        start_rx(chan, ReadMRAMFreq(chan), ReadMRAMModulation(chan), FEC_NONE);
     }
 
     while (true) {
