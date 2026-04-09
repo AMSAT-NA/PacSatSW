@@ -78,7 +78,8 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
                     (int)"FATAL ERROR: Could not create TX Packet Queue");
     }
 
-    start_tx(txchan, ReadMRAMFreq(txchan), ReadMRAMModulation(txchan));
+    start_tx(txchan, ReadMRAMFreq(txchan), ReadMRAMModulation(txchan),
+	     FEC_NONE);
 
     // Add seletable Tx power levels  N5BRG  240516
     //set_tx_power(1); // minimum power to test RF output on AX5043

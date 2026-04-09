@@ -373,6 +373,12 @@ enum radio_modulation {
 };
 char *modulation_to_str(enum radio_modulation mod);
 
+enum fec {
+    FEC_NONE = 0,
+    FEC_CONV = 1, /* Convolutional coding per AX5043. */
+};
+char *fec_to_str(enum fec fec);
+
 /* Defined in ConsoleTask.c */
 extern const uint32_t DCT_DEFAULT_FREQ[NUM_CHANNELS];
 extern const enum radio_modulation DCT_DEFAULT_MODULATION[NUM_CHANNELS];

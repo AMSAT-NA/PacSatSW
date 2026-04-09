@@ -545,12 +545,16 @@ static void ax5043_set_modulation_rx(rfchan device, enum radio_modulation mod)
     }
 }
 
+static void ax5043_set_fec(rfchan device, enum fec fec)
+{
+}
+
 /**
  * FIRST ALL OF THE SETTINGS THAT ARE COMMON TO BOTH BANDS AND FOR RX AND TX
  * Set all of the base registers
  */
 static void ax5043_set_registers(rfchan device, enum radio_modulation mod,
-                                 unsigned int flags)
+                                 enum fec fec, unsigned int flags)
 {
     // 0x14 is HDLC framing with CRC. 0x04 is HDLC without CRC.  Was
     // 0x06 for GOLF format
@@ -801,12 +805,13 @@ static void ax5043_set_registers(rfchan device, enum radio_modulation mod,
     ax5043WriteReg(device, AX5043_0xF0C, 0x00);
 
     ax5043_set_modulation_base(device, mod);
+    ax5043_set_fec(device, fec);
 }
 
 static void ax5043_init_registers(rfchan device, enum radio_modulation mod,
-                                  unsigned int flags)
+                                  enum fec fec, unsigned int flags)
 {
-    ax5043_set_registers(device, mod, flags);
+    ax5043_set_registers(device, mod, fec, flags);
 
 #ifdef LEGACY_GOLF
     uint8_t regValue;
@@ -968,7 +973,7 @@ static uint8_t ax5043_receiver_on_continuous(rfchan device)
  * If everything works it returns success - AXRADIO_ERR_NOERROR
  */
 static uint8_t axradio_init(rfchan device, int32_t freq,
-                            enum radio_modulation mod,
+                            enum radio_modulation mod, enum fec fec,
                             unsigned int flags, bool pr_err)
 {
     int rv;
@@ -984,7 +989,7 @@ static uint8_t axradio_init(rfchan device, int32_t freq,
         return AXRADIO_ERR_NOCHIP;
     }
 
-    ax5043_init_registers(device, mod, flags);
+    ax5043_init_registers(device, mod, fec, flags);
     ax5043_init_registers_tx(device, mod, flags);
 
     /*
@@ -1103,7 +1108,7 @@ static uint8_t axradio_init(rfchan device, int32_t freq,
 #endif
 
     ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_POWERDOWN);
-    ax5043_init_registers(device, mod, flags);
+    ax5043_init_registers(device, mod, fec, flags);
     // TODO - G0KLA - why is this RX?  Both TX and RX ranging is run??
     ax5043_init_registers_rx(device, mod, flags);
     ax5043WriteReg(device, AX5043_PLLRANGINGA,
@@ -1274,6 +1279,7 @@ static unsigned int calc_flags(rfchan device, uint32_t freq,
 static int start_ax5043_rx(rfchan device,
                            uint32_t freq,
                            enum radio_modulation mod,
+			   enum fec fec,
                            unsigned int flags)
 {
     int status = 0;
@@ -1287,7 +1293,7 @@ static int start_ax5043_rx(rfchan device,
     ax5043WriteReg(device, AX5043_PINFUNCIRQ, 0x0); //disable IRQs
 
     //    debug_print("In start_rx, Setting freq to %d\n", freq); //DEBUG RBG
-    status = axradio_init(device, freq, mod, flags, true);
+    status = axradio_init(device, freq, mod, fec, flags, true);
     if (status != AXRADIO_ERR_NOERROR) {
         printf("ERROR: In start_rx, axradio_init returned: %d\n", status);
         ReportError(AX5043error, FALSE, CharString,
@@ -1312,6 +1318,7 @@ static int start_ax5043_rx(rfchan device,
 static int start_ax5043_tx(rfchan device,
                            uint32_t freq,
                            enum radio_modulation mod,
+			   enum fec fec,
                            unsigned int flags)
 {
     uint16_t irqreq;
@@ -1328,7 +1335,7 @@ static int start_ax5043_tx(rfchan device,
     ax5043WriteReg(device, AX5043_PINFUNCIRQ, 0x0); //disable IRQs
 
     //  debug_print("In start_tx, Setting freq to %d\n", freq); //DEBUG RBG
-    status = axradio_init(device, freq, mod, flags, true);
+    status = axradio_init(device, freq, mod, fec, flags, true);
     if (status != AXRADIO_ERR_NOERROR) {
         printf("ERROR: In start_tx, axradio_init_70cm returned: %d\n", status);
         ReportError(AX5043error, FALSE, CharString,
@@ -1621,7 +1628,8 @@ static void ax5043PowerOff(rfchan device)
 /*********************************************************************
  * Everything below here is generic radio interface.
  */
-void start_rx(rfchan device, uint32_t freq, enum radio_modulation mod)
+void start_rx(rfchan device, uint32_t freq, enum radio_modulation mod,
+	      enum fec fec)
 {
     struct AX5043Info *info = ax5043_get_info(device);
 
@@ -1634,12 +1642,13 @@ void start_rx(rfchan device, uint32_t freq, enum radio_modulation mod)
     else
         stop_chan(device);
 
-    start_ax5043_rx(device, freq, mod, 0);
+    start_ax5043_rx(device, freq, mod, fec, 0);
     info->rxing = true;
     info->txing = false;
 }
 
-void start_tx(rfchan device, uint32_t freq, enum radio_modulation mod)
+void start_tx(rfchan device, uint32_t freq, enum radio_modulation mod,
+	      enum fec fec)
 {
     struct AX5043Info *info = ax5043_get_info(device);
 
@@ -1651,7 +1660,7 @@ void start_tx(rfchan device, uint32_t freq, enum radio_modulation mod)
     else
         stop_chan(device);
 
-    start_ax5043_tx(device, freq, mod, 0);
+    start_ax5043_tx(device, freq, mod, fec, 0);
     info->txing = true;
     info->rxing = false;
 }
@@ -1740,7 +1749,7 @@ void test_freq(rfchan device, uint32_t freq,
         ax5043PowerOn(device);
         flags = calc_flags(device, freq, flags);
 
-        uint8_t retVal = axradio_init(device, freq, mod, flags, true);
+        uint8_t retVal = axradio_init(device, freq, mod, FEC_NONE, flags, true);
         printf("axradio_init: %d\n",retVal);
 
         retVal = modulation_tx(device, mod, flags);
@@ -1772,7 +1781,7 @@ void test_pll_range(rfchan device, enum radio_modulation mod,
 
     for (i = start; i <= end; i += incr) {
         flags = calc_flags(device, i, flags);
-        rv = axradio_init(device, i, mod, flags, false);
+        rv = axradio_init(device, i, mod, FEC_NONE, flags, false);
         printf("Freq: %d: %s\n", i, rv ? "FAIL" : "good");
     }
 
