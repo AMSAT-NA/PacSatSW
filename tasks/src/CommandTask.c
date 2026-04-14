@@ -397,6 +397,8 @@ bool OpsSWCommands(CommandAndArgs *comarg){
             command_print("SW:Uninhibit transmitting\n");
             inhibitTransmit = false;
         }
+        WriteMRAMBoolState(StateTransmitInhibit,inhibitTransmit);
+
         break;
     case SWCmdOpsSelectDCTRFPower: {
         int myCpuIndex = 0;//ThisProcessorIsPrimary()?0:1;
