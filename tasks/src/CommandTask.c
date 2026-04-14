@@ -29,6 +29,7 @@
 #include "ADS7828.h"
 #include "I2cPoll.h"
 #include "redposix.h"
+#include "TelemAndControlTask.h"
 
 #define command_print if(PrintCommandInfo)printf
 
@@ -253,19 +254,12 @@ bool OpsSWCommands(CommandAndArgs *comarg){
 
     switch((int)comarg->command){
 
-    // This first group is intended to write states into the MRAM
-
-    case SWCmdOpsEnableAutosafe:
-        command_print("Enable Autosafe Command\n\r");
-        //EnableAutosafe();
-        break;
-
-    //Now we get to other stuff
 
     case SWCmdOpsSafeMode:{
         command_print("Safe mode command\n");
         statusMsg.MsgType = TacEnterSafeMode;
         NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
+        WriteMRAMBoolState(StateCommandedSafeMode,true);
         break;
     }
     case SWCmdOpsFSMode:
@@ -281,11 +275,18 @@ bool OpsSWCommands(CommandAndArgs *comarg){
         NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
         break;
     }
-    case SWCmdOpsClearMinMax:
-        command_print("Clear minmax\n");
-        //ClearMinMax();
+    case SWCmdOpsEnableAutosafe: {
+        command_print("Enable Autosafe Command\n\r");
+        bool turnOn;
+        turnOn = (comarg->arguments[0] != 0);
+        WriteMRAMBoolState(StateAutoSafeAllow,turnOn);
         break;
-
+    }
+    case SWCmdOpsClearMinMax: {
+        command_print("Clear minmax\n");
+        tac_clear_minmax();
+        break;
+    }
     case SWCmdOpsNoop:
         command_print("No-op command\n\r");
         break;
@@ -374,6 +375,11 @@ bool OpsSWCommands(CommandAndArgs *comarg){
         }
         break;
     }
+    case SWCmdOpsDeployAntennas:{
+        // Args: Bus Ant Time Override
+        command_print("Deploy Antennas NOT YET IMPLEMENTED\n");
+        break;
+    }
     case SWCmdOpsResetIHU:{
             command_print("Reset IHU\n");
             // This will execute when we return to the PB task
@@ -438,6 +444,19 @@ void EnableCommandTimeCheck(bool enable){
 }
 bool TlmSWCommands(CommandAndArgs *comarg){
     switch(comarg->command){
+
+    case SWCmdTlmEnableTelemBroadcast: {
+        bool turnOn;
+        turnOn = (comarg->arguments[0] != 0);
+        if(turnOn){
+            command_print("Enable Telem Broadcast\n\r");
+
+        } else {
+            command_print("Disable Telem Broadast\n\r");
+        }
+        WriteMRAMBoolState(StateUplinkEnabled,turnOn);
+        break;
+    }
 
     default:
         localErrorCollection.DCTCmdFailCommandCnt++;

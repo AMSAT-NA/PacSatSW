@@ -331,6 +331,9 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
     // I2CDevicePoll(); // verify that ICR, CIU, etc are communicating over I2c
     //ReportToWatchdog(TelemetryAndControlWD);
 
+    /* Clear the Min Max each boot */
+    tac_clear_minmax();
+
     /*
      * When everything is settled after boot we can start collecting
      * telemetry.  We don't want uninitialized values to corrupt the
@@ -761,7 +764,16 @@ void tac_collect_telemetry(telem_buffer_t *buffer)
      * Note: that we do not do that for the TMS570 hardware values like RAMCorAddr1.  These are left big endian */
     buffer->errors = localErrorCollection;
 
-    // TODO - calculate min max and store in MRAM
+    // TODO - calculate min max.  TODO - should this also be stored in MRAM so it survives across resets?  If so, remove the reset when this task starts and add to preflight init.
+}
+
+/**
+ * Set the min values to their maximum and the max values to their minimum.  All of the
+ * telem values are unsigned ints, so this works even for multi byte values
+ */
+void tac_clear_minmax() {
+    memset(&telem_buffer.minVals , 0xFF, sizeof(telem_buffer.minVals));
+    memset(&telem_buffer.maxVals, 0x00, sizeof(telem_buffer.maxVals));
 }
 
 /**

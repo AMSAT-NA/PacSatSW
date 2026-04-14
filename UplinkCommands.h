@@ -108,11 +108,12 @@ typedef enum {
 }SWCommandNameSpace;
 typedef enum {
      SWCmdIntReserved=0
-    ,SWCmdIntSetEclipseState // Argument 1 for enter, 0 for exit
-    ,SWCmdIntEclipsesafeMode
-    ,SWCmdIntEclipseInhibTx
+//    ,SWCmdIntSetEclipseState // Argument 1 for enter, 0 for exit
+//    ,SWCmdIntEclipsesafeMode
+//    ,SWCmdIntEclipseInhibTx
     ,SWCmdIntAutosafeMode
 }SWInternalCommands;
+
 typedef enum {
 	 SWCmdOpsReserved=0
 	,SWCmdOpsSafeMode

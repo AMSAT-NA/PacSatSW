@@ -569,6 +569,10 @@ void IHUInitSaved(void){
     WriteMRAMDCTDriveHighPower(DCT_DEFAULT_HIGH_POWER);
     WriteMRAMDCTDriveLowPower(DCT_DEFAULT_LOW_POWER);
 }
+
+/**
+ * This initializes the MRAM values that we want to setup ready for flight
+ */
 int SetupMRAM(void){
     uint32_t size = getSizeNV(NVConfigData); /* Will initialize. */
 
@@ -579,7 +583,6 @@ int SetupMRAM(void){
 
     WriteMinMaxResetSeconds(0); // Clear sets reset time to THIS epoch.  We need preflight init epoch
     WriteMinMaxResetEpoch(0);
-
     printf("Telemetry min/max in MRAM initialized\n");
 
     InitResetCnt();
