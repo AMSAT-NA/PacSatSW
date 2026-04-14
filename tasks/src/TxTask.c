@@ -44,6 +44,7 @@ static rfchan txchan = FIRST_TX_CHANNEL;
 
 enum radio_modulation tx_modulation;
 
+/* Global Variable that is declared here and prevents the transmitter from generating RF */
 bool inhibitTransmit;
 
 /* Test Buffer PB Empty */

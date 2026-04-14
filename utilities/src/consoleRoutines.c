@@ -370,10 +370,12 @@ void DisplayTelemetry(uint32_t typeRequested)
                 CpuTempIsOk(),TxTempIsOk(),RTCIsOk());
 
         printf("MRAM State Values:\n\r"
+                "  TX Inhibit=%d\n\r"
                 "  CommandedSafeMode=%d,Autosafe=%d\n\r"
                 "  CommandRcvd=%d,AllowAutoSafe=%d\n\r"
                 "  AX25 PB Enabled=%d,FTL0 Enabled=%d,Digi Enabled=%d\n\r",
 
+                ReadMRAMBoolState(StateTransmitInhibit),
                ReadMRAMBoolState(StateCommandedSafeMode),
                ReadMRAMBoolState(StateAutoSafe),
                ReadMRAMBoolState(StateCommandReceived),

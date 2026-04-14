@@ -13,8 +13,8 @@
  * Routine prototypes
  */
 void TelemAndControlTask(void *pvParameters);
+void tac_clear_minmax();
 void tac_roll_file(char *file_name_with_path, char *folder, char *prefix);
-void ClearMinMax();
 
 /* Test routines */
 bool tac_test_wod_file();

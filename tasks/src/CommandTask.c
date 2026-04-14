@@ -272,6 +272,7 @@ bool OpsSWCommands(CommandAndArgs *comarg){
         command_print("Safe mode command\n");
         statusMsg.MsgType = TacEnterSafeMode;
         NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
+        WriteMRAMBoolState(StateCommandedSafeMode,true);
         break;
     }
     case SWCmdOpsFSMode: {
@@ -290,7 +291,7 @@ bool OpsSWCommands(CommandAndArgs *comarg){
     }
     case SWCmdOpsClearMinMax: {
         command_print("Clear minmax\n");
-        ClearMinMax();
+        tac_clear_minmax();
         break;
     }
     case SWCmdOpsNoop:
@@ -393,6 +394,11 @@ bool OpsSWCommands(CommandAndArgs *comarg){
         }
         break;
     }
+    case SWCmdOpsDeployAntennas:{
+        // Args: Bus Ant Time Override
+        command_print("Deploy Antennas NOT YET IMPLEMENTED\n");
+        break;
+    }
     case SWCmdOpsResetIHU:{
             command_print("Reset IHU\n");
             // This will execute when we return to the PB task
@@ -416,6 +422,8 @@ bool OpsSWCommands(CommandAndArgs *comarg){
             command_print("SW:Uninhibit transmitting\n");
             inhibitTransmit = false;
         }
+        WriteMRAMBoolState(StateTransmitInhibit,inhibitTransmit);
+
         break;
     case SWCmdOpsSelectDCTRFPower: {
         int myCpuIndex = 0;//ThisProcessorIsPrimary()?0:1;
