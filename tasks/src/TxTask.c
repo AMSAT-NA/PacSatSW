@@ -161,6 +161,11 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
             fifo_clear(txchan);
 
 	    if (fec == FEC_CONV) {
+		/*
+		 * With FEC enabled, you must send a single extra bit
+		 * at the beginning of the preamble or the data won't
+		 * line up correctly in the interleaver.
+		 */
 		fifo_repeat_byte(txchan, 0x02, 1,
 				 AX5043_QUEUE_RESIDUE_FLAG |
 				 AX5043_QUEUE_RAW_NO_CRC_FLAG |
