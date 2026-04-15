@@ -364,18 +364,24 @@ typedef uint8_t rfchan;
  */
 #define AX5043_USES_TCXO // If this is not defined then we are using an XTAL
 
-enum radio_modulation {
-    MODULATION_INVALID = -1, // Also used to pick the default Tx modulation.
-    MODULATION_AFSK_1200 = 0,
-    MODULATION_GMSK_9600 = 1,
-};
-char *modulation_to_str(enum radio_modulation mod);
-
 enum fec {
     FEC_NONE = 0,
     FEC_CONV = 1, /* Convolutional coding per AX5043. */
 };
-char *fec_to_str(enum fec fec);
+
+/*
+ * This is set up so the bottom 4 routines are the modulation time and
+ * the top 4 bits of an 8-bit value.  The ax5043 routine takes this
+ * apart.
+ */
+enum radio_modulation {
+    MODULATION_INVALID = -1, // Also used to pick the default Tx modulation.
+    MODULATION_AFSK_1200 = 0,
+    MODULATION_AFSK_1200_CONV = FEC_CONV << 4 | MODULATION_AFSK_1200,
+    MODULATION_GMSK_9600 = 1,
+    MODULATION_GMSK_9600_CONV = FEC_CONV << 4 | MODULATION_GMSK_9600,
+};
+char *modulation_to_str(enum radio_modulation mod);
 
 /* Defined in ConsoleTask.c */
 extern const uint32_t DCT_DEFAULT_FREQ[NUM_CHANNELS];
@@ -384,6 +390,7 @@ extern const uint8_t DCT_DEFAULT_MODE[NUM_CHANNELS];
 
 // For now, we want the output to be something like 100mW (20dBm) and 500mW (27dBm)
 // I believe this makes the DCT output be about -7dBM and +3dBM
+// TODO - figure out what to do with this.  It doesn't do anything right now.
 #define DCT_DEFAULT_LOW_POWER 261   // This seems about right for 20dBm
 #define DCT_DEFAULT_HIGH_POWER 632 // TODO:  This should be defined so we get about 27dBm out of the PA.
 

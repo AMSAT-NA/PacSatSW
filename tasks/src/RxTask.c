@@ -136,7 +136,7 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
             continue;
         }
 #endif
-        start_rx(chan, ReadMRAMFreq(chan), ReadMRAMModulation(chan), FEC_NONE);
+        start_rx(chan, ReadMRAMFreq(chan), ReadMRAMModulation(chan));
     }
 
     while (true) {
@@ -180,19 +180,37 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
     }
 }
 
+static void
+print_raw_packet(const char *str, uint8_t *data, unsigned int len)
+{
+    unsigned int i;
+
+    printf("%s RAW:", str);
+    for (i = 0; i < len; i++)
+	printf(" %2.2x", data[i]);
+    printf("\n");
+}
+
 static void handle_fifo_data(rfchan chan, uint8_t fifo_flags, uint8_t len)
 {
     uint8_t loc = 0;
 
+    for (loc = 0; loc < len; loc++)
+        rx_radio_buffer.bytes[loc] = ax5043ReadReg(chan, AX5043_FIFODATA);
+
     //debug_print("FIFO CMD:%d LEN:%d FLAGS:%x\n",fifo_cmd,len, fifo_flags);
     if (fifo_flags != 0x03) {
         // This should never happen??  Corrupt somehow, and we should ignore.
-        debug_print("ERROR in received FIFO Flags\n");
+	if (monitorRxPackets) {
+	    char rx_str[10];
+	    debug_print("ERROR in received FIFO Flags: %x %d\n",
+			fifo_flags, len);
+
+	    snprintf(rx_str, sizeof(rx_str), "RX[%d]", chan);
+	    print_raw_packet(rx_str, &rx_radio_buffer.bytes[0], len);
+	}
         return;
     }
-
-    for (loc = 0; loc < len; loc++)
-        rx_radio_buffer.bytes[loc] = ax5043ReadReg(chan, AX5043_FIFODATA);
 
     if (len < 2) {
         /* Shouldn't happen, the CRC at the end is still there. */
@@ -205,8 +223,8 @@ static void handle_fifo_data(rfchan chan, uint8_t fifo_flags, uint8_t len)
         char rx_str[10];
 
         snprintf(rx_str, sizeof(rx_str), "RX[%d]", chan);
-        print_packet(rx_str, &rx_radio_buffer.bytes[0],
-                     rx_radio_buffer.len);
+        print_raw_packet(rx_str, &rx_radio_buffer.bytes[0],
+			 rx_radio_buffer.len);
     }
 
     // Store the channel here - same as device id
@@ -242,9 +260,12 @@ static bool process_fifo(rfchan chan)
     if (monitorRxPackets)
         debug_print("RX channel: %d Interrupt while in FULL_RX mode\n", chan);
 
-    if ((ax5043ReadReg(chan, AX5043_FIFOSTAT) & 0x01) == 1)
-        // FIFO empty
-        return false;
+    if ((ax5043ReadReg(chan, AX5043_FIFOSTAT) & 0x01) == 1) {
+	// FIFO empty
+	if (monitorRxPackets)
+	    debug_print("FIFO Empty\n");
+	return false;
+    }
 
     //printf("IRQREQUEST1: %02x\n", ax5043ReadReg(AX5043_IRQREQUEST1));
     //printf("IRQREQUEST0: %02x\n", ax5043ReadReg(AX5043_IRQREQUEST0));
@@ -270,8 +291,9 @@ static bool process_fifo(rfchan chan)
     if (fifo_cmd == AX5043_FIFOCMD_DATA) {
         GPIOSetOn(LED2);
         handle_fifo_data(chan, fifo_flags, len);
-    } else {
-        //debug_print("FIFO MESSAGE: %d LEN:%d\n",fifo_cmd,len);
+    } else if (monitorRxPackets) {
+        debug_print("FIFO MESSAGE: %x LEN:%d FLAGS: %x\n", fifo_cmd, len,
+		    fifo_flags);
     }
 
     return true;

@@ -1499,7 +1499,7 @@ void RealConsoleTask(void)
 
             if (err)
                 break;
-            start_rx(chan, DCTFreq[chan], DCTModulation[chan], FEC_NONE);
+            start_rx(chan, DCTFreq[chan], DCTModulation[chan]);
             break;
         }
 
@@ -2218,8 +2218,12 @@ void RealConsoleTask(void)
 
             if (strcmp(modstr, "1200") == 0) {
                 mod = MODULATION_AFSK_1200;
+            } else if (strcmp(modstr, "1200conv") == 0) {
+                mod = MODULATION_AFSK_1200_CONV;
             } else if (strcmp(modstr, "9600") == 0) {
                 mod = MODULATION_GMSK_9600;
+            } else if (strcmp(modstr, "9600conv") == 0) {
+                mod = MODULATION_GMSK_9600_CONV;
             } else {
                 printf("Invalid modulation %s, must be 1200 or 9600\n",
                        modstr);
@@ -2237,7 +2241,7 @@ void RealConsoleTask(void)
                  */
                 tx_modulation = mod;
             } else if (rxing(chan)) {
-                start_rx(chan, DCTFreq[chan], DCTModulation[chan], FEC_NONE);
+                start_rx(chan, DCTFreq[chan], DCTModulation[chan]);
             }
             break;
         }

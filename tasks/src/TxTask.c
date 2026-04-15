@@ -50,6 +50,17 @@ bool inhibitTransmit;
 //uint8_t byteBuf[] = {0xA0,0x84,0x98,0x92,0xA6,0xA8,0x00,0xA0,0x8C,0xA6,0x66,
 //                     0x40,0x40,0x17,0x03,0xF0,0x50,0x42,0x3A,0x20,0x45,0x6D,0x70,0x74,0x79,0x2E,0x0D};
 
+static void
+print_raw_packet(const char *str, uint8_t *data, unsigned int len)
+{
+    unsigned int i;
+
+    printf("%s RAW:", str);
+    for (i = 0; i < len; i++)
+	printf(" %2.2x", data[i]);
+    printf("\n");
+}
+
 portTASK_FUNCTION_PROTO(TxTask, pvParameters)
 {
     /* Buffer used when data copied from tx queue */
@@ -77,8 +88,7 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
                     (int)"FATAL ERROR: Could not create TX Packet Queue");
     }
 
-    start_tx(txchan, ReadMRAMFreq(txchan), ReadMRAMModulation(txchan),
-	     FEC_NONE);
+    start_tx(txchan, ReadMRAMFreq(txchan), ReadMRAMModulation(txchan));
 
     // Add seletable Tx power levels  N5BRG  240516
     //set_tx_power(1); // minimum power to test RF output on AX5043
@@ -122,8 +132,10 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
             /* Data was successfully received from the queue */
             int numbytes = tx_packet_buffer.len;
 	    enum radio_modulation mod;
+	    enum fec fec;
 
 	    mod = (enum radio_modulation) tx_packet_buffer.tx_modulation;
+	    fec = (enum fec) ((mod >> 4) & 0xf);
 
 	    // 10 for 1200 bps - Radio lab recommends 32 for 9600, may
 	    // need as much as 56.
@@ -141,21 +153,50 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
             }
 
             if (monitorTxPackets)
-                print_packet("TX", tx_packet_buffer.bytes, tx_packet_buffer.len);
+                print_raw_packet("TX", tx_packet_buffer.bytes, tx_packet_buffer.len);
 
             //printf("FIFO_FREE 1: %d\n",fifo_free());
 
             // clear FIFO data & flags
             fifo_clear(txchan);
 
-            // repeat the preamble bytes
-            //  TODO - no preamble for back to back packets
-            fifo_repeat_byte(txchan, 0x7E, preamble_length,
-                             AX5043_QUEUE_RAW_NO_CRC_FLAG);
-            fifo_commit(txchan);
+	    if (fec == FEC_CONV) {
+		fifo_repeat_byte(txchan, 0x02, 1,
+				 AX5043_QUEUE_RESIDUE_FLAG |
+				 AX5043_QUEUE_RAW_NO_CRC_FLAG |
+				 AX5043_QUEUE_PKTSTART_FLAG);
+		fifo_repeat_byte(txchan, 0x7E, preamble_length,
+				 AX5043_QUEUE_RAW_NO_CRC_FLAG);
+	    } else {
+		// repeat the preamble bytes
+		//  TODO - no preamble for back to back packets
+		fifo_repeat_byte(txchan, 0x7E, preamble_length,
+				 AX5043_QUEUE_RAW_NO_CRC_FLAG |
+				 AX5043_QUEUE_PKTSTART_FLAG);
+	    }
+	    /*
+	     * FIXME - the AX5043 buffer is 256 bytes, a long message
+	     * can overflow it with the preamble and possible
+	     * postamble.  Need to check and do multiple queue
+	     * operations if necessary.
+	     */
             fifo_queue_buffer(txchan, tx_packet_buffer.bytes, numbytes,
-                        AX5043_QUEUE_PKTSTART_FLAG | AX5043_QUEUE_PKTEND_FLAG);
+			      AX5043_QUEUE_PKTEND_FLAG);
             //       printf("FIFO_FREE 2: %d\n",fifo_free());
+
+	    if (fec == FEC_CONV) {
+		/*
+		 * Flush out the encoder.  The tail (4 bits) and then
+		 * empty the interleaver (8 bits).  This is 12 bits,
+		 * so 24 bits when doubled by the coder.  So sending
+		 * 16 (32 encoded) bits should be plenty.
+		 */
+		fifo_repeat_byte(txchan, 0x7E, 2,
+				 AX5043_QUEUE_RAW_NO_CRC_FLAG);
+		fifo_repeat_byte(txchan, 0, 2,
+				 AX5043_QUEUE_RAW_NO_CRC_FLAG);
+	    }
+
             fifo_commit(txchan);
             //       printf("INFO: Waiting for transmission to complete\n");
 
