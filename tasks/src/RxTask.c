@@ -187,7 +187,7 @@ print_raw_packet(const char *str, uint8_t *data, unsigned int len)
 
     printf("%s RAW:", str);
     for (i = 0; i < len; i++)
-	printf(" %2.2x", data[i]);
+        printf(" %2.2x", data[i]);
     printf("\n");
 }
 
@@ -201,14 +201,14 @@ static void handle_fifo_data(rfchan chan, uint8_t fifo_flags, uint8_t len)
     //debug_print("FIFO CMD:%d LEN:%d FLAGS:%x\n",fifo_cmd,len, fifo_flags);
     if (fifo_flags != 0x03) {
         // This should never happen??  Corrupt somehow, and we should ignore.
-	if (monitorRxPackets) {
-	    char rx_str[10];
-	    debug_print("ERROR in received FIFO Flags: %x %d\n",
-			fifo_flags, len);
+        if (monitorRxPackets) {
+            char rx_str[10];
+            debug_print("ERROR in received FIFO Flags: %x %d\n",
+                        fifo_flags, len);
 
-	    snprintf(rx_str, sizeof(rx_str), "RX[%d]", chan);
-	    print_raw_packet(rx_str, &rx_radio_buffer.bytes[0], len);
-	}
+            snprintf(rx_str, sizeof(rx_str), "RX[%d]", chan);
+            print_raw_packet(rx_str, &rx_radio_buffer.bytes[0], len);
+        }
         return;
     }
 
@@ -224,7 +224,7 @@ static void handle_fifo_data(rfchan chan, uint8_t fifo_flags, uint8_t len)
 
         snprintf(rx_str, sizeof(rx_str), "RX[%d]", chan);
         print_raw_packet(rx_str, &rx_radio_buffer.bytes[0],
-			 rx_radio_buffer.len);
+                         rx_radio_buffer.len);
     }
 
     // Store the channel here - same as device id
@@ -253,7 +253,7 @@ static bool process_fifo(rfchan chan)
 
     if (!rx_working(chan)) {
         debug_print("AX5043 Interrupt in pwrmode: %02x\n",
-		    ax5043ReadReg(chan, AX5043_PWRMODE));
+                    ax5043ReadReg(chan, AX5043_PWRMODE));
         return false;
     }
 
@@ -261,10 +261,10 @@ static bool process_fifo(rfchan chan)
         debug_print("RX channel: %d Interrupt while in FULL_RX mode\n", chan);
 
     if ((ax5043ReadReg(chan, AX5043_FIFOSTAT) & 0x01) == 1) {
-	// FIFO empty
-	if (monitorRxPackets)
-	    debug_print("FIFO Empty\n");
-	return false;
+        // FIFO empty
+        if (monitorRxPackets)
+            debug_print("FIFO Empty\n");
+        return false;
     }
 
     //printf("IRQREQUEST1: %02x\n", ax5043ReadReg(AX5043_IRQREQUEST1));
@@ -293,7 +293,7 @@ static bool process_fifo(rfchan chan)
         handle_fifo_data(chan, fifo_flags, len);
     } else if (monitorRxPackets) {
         debug_print("FIFO MESSAGE: %x LEN:%d FLAGS: %x\n", fifo_cmd, len,
-		    fifo_flags);
+                    fifo_flags);
     }
 
     return true;

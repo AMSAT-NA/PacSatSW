@@ -364,9 +364,11 @@ typedef uint8_t rfchan;
  */
 #define AX5043_USES_TCXO // If this is not defined then we are using an XTAL
 
+/* FEC is a bitmask. */
 enum fec {
     FEC_NONE = 0,
     FEC_CONV = 1, /* Convolutional coding per AX5043. */
+    FEC_RS = 2, /* Reed Solomon. */
 };
 
 /*
@@ -382,6 +384,9 @@ enum radio_modulation {
     MODULATION_GMSK_9600_CONV = FEC_CONV << 4 | MODULATION_GMSK_9600,
 };
 char *modulation_to_str(enum radio_modulation mod);
+
+#define MODULATION_TO_BASE_MODULATION(mod) ((enum radio_modulation) ((mod) & 0xf))
+#define MODULATION_TO_FEC(mod) ((enum fec) (((mod) >> 4) & 0xf))
 
 /* Defined in ConsoleTask.c */
 extern const uint32_t DCT_DEFAULT_FREQ[NUM_CHANNELS];
@@ -458,8 +463,8 @@ extern const uint8_t DCT_DEFAULT_MODE[NUM_CHANNELS];
  * identify the source and destination.
  * See tasks/src/CANTask.c for details on the CAN header.
  */
-#define CANA_ADDRESS	15
-#define CANB_ADDRESS	14
+#define CANA_ADDRESS    15
+#define CANB_ADDRESS    14
 
 /*
  * The CAN busses.  Note that the numbering here does not necessarily

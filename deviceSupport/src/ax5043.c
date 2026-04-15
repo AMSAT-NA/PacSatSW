@@ -77,58 +77,58 @@ static uint8_t axradio_phy_chanpllrng[NUM_CHANNELS];
 
 static void ax5043_set_fec(rfchan device, enum fec fec)
 {
-    switch(fec) {
+    switch(fec & FEC_CONV) {
     case FEC_NONE:
-	/*
-	 * PKTADDRCFG
-	 *
-	 * Send AX25 LSB first.  Disable FEC sync search.  Addr bytes set
-	 * to 0.  Note this was 80 = MSB First for GOLF/FOX
-	 *
-	 * Radio lab suggests 40, which is CRC skip first This was set
-	 * to 20 to disable FEC sync search, but maybe that is needed
-	 */
-	//  0x20 is right value for 1200bps, disables FEC sync search.  This
-	//  work for 9600 too
-	ax5043WriteReg(device, AX5043_PKTADDRCFG, 0x20);
-	// Disable FEC
-	ax5043WriteReg(device, AX5043_FEC, 0x00);
-	break;
+        /*
+         * PKTADDRCFG
+         *
+         * Send AX25 LSB first.  Disable FEC sync search.  Addr bytes set
+         * to 0.  Note this was 80 = MSB First for GOLF/FOX
+         *
+         * Radio lab suggests 40, which is CRC skip first This was set
+         * to 20 to disable FEC sync search, but maybe that is needed
+         */
+        //  0x20 is right value for 1200bps, disables FEC sync search.  This
+        //  works for 9600 too
+        ax5043WriteReg(device, AX5043_PKTADDRCFG, 0x20);
+        // Disable FEC
+        ax5043WriteReg(device, AX5043_FEC, 0x00);
+        break;
 
     case FEC_CONV:
-	/* Enable the built-in convolutional encoder in the AX5043. */
+        /* Enable the built-in convolutional encoder in the AX5043. */
 
-	/* Enable FEC sync search. */
-	ax5043WriteReg(device, AX5043_PKTADDRCFG, 0x00);
+        /* Enable FEC sync search. */
+        ax5043WriteReg(device, AX5043_PKTADDRCFG, 0x00);
 
-	/*
-	 * FEC does not work with inversion, differential encoding,
-	 * whitening, or manchester encoding.
-	 */
+        /*
+         * FEC does not work with inversion, differential encoding,
+         * whitening, or manchester encoding.
+         */
         ax5043WriteReg(device, AX5043_ENCODING, 0x00);
 
-	/*
-	 * Reset the Viterbi decode, then clear the reset.
-	 * Enable FEC
-	 * FEC soft RX decode attenuate = 2 ^ 2
-	 * Enable noninverted data sync
-	 * Disable inverted interleaver sync
-	 * Disable shorten backtrack memory
-	 */
-	ax5043WriteReg(device, AX5043_FEC, 0x40);
-	ax5043WriteReg(device, AX5043_FEC, 0x13);
-	/* TODO - What is this?  0x62 is supposed to be the default. */
-	ax5043WriteReg(device, AX5043_FECSYNC, 0x62);
-	break;
+        /*
+         * Reset the Viterbi decode, then clear the reset.
+         * Enable FEC
+         * FEC soft RX decode attenuate = 2 ^ 2
+         * Enable noninverted data sync
+         * Disable inverted interleaver sync
+         * Disable shorten backtrack memory
+         */
+        ax5043WriteReg(device, AX5043_FEC, 0x40);
+        ax5043WriteReg(device, AX5043_FEC, 0x13);
+        /* TODO - What is this?  0x62 is supposed to be the default. */
+        ax5043WriteReg(device, AX5043_FECSYNC, 0x62);
+        break;
     }
 }
 
 static void ax5043_set_modulation_base(rfchan device,
                                        enum radio_modulation mod)
 {
-    enum fec fec = (enum fec) ((mod >> 4) & 0xf);
+    enum fec fec = MODULATION_TO_FEC(mod);
 
-    mod &= 0xf;
+    mod = MODULATION_TO_BASE_MODULATION(mod);
 
     switch (mod) {
     case MODULATION_AFSK_1200:
@@ -1237,24 +1237,21 @@ static uint8_t ax5043_reset(rfchan device)
     i = ax5043ReadReg(device, AX5043_SILICONREVISION);
 
     if (i != SILICONREV1) {
-	if (retries > 0) {
-	    retries--;
-	    vTaskDelay(CENTISECONDS(1));
-	    goto retry;
-	}
-	printf("A\n");
+        if (retries > 0) {
+            retries--;
+            vTaskDelay(CENTISECONDS(1));
+            goto retry;
+        }
         return RADIO_ERR_REVISION;
     }
 
     ax5043WriteReg(device, AX5043_SCRATCH, 0x55);
     if (ax5043ReadReg(device, AX5043_SCRATCH) != 0x55) {
-	printf("B\n");
         return RADIO_ERR_COMM;
     }
 
     ax5043WriteReg(device, AX5043_SCRATCH, 0xAA);
     if (ax5043ReadReg(device, AX5043_SCRATCH) != 0xAA) {
-	printf("C\n");
         return RADIO_ERR_COMM;
     }
 

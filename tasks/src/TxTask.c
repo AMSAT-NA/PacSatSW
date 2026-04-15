@@ -34,10 +34,10 @@
 
 static bool tx_make_ui_packet(char *from_callsign, char *to_callsign,
                               uint8_t pid, uint8_t *bytes, int len,
-			      enum radio_modulation modulation,
+                              enum radio_modulation modulation,
                               tx_radio_buffer_t *tx_radio_buffer);
 static bool tx_make_packet(AX25_PACKET *packet,
-			   enum radio_modulation modulation,
+                           enum radio_modulation modulation,
                            tx_radio_buffer_t *tx_radio_buffer);
 
 static rfchan txchan = FIRST_TX_CHANNEL;
@@ -57,7 +57,7 @@ print_raw_packet(const char *str, uint8_t *data, unsigned int len)
 
     printf("%s RAW:", str);
     for (i = 0; i < len; i++)
-	printf(" %2.2x", data[i]);
+        printf(" %2.2x", data[i]);
     printf("\n");
 }
 
@@ -110,7 +110,6 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
      * limiting based on temperature.
      */
     while (1) {
-        uint8_t preamble_length = 32;
         BaseType_t xStatus;
 
         // TODO - adjust block time vs watchdog
@@ -130,22 +129,24 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
         /* Transmit until we have no more packets. */
         while (xStatus == pdPASS) {
             /* Data was successfully received from the queue */
+            uint8_t preamble_length = 32;
             int numbytes = tx_packet_buffer.len;
-	    enum radio_modulation mod;
-	    enum fec fec;
+            enum radio_modulation mod;
+            enum fec fec;
 
-	    mod = (enum radio_modulation) tx_packet_buffer.tx_modulation;
-	    fec = (enum fec) ((mod >> 4) & 0xf);
+            mod = (enum radio_modulation) tx_packet_buffer.tx_modulation;
+            fec = MODULATION_TO_FEC(mod);
+            mod = MODULATION_TO_BASE_MODULATION(mod);
 
-	    // 10 for 1200 bps - Radio lab recommends 32 for 9600, may
-	    // need as much as 56.
-	    switch (mod) {
-	    case MODULATION_AFSK_1200:
-		preamble_length = 10;
-		break;
-	    case MODULATION_GMSK_9600:
-		break;
-	    }
+            // 10 for 1200 bps - Radio lab recommends 32 for 9600, may
+            // need as much as 56.
+            switch (mod) {
+            case MODULATION_AFSK_1200:
+                preamble_length = 10;
+                break;
+            case MODULATION_GMSK_9600:
+                break;
+            }
 
             if (mod != curr_modulation) {
                 set_modulation(txchan, mod, true);
@@ -160,47 +161,47 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
             // clear FIFO data & flags
             fifo_clear(txchan);
 
-	    if (fec == FEC_CONV) {
-		/*
-		 * With FEC enabled, you must send a single extra bit
-		 * at the beginning of the preamble or the data won't
-		 * line up correctly in the interleaver.
-		 */
-		fifo_repeat_byte(txchan, 0x02, 1,
-				 AX5043_QUEUE_RESIDUE_FLAG |
-				 AX5043_QUEUE_RAW_NO_CRC_FLAG |
-				 AX5043_QUEUE_PKTSTART_FLAG);
-		fifo_repeat_byte(txchan, 0x7E, preamble_length,
-				 AX5043_QUEUE_RAW_NO_CRC_FLAG);
-	    } else {
-		// repeat the preamble bytes
-		//  TODO - no preamble for back to back packets
-		fifo_repeat_byte(txchan, 0x7E, preamble_length,
-				 AX5043_QUEUE_RAW_NO_CRC_FLAG |
-				 AX5043_QUEUE_PKTSTART_FLAG);
-	    }
-	    /*
-	     * FIXME - the AX5043 buffer is 256 bytes, a long message
-	     * can overflow it with the preamble and possible
-	     * postamble.  Need to check and do multiple queue
-	     * operations if necessary.
-	     */
+            if (fec == FEC_CONV) {
+                /*
+                 * With FEC enabled, you must send a single extra bit
+                 * at the beginning of the preamble or the data won't
+                 * line up correctly in the interleaver.
+                 */
+                fifo_repeat_byte(txchan, 0x02, 1,
+                                 AX5043_QUEUE_RESIDUE_FLAG |
+                                 AX5043_QUEUE_RAW_NO_CRC_FLAG |
+                                 AX5043_QUEUE_PKTSTART_FLAG);
+                fifo_repeat_byte(txchan, 0x7E, preamble_length,
+                                 AX5043_QUEUE_RAW_NO_CRC_FLAG);
+            } else {
+                // repeat the preamble bytes
+                //  TODO - no preamble for back to back packets
+                fifo_repeat_byte(txchan, 0x7E, preamble_length,
+                                 AX5043_QUEUE_RAW_NO_CRC_FLAG |
+                                 AX5043_QUEUE_PKTSTART_FLAG);
+            }
+            /*
+             * FIXME - the AX5043 buffer is 256 bytes, a long message
+             * can overflow it with the preamble and possible
+             * postamble.  Need to check and do multiple queue
+             * operations if necessary.
+             */
             fifo_queue_buffer(txchan, tx_packet_buffer.bytes, numbytes,
-			      AX5043_QUEUE_PKTEND_FLAG);
+                              AX5043_QUEUE_PKTEND_FLAG);
             //       printf("FIFO_FREE 2: %d\n",fifo_free());
 
-	    if (fec == FEC_CONV) {
-		/*
-		 * Flush out the encoder.  The tail (4 bits) and then
-		 * empty the interleaver (8 bits).  This is 12 bits,
-		 * so 24 bits when doubled by the coder.  So sending
-		 * 16 (32 encoded) bits should be plenty.
-		 */
-		fifo_repeat_byte(txchan, 0x7E, 2,
-				 AX5043_QUEUE_RAW_NO_CRC_FLAG);
-		fifo_repeat_byte(txchan, 0, 2,
-				 AX5043_QUEUE_RAW_NO_CRC_FLAG);
-	    }
+            if (fec == FEC_CONV) {
+                /*
+                 * Flush out the encoder.  The tail (4 bits) and then
+                 * empty the interleaver (8 bits).  This is 12 bits,
+                 * so 24 bits when doubled by the coder.  So sending
+                 * 16 (32 encoded) bits should be plenty.
+                 */
+                fifo_repeat_byte(txchan, 0x7E, 2,
+                                 AX5043_QUEUE_RAW_NO_CRC_FLAG);
+                fifo_repeat_byte(txchan, 0, 2,
+                                 AX5043_QUEUE_RAW_NO_CRC_FLAG);
+            }
 
             fifo_commit(txchan);
             //       printf("INFO: Waiting for transmission to complete\n");
@@ -240,7 +241,7 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
  */
 static bool tx_make_ui_packet(char *from_callsign, char *to_callsign,
                               uint8_t pid, uint8_t *bytes, int len,
-			      enum radio_modulation modulation,
+                              enum radio_modulation modulation,
                               tx_radio_buffer_t *tx_radio_buffer)
 {
     uint8_t packet_len;
@@ -265,9 +266,9 @@ static bool tx_make_ui_packet(char *from_callsign, char *to_callsign,
     packet_len = len + header_len;
     tx_radio_buffer->len = packet_len; /* Number of bytes */
     if (modulation == MODULATION_INVALID)
-	tx_radio_buffer->tx_modulation = tx_modulation;
+        tx_radio_buffer->tx_modulation = tx_modulation;
     else
-	tx_radio_buffer->tx_modulation = modulation;
+        tx_radio_buffer->tx_modulation = modulation;
 
 //    if (true) {
 //        for (i=0; i< packet_len; i++) {
@@ -294,7 +295,7 @@ static bool tx_make_ui_packet(char *from_callsign, char *to_callsign,
  * TODO - this should be in ax25_util and be called encode_packet()
  */
 static bool tx_make_packet(AX25_PACKET *packet,
-			   enum radio_modulation modulation,
+                           enum radio_modulation modulation,
                            tx_radio_buffer_t *tx_radio_buffer)
 {
     uint8_t packet_len;
@@ -416,9 +417,9 @@ static bool tx_make_packet(AX25_PACKET *packet,
     packet_len = packet->data_len + header_len;
     tx_radio_buffer->len = packet_len; /* Number of bytes */
     if (modulation == MODULATION_INVALID)
-	tx_radio_buffer->tx_modulation = tx_modulation;
+        tx_radio_buffer->tx_modulation = tx_modulation;
     else
-	tx_radio_buffer->tx_modulation = modulation;
+        tx_radio_buffer->tx_modulation = modulation;
 
 //    if (true) {
 //        for (i=0; i< packet_len; i++) {
@@ -448,7 +449,7 @@ static bool tx_make_packet(AX25_PACKET *packet,
  */
 bool tx_send_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid,
                        uint8_t *bytes, int len, bool block,
-		       enum radio_modulation modulation)
+                       enum radio_modulation modulation)
 {
     tx_radio_buffer_t tmp_packet_buffer;
     //uint8_t raw_bytes[AX25_PKT_BUFFER_LEN];
@@ -491,7 +492,7 @@ bool tx_send_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid,
  * a bad packet in a loop.
  */
 bool tx_send_packet(AX25_PACKET *packet, bool expedited, bool block,
-		    enum radio_modulation modulation)
+                    enum radio_modulation modulation)
 {
     tx_radio_buffer_t tmp_packet_buffer;
     bool rc = tx_make_packet(packet, modulation, &tmp_packet_buffer);
