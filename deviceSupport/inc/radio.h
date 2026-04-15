@@ -13,10 +13,8 @@
 #include <stdbool.h>
 #include "spiDriver.h"
 
-void start_rx(rfchan chan, uint32_t freq, enum radio_modulation mod,
-	      enum fec fec);
-void start_tx(rfchan chan, uint32_t freq, enum radio_modulation mod,
-	      enum fec fec);
+void start_rx(rfchan chan, uint32_t freq, enum radio_modulation mod);
+void start_tx(rfchan chan, uint32_t freq, enum radio_modulation mod);
 void stop_chan(rfchan chan);
 
 bool rxing(rfchan chan);

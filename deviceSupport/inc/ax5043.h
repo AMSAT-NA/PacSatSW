@@ -407,6 +407,10 @@ struct axradio_address {
 #define AX5043_QUEUE_PKTSTART_FLAG 0X01
 #define AX5043_QUEUE_PKTEND_FLAG 0X02
 #define AX5043_QUEUE_RAW_NO_CRC_FLAG 0x18 // Flag of 0x18 is RAW no CRC
+#define AX5043_QUEUE_RAW_FLAG 0x10
+#define AX5043_QUEUE_NO_CRC_FLAG 0x08
+#define AX5043_QUEUE_RESIDUE_FLAG 0x04
+#define AX5043_QUEUE_UNENC_FLAG 0x20
 
 uint16_t fifo_free(rfchan chan);
 void fifo_clear(rfchan chan);
