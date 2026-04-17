@@ -136,6 +136,12 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
             enum fec fec;
 
             mod = (enum radio_modulation) tx_packet_buffer.tx_modulation;
+
+            if (mod != curr_modulation) {
+                set_modulation(txchan, mod, true);
+                curr_modulation = mod;
+            }
+
             fec = MODULATION_TO_FEC(mod);
             mod = MODULATION_TO_BASE_MODULATION(mod);
 
@@ -147,11 +153,6 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
                 break;
             case MODULATION_GMSK_9600:
                 break;
-            }
-
-            if (mod != curr_modulation) {
-                set_modulation(txchan, mod, true);
-                curr_modulation = mod;
             }
 
             if (monitorTxPackets)
@@ -190,20 +191,6 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
             fifo_queue_buffer(txchan, tx_packet_buffer.bytes, numbytes,
                               AX5043_QUEUE_PKTEND_FLAG);
             //       printf("FIFO_FREE 2: %d\n",fifo_free());
-
-            if (fec == FEC_CONV) {
-                /*
-                 * Flush out the encoder.  The tail (4 bits) and then
-                 * empty the interleaver (8 bits).  This is 12 bits,
-                 * so 24 bits when doubled by the coder.  So sending
-                 * 16 (32 encoded) bits should be plenty.
-                 */
-                fifo_repeat_byte(txchan, 0x7E, 2,
-                                 AX5043_QUEUE_RAW_NO_CRC_FLAG);
-                fifo_repeat_byte(txchan, 0, 2,
-                                 AX5043_QUEUE_RAW_NO_CRC_FLAG);
-            }
-
             fifo_commit(txchan);
             //       printf("INFO: Waiting for transmission to complete\n");
 
