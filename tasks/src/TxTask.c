@@ -160,8 +160,14 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
                 break;
             }
 
-            if (monitorTxPackets)
-                print_raw_packet("TX", tx_packet_buffer.bytes, tx_packet_buffer.len);
+            if (monitorTxPackets) {
+		if (monitor_raw)
+		    print_raw_packet("TX", tx_packet_buffer.bytes,
+				     tx_packet_buffer.len);
+		else
+		    print_packet("TX", tx_packet_buffer.bytes,
+				 tx_packet_buffer.len);
+	    }
 
             //printf("FIFO_FREE 1: %d\n",fifo_free());
 

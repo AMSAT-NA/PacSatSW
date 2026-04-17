@@ -56,7 +56,7 @@ bool CreatePayload(int x, void *y);
 /* Is the time in the current clock valid? */
 extern bool time_valid;
 
-extern bool monitorTxPackets, monitorRxPackets, monitorRSSI;
+extern bool monitorTxPackets, monitorRxPackets, monitorRSSI, monitor_raw;
 
 
 #endif /* PACSAT_H_ */

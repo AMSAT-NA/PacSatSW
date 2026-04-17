@@ -255,7 +255,7 @@ commandPairs pacsatCommands[] = {
     { "monitor",
       "Enable/disable monitoring of sent and received packets",
       Monitor,
-      "[on|off|rx [on|off]|rssi [on|off]|tx [on|off]|packet [on|off]",
+      "[on|off|rx [on|off]|rssi [on|off]|tx [on|off]|packet [on|off]|raw [on|off]",
     },
     { "shut pb",
       "Shut the PB",
@@ -1897,6 +1897,7 @@ void RealConsoleTask(void)
                 printf("Packet Rx: %s\n", monitorRxPackets ? "on" : "off");
                 printf("Packet RSSI: %s\n", monitorRSSI ? "on" : "off");
                 printf("Packet Tx: %s\n", monitorTxPackets ? "on" : "off");
+                printf("raw: %s\n", monitor_raw ? "on" : "off");
                 break;
             }
             if (strcmp(t, "on") == 0) {
@@ -1931,6 +1932,11 @@ void RealConsoleTask(void)
                 if (!err)
                     monitorRSSI = val;
                 printf("Packet RSSI: %s\n", monitorRSSI ? "on" : "off");
+            } else if (strcmp(t, "raw") == 0) {
+                err = parse_bool(&afterCommand, &val);
+                if (!err)
+                    monitor_raw = val;
+                printf("raw: %s\n", monitor_raw ? "on" : "off");
             } else {
                 printf("Unknown setting: %s\n", t);
                 break;

@@ -246,7 +246,10 @@ static void handle_fifo_data(rfchan chan, uint8_t fifo_flags, uint8_t len)
         char rx_str[10];
 
         snprintf(rx_str, sizeof(rx_str), "RX[%d]", chan);
-        print_raw_packet(rx_str, rxb->bytes, rxb->len);
+	if (monitor_raw)
+	    print_raw_packet(rx_str, rxb->bytes, rxb->len);
+	else
+	    print_packet(rx_str, rxb->bytes, rxb->len);
     }
 
     // Store the channel here - same as device id
