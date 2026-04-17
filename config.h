@@ -218,9 +218,29 @@ typedef uint8_t rfchan;
 #define EXP_DESTINATION "EXP"
 #define CAN_DESTINATION "CAN"
 
-#define AX25_MAX_DATA_LEN 240 /* This is the maximum number of bytes a packet can have */
-#define AX25_MAX_INFO_BYTES_LEN 223 /* This is the maximum number of info bytes a packet can have */
-#define AX25_PKT_BUFFER_LEN 260 /* This is the length of the buffers in the TX RX queues */
+/*
+ * This is the maximum number of bytes a transmit packet can have,
+ * buffers, error correction, and data.  This is the max size of a
+ * reed-solomon RS(255,223) buffer.
+ */
+#define MAX_DATA_LEN 255
+
+/*
+ * This is the maximum number of info bytes a transmit packet can
+ * have.  This is the maximum length with reed-solomon error
+ * correction party data and header removed.
+ */
+#define AX25_MAX_INFO_BYTES_LEN (MAX_DATA_LEN - 32 - 16)
+
+/*
+ * This is the maximum number of bytes a receive packet can have.
+ * Testing has shown that the receiver doesn't work with more than
+ * this many bytes.  The bytes at the end are not correct, they are
+ * leftovers from previous bytes.  This number does not include the
+ * CRC, so it's the full data length.
+ */
+#define MAX_RX_DATA_LEN 250
+
 #define MAX_CALLSIGN_LEN 10 /* Length of the String for an AX25 callsign including dash, 2 digit Digi, and null termination */
 #define MAX_PB_HOLES_LIST_BYTES 222 /* The max length of a holes list = ( AX25_MAX_DATA_LEN - 17 ) to nearest 6 */
 #define MAX_FILENAME_WITH_PATH_LEN 25 /* Max length of a filename with its path.  This requires a shallow dir structure. */

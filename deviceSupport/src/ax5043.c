@@ -745,8 +745,12 @@ static void ax5043_set_registers(rfchan device, unsigned int flags)
 
     /**
      * Radio lab says F0 for PKTMAXLEN
+     *
+     * Manual says it can be 255, but testing has shown that the end
+     * bytes get corrupted at over 250 bytes (+ CRC).  We add 2 for
+     * the CRC.
      */
-    ax5043WriteReg(device, AX5043_PKTMAXLEN, 0xF0); // max 240 bytes for a packet
+    ax5043WriteReg(device, AX5043_PKTMAXLEN, MAX_RX_DATA_LEN + 2);
 
     /**
      * The match values are from radio lab, but likely only becuse I
@@ -782,10 +786,17 @@ static void ax5043_set_registers(rfchan device, unsigned int flags)
     ax5043WriteReg(device, AX5043_BGNDRSSITHR, 0x00); // per radio lab
     // Set FIFO chunk size to max of 240 bytes
     ax5043WriteReg(device, AX5043_PKTCHUNKSIZE, 0x0D);
-    // 3F for debug, otherwise Set to 0x20 Bit 5 LRGP - enables
-    // packets that span multiple fifo chunks.  We dont want that if
-    // we use HDLC framing
-    ax5043WriteReg(device, AX5043_PKTACCEPTFLAGS, 0x20);
+
+    /*
+     * You can turn these on, but they will spew out all kinds of
+     * errors all the time (bad CRCs, etc.) and they really aren't
+     * that useful.  The over size one is enabled so we can count
+     * those.
+     *
+     * Note that if you turn these off, you *must* leave ACCPT_LRGP
+     * (bit 5, 0x20) set or it will not receive longer packets.
+     */
+    ax5043WriteReg(device, AX5043_PKTACCEPTFLAGS, 0x30);
     ax5043WriteReg(device, AX5043_DACVALUE1, 0x00);
     ax5043WriteReg(device, AX5043_DACVALUE0, 0x00);
     ax5043WriteReg(device, AX5043_DACCONFIG, 0x00);
