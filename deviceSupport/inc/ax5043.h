@@ -412,6 +412,18 @@ struct axradio_address {
 #define AX5043_QUEUE_RESIDUE_FLAG 0x04
 #define AX5043_QUEUE_UNENC_FLAG 0x20
 
+#define AX5043_RECV_FLAG_ABORT    0x40
+#define AX5043_RECV_FLAG_SIZEFAIL 0x20
+#define AX5043_RECV_FLAG_ADDRFAIL 0x10
+#define AX5043_RECV_FLAG_CRCFAIL  0x08
+#define AX5043_RECV_FLAG_RESIDUE  0x04
+/* Plus the PKTSTART_FLAG and PKTEND_FLAG above. */
+/*
+ * These are the flags we consider to be errors.  We include RESIDUE
+ * in this because we only handle byte-length messages.
+ */
+#define AX5043_RECV_FLAG_ERR_MASK 0x7c
+
 uint16_t fifo_free(rfchan chan);
 void fifo_clear(rfchan chan);
 void fifo_repeat_byte(rfchan chan, uint8_t b, uint8_t count, uint8_t flags);

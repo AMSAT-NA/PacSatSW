@@ -97,7 +97,7 @@ When we store data in a value or structure internally we need to convert it to b
 
 
 /* Local variables */
-static uint8_t data_buffer[AX25_MAX_DATA_LEN]; /* Static buffer used to store file bytes loaded from MRAM */
+static uint8_t data_buffer[MAX_DATA_LEN]; /* Static buffer used to store file bytes loaded from MRAM */
 static rx_radio_buffer_t pb_radio_buffer; /* Static buffer used to store packet as it is assembled and before copy to TX queue */
 //static uint8_t pb_packet_buffer[AX25_PKT_BUFFER_LEN];
 static char pb_status_buffer[135]; // 10 callsigns * 13 bytes + 4 + nul
@@ -651,7 +651,7 @@ int pb_handle_dir_request(char *from_callsign, uint8_t *data, int len) {
 
         /* Get the number of holes in this request and make sure it is in a valid range */
         int num_of_holes = get_num_of_dir_holes(len);
-        if (num_of_holes < 1 || num_of_holes > AX25_MAX_DATA_LEN / sizeof(DIR_DATE_PAIR)) {
+        if (num_of_holes < 1 || num_of_holes > MAX_DATA_LEN / sizeof(DIR_DATE_PAIR)) {
             /* This does not have a valid holes list */
             rc = pb_send_err(from_callsign, PB_ERR_FILE_INVALID_PACKET);
             if (rc != TRUE) {
@@ -774,7 +774,7 @@ int pb_handle_file_request(char *from_callsign, uint8_t *data, int len) {
     case PB_FILE_HOLE_LIST : {
         /* Process the hole list for the file */
         num_of_holes = get_num_of_file_holes(len);
-        if (num_of_holes < 1 || num_of_holes > AX25_MAX_DATA_LEN / sizeof(FILE_DATE_PAIR)) {
+        if (num_of_holes < 1 || num_of_holes > MAX_DATA_LEN / sizeof(FILE_DATE_PAIR)) {
             /* This does not have a valid holes list */
             rc = pb_send_err(from_callsign, PB_ERR_FILE_INVALID_PACKET);
             if (rc != TRUE) {

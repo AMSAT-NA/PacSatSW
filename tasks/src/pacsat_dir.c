@@ -45,7 +45,7 @@
 /* Dir variables */
 static DIR_NODE *dir_head = NULL;  // the head of the directory linked list
 static DIR_NODE *dir_tail = NULL;  // the tail of the directory linked list
-static uint8_t data_buffer[AX25_MAX_DATA_LEN]; /* Static buffer used to store file bytes loaded from MRAM */
+static uint8_t data_buffer[MAX_DATA_LEN]; /* Static buffer used to store file bytes loaded from MRAM */
 
 /* Forward declarations */
 int32_t dir_check_folder(char *path);
@@ -524,7 +524,7 @@ int dir_validate_file(HEADER *pfh, char *file_name_with_path, WdReporters_t repo
     bool finished = FALSE;
 
     while (!finished) {
-        int32_t num_of_bytes_read = dir_fs_read_file_chunk(file_name_with_path, data_buffer, AX25_MAX_DATA_LEN, offset);
+        int32_t num_of_bytes_read = dir_fs_read_file_chunk(file_name_with_path, data_buffer, MAX_DATA_LEN, offset);
         if (num_of_bytes_read == -1) {
             return ER_NO_SUCH_FILE_NUMBER;
         }
@@ -534,7 +534,7 @@ int dir_validate_file(HEADER *pfh, char *file_name_with_path, WdReporters_t repo
             body_checksum += data_buffer[j] & 0xff;
             body_size++;
         }
-        if (num_of_bytes_read < AX25_MAX_DATA_LEN)
+        if (num_of_bytes_read < MAX_DATA_LEN)
             finished = true;
         offset += num_of_bytes_read;
         //debug_print("%d\n",offset);

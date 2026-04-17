@@ -20,7 +20,7 @@
 typedef struct {
     uint8_t channel;
     uint8_t tx_modulation;
-    uint8_t bytes[AX25_PKT_BUFFER_LEN];
+    uint8_t bytes[MAX_DATA_LEN];
     uint16_t len;
 } tx_radio_buffer_t;
 
@@ -35,7 +35,7 @@ bool tx_send_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid,
 bool tx_send_packet(AX25_PACKET *packet, bool expedited, bool block,
 		    enum radio_modulation modulation);
 
-bool tx_test_make_packet();
+bool tx_test_make_packet(uint32_t len);
 
 /* Setting this will inhibiting transmit. */
 extern bool inhibitTransmit;
