@@ -1211,6 +1211,8 @@ void RealConsoleTask(void)
                        red_strerror(red_errno));
             } else {
                 printf("Filesystem mounted\n");
+                // Create the base folders
+                dir_check_folders();
             }
             break;
         }
