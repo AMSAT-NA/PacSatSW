@@ -54,7 +54,7 @@
 #   define SOFTWARE_TYPE "V"
 #endif  // UNDEFINE_BEFORE_FLIGHT
 
-#define VERSION "2c" /*Exactly 2 characters will show in the diagnostic downlink*/
+#define VERSION "3a" /*Exactly 2 characters will show in the diagnostic downlink*/
 #define PACSAT_FW_VERSION_STRING SOFTWARE_TYPE PACSAT_NUMBER "." VERSION
 
 /* This specifies how many MRAM chips there are */
@@ -204,16 +204,19 @@ typedef uint8_t rfchan;
 #define DIR_FOLDER "//dir/"
 #define TMP_FOLDER "//tmp/"
 #define WOD_FOLDER "//wod/"
+#define ERRWOD_FOLDER "//err/"
 #define TXT_FOLDER "//txt/"
 #define EXP_FOLDER "//exp/"
 #define CAN_FOLDER "//can/"
 
 // These are the prefixes for files stored in the filesystem
 #define WOD_PREFIX "wod"
+#define ERRWOD_PREFIX "err"
 #define EXP_PREFIX "ex"
 
 // These are the TO callsigns for files added to Queues
 #define WOD_DESTINATION "WOD"
+#define ERRWOD_DESTINATION "ERRWOD"
 #define TXT_DESTINATION "TXT"
 #define EXP_DESTINATION "EXP"
 #define CAN_DESTINATION "CAN"
@@ -267,6 +270,7 @@ typedef uint8_t rfchan;
 /* These are the default periods to keep files in the dir */
 #define DIR_MAX_FILE_AGE 5*24*60*60 // 5*24*60*60 5 days to keep files
 #define DIR_MAX_WOD_FILE_AGE 2*24*60*60 // 2*24*60*60 2 days to keep WOD files
+#define DIR_MAX_ERRWOD_FILE_AGE 10*24*60*60 // 2*24*60*60 2 days to keep ERR WOD files
 #define FTL0_DEFAULT_MAX_UPLOAD_RECORD_AGE_IN_DAYS 3 //3 days to keep upload records.  This is reset when a station uploads new data for a file.  Note that is should be long enough to make sure that files are not purged while a station is trying to upload it.  i.e. At least 3-5 mins
 
 /* At least this many bytes should be free after a file is uploaded.  Each disk block is 256 Bytes.

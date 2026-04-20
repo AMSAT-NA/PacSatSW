@@ -167,6 +167,8 @@ int32_t dir_check_folders() {
     if (ret == -1) return ret;
     ret = dir_check_folder(WOD_FOLDER);
     if (ret == -1) return ret;
+    ret = dir_check_folder(ERRWOD_FOLDER);
+    if (ret == -1) return ret;
     ret = dir_check_folder(TXT_FOLDER);
     if (ret == -1) return ret;
     ret = dir_check_folder(EXP_FOLDER);

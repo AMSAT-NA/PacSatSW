@@ -307,17 +307,17 @@ bool OpsSWCommands(CommandAndArgs *comarg){
         if (timeout == 0)
             timeout = PB_CLIENT_TIMEOUT_SECONDS;
         WriteMRAMBoolState(StatePbEnabled,turnOn);
+        WriteMRAMPBStatusFreq(period);
+        WriteMRAMPBClientTimeout(timeout);
+        statusMsg.MsgType = TacUpdatePbTimer;
+        NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
+        pb_set_client_timeout(timeout);
+        /* The PB status packets are sent from Telemetry and control.  We notify that task of the
+         * change with a message as it needs to modify the RTOS timer and handle error conditions.
+         * The client timeout is checked in PbTask when it processes PB actions and can be set with
+         * just a function call. */
         if(turnOn){
-            /* The PB status packets are sent from Telemetry and control.  We notify that task of the
-             * change with a message as it needs to modify the RTOS timer and handle error conditions.
-             * The client timeout is checked in PbTask when it processes PB actions and can be set with
-             * just a function call. */
-            WriteMRAMPBStatusFreq(period);
-            WriteMRAMPBClientTimeout(timeout);
             command_print("Enable PB\n\r");
-            statusMsg.MsgType = TacUpdatePbTimer;
-            NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
-            pb_set_client_timeout(timeout);
         } else {
             command_print("Disable PB\n\r");
         }
@@ -366,15 +366,15 @@ bool OpsSWCommands(CommandAndArgs *comarg){
         if (timeout == 0)
             timeout = FTL0_DEFAULT_MAX_UPLOAD_RECORD_AGE_IN_DAYS;
         WriteMRAMBoolState(StateUplinkEnabled,turnOn);
+        WriteMRAMFTL0StatusFreq(period);
+        WriteMRAMFTL0MaxFileAgeInDays(timeout);
+        /* The Uplink status packets are sent from Telemetry and control.  We notify that task of the
+         * change with a message as it needs to modify the RTOS timer and handle error conditions.
+         * The client timeout is checked in UplinkTask when it processes actions. */
+        statusMsg.MsgType = TacUpdatePbTimer;
+        NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
         if(turnOn){
-            /* The Uplink status packets are sent from Telemetry and control.  We notify that task of the
-             * change with a message as it needs to modify the RTOS timer and handle error conditions.
-             * The client timeout is checked in UplinkTask when it processes actions. */
-            WriteMRAMFTL0StatusFreq(period);
-            WriteMRAMFTL0MaxFileAgeInDays(timeout);
             command_print("Enable Uplink\n\r");
-            statusMsg.MsgType = TacUpdatePbTimer;
-            NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
         } else {
             command_print("Disable Uplink\n\r");
         }
@@ -489,13 +489,13 @@ bool TlmSWCommands(CommandAndArgs *comarg){
         if (period == 0)
             period = TAC_TIMER_SEND_TIME_PERIOD_SECONDS;
         WriteMRAMBoolState(StateTimeBroadcastEnabled,turnOn);
+        WriteMRAMTimeFreq(period);
+        statusMsg.MsgType = TacUpdateTimeBroadcastTimer;
+        NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
         if(turnOn){
             /* The time packets are sent from Telemetry and Control.  We notify that task of the
              * change with a message as it needs to modify the RTOS timer and handle error conditions. */
-            WriteMRAMTimeFreq(period);
             command_print("Enable Time Broadcast\n\r");
-            statusMsg.MsgType = TacUpdateTimeBroadcastTimer;
-            NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
         } else {
             command_print("Disable Time Broadcast\n\r");
         }
@@ -511,13 +511,14 @@ bool TlmSWCommands(CommandAndArgs *comarg){
             if (size == 0)
                 size = TAC_FILE_SIZE_TO_ROLL_WOD_4K_BLOCKS;
             WriteMRAMBoolState(StateWodEnabled,turnOn);
+            WriteMRAMWODFreq(period);
+            WriteMRAMWODMaxFileSize4kBlocks(size);
+            statusMsg.MsgType = TacUpdateWodTimer;
+            NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
             if(turnOn){
                 /* The WOD save happens in Telemetry and Control.  We notify that task of the
                  * change with a message as it needs to modify the RTOS timer and handle error conditions. */
-                WriteMRAMWODFreq(period);
                 command_print("Enable WOD Saves\n\r");
-                statusMsg.MsgType = TacUpdateWodTimer;
-                NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
             } else {
                 command_print("Disable WOD Saves\n\r");
             }
@@ -533,13 +534,14 @@ bool TlmSWCommands(CommandAndArgs *comarg){
         if (size == 0)
             size = TAC_FILE_SIZE_TO_ROLL_ERRWOD_4K_BLOCKS;
         WriteMRAMBoolState(StateErrWodEnabled,turnOn);
+        WriteMRAMErrWODFreq(period);
+        WriteMRAMErrWODMaxFileSize4kBlocks(size);
+        statusMsg.MsgType = TacUpdateErrWodTimer;
+        NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
         if(turnOn){
             /* The WOD save happens in Telemetry and Control.  We notify that task of the
              * change with a message as it needs to modify the RTOS timer and handle error conditions. */
-            WriteMRAMErrWODFreq(period);
             command_print("Enable ERR WOD Saves\n\r");
-            statusMsg.MsgType = TacUpdateErrWodTimer;
-            NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
         } else {
             command_print("Disable ERR WOD Saves\n\r");
         }

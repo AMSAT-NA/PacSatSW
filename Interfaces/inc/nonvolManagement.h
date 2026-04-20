@@ -32,6 +32,8 @@ void WriteMRAMErrWODFreq(uint16_t freq);
 uint16_t ReadMRAMErrWODFreq(void);
 void WriteMRAMWODMaxFileSize4kBlocks(uint8_t size);
 uint8_t ReadMRAMWODMaxFileSize4kBlocks(void);
+void WriteMRAMErrWODMaxFileSize4kBlocks(uint8_t size);
+uint8_t ReadMRAMErrWODMaxFileSize4kBlocks(void);
 
 void WriteMRAMResets(uint16_t resets);
 uint16_t ReadMRAMResets(void);

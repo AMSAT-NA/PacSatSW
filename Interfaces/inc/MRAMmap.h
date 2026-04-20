@@ -76,11 +76,12 @@ typedef struct {
     uint16_t WODFrequency[2];
     uint16_t ErrWODFrequency[2];
     uint8_t WODMaxFileSize4kBlocks[2];
+    uint8_t ERRWODMaxFileSize4kBlocks[2];
     uint16_t NumberOfResets[2];
     uint16_t TimestampResets[2];
     uint16_t AutoSafeEnter[2];
     uint16_t AutoSafeExit[2];
-    uint32_t TimeoutTimes[MaxNumberOfTimeouts][2];
+    uint32_t TimeoutTimes[MaxNumberOfTimeouts][2];   /// TODO - is this used?? It seems to be  previous way of storing timeout and has an enum in MET.h that indexes it called TimeoutType
     uint32_t PostLVTimeout[2];
     uint16_t EclipseActionCommanded[2];
     uint32_t HighestFileNumber[2];
@@ -102,7 +103,6 @@ typedef struct {
     uint8_t EXPMaxFileSize4kBlocks[2];
     uint8_t  SpacecraftMode[2];
     uint8_t  LastSpacecraftMode[2];
-    uint8_t SpareData1[1];
     uint16_t SpareData2[4];
     uint32_t SpareData3[7];
     uint8_t  NonVolatileStates[MaxStates][2];

@@ -123,6 +123,7 @@ void tac_store_errwod();
 
 /* Local variables */
 char wod_file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
+char errwod_file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
 
 /* timer to send the telemetry periodically */
 static xTimerHandle timerTelemSend;
@@ -486,6 +487,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
             case TacCheckFileQueuesMsg:
                 now = getUnixTime(); // Get the time in seconds since the unix epoch
                 dir_file_queue_check(now, WOD_FOLDER, PFH_TYPE_WL, WOD_DESTINATION, DIR_MAX_WOD_FILE_AGE);
+                dir_file_queue_check(now, ERRWOD_FOLDER, PFH_TYPE_WL, ERRWOD_DESTINATION, DIR_MAX_ERRWOD_FILE_AGE);
                 dir_file_queue_check(now, TXT_FOLDER, PFH_TYPE_ASCII, TXT_DESTINATION, DIR_MAX_WOD_FILE_AGE);
                 dir_file_queue_check(now, EXP_FOLDER, PFH_TYPE_CAN_PACKETS, EXP_DESTINATION, DIR_MAX_WOD_FILE_AGE);
                 break;
@@ -638,7 +640,7 @@ void tac_wod_save_timer_callback(TimerHandle_t xTimer)
  */
 void tac_errwod_save_timer_callback(TimerHandle_t xTimer)
 {
-    statusMsg.MsgType = TacSaveWodMsg;
+    statusMsg.MsgType = TacSaveErrWodMsg;
     NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
 }
 
@@ -731,6 +733,10 @@ void tac_collect_telemetry(telem_buffer_t *buffer)
     buffer->header.versionMajor = DownlinkVersionMajor;
     buffer->header.versionMinor = DownlinkVersionMinor;
     buffer->header.spacecraftMode = spacecraftMode;
+
+    // TODO - it is not clear that we need these seperate timestamps.  They come from the FOX/GOLF scheme where the delayed WOPD payloads are transmitted later
+    buffer->wodInfo.WODTimestampReset = htots(time.IHUresetCnt);
+    buffer->wodInfo.WODTimestampUptime = htotl(time.METcount);
 
 // debug_print("Telem & Control: Collect RT telem at: %d/%d\n",time.IHUresetCnt, time.METcount);
 
@@ -847,6 +853,7 @@ void tac_collect_telemetry(telem_buffer_t *buffer)
     buffer->errors = localErrorCollection;
 
     // TODO - calculate min max.  TODO - should this also be stored in MRAM so it survives across resets?  If so, remove the reset when this task starts and add to preflight init.
+    // Note that an MRAM variable called MinMaxResetTimeout exists in MET.h and it indexes a timeout in MRAM. if not used, should be removed.
 }
 
 /**
@@ -1002,10 +1009,6 @@ void tac_store_wod() {
     wodFrame.header = buffer->header;
     wodFrame.HKWod.common = buffer->common;
     wodFrame.HKWod.common2 = buffer->common2;
-    wodFrame.HKWod.wodInfo = buffer->wodInfo;
-    errFrame.err.errors = buffer->errors;
-    errwodFrame.errWod.errors = buffer->errors;
-    //TODO - need to save the errWOD to another WOD file.
 
     len = sizeof(wodFrame);
 
@@ -1045,7 +1048,7 @@ void tac_store_wod() {
     ReportToWatchdog(CurrentTaskWD);
 
     if (trace_telem)
-        printf("Telem & Control: Stored WOD: %d/%d size:%d\n", ttohs(realtimeFrame.header.resetCnt), htotl(realtimeFrame.header.uptime),wod_file_length);
+        printf("Telem & Control: Stored WOD: %d/%d size:%d\n", ttohs(wodFrame.header.resetCnt), htotl(wodFrame.header.uptime),wod_file_length);
     if (wod_file_length > (ReadMRAMWODMaxFileSize4kBlocks()*4096))
         tac_roll_file(wod_file_name_with_path, WOD_FOLDER, WOD_PREFIX);
 }
@@ -1054,7 +1057,66 @@ void tac_store_wod() {
  * Store one line of telemetry data into the ERR WOD file
  */
 void tac_store_errwod() {
-    debug_print("ERR WOD storage not yet implemented..\n");
+//    debug_print("Storing ERR WOD..\n");
+    telem_buffer_t *buffer = &telem_buffer;
+    if(!IsStabilizedAfterBoot()) return;
+
+    if (strlen(errwod_file_name_with_path) == 0) {
+        /* Make a new wod file name and start the file */
+        char file_name[MAX_FILENAME_WITH_PATH_LEN];
+        strlcpy(file_name, ERRWOD_PREFIX, sizeof(file_name));
+        strlcat(file_name, ".tmp", sizeof(file_name));
+
+        strlcpy(errwod_file_name_with_path, ERRWOD_FOLDER, sizeof(errwod_file_name_with_path));
+        strlcat(errwod_file_name_with_path, file_name, sizeof(errwod_file_name_with_path));
+    }
+
+    int len = 0;
+    uint8_t *frame;
+    errwodFrame.header = buffer->header;
+    errwodFrame.errWod.errors = buffer->errors;
+
+    len = sizeof(errwodFrame);
+
+    frame = (uint8_t *)&errwodFrame;
+
+    /* Write bytes to the file */
+    int32_t fp;
+    int32_t numOfBytesWritten = -1;
+    int32_t rc;
+    int32_t errwod_file_length;
+
+    fp = red_open(errwod_file_name_with_path, RED_O_CREAT | RED_O_APPEND | RED_O_WRONLY);
+    if (fp == -1) {
+        debug_print("Unable to open %s for writing: %s\n", errwod_file_name_with_path, red_strerror(red_errno));
+        ReportError(REDFSIOerror, FALSE, ErrorBits,(int)red_errno);
+        return;
+    } else {
+
+        numOfBytesWritten = red_write(fp, frame, len);
+        if (numOfBytesWritten != len) {
+            printf("Write returned: %d\n",numOfBytesWritten);
+            if (numOfBytesWritten == -1) {
+                printf("Unable to write to %s: %s\n", errwod_file_name_with_path, red_strerror(red_errno));
+                ReportError(REDFSIOerror, FALSE, ErrorBits,(int)red_errno);
+                red_close(fp);
+                return;
+            }
+        }
+        errwod_file_length = red_lseek(fp, 0, RED_SEEK_END);
+        rc = red_close(fp);
+        if (rc != 0) {
+            printf("Unable to close %s: %s\n", errwod_file_name_with_path, red_strerror(red_errno));
+            return;
+        }
+    }
+
+    ReportToWatchdog(CurrentTaskWD);
+
+    if (trace_telem)
+        printf("Telem & Control: Stored ERRWOD: %d/%d size:%d\n", ttohs(errwodFrame.header.resetCnt), htotl(errwodFrame.header.uptime),errwod_file_length);
+    if (errwod_file_length > (ReadMRAMErrWODMaxFileSize4kBlocks()*4096))
+        tac_roll_file(errwod_file_name_with_path, ERRWOD_FOLDER, ERRWOD_PREFIX);
 }
 
 /**

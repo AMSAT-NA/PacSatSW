@@ -373,7 +373,7 @@ void DisplayTelemetry(uint32_t typeRequested)
                 "  TX Inhibit=%d\n\r"
                 "  CommandedSafeMode=%d,Autosafe=%d\n\r"
                 "  CommandRcvd=%d,AllowAutoSafe=%d\n\r"
-                "  AX25 PB Enabled=%d,FTL0 Enabled=%d,Digi Enabled=%d\n\r",
+                "  Enabled: PB=%d,FTL0=%d,Digi=%d,Telem=%d,Time=%d,WOD=%d,Err WOD=%d\n\r",
 
                 ReadMRAMBoolState(StateTransmitInhibit),
                ReadMRAMBoolState(StateCommandedSafeMode),
@@ -382,18 +382,25 @@ void DisplayTelemetry(uint32_t typeRequested)
                ReadMRAMBoolState(StateAutoSafeAllow),
                ReadMRAMBoolState(StatePbEnabled),
                ReadMRAMBoolState(StateUplinkEnabled),
-               ReadMRAMBoolState(StateDigiEnabled));
+               ReadMRAMBoolState(StateDigiEnabled),
+               ReadMRAMBoolState(StateTelemBroadcastEnabled),
+               ReadMRAMBoolState(StateTimeBroadcastEnabled),
+               ReadMRAMBoolState(StateWodEnabled),
+               ReadMRAMBoolState(StateErrWodEnabled));
+
         printf("MRAM Telem Values:\n\r"
                 "  PB Status Period(s)=%d, PB Timeout(s)=%d, Uplink Status Period(s)=%d\n\r"
-                "  Time Period(s)=%d, Telem Period(s)=%d, WOD Period(s)=%d\n\r"
-                "  Max WOD FileSize(bytes)=%d, Max EXP File Size(bytes)=%d\n\r",
+                "  Period(s): Time=%d, Telem=%d, WOD=%d, Err WOD=%d\n\r"
+                "  Max FileSize(bytes) WOD=%d, Err WOD=%d, Exp=%d\n\r",
                 ReadMRAMPBStatusFreq(),
                 ReadMRAMPBClientTimeout(),
                 ReadMRAMFTL0StatusFreq(),
                 ReadMRAMTimeFreq(),
                 ReadMRAMTelemFreq(),
                 ReadMRAMWODFreq(),
+                ReadMRAMErrWODFreq(),
                 ReadMRAMWODMaxFileSize4kBlocks()*4096,
+                ReadMRAMErrWODMaxFileSize4kBlocks()*4096,
                 ReadMRAMExpMaxFileSize4kBlocks()*4096);
         printf("  TX Mode: %s\n",modulation_to_str(ReadMRAMModulation(FIRST_TX_CHANNEL)));
         printf("  RX Modes:");

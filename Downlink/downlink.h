@@ -75,12 +75,10 @@ typedef struct __attribute__((__packed__)) {
 typedef struct __attribute__((__packed__)){
 	commonRtMinmaxWodPayload_t common;
     commonRtWodPayload_t common2;
-	wodSpecific_t wodInfo;
 } WODHousekeepingPayload_t;
 
 /* ERR WOD - saved to file */
 typedef struct __attribute__((__packed__)){
-    wodSpecific_t wodInfo;
     rt1Errors_t errors;
 } ERRWODHousekeepingPayload_t;
 

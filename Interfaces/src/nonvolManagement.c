@@ -12,6 +12,7 @@
 #include "nonvolManagement.h"
 #include "nonvol.h"
 #include "spiDriver.h"
+#include "TelemAndControlTask.h"
 
 static const MRAMmap_t *ptr = (MRAMmap_t *) 0;
 
@@ -201,6 +202,13 @@ void WriteMRAMWODMaxFileSize4kBlocks(uint8_t size){
 
 uint8_t ReadMRAMWODMaxFileSize4kBlocks(void){
     READ_UINT8(WODMaxFileSize4kBlocks,TAC_FILE_SIZE_TO_ROLL_WOD_4K_BLOCKS);
+}
+void WriteMRAMErrWODMaxFileSize4kBlocks(uint8_t size){
+    WRITE_UINT8(ERRWODMaxFileSize4kBlocks,size);
+}
+
+uint8_t ReadMRAMErrWODMaxFileSize4kBlocks(void){
+    READ_UINT8(ERRWODMaxFileSize4kBlocks,TAC_FILE_SIZE_TO_ROLL_ERRWOD_4K_BLOCKS);
 }
 void WriteMRAMResets(uint16_t resets){
     WRITE_UINT16(NumberOfResets,resets);
@@ -512,6 +520,8 @@ void SetupMRAMStates() {
 
     WriteMRAMWODFreq(TAC_TIMER_SAVE_WOD_PERIOD_SECONDS);
     WriteMRAMWODMaxFileSize4kBlocks(TAC_FILE_SIZE_TO_ROLL_WOD_4K_BLOCKS);
+    WriteMRAMErrWODFreq(TAC_TIMER_SAVE_ERRWOD_PERIOD_SECONDS);
+    WriteMRAMErrWODMaxFileSize4kBlocks(TAC_FILE_SIZE_TO_ROLL_ERRWOD_4K_BLOCKS);
     initSecondsInOrbit(); //Must use this to prevent an update from resetting the in orbit time
     WriteMRAMEnterAutosafe(DEFAULT_AUTOSAFE_INTO);
     WriteMRAMExitAutosafe(DEFAULT_AUTOSAFE_OUTOF);
@@ -531,7 +541,8 @@ void SetupMRAMStates() {
     for(i = 0; i < NUM_CHANNELS; i++)
         WriteMRAMModulation(i, DCT_DEFAULT_MODULATION[i]);
 
-    /* These are like 'set internal schedule' but sets relative to startup, not to current time */
+    /* ##### These are like 'set internal schedule' but sets relative to startup, not to current time */
+    // TODO - these are written here but it seems that the MRAM read routines are never called and these are not legacy code...
     WriteMRAMTimeout(NoCommandTimeout,NO_COMMAND_TIMEOUT);
     WriteMRAMTimeout(NoTimeCommandTimeout,TIMEOUT_NONE); /* We start out with time turned off, so there is no timeout */
     WriteMRAMTimeout(MinMaxResetTimeout,MIN_MAX_CLEAR_SECONDS);
@@ -542,6 +553,8 @@ void SetupMRAMStates() {
     } else {
         printf("Post Launch Time Set to %d minutes",POST_LAUNCH_WAIT_TIME);
     }
+
+    /* ##### End block of legacy variables that are not currently used. */
 }
 
 // compute an updated MRAM CRC and update in place
@@ -604,6 +617,7 @@ int SetupMRAM(void){
 
     WriteMinMaxResetSeconds(0); // Clear sets reset time to THIS epoch.  We need preflight init epoch
     WriteMinMaxResetEpoch(0);
+    tac_clear_minmax();
     printf("Telemetry min/max in MRAM initialized\n");
 
     InitResetCnt();
