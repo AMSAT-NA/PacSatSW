@@ -32,14 +32,6 @@
 #include "gpioDriver.h"
 
 
-static bool tx_make_ui_packet(char *from_callsign, char *to_callsign,
-                              uint8_t pid, uint8_t *bytes, int len,
-			      enum radio_modulation modulation,
-                              tx_radio_buffer_t *tx_radio_buffer);
-static bool tx_make_packet(AX25_PACKET *packet,
-			   enum radio_modulation modulation,
-                           tx_radio_buffer_t *tx_radio_buffer);
-
 static rfchan txchan = FIRST_TX_CHANNEL;
 
 enum radio_modulation tx_modulation;
@@ -50,6 +42,29 @@ bool inhibitTransmit;
 /* Test Buffer PB Empty */
 //uint8_t byteBuf[] = {0xA0,0x84,0x98,0x92,0xA6,0xA8,0x00,0xA0,0x8C,0xA6,0x66,
 //                     0x40,0x40,0x17,0x03,0xF0,0x50,0x42,0x3A,0x20,0x45,0x6D,0x70,0x74,0x79,0x2E,0x0D};
+
+static void
+print_raw_packet(const char *str, uint8_t *data, unsigned int len)
+{
+    unsigned int i;
+
+    printf("%s RAW:", str);
+    for (i = 0; i < len; i++)
+        printf(" %2.2x", data[i]);
+    printf("\n");
+}
+
+static xSemaphoreHandle TxFIFOReady;
+static void tx_irq_handler(void *handler_data)
+{
+    BaseType_t higherPrioTaskWoken;
+
+    xSemaphoreGiveFromISR(TxFIFOReady, &higherPrioTaskWoken);
+}
+
+const static struct gpio_irq_info tx_gpio_info = {
+    tx_irq_handler, (void *) (uintptr_t) 0
+};
 
 portTASK_FUNCTION_PROTO(TxTask, pvParameters)
 {
@@ -63,8 +78,8 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
 
     //    printf("Initializing TX\n");
 
-    // Interrupt is not currently used.
-    //GPIOInit(AX5043_Tx_Interrupt, ToTxTask, AX5043_Tx_InterruptMsg);
+    vSemaphoreCreateBinary(TxFIFOReady);
+    GPIOInit(AX5043_Tx_Interrupt, &tx_gpio_info);
 
     /* This is defined in pacsat.h, declared here */
     xTxPacketQueue = xQueueCreate(TX_PACKET_QUEUE_LEN,
@@ -100,7 +115,6 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
      * limiting based on temperature.
      */
     while (1) {
-        uint8_t preamble_length = 32;
         BaseType_t xStatus;
 
         // TODO - adjust block time vs watchdog
@@ -120,53 +134,129 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
         /* Transmit until we have no more packets. */
         while (xStatus == pdPASS) {
             /* Data was successfully received from the queue */
-            int numbytes = tx_packet_buffer.len;
-	    enum radio_modulation mod;
+            uint8_t preamble_length = 32;
+            unsigned int numbytesleft = tx_packet_buffer.len;
+            unsigned int numbytes, flag, bytepos, retries;
+            enum radio_modulation mod;
+            enum fec fec;
 
-	    mod = (enum radio_modulation) tx_packet_buffer.tx_modulation;
-
-	    // 10 for 1200 bps - Radio lab recommends 32 for 9600, may
-	    // need as much as 56.
-	    switch (mod) {
-	    case MODULATION_AFSK_1200:
-		preamble_length = 10;
-		break;
-	    case MODULATION_GMSK_9600:
-		break;
-	    }
+            mod = (enum radio_modulation) tx_packet_buffer.tx_modulation;
 
             if (mod != curr_modulation) {
                 set_modulation(txchan, mod, true);
                 curr_modulation = mod;
             }
 
-            if (monitorTxPackets)
-                print_packet("TX", tx_packet_buffer.bytes, tx_packet_buffer.len);
+            fec = MODULATION_TO_FEC(mod);
+            mod = MODULATION_TO_BASE_MODULATION(mod);
+
+            // 10 for 1200 bps - Radio lab recommends 32 for 9600, may
+            // need as much as 56.
+            switch (mod) {
+            case MODULATION_AFSK_1200:
+                preamble_length = 10;
+                break;
+            case MODULATION_GMSK_9600:
+                break;
+            }
+
+            if (monitorTxPackets) {
+		if (monitor_raw)
+		    print_raw_packet("TX", tx_packet_buffer.bytes,
+				     tx_packet_buffer.len);
+		else
+		    print_packet("TX", tx_packet_buffer.bytes,
+				 tx_packet_buffer.len);
+	    }
 
             //printf("FIFO_FREE 1: %d\n",fifo_free());
 
             // clear FIFO data & flags
             fifo_clear(txchan);
 
-            // repeat the preamble bytes
-            //  TODO - no preamble for back to back packets
-            fifo_repeat_byte(txchan, 0x7E, preamble_length,
-                             AX5043_QUEUE_RAW_NO_CRC_FLAG);
-            fifo_commit(txchan);
-            fifo_queue_buffer(txchan, tx_packet_buffer.bytes, numbytes,
-                        AX5043_QUEUE_PKTSTART_FLAG | AX5043_QUEUE_PKTEND_FLAG);
+            if (fec == FEC_CONV) {
+                /*
+                 * With FEC enabled, you must send a single extra bit
+                 * at the beginning of the preamble or the data won't
+                 * line up correctly in the interleaver.
+                 */
+                fifo_repeat_byte(txchan, 0x02, 1,
+                                 AX5043_QUEUE_RESIDUE_FLAG |
+                                 AX5043_QUEUE_RAW_NO_CRC_FLAG |
+                                 AX5043_QUEUE_PKTSTART_FLAG);
+                fifo_repeat_byte(txchan, 0x7E, preamble_length,
+                                 AX5043_QUEUE_RAW_NO_CRC_FLAG);
+            } else {
+                // repeat the preamble bytes
+                //  TODO - no preamble for back to back packets
+                fifo_repeat_byte(txchan, 0x7E, preamble_length,
+                                 AX5043_QUEUE_RAW_NO_CRC_FLAG |
+                                 AX5043_QUEUE_PKTSTART_FLAG);
+            }
+
+            /*
+             * The AX5043 buffer is 256 bytes, a long message can
+             * overflow it with the preamble and overhead.  Only allow
+             * 240 bytes in at first, and put the rest in a later
+             * request.  The overhead for the headers and preamble is
+             * up to 10 bytes, and leave a little slack.
+             */
+            bytepos = 0;
+            if (numbytesleft > 200) {
+                numbytes = 200;
+                numbytesleft -= 200;
+                flag = 0;
+            } else {
+                numbytes = numbytesleft;
+                numbytesleft = 0;
+                flag = AX5043_QUEUE_PKTEND_FLAG;
+            }
+            fifo_queue_buffer(txchan, tx_packet_buffer.bytes, numbytes, flag);
+            bytepos += numbytes;
             //       printf("FIFO_FREE 2: %d\n",fifo_free());
             fifo_commit(txchan);
             //       printf("INFO: Waiting for transmission to complete\n");
 
-            // TODO - we need to support longer packets
+            /*
+             * Handle sending more data and waiting for all data to be
+             * sent.
+             */
+            for (retries = 0; ; ) {
+                unsigned int free_room = fifo_free(txchan);
+                /* TX interrupt at 150 bytes free, and at empty. */
 
-            // Setup the interrupt to tell us when the buffer is empty
-            // and we can check the TX status then
-            while (ax5043ReadReg(txchan, AX5043_RADIOSTATE) != 0) {
-                // this will yield and allow other processing while it transmits
-                // FIXME - Can't we use an interrupt for this?
-                vTaskDelay(MILLISECONDS(1));
+                if (numbytesleft == 0 && free_room == 256)
+                    /* FIFO empty interrupt, finished processing. */
+                    break;
+
+                if (free_room >= 150 && numbytesleft > 0) {
+                    /* 150 byte free interrupt, add another 100. */
+                    if (numbytesleft > 100) {
+                        numbytes = 100;
+                        numbytesleft -= 100;
+                        flag = 0;
+                    } else {
+                        numbytes = numbytesleft;
+                        numbytesleft = 0;
+                        flag = AX5043_QUEUE_PKTEND_FLAG;
+                    }
+                    fifo_queue_buffer(txchan,
+                                      tx_packet_buffer.bytes + bytepos,
+                                      numbytes, flag);
+                    bytepos += numbytes;
+                    fifo_commit(txchan);
+                    retries = 0;
+                } else {
+                    retries++;
+                }
+                if (retries > 50) {
+                    /* No progress in 1/2 second, time to log and give up. */
+                    ReportError(AX5043error, true, CharString,
+                                (int)"TX packet finish never happened");
+                    break;
+                }
+                xSemaphoreTake(TxFIFOReady, CENTISECONDS(10));
+                ReportToWatchdog(CurrentTaskWD);
             }
 
             // See if we have another packet to send.
@@ -194,34 +284,40 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
  */
 static bool tx_make_ui_packet(char *from_callsign, char *to_callsign,
                               uint8_t pid, uint8_t *bytes, int len,
-			      enum radio_modulation modulation,
+                              enum radio_modulation modulation,
                               tx_radio_buffer_t *tx_radio_buffer)
 {
-    uint8_t packet_len;
-    uint8_t header_len = 16;
+    unsigned int packet_len;
+    unsigned int header_len = 16;
     int i;
     unsigned char buf[7];
     int l = encode_call(to_callsign, buf, false, 0);
 
-    if (l != true) return false;
-    for (i=0; i<7; i++)
+    if (l != true)
+        return false;
+    for (i = 0; i < 7; i++)
         tx_radio_buffer->bytes[i] = buf[i];
     l = encode_call(from_callsign, buf, true, 0);
-    if (l != true) return false;
+    if (l != true)
+        return false;
     for (i=0; i<7; i++)
         tx_radio_buffer->bytes[i+7] = buf[i];
     tx_radio_buffer->bytes[14] = BITS_UI; // UI Frame control byte
     tx_radio_buffer->bytes[15] = pid;
 
-    for (i=0; i< len; i++) {
+    if (len + 16 > sizeof(tx_radio_buffer->bytes))
+        // TODO - Add a log here?
+        return false;
+
+    for (i = 0; i < len; i++)
         tx_radio_buffer->bytes[i+header_len] = bytes[i];
-    }
+
     packet_len = len + header_len;
     tx_radio_buffer->len = packet_len; /* Number of bytes */
     if (modulation == MODULATION_INVALID)
-	tx_radio_buffer->tx_modulation = tx_modulation;
+        tx_radio_buffer->tx_modulation = tx_modulation;
     else
-	tx_radio_buffer->tx_modulation = modulation;
+        tx_radio_buffer->tx_modulation = modulation;
 
 //    if (true) {
 //        for (i=0; i< packet_len; i++) {
@@ -248,11 +344,11 @@ static bool tx_make_ui_packet(char *from_callsign, char *to_callsign,
  * TODO - this should be in ax25_util and be called encode_packet()
  */
 static bool tx_make_packet(AX25_PACKET *packet,
-			   enum radio_modulation modulation,
+                           enum radio_modulation modulation,
                            tx_radio_buffer_t *tx_radio_buffer)
 {
-    uint8_t packet_len;
-    uint8_t header_len = 15; // Assumes no PID
+    unsigned int packet_len;
+    unsigned int header_len = 15; // Assumes no PID
     int i;
     unsigned char buf[7];
 
@@ -341,6 +437,10 @@ static bool tx_make_packet(AX25_PACKET *packet,
         return false;
     }
 
+    if (header_len + packet->data_len > sizeof(tx_radio_buffer->bytes))
+        // TODO - should we log this?
+        return false;
+
     // We are using V2, so both calls encode the command bit:
     int command = packet->command & 0b1;
     int command2 = 0;
@@ -364,15 +464,14 @@ static bool tx_make_packet(AX25_PACKET *packet,
         tx_radio_buffer->bytes[15] = packet->pid;
 
     // If there are data bytes then add them here
-    if (packet->data_len > 0)
-    for (i=0; i< packet->data_len; i++)
-        tx_radio_buffer->bytes[i+header_len] = packet->data[i];
+     for (i = 0; i < packet->data_len; i++)
+        tx_radio_buffer->bytes[i + header_len] = packet->data[i];
     packet_len = packet->data_len + header_len;
     tx_radio_buffer->len = packet_len; /* Number of bytes */
     if (modulation == MODULATION_INVALID)
-	tx_radio_buffer->tx_modulation = tx_modulation;
+        tx_radio_buffer->tx_modulation = tx_modulation;
     else
-	tx_radio_buffer->tx_modulation = modulation;
+        tx_radio_buffer->tx_modulation = modulation;
 
 //    if (true) {
 //        for (i=0; i< packet_len; i++) {
@@ -388,8 +487,6 @@ static bool tx_make_packet(AX25_PACKET *packet,
 //    }
 
     return true;
-
-
 }
 
 /**
@@ -402,7 +499,7 @@ static bool tx_make_packet(AX25_PACKET *packet,
  */
 bool tx_send_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid,
                        uint8_t *bytes, int len, bool block,
-		       enum radio_modulation modulation)
+                       enum radio_modulation modulation)
 {
     tx_radio_buffer_t tmp_packet_buffer;
     //uint8_t raw_bytes[AX25_PKT_BUFFER_LEN];
@@ -445,7 +542,7 @@ bool tx_send_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid,
  * a bad packet in a loop.
  */
 bool tx_send_packet(AX25_PACKET *packet, bool expedited, bool block,
-		    enum radio_modulation modulation)
+                    enum radio_modulation modulation)
 {
     tx_radio_buffer_t tmp_packet_buffer;
     bool rc = tx_make_packet(packet, modulation, &tmp_packet_buffer);
@@ -486,33 +583,41 @@ bool tx_send_packet(AX25_PACKET *packet, bool expedited, bool block,
  * TEST ROUTINES FOLLOW
  */
 
-bool tx_test_make_packet()
+bool tx_test_make_packet(uint32_t len)
 {
-    bool rc = true;
+    bool success;
     //uint8_t raw_bytes[AX25_PKT_BUFFER_LEN]; // position 0 will hold the number of bytes
     char *from_callsign = "PACSAT-12";
     char *to_callsign = "AC2CZ-2";
     uint8_t pid = 0xbb;
-    uint8_t bytes[] = {0,1,2,3,4,5,6,7,8,9};
-    uint8_t len = 10;
+    uint8_t bytes[256];
     tx_radio_buffer_t tmp_packet_buffer;
+    unsigned int i;
 
     debug_print("## SELF TEST: tx_test_make_packet\n");
-    rc = tx_make_ui_packet(from_callsign, to_callsign, pid, bytes, len,
-                           tx_modulation, &tmp_packet_buffer);
+
+    if (len > sizeof(bytes)) {
+        debug_print("## FAILED SELF TEST: packet too lage\n");
+        return false;
+    }
+
+    for (i = 0; i < len; i++)
+        bytes[i] = i;
+
+    success = tx_make_ui_packet(from_callsign, to_callsign, pid, bytes, len,
+                                tx_modulation, &tmp_packet_buffer);
+    if (!success) {
+        debug_print("## FAILED SELF TEST: packet format failed\n");
+        return false;
+    }
 
     BaseType_t xStatus = xQueueSendToBack(xTxPacketQueue, &tmp_packet_buffer,
                                           CENTISECONDS(1));
     if(xStatus != pdPASS) {
         /* The send operation could not complete because the queue was full */
         debug_print("TX QUEUE FULL: Could not add to Packet Queue\n");
-        rc = false;
+        success = false;
     }
 
-    if (rc == false) {
-        debug_print("## FAILED SELF TEST: pb_test_status\n");
-    } else {
-        debug_print("## PASSED SELF TEST: pb_test_status\n");
-    }
-    return rc;
+    return success;
 }

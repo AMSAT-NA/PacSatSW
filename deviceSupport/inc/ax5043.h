@@ -407,12 +407,23 @@ struct axradio_address {
 #define AX5043_QUEUE_PKTSTART_FLAG 0X01
 #define AX5043_QUEUE_PKTEND_FLAG 0X02
 #define AX5043_QUEUE_RAW_NO_CRC_FLAG 0x18 // Flag of 0x18 is RAW no CRC
+#define AX5043_QUEUE_RAW_FLAG 0x10
+#define AX5043_QUEUE_NO_CRC_FLAG 0x08
+#define AX5043_QUEUE_RESIDUE_FLAG 0x04
+#define AX5043_QUEUE_UNENC_FLAG 0x20
 
-void quick_setfreq(rfchan chan, int32_t f);
-void start_ax25_rx(rfchan chan, uint32_t freq,
-                   enum radio_modulation modulation, unsigned int flags);
-void start_ax25_tx(rfchan chan, uint32_t freq,
-                   enum radio_modulation modulation, unsigned int flags);
+#define AX5043_RECV_FLAG_ABORT    0x40
+#define AX5043_RECV_FLAG_SIZEFAIL 0x20
+#define AX5043_RECV_FLAG_ADDRFAIL 0x10
+#define AX5043_RECV_FLAG_CRCFAIL  0x08
+#define AX5043_RECV_FLAG_RESIDUE  0x04
+/* Plus the PKTSTART_FLAG and PKTEND_FLAG above. */
+/*
+ * These are the flags we consider to be errors.  We include RESIDUE
+ * in this because we only handle byte-length messages.
+ */
+#define AX5043_RECV_FLAG_ERR_MASK 0x7c
+
 uint16_t fifo_free(rfchan chan);
 void fifo_clear(rfchan chan);
 void fifo_repeat_byte(rfchan chan, uint8_t b, uint8_t count, uint8_t flags);
@@ -423,10 +434,6 @@ void fifo_commit(rfchan chan);
 void fifo_repeat_byte(rfchan chan, uint8_t b, uint8_t count, uint8_t flags);
 void fifo_queue_buffer(rfchan chan, uint8_t *buf, uint8_t len, uint8_t flags);
 uint16_t fifo_free(rfchan chan);
-
-void ax5043PowerOn(rfchan chan);
-void ax5043PowerOff(rfchan chan);
-uint8_t ax5043_off(rfchan chan);
 
 void ax5043Test(rfchan chan);
 void ax5043Dump(rfchan chan);

@@ -30,9 +30,6 @@
 #include "Ax25Task.h"
 #include "ax25_util.h"
 
-/* Local variables */
-static rx_radio_buffer_t rx_radio_buffer;
-
 /* Forward declarations */
 static bool process_fifo(rfchan chan);
 static void rx_irq_handler(void *handler_data);
@@ -74,9 +71,9 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
 //    printf("Initializing Rx\n");
 
     /* These are defined in pacsat.h, declared here */
-    xRxPacketQueue = xQueueCreate(RX_PACKET_QUEUE_LEN, sizeof(rx_radio_buffer));
+    xRxPacketQueue = xQueueCreate(RX_PACKET_QUEUE_LEN, sizeof(rx_radio_buffer_t));
     xRxEventQueue = xQueueCreate(RX_EVENT_QUEUE_LEN, sizeof(AX25_event_t));
-    xPbPacketQueue = xQueueCreate(PB_PACKET_QUEUE_LEN, sizeof(rx_radio_buffer));
+    xPbPacketQueue = xQueueCreate(PB_PACKET_QUEUE_LEN, sizeof(rx_radio_buffer_t));
     xUplinkEventQueue = xQueueCreate(UPLINK_PACKET_QUEUE_LEN,
                                      sizeof(AX25_event_t));
 
@@ -132,7 +129,7 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
     for (chan = FIRST_RX_CHANNEL; chan <= LAST_RX_CHANNEL; chan++) {
 #ifdef BLINKY_HARDWARE
         if (chan == 1) {
-            ax5043_off(1); // dev1 is broken on blinky.
+            stop_chan(1); // dev1 is broken on blinky.
             continue;
         }
 #endif
@@ -180,43 +177,89 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
     }
 }
 
+static void
+print_raw_packet(const char *str, uint8_t *data, unsigned int len)
+{
+    unsigned int i;
+
+    printf("%s RAW:", str);
+    for (i = 0; i < len; i++)
+        printf(" %2.2x", data[i]);
+    printf("\n");
+}
+
+static rx_radio_buffer_t rxbufs[NUM_RX_CHANNELS];
+
 static void handle_fifo_data(rfchan chan, uint8_t fifo_flags, uint8_t len)
 {
-    uint8_t loc = 0;
+    unsigned int i;
+    rx_radio_buffer_t *rxb = &rxbufs[chan];
+
+    if (fifo_flags & AX5043_QUEUE_PKTSTART_FLAG)
+        /* New packet. */
+        rxb->len = 0;
+
+    for (i = 0; i < len; i++) {
+        if (rxb->len < sizeof(rxb->bytes))
+            rxb->bytes[rxb->len] = ax5043ReadReg(chan, AX5043_FIFODATA);
+        rxb->len++;
+    }
 
     //debug_print("FIFO CMD:%d LEN:%d FLAGS:%x\n",fifo_cmd,len, fifo_flags);
-    if (fifo_flags != 0x03) {
-        // This should never happen??  Corrupt somehow, and we should ignore.
-        debug_print("ERROR in received FIFO Flags\n");
+    if (fifo_flags & AX5043_RECV_FLAG_ERR_MASK) {
+        /*
+         * Note that only "too large packet" errors are enabled here.
+         * TODO - We should probably count those.
+         */
+        if (monitorRxPackets) {
+            char rx_str[10];
+            debug_print("ERROR in received FIFO Flags: %x %d\n",
+                        fifo_flags, len);
+
+            snprintf(rx_str, sizeof(rx_str), "RX[%d]", chan);
+            print_raw_packet(rx_str, rxb->bytes, rxb->len);
+        }
         return;
     }
 
-    for (loc = 0; loc < len; loc++)
-        rx_radio_buffer.bytes[loc] = ax5043ReadReg(chan, AX5043_FIFODATA);
-
-    if (len < 2) {
-        /* Shouldn't happen, the CRC at the end is still there. */
+    if (!(fifo_flags & AX5043_QUEUE_PKTEND_FLAG))
+        /* Not the end of the packet, more to come. */
         return;
-    }
 
-    rx_radio_buffer.len = len - 2; // Remove the CRC, flags are already gone.
+    if (rxb->len < 2)
+        /* TODO - might want to count too short packets. */
+        /* CRC should be there. */
+        return;
+
+    rxb->len -= 2; // Remove the CRC, flags are already gone.
+
+    /*
+     * Note that we may not have the CRC bytes in the packet data if
+     * the packet was 255 bytes + CRC.  That's ok, we don't need them.
+     */
+
+    if (rxb->len > sizeof(rxb->bytes))
+        /* TODO - might want to count too long packets. */
+        return;
 
     if (monitorRxPackets) {
         char rx_str[10];
 
         snprintf(rx_str, sizeof(rx_str), "RX[%d]", chan);
-        print_packet(rx_str, &rx_radio_buffer.bytes[0],
-                     rx_radio_buffer.len);
+	if (monitor_raw)
+	    print_raw_packet(rx_str, rxb->bytes, rxb->len);
+	else
+	    print_packet(rx_str, rxb->bytes, rxb->len);
     }
 
     // Store the channel here - same as device id
-    rx_radio_buffer.channel = chan;
+    rxb->channel = chan;
 
     /*
      * Add to the queue and wait for 100ms to see if space
      * is available
      */
-    BaseType_t xStatus = xQueueSendToBack(xRxPacketQueue, &rx_radio_buffer,
+    BaseType_t xStatus = xQueueSendToBack(xRxPacketQueue, rxb,
                                           CENTISECONDS(10));
     if (xStatus != pdPASS) {
         /*
@@ -235,16 +278,19 @@ static bool process_fifo(rfchan chan)
 
     if (!rx_working(chan)) {
         debug_print("AX5043 Interrupt in pwrmode: %02x\n",
-		    ax5043ReadReg(chan, AX5043_PWRMODE));
+                    ax5043ReadReg(chan, AX5043_PWRMODE));
         return false;
     }
 
     if (monitorRxPackets)
         debug_print("RX channel: %d Interrupt while in FULL_RX mode\n", chan);
 
-    if ((ax5043ReadReg(chan, AX5043_FIFOSTAT) & 0x01) == 1)
+    if ((ax5043ReadReg(chan, AX5043_FIFOSTAT) & 0x01) == 1) {
         // FIFO empty
+        if (monitorRxPackets)
+            debug_print("FIFO Empty\n");
         return false;
+    }
 
     //printf("IRQREQUEST1: %02x\n", ax5043ReadReg(AX5043_IRQREQUEST1));
     //printf("IRQREQUEST0: %02x\n", ax5043ReadReg(AX5043_IRQREQUEST0));
@@ -270,8 +316,9 @@ static bool process_fifo(rfchan chan)
     if (fifo_cmd == AX5043_FIFOCMD_DATA) {
         GPIOSetOn(LED2);
         handle_fifo_data(chan, fifo_flags, len);
-    } else {
-        //debug_print("FIFO MESSAGE: %d LEN:%d\n",fifo_cmd,len);
+    } else if (monitorRxPackets) {
+        debug_print("FIFO MESSAGE: %x LEN:%d FLAGS: %x\n", fifo_cmd, len,
+                    fifo_flags);
     }
 
     return true;

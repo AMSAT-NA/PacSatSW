@@ -221,9 +221,29 @@ typedef uint8_t rfchan;
 #define EXP_DESTINATION "EXP"
 #define CAN_DESTINATION "CAN"
 
-#define AX25_MAX_DATA_LEN 240 /* This is the maximum number of bytes a packet can have */
-#define AX25_MAX_INFO_BYTES_LEN 223 /* This is the maximum number of info bytes a packet can have */
-#define AX25_PKT_BUFFER_LEN 260 /* This is the length of the buffers in the TX RX queues */
+/*
+ * This is the maximum number of bytes a transmit packet can have,
+ * buffers, error correction, and data.  This is the max size of a
+ * reed-solomon RS(255,223) buffer.
+ */
+#define MAX_DATA_LEN 255
+
+/*
+ * This is the maximum number of info bytes a transmit packet can
+ * have.  This is the maximum length with reed-solomon error
+ * correction party data and header removed.
+ */
+#define AX25_MAX_INFO_BYTES_LEN (MAX_DATA_LEN - 32 - 16)
+
+/*
+ * This is the maximum number of bytes a receive packet can have.
+ * Testing has shown that the receiver doesn't work with more than
+ * this many bytes.  The bytes at the end are not correct, they are
+ * leftovers from previous bytes.  This number does not include the
+ * CRC, so it's the full data length.
+ */
+#define MAX_RX_DATA_LEN 250
+
 #define MAX_CALLSIGN_LEN 10 /* Length of the String for an AX25 callsign including dash, 2 digit Digi, and null termination */
 #define MAX_PB_HOLES_LIST_BYTES 222 /* The max length of a holes list = ( AX25_MAX_DATA_LEN - 17 ) to nearest 6 */
 #define MAX_FILENAME_WITH_PATH_LEN 25 /* Max length of a filename with its path.  This requires a shallow dir structure. */
@@ -370,12 +390,29 @@ typedef uint8_t rfchan;
  */
 #define AX5043_USES_TCXO // If this is not defined then we are using an XTAL
 
+/* FEC is a bitmask. */
+enum fec {
+    FEC_NONE = 0,
+    FEC_CONV = 1, /* Convolutional coding per AX5043. */
+    FEC_RS = 2, /* Reed Solomon. */
+};
+
+/*
+ * This is set up so the bottom 4 routines are the modulation time and
+ * the top 4 bits of an 8-bit value.  The ax5043 routine takes this
+ * apart.
+ */
 enum radio_modulation {
     MODULATION_INVALID = -1, // Also used to pick the default Tx modulation.
     MODULATION_AFSK_1200 = 0,
+    MODULATION_AFSK_1200_CONV = FEC_CONV << 4 | MODULATION_AFSK_1200,
     MODULATION_GMSK_9600 = 1,
+    MODULATION_GMSK_9600_CONV = FEC_CONV << 4 | MODULATION_GMSK_9600,
 };
 char *modulation_to_str(enum radio_modulation mod);
+
+#define MODULATION_TO_BASE_MODULATION(mod) ((enum radio_modulation) ((mod) & 0xf))
+#define MODULATION_TO_FEC(mod) ((enum fec) (((mod) >> 4) & 0xf))
 
 /* Defined in ConsoleTask.c */
 extern const uint32_t DCT_DEFAULT_FREQ[NUM_CHANNELS];
@@ -384,6 +421,7 @@ extern const uint8_t DCT_DEFAULT_MODE[NUM_CHANNELS];
 
 // For now, we want the output to be something like 100mW (20dBm) and 500mW (27dBm)
 // I believe this makes the DCT output be about -7dBM and +3dBM
+// TODO - figure out what to do with this.  It doesn't do anything right now.
 #define DCT_DEFAULT_LOW_POWER 261   // This seems about right for 20dBm
 #define DCT_DEFAULT_HIGH_POWER 632 // TODO:  This should be defined so we get about 27dBm out of the PA.
 
@@ -451,8 +489,8 @@ extern const uint8_t DCT_DEFAULT_MODE[NUM_CHANNELS];
  * identify the source and destination.
  * See tasks/src/CANTask.c for details on the CAN header.
  */
-#define CANA_ADDRESS	15
-#define CANB_ADDRESS	14
+#define CANA_ADDRESS    15
+#define CANB_ADDRESS    14
 
 /*
  * The CAN busses.  Note that the numbering here does not necessarily

@@ -12,7 +12,7 @@
 
 typedef struct {
     uint8_t channel;
-    uint8_t bytes[AX25_PKT_BUFFER_LEN];
+    uint8_t bytes[MAX_DATA_LEN];
     uint16_t len;
 } rx_radio_buffer_t;
 

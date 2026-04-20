@@ -86,7 +86,7 @@ QueueHandle_t xTxPacketQueue; /* RTOS Queue for packets sent to the TX */
 QueueHandle_t xIFrameQueue[NUM_RX_CHANNELS]; /* RTOS Queues for Data IFrames sent from Uplink to AX25 Data Link */
 //bool rate_9600; /* The rate for the AX25 link.  Loaded from MRAM.  */
 bool CANPrintTelemetry,CANPrintCoord,CANPrintCommands,CANPrintAny,CANPrintCount,CANPrintErrors,CANPrintEttus;
-bool monitorTxPackets, monitorRxPackets, monitorRSSI;
+bool monitorTxPackets, monitorRxPackets, monitorRSSI, monitor_raw;
 uint8_t spacecraftMode = SpacecraftSafeMode;
 uint8_t lastSpacecraftMode = SpacecraftSafeMode;
 

@@ -255,7 +255,7 @@ commandPairs pacsatCommands[] = {
     { "monitor",
       "Enable/disable monitoring of sent and received packets",
       Monitor,
-      "[on|off|rx [on|off]|rssi [on|off]|tx [on|off]|packet [on|off]",
+      "[on|off|rx [on|off]|rssi [on|off]|tx [on|off]|packet [on|off]|raw [on|off]",
     },
     { "shut pb",
       "Shut the PB",
@@ -661,15 +661,15 @@ static int parse_CAN_bus(char **str, uint8_t *canNum)
     case 'a':
     case 'A':
     case '0':
-	*canNum = CANA;
-	break;
+        *canNum = CANA;
+        break;
     case 'b':
     case 'B':
     case '1':
-	*canNum = CANB;
-	break;
+        *canNum = CANB;
+        break;
     default:
-	return -1;
+        return -1;
     }
 
     return 0;
@@ -795,19 +795,19 @@ void RealConsoleTask(void)
                     break;
                 }
 
-		if (mram_mounted()) {
-		    printf("Cowardly refusing to test a mounted MRAM.  Unmount before testing\n");
-		    break;
-		}
+                if (mram_mounted()) {
+                    printf("Cowardly refusing to test a mounted MRAM.  Unmount before testing\n");
+                    break;
+                }
 
-		printf("NOTE:  This test will wipe out the file system and configuration values in MRAM.\n\n");
+                printf("NOTE:  This test will wipe out the file system and configuration values in MRAM.\n\n");
 
                 testMRAM(size);
             } else if (strcmp(cmd, "clear") == 0) {
-		if (mram_mounted()) {
-		    printf("Cowardly refusing to clear a mounted MRAM.  Unmount before testing\n");
-		    break;
-		}
+                if (mram_mounted()) {
+                    printf("Cowardly refusing to clear a mounted MRAM.  Unmount before testing\n");
+                    break;
+                }
 
                 SetupMRAM();
                 // Don't get confused by in orbit state!
@@ -845,26 +845,26 @@ void RealConsoleTask(void)
                 }
             } else if (strcmp(cmd, "wren") == 0) {
                 bool stat;
-		uint8_t num;
+                uint8_t num;
 
                 if (parse_mramnr(&afterCommand, &num))
-		    break;
+                    break;
 
                 stat = writeEnableMRAM(num);
                 printf("stat for MRAM %d is %d; sr is %x\n", num, stat,
                        readMRAMStatus(num));
             } else if (strcmp(cmd, "wake") == 0) {
-		uint8_t num;
+                uint8_t num;
 
                 if (parse_mramnr(&afterCommand, &num))
-		    break;
+                    break;
 
                 MRAMWake(num);
             } else if (strcmp(cmd, "sleep") == 0) {
-		uint8_t num;
+                uint8_t num;
 
                 if (parse_mramnr(&afterCommand, &num))
-		    break;
+                    break;
 
                 MRAMSleep(num);
             } else {
@@ -1508,7 +1508,7 @@ void RealConsoleTask(void)
 
             if (err)
                 break;
-            stop_rx(chan);
+            stop_chan(chan);
             break;
         }
 
@@ -1767,7 +1767,7 @@ void RealConsoleTask(void)
                 debug_print("### pb list clear TEST FAILED\n");
                 break;
             }
-            if (!tx_test_make_packet()) {
+            if (!tx_test_make_packet(10)) {
                 debug_print("### tx make packet TEST FAILED\n");
                 break;
             }
@@ -1816,7 +1816,14 @@ void RealConsoleTask(void)
         }
 
         case testTx: {
-            bool rc = tx_test_make_packet();
+            uint32_t length;
+            int err;
+
+            err = parse_uint32(&afterCommand, &length, 0);
+            if (err)
+                length = 10;
+
+            tx_test_make_packet(length);
             break;
         }
 
@@ -1890,6 +1897,7 @@ void RealConsoleTask(void)
                 printf("Packet Rx: %s\n", monitorRxPackets ? "on" : "off");
                 printf("Packet RSSI: %s\n", monitorRSSI ? "on" : "off");
                 printf("Packet Tx: %s\n", monitorTxPackets ? "on" : "off");
+                printf("raw: %s\n", monitor_raw ? "on" : "off");
                 break;
             }
             if (strcmp(t, "on") == 0) {
@@ -1924,6 +1932,11 @@ void RealConsoleTask(void)
                 if (!err)
                     monitorRSSI = val;
                 printf("Packet RSSI: %s\n", monitorRSSI ? "on" : "off");
+            } else if (strcmp(t, "raw") == 0) {
+                err = parse_bool(&afterCommand, &val);
+                if (!err)
+                    monitor_raw = val;
+                printf("raw: %s\n", monitor_raw ? "on" : "off");
             } else {
                 printf("Unknown setting: %s\n", t);
                 break;
@@ -2218,8 +2231,12 @@ void RealConsoleTask(void)
 
             if (strcmp(modstr, "1200") == 0) {
                 mod = MODULATION_AFSK_1200;
+            } else if (strcmp(modstr, "1200conv") == 0) {
+                mod = MODULATION_AFSK_1200_CONV;
             } else if (strcmp(modstr, "9600") == 0) {
                 mod = MODULATION_GMSK_9600;
+            } else if (strcmp(modstr, "9600conv") == 0) {
+                mod = MODULATION_GMSK_9600_CONV;
             } else {
                 printf("Invalid modulation %s, must be 1200 or 9600\n",
                        modstr);
@@ -2237,7 +2254,6 @@ void RealConsoleTask(void)
                  */
                 tx_modulation = mod;
             } else if (rxing(chan)) {
-                stop_rx(chan);
                 start_rx(chan, DCTFreq[chan], DCTModulation[chan]);
             }
             break;

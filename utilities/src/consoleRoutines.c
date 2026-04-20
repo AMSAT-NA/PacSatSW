@@ -347,8 +347,14 @@ char *modulation_to_str(enum radio_modulation mod)
     case MODULATION_AFSK_1200:
         return "afsk1200";
 
+    case MODULATION_AFSK_1200_CONV:
+        return "afsk1200conv";
+
     case MODULATION_GMSK_9600:
         return "gmsk9600";
+
+    case MODULATION_GMSK_9600_CONV:
+        return "gmsk9600conv";
 
     default:
         return "unknown";
