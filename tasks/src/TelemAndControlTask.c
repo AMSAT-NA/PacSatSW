@@ -818,6 +818,16 @@ void tac_collect_telemetry(telem_buffer_t *buffer)
     buffer->common.IHUTemp = (20+board_temps[TEMPERATURE_VAL_CPU])*2;
     buffer->common.PATemp = (20+board_temps[TEMPERATURE_VAL_PA])*2;
     buffer->common.PowerTemp = (20+board_temps[TEMPERATURE_VAL_POWER])*2;
+
+    buffer->common.VoltageVal5v = htots((uint16_t)(4096*board_voltages[VOLTAGE_VAL_5v]/3300));
+    buffer->common.VoltageVal3v3 = htots((uint16_t)(4096*board_voltages[VOLTAGE_VAL_3v3]/3300));
+    buffer->common.VoltageVal1v2 = htots((uint16_t)(4096*board_voltages[VOLTAGE_VAL_1v2]/3300));
+    buffer->common.VoltageValBattery = htots((uint16_t)(4096*board_voltages[VOLTAGE_VAL_BATTERY]/3300));
+
+    //debug_print("Board Voltage: 5V %d Telem: %d\n",board_voltages[VOLTAGE_VAL_5v], buffer->common.VoltageVal5v);
+    // TODO add telemetry for:
+    //rf_power
+
 #else
     buffer->common.IHUTemp = 0;
 #endif
@@ -829,6 +839,11 @@ void tac_collect_telemetry(telem_buffer_t *buffer)
     buffer->common2.pbEnabled = ReadMRAMBoolState(StatePbEnabled);
     buffer->common2.uplinkEnabled = ReadMRAMBoolState(StateUplinkEnabled);
     buffer->common2.DigiEnabled = ReadMRAMBoolState(StateDigiEnabled);
+    buffer->common2.PowerFlag5V = board_power_flags[POWER_FLAG_5V];
+    buffer->common2.PowerFlagLNA = board_power_flags[POWER_FLAG_LNA];
+    buffer->common2.PowerFlagSSPA = board_power_flags[POWER_FLAG_SSPA];
+    buffer->common2.PowerFlagAx5043 = board_power_flags[POWER_FLAG_AX5043];
+
     //debug_print("PB: %d\n", buffer->common2.pbEnabled);
 
     buffer->common2.LogLevel = 0; // TODO - implement when logging in place

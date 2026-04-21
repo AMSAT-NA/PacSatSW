@@ -28,6 +28,10 @@ typedef struct  __attribute__((__packed__)) _commonRtMinmaxWodPayload_t {
     uint8_t IHUTemp;       //Offset=184
     uint8_t PATemp;       //Offset=192
     uint8_t PowerTemp;       //Offset=200
+    uint16_t VoltageVal3v3;       //Offset=208
+    uint16_t VoltageVal5v;       //Offset=224
+    uint16_t VoltageVal1v2;       //Offset=240
+    uint16_t VoltageValBattery;       //Offset=256
     uint16_t pad0;       //Offset=208
 } commonRtMinmaxWodPayload_t; // Total Size=224 bits or 28 bytes with 0 left over
 #endif

@@ -6,27 +6,32 @@
 #error Wrong Archtecture
 #endif
 typedef struct  __attribute__((__packed__)) _commonRtWodPayload_t {
-    unsigned int pad202:3;       //Offset=0
-    unsigned int DigiEnabled:1;       //Offset=3
-    unsigned int uplinkEnabled:1;       //Offset=4
-    unsigned int pbEnabled:1;       //Offset=5
-    unsigned int AutoSafeModeActive:1;       //Offset=6
-    unsigned int AutoSafeAllowed:1;       //Offset=7
-    uint8_t LogLevel;       //Offset=8
-    uint8_t TimePeriod;       //Offset=16
-    uint8_t TelemPeriod;       //Offset=24
-    uint8_t WodPeriod;       //Offset=32
-    uint8_t MaxWodFileSize;       //Offset=40
-    uint8_t MaxExpFileSize;       //Offset=48
-    uint8_t PbStatusPeriod;       //Offset=56
-    uint8_t PbTimeout;       //Offset=64
-    uint8_t UplinkStatusPeriod;       //Offset=72
-    uint8_t swCmdCnt;       //Offset=80
-    uint8_t TLMresets;       //Offset=88
-    uint32_t swCmds;       //Offset=96
-    uint8_t MRAMstatus0;       //Offset=128
-    uint8_t MRAMstatus1;       //Offset=136
-    uint8_t MRAMstatus2;       //Offset=144
-    uint8_t MRAMstatus3;       //Offset=152
-} commonRtWodPayload_t; // Total Size=160 bits or 20 bytes with 0 left over
+    unsigned int pad202:7;       //Offset=0
+    unsigned int PowerFlagAx5043:1;       //Offset=7
+    unsigned int PowerFlagSSPA:1;       //Offset=8
+    unsigned int PowerFlagLNA:1;       //Offset=9
+    unsigned int PowerFlag5V:1;       //Offset=10
+    unsigned int DigiEnabled:1;       //Offset=11
+    unsigned int uplinkEnabled:1;       //Offset=12
+    unsigned int pbEnabled:1;       //Offset=13
+    unsigned int AutoSafeModeActive:1;       //Offset=14
+    unsigned int AutoSafeAllowed:1;       //Offset=15
+    uint8_t LogLevel;       //Offset=16
+    uint8_t TimePeriod;       //Offset=24
+    uint8_t TelemPeriod;       //Offset=32
+    uint8_t WodPeriod;       //Offset=40
+    uint8_t MaxWodFileSize;       //Offset=48
+    uint8_t MaxExpFileSize;       //Offset=56
+    uint8_t PbStatusPeriod;       //Offset=64
+    uint8_t PbTimeout;       //Offset=72
+    uint8_t UplinkStatusPeriod;       //Offset=80
+    uint8_t swCmdCnt;       //Offset=88
+    uint8_t TLMresets;       //Offset=96
+    uint8_t pad203[3];       //Offset=104
+    uint32_t swCmds;       //Offset=128
+    uint8_t MRAMstatus0;       //Offset=160
+    uint8_t MRAMstatus1;       //Offset=168
+    uint8_t MRAMstatus2;       //Offset=176
+    uint8_t MRAMstatus3;       //Offset=184
+} commonRtWodPayload_t; // Total Size=192 bits or 24 bytes with 0 left over
 #endif
