@@ -469,11 +469,10 @@ extern const uint8_t DCT_DEFAULT_MODE[NUM_CHANNELS];
 /*
  * Default voltages
  *
- * These voltages are based on the CIU voltage divider and a/d converter so that 99 is 5.2V.
- * TODO - these values are not going to be correct for PAC
+ * These voltages are in mV
  */
-#define DEFAULT_AUTOSAFE_INTO 92
-#define DEFAULT_AUTOSAFE_OUTOF 98
+#define DEFAULT_AUTOSAFE_INTO 4500
+#define DEFAULT_AUTOSAFE_OUTOF 5000
 #define AUTOSAFE_MIN_HYSTERESIS 6
 /*
  * The following is the ADC 8-bit solar panel voltage that will be deemed enough to consider us in the sun

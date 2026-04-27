@@ -38,6 +38,10 @@ extern bool JustReleasedFromBooster;
 extern uint16_t NumWODSaved;
 extern int32_t WODHkStoreIndex,WODSciStoreIndex;
 extern rt1Errors_t localErrorCollection;
+extern uint16_t into_autosafe_voltage;
+extern uint16_t outof_autosafe_voltage;
+extern bool state_autosafe;
+extern bool allow_autosafe;
 
 static uint8_t SWCmdCount,HWCmdCount;
 
@@ -266,6 +270,10 @@ bool OpsSWCommands(CommandAndArgs *comarg){
         WriteMRAMBoolState(StateAutoSafeAllow,turnOn);
         WriteMRAMEnterAutosafe(into_voltage);
         WriteMRAMExitAutosafe(outof_voltage);
+        // Set the variables that cache these values so they do not need to be read from MRAM continually.
+        allow_autosafe = turnOn;
+        into_autosafe_voltage = into_voltage;
+        outof_autosafe_voltage = outof_voltage;
         break;
     }
     case SWCmdOpsSafeMode:{

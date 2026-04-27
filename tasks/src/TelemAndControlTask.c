@@ -60,19 +60,17 @@ typedef struct {
     rt1Errors_t errors;
 } telem_buffer_t;
 
-bool trace_telem;
-
-realTimeFrame_t realtimeFrame;
-WODFrame_t wodFrame;
-errFrame_t errFrame;
-errWODFrame_t errwodFrame;
-
-uint8_t payload_counter = 0;
+/* Globals that we are defining */
+bool trace_telem = false;
+bool state_autosafe = false;
+bool allow_autosafe = false;
+uint16_t into_autosafe_voltage = 0;
+uint16_t outof_autosafe_voltage = 0;
 
 /* List the payload send sequence.  These are sent in pairs.
  * TODO: We should store payloads and send the last and the latest if two of the same type are listed one after the other.
  * For now, do not list two payloads of the same type one after the other or we will send duplicates. */
-uint8_t safe_mode_payload_sequence[] = {
+static uint8_t safe_mode_payload_sequence[] = {
      DIAGNOSTIC_PAYLOAD,
      RT_HK_PAYLOAD,
      RT_EXP_PAYLOAD,
@@ -87,7 +85,7 @@ uint8_t safe_mode_payload_sequence[] = {
      RT_HK_PAYLOAD,
 };
 
-uint8_t filesystem_mode_payload_sequence[] = {
+static uint8_t filesystem_mode_payload_sequence[] = {
      RT_HK_PAYLOAD,
      RT_EXP_PAYLOAD,
      RT_HK_PAYLOAD,
@@ -98,7 +96,7 @@ uint8_t filesystem_mode_payload_sequence[] = {
      MIN_VALS_PAYLOAD,
 };
 
-uint8_t science_mode_payload_sequence[] = {
+static uint8_t science_mode_payload_sequence[] = {
      RT_EXP_PAYLOAD,
      RT_HK_PAYLOAD,
 };
@@ -115,6 +113,7 @@ void tac_maintenance_timer_callback(TimerHandle_t xTimer);
 void tac_check_file_queues_timer_callback(TimerHandle_t xTimer);
 void tac_science_mode_timer_callback(TimerHandle_t xTimer);
 void tac_stop_science_mode_timer();
+void tac_check_auto_safe();
 void tac_collect_telemetry(telem_buffer_t *buffer);
 void tac_send_telemetry(telem_buffer_t *buffer);
 void tac_send_time();
@@ -122,6 +121,12 @@ void tac_store_wod();
 void tac_store_errwod();
 
 /* Local variables */
+static realTimeFrame_t realtimeFrame;
+static WODFrame_t wodFrame;
+static errFrame_t errFrame;
+static errWODFrame_t errwodFrame;
+
+static uint8_t payload_counter = 0;
 char wod_file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
 char errwod_file_name_with_path[MAX_FILENAME_WITH_PATH_LEN];
 
@@ -180,6 +185,11 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
 
     ResetAllWatchdogs();
 //    debug_print("Initializing Telem and Control Task\n");
+
+    into_autosafe_voltage = ReadMRAMEnterAutosafe();
+    outof_autosafe_voltage = ReadMRAMExitAutosafe();
+    state_autosafe = ReadMRAMBoolState(StateAutoSafe);
+    allow_autosafe = ReadMRAMBoolState(StateAutoSafeAllow);
 
     portBASE_TYPE timerStatus = pdFAIL;
     /* Setup a timer to send the PB status periodically */
@@ -565,6 +575,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
 
             case TacADCProcessMsg:
                 adc_process_data();
+                tac_check_auto_safe();
                 break;
             }
         }
@@ -708,6 +719,57 @@ void tac_stop_science_mode_timer() {
         }
     }
 
+}
+
+/**
+ * This routine checks the recently sampled ADC voltages to see if autosafe should be entered
+ * or exited
+ * Currently this checks the 5V rail.
+ * TODO - update if this should check the battery line
+ *
+ */
+void tac_check_auto_safe() {
+    if (!allow_autosafe)
+        return;
+
+    uint16_t voltage = board_voltages[VOLTAGE_VAL_5v];
+
+   // debug_print("5V: %d INTO: %d OUTOF: %d\n", voltage, into_autosafe_voltage, outof_autosafe_voltage);
+
+    /* First check the situation where we are in AutoSafe mode*/
+    if (state_autosafe) {
+        if (voltage > outof_autosafe_voltage) {
+            debug_print("Exiting AUTOSAFE\n");
+            /* Change mode back to previous mode */
+            state_autosafe = false;
+            WriteMRAMBoolState(StateAutoSafe,false);
+            switch (lastSpacecraftMode) {
+            case SpacecraftFileSystemMode:
+                statusMsg.MsgType = TacEnterFileSystemMode;
+                NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
+                break;
+
+            case SpacecraftSafeMode:
+            case SpacecraftScienceMode:
+            default:
+                statusMsg.MsgType = TacEnterSafeMode;
+                NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
+                break;
+            }
+        }
+    } else {
+        /* we are not currently in autosafe */
+        if (voltage < into_autosafe_voltage) {
+            debug_print("Entering AUTOSAFE\n");
+            WriteMRAMBoolState(StateAutoSafe,true);
+            state_autosafe = true;
+            lastSpacecraftMode = spacecraftMode;
+            WriteMRAMLastSpacecraftMode(lastSpacecraftMode);
+            WriteMRAMBoolState(StateCommandedSafeMode,false);
+            statusMsg.MsgType = TacEnterSafeMode;
+            NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
+        }
+    }
 }
 
 uint8_t tac_encode_period_30s_blocks(uint16_t period) {

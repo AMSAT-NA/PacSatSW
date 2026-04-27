@@ -260,6 +260,7 @@ void ConsoleTask(void *pvParameters){
     /* Before we start up, initialize the spacecraft mode from MRAM */
     inhibitTransmit = ReadMRAMBoolState(StateTransmitInhibit);
 
+    lastSpacecraftMode = ReadMRAMLastSpacecraftMode();
     spacecraftMode = ReadMRAMSpacecraftMode();
     if (spacecraftMode == SpacecraftScienceMode)
         setSpacecraftMode((SpacecraftMode_t)ReadMRAMLastSpacecraftMode());
