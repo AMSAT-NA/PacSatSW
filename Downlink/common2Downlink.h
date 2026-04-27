@@ -33,5 +33,17 @@ typedef struct  __attribute__((__packed__)) _commonRtWodPayload_t {
     uint8_t MRAMstatus1;       //Offset=168
     uint8_t MRAMstatus2;       //Offset=176
     uint8_t MRAMstatus3;       //Offset=184
+    uint8_t TXPwrMode;       //Offset=192
+    uint8_t TxModMode;       //Offset=200
+    uint8_t RX0PwrMode;       //Offset=208
+    uint8_t RX1PwrMode;       //Offset=216
+    uint8_t RX2PwrMode;       //Offset=224
+    uint8_t RX3PwrMode;       //Offset=232
+    uint8_t RX0ModMode;       //Offset=240
+    uint8_t RX1ModMode;       //Offset=248
+    uint8_t RX2ModMode;       //Offset=256
+    uint8_t RX3ModMode;       //Offset=264
+    uint8_t IntoAutoSafe;       //Offset=272
+    uint8_t OutofAutoSafe;       //Offset=280
 } commonRtWodPayload_t; // Total Size=192 bits or 24 bytes with 0 left over
 #endif

@@ -122,6 +122,8 @@ void tac_store_errwod();
 
 /* Local variables */
 static realTimeFrame_t realtimeFrame;
+static minFrame_t minFrame;
+static maxFrame_t maxFrame;
 static WODFrame_t wodFrame;
 static errFrame_t errFrame;
 static errWODFrame_t errwodFrame;
@@ -803,7 +805,8 @@ void tac_collect_telemetry(telem_buffer_t *buffer)
 // debug_print("Telem & Control: Collect RT telem at: %d/%d\n",time.IHUresetCnt, time.METcount);
 
     /********** commonRtMinmaxWodPayload_t - These values also go into min / max ***********/
-    // TODO - put these in MIN MAX.  Make sure Min Max initialized with preflight init or similar
+    // TODO - put these in MIN MAX.  NOTE WELL that once stored in telemetry, if they are multibyte, they are little endian and we can not compare them without conversion to big endian
+    // TODO - what are the MRAM variables MinMaxDelta_t, MinMaxResetTimeEpoch, MinMaxResetTimeSecs used for?
 
     /* File Storage */
     REDSTATFS redstatfs;
@@ -813,51 +816,80 @@ void tac_collect_telemetry(telem_buffer_t *buffer)
                red_strerror(red_errno));
         ReportError(REDFSIOerror, FALSE, ErrorBits,(int)red_errno);
     } else {
-        //printf("Free blocks: %d of %d.  Free Bytes: %d\n",
-        //       redstatfs.f_bfree, redstatfs.f_blocks,
-        //       redstatfs.f_frsize * redstatfs.f_bfree);
-        //printf("Available File Ids: %d of %d.  \n",
-        //       redstatfs.f_ffree, redstatfs.f_files);
+//        printf("Free blocks: %d of %d.  Free Bytes: %d\n",
+//               redstatfs.f_bfree, redstatfs.f_blocks,
+//               redstatfs.f_frsize * redstatfs.f_bfree);
+//        printf("Available File Ids: %d of %d.  \n",
+//               redstatfs.f_ffree, redstatfs.f_files);
         buffer->common.FSAvailable = htotl(redstatfs.f_bfree); // blocks free
+        if (ttohl(buffer->minVals.common.FSAvailable) > redstatfs.f_bfree)
+            buffer->minVals.common.FSAvailable = htotl(redstatfs.f_bfree);
+        if (ttohl(buffer->maxVals.common.FSAvailable) < redstatfs.f_bfree)
+            buffer->maxVals.common.FSAvailable = htotl(redstatfs.f_bfree);
+
         buffer->common.FSTotalFiles = htots((uint16)(redstatfs.f_files - redstatfs.f_ffree));
+        if (ttohs(buffer->minVals.common.FSTotalFiles) > ttohs(buffer->common.FSTotalFiles))
+            buffer->minVals.common.FSTotalFiles = buffer->common.FSTotalFiles;
+        if (ttohs(buffer->maxVals.common.FSTotalFiles) < ttohs(buffer->common.FSTotalFiles))
+            buffer->maxVals.common.FSTotalFiles = buffer->common.FSTotalFiles;
+
     }
 
-    if (buffer->minVals.common.FSAvailable > buffer->common.FSAvailable)
-        buffer->minVals.common.FSAvailable = buffer->common.FSAvailable;
-    if (buffer->maxVals.common.FSAvailable < buffer->common.FSAvailable)
-        buffer->maxVals.common.FSAvailable = buffer->common.FSAvailable;
 
     ReportToWatchdog(CurrentTaskWD);
 
     uint8_t upload_kb = (uint8_t)(ftl0_get_space_reserved_by_upload_table()/1024);
     buffer->common.UploadQueueBytes = upload_kb; // in kilobytes
+    if (buffer->minVals.common.UploadQueueBytes > buffer->common.UploadQueueBytes)
+        buffer->minVals.common.UploadQueueBytes = buffer->common.UploadQueueBytes;
+    if (buffer->maxVals.common.UploadQueueBytes < buffer->common.UploadQueueBytes)
+        buffer->maxVals.common.UploadQueueBytes = buffer->common.UploadQueueBytes;
+
     //debug_print("UploadBytes: %d",upload_kb);
     buffer->common.UploadQueueFiles = ftl0_get_num_of_files_in_upload_table();
+    if (buffer->minVals.common.UploadQueueFiles > buffer->common.UploadQueueFiles)
+        buffer->minVals.common.UploadQueueFiles = buffer->common.UploadQueueFiles;
+    if (buffer->maxVals.common.UploadQueueFiles < buffer->common.UploadQueueFiles)
+        buffer->maxVals.common.UploadQueueFiles = buffer->common.UploadQueueFiles;
 
     /* TX Telemetry */
     uint16_t rf_pwr = (ax5043ReadReg(FIRST_TX_CHANNEL, AX5043_TXPWRCOEFFB0)
             + (ax5043ReadReg(FIRST_TX_CHANNEL, AX5043_TXPWRCOEFFB1) << 8));
     buffer->common.TXPower = rf_pwr;
-    buffer->common.TXPwrMode = ax5043ReadReg(FIRST_TX_CHANNEL, AX5043_PWRMODE);
-    buffer->common.TxModMode = ReadMRAMModulation(FIRST_TX_CHANNEL);
+    if (buffer->minVals.common.TXPower > buffer->common.TXPower)
+        buffer->minVals.common.TXPower = buffer->common.TXPower;
+    if (buffer->maxVals.common.TXPower < buffer->common.TXPower)
+        buffer->maxVals.common.TXPower = buffer->common.TXPower;
+
     /* RX0 Telemetry */
     uint8_t rssi = get_rssi(FIRST_RX_CHANNEL);
     buffer->common.RX0RSSI = rssi;
-    buffer->common.RX0PwrMode = ax5043ReadReg(FIRST_RX_CHANNEL, AX5043_PWRMODE);
-    buffer->common.RX0ModMode = ReadMRAMModulation(FIRST_RX_CHANNEL);
+    if (buffer->minVals.common.RX0RSSI > buffer->common.RX0RSSI)
+        buffer->minVals.common.RX0RSSI = buffer->common.RX0RSSI;
+    if (buffer->maxVals.common.RX0RSSI < buffer->common.RX0RSSI)
+        buffer->maxVals.common.RX0RSSI = buffer->common.RX0RSSI;
+
 #if NUM_RX_CHANNELS == 4
     rssi = get_rssi(FIRST_RX_CHANNEL+1);
     buffer->common.RX1RSSI = rssi;
-    buffer->common.RX1PwrMode = ax5043ReadReg(FIRST_RX_CHANNEL+1, AX5043_PWRMODE);
-    buffer->common.RX1ModMode = ReadMRAMModulation(FIRST_RX_CHANNEL+1);
+    if (buffer->minVals.common.RX1RSSI > buffer->common.RX1RSSI)
+        buffer->minVals.common.RX1RSSI = buffer->common.RX1RSSI;
+    if (buffer->maxVals.common.RX1RSSI < buffer->common.RX1RSSI)
+        buffer->maxVals.common.RX1RSSI = buffer->common.RX1RSSI;
     rssi = get_rssi(FIRST_RX_CHANNEL+2);
     buffer->common.RX2RSSI = rssi;
-    buffer->common.RX2PwrMode = ax5043ReadReg(FIRST_RX_CHANNEL+2, AX5043_PWRMODE);
-    buffer->common.RX2ModMode = ReadMRAMModulation(FIRST_RX_CHANNEL+2);
+    if (buffer->minVals.common.RX2RSSI > buffer->common.RX2RSSI)
+        buffer->minVals.common.RX2RSSI = buffer->common.RX2RSSI;
+    if (buffer->maxVals.common.RX2RSSI < buffer->common.RX2RSSI)
+        buffer->maxVals.common.RX2RSSI = buffer->common.RX2RSSI;
+
     rssi = get_rssi(FIRST_RX_CHANNEL+3);
     buffer->common.RX3RSSI = rssi;
-    buffer->common.RX3PwrMode = ax5043ReadReg(FIRST_RX_CHANNEL+3, AX5043_PWRMODE);
-    buffer->common.RX3ModMode = ReadMRAMModulation(FIRST_RX_CHANNEL+3);
+    if (buffer->minVals.common.RX3RSSI > buffer->common.RX3RSSI)
+        buffer->minVals.common.RX3RSSI = buffer->common.RX3RSSI;
+    if (buffer->maxVals.common.RX3RSSI < buffer->common.RX3RSSI)
+        buffer->maxVals.common.RX3RSSI = buffer->common.RX3RSSI;
+
 #endif
 
     ReportToWatchdog(CurrentTaskWD);
@@ -878,17 +910,49 @@ void tac_collect_telemetry(telem_buffer_t *buffer)
 
     // Scale 0-255 = -20C to +107.5C
     buffer->common.IHUTemp = (20+board_temps[TEMPERATURE_VAL_CPU])*2;
+    if (buffer->minVals.common.IHUTemp > buffer->common.IHUTemp)
+        buffer->minVals.common.IHUTemp = buffer->common.IHUTemp;
+    if (buffer->maxVals.common.IHUTemp < buffer->common.IHUTemp)
+        buffer->maxVals.common.IHUTemp = buffer->common.IHUTemp;
+
     buffer->common.PATemp = (20+board_temps[TEMPERATURE_VAL_PA])*2;
+    if (buffer->minVals.common.PATemp > buffer->common.PATemp)
+        buffer->minVals.common.PATemp = buffer->common.PATemp;
+    if (buffer->maxVals.common.PATemp < buffer->common.PATemp)
+        buffer->maxVals.common.PATemp = buffer->common.PATemp;
+
     buffer->common.PowerTemp = (20+board_temps[TEMPERATURE_VAL_POWER])*2;
+    if (buffer->minVals.common.PowerTemp > buffer->common.PowerTemp)
+        buffer->minVals.common.PowerTemp = buffer->common.PowerTemp;
+    if (buffer->maxVals.common.PowerTemp < buffer->common.PowerTemp)
+        buffer->maxVals.common.PowerTemp = buffer->common.PowerTemp;
 
     buffer->common.VoltageVal5v = htots((uint16_t)(4096*board_voltages[VOLTAGE_VAL_5v]/3300));
+    if (ttohs(buffer->minVals.common.VoltageVal5v) > ttohs(buffer->common.VoltageVal5v))
+        buffer->minVals.common.VoltageVal5v = buffer->common.VoltageVal5v;
+    if (ttohs(buffer->maxVals.common.VoltageVal5v) < ttohs(buffer->common.VoltageVal5v))
+        buffer->maxVals.common.VoltageVal5v = buffer->common.VoltageVal5v;
+
     buffer->common.VoltageVal3v3 = htots((uint16_t)(4096*board_voltages[VOLTAGE_VAL_3v3]/3300));
+    if (ttohs(buffer->minVals.common.VoltageVal3v3) > ttohs(buffer->common.VoltageVal3v3))
+        buffer->minVals.common.VoltageVal3v3 = buffer->common.VoltageVal3v3;
+    if (ttohs(buffer->maxVals.common.VoltageVal3v3) < ttohs(buffer->common.VoltageVal3v3))
+        buffer->maxVals.common.VoltageVal3v3 = buffer->common.VoltageVal3v3;
+
     buffer->common.VoltageVal1v2 = htots((uint16_t)(4096*board_voltages[VOLTAGE_VAL_1v2]/3300));
+    if (ttohs(buffer->minVals.common.VoltageVal1v2) > ttohs(buffer->common.VoltageVal1v2))
+        buffer->minVals.common.VoltageVal1v2 = buffer->common.VoltageVal1v2;
+    if (ttohs(buffer->maxVals.common.VoltageVal1v2) < ttohs(buffer->common.VoltageVal1v2))
+        buffer->maxVals.common.VoltageVal1v2 = buffer->common.VoltageVal1v2;
+
     buffer->common.VoltageValBattery = htots((uint16_t)(4096*board_voltages[VOLTAGE_VAL_BATTERY]/3300));
+    if (ttohs(buffer->minVals.common.VoltageValBattery) > ttohs(buffer->common.VoltageValBattery))
+        buffer->minVals.common.VoltageValBattery = buffer->common.VoltageValBattery;
+    if (ttohs(buffer->maxVals.common.VoltageValBattery) < ttohs(buffer->common.VoltageValBattery))
+        buffer->maxVals.common.VoltageValBattery = buffer->common.VoltageValBattery;
 
     //debug_print("Board Voltage: 5V %d Telem: %d\n",board_voltages[VOLTAGE_VAL_5v], buffer->common.VoltageVal5v);
-    // TODO add telemetry for:
-    //rf_power
+
 
 #else
     buffer->common.IHUTemp = 0;
@@ -925,12 +989,27 @@ void tac_collect_telemetry(telem_buffer_t *buffer)
     buffer->common2.MRAMstatus2 = readMRAMStatus(2);
     buffer->common2.MRAMstatus3 = readMRAMStatus(3);
 
+    buffer->common2.TXPwrMode = ax5043ReadReg(FIRST_TX_CHANNEL, AX5043_PWRMODE);
+    buffer->common2.TxModMode = ReadMRAMModulation(FIRST_TX_CHANNEL);
+
+    /* RX0 Telemetry */
+    buffer->common2.RX0PwrMode = ax5043ReadReg(FIRST_RX_CHANNEL, AX5043_PWRMODE);
+    buffer->common2.RX0ModMode = ReadMRAMModulation(FIRST_RX_CHANNEL);
+#if NUM_RX_CHANNELS == 4
+    buffer->common2.RX1PwrMode = ax5043ReadReg(FIRST_RX_CHANNEL+1, AX5043_PWRMODE);
+    buffer->common2.RX1ModMode = ReadMRAMModulation(FIRST_RX_CHANNEL+1);
+    buffer->common2.RX2PwrMode = ax5043ReadReg(FIRST_RX_CHANNEL+2, AX5043_PWRMODE);
+    buffer->common2.RX2ModMode = ReadMRAMModulation(FIRST_RX_CHANNEL+2);
+    buffer->common2.RX3PwrMode = ax5043ReadReg(FIRST_RX_CHANNEL+3, AX5043_PWRMODE);
+    buffer->common2.RX3ModMode = ReadMRAMModulation(FIRST_RX_CHANNEL+3);
+#endif
+
+    buffer->common2.IntoAutoSafe = htots(into_autosafe_voltage);
+    buffer->common2.OutofAutoSafe = htots(outof_autosafe_voltage);
+
     /* We need to make sure that when these are written in error handling they were converted from host to little endian
      * Note: that we do not do that for the TMS570 hardware values like RAMCorAddr1.  These are left big endian */
     buffer->errors = localErrorCollection;
-
-    // TODO - calculate min max.  TODO - should this also be stored in MRAM so it survives across resets?  If so, remove the reset when this task starts and add to preflight init.
-    // Note that an MRAM variable called MinMaxResetTimeout exists in MET.h and it indexes a timeout in MRAM. if not used, should be removed.
 }
 
 /**
@@ -981,14 +1060,14 @@ void tac_send_telemetry(telem_buffer_t *buffer)
                     printf("Telem & Control: Send HEALTH telem at: %d/%d\n", ttohs(realtimeFrame.header.resetCnt), htotl(realtimeFrame.header.uptime));
                 if (payload_counter >= sizeof(filesystem_mode_payload_sequence))
                     payload_counter=0;
-                payload = filesystem_mode_payload_sequence[payload_counter];
+                payload = filesystem_mode_payload_sequence[payload_counter++];
                 break;
             case SpacecraftScienceMode:
                 if (trace_telem)
                     printf("Telem & Control: Send SCIENCE telem at: %d/%d\n", ttohs(realtimeFrame.header.resetCnt), htotl(realtimeFrame.header.uptime));
                 if (payload_counter >= sizeof(science_mode_payload_sequence))
                     payload_counter=0;
-                payload = science_mode_payload_sequence[payload_counter];
+                payload = science_mode_payload_sequence[payload_counter++];
                 return;
             default:
                 break;
@@ -1007,9 +1086,19 @@ void tac_send_telemetry(telem_buffer_t *buffer)
                 break;
             case MAX_VALS_PAYLOAD:
                 to_callsign = TLMP2;
+                maxFrame.header = buffer->header;
+                maxFrame.maxVals.common = buffer->maxVals.common;
+                maxFrame.maxVals.MaxValuesData = buffer->maxVals.MaxValuesData;
+                len = sizeof(maxFrame);
+                frame = (uint8_t *)&maxFrame;
                 break;
             case MIN_VALS_PAYLOAD:
                 to_callsign = TLMP3;
+                minFrame.header = buffer->header;
+                minFrame.minVals.common = buffer->minVals.common;
+                minFrame.minVals.MinValuesData = buffer->minVals.MinValuesData;
+                len = sizeof(minFrame);
+                frame = (uint8_t *)&minFrame;
                 break;
             case RT_EXP_PAYLOAD:
                 to_callsign = TLMP5;
