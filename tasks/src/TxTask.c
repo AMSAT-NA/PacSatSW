@@ -31,6 +31,41 @@
 #include "nonvolManagement.h"
 #include "gpioDriver.h"
 
+/*
+ * A note on AX5043 transmit processing and FEC:
+ *
+ * In FEC mode, the AX5043 appears to *always* put extra HDLC flags
+ * after the complete packet.  This means it will put out the FEC
+ * encoded packet, the CRC, the FEC encoded HDLC flag, then enough
+ * zeros to fill out the interleaver.  It then puts out a few more FEC
+ * encoded HDLC flags.
+ *
+ * This is bad because a receiver will see those HDLC flags and
+ * interpret them as the start of a new packet and start trying
+ * to handle a new packet.  If a packet came in during this time,
+ * it might be missed.
+ *
+ * I could not make it stop doing this.  I tried calculating my own
+ * CRC, adding my own HDLC flag, then not setting PKT_END.  It
+ * apparently interprets running out of data as PKT_END and still
+ * does this.
+ *
+ * So a receiver will need to check for and handle these flags.  I
+ * have seen two and three of them (not sure why it varies, but it
+ * seems to depend on packet alignment).  The receiver will need to
+ * handle this by checking for end HDLC flags and by making sure at
+ * the beginning that you get at least 4 flags before declaring that
+ * you have a good start of packet.
+ *
+ * This also means that if you do back-to-back packets, you will need
+ * to calculate your own CRC and stick your own flag between them.  On
+ * the receiver it will be hard to know if this has been done.  It
+ * would need to see that it did not get a flag and back up and handle
+ * the data, dealing with the FEC coder in the process.  So we aren't
+ * doing back-to-back packets.
+ *
+ * -corey
+ */
 
 static rfchan txchan = FIRST_TX_CHANNEL;
 
@@ -161,13 +196,13 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
             }
 
             if (monitorTxPackets) {
-		if (monitor_raw)
-		    print_raw_packet("TX", tx_packet_buffer.bytes,
-				     tx_packet_buffer.len);
-		else
-		    print_packet("TX", tx_packet_buffer.bytes,
-				 tx_packet_buffer.len);
-	    }
+                if (monitor_raw)
+                    print_raw_packet("TX", tx_packet_buffer.bytes,
+                                     tx_packet_buffer.len);
+                else
+                    print_packet("TX", tx_packet_buffer.bytes,
+                                 tx_packet_buffer.len);
+            }
 
             //printf("FIFO_FREE 1: %d\n",fifo_free());
 

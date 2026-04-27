@@ -1240,7 +1240,7 @@ static uint8_t ax5043_reset(rfchan device)
     ax5043WriteReg(device, AX5043_PWRMODE, 0x80);
     ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_POWERDOWN);
     // Wait some time for regulator startup
-    vTaskDelay(CENTISECONDS(1));
+    vTaskDelay(CENTISECONDS(2));
 
     // Check the version and that we can read/write to scratch.  Then
     // we know the chip is connected
