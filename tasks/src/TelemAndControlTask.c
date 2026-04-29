@@ -363,6 +363,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
 
     /* Clear the Min Max each boot */
     tac_clear_minmax();
+    minMaxResets=0;
 
     /*
      * When everything is settled after boot we can start collecting

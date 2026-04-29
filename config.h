@@ -169,9 +169,9 @@ void NullPrint(char *, ...);
 
 /* Telemetry destination callsigns.  Note that the callsign can be updated to TLMPx where
  * x is a telemetry frame type. */
-#define TLMP1 "TLMP1" // destination for telemetry frames type 1
-#define TLMP2 "TLMP2" // destination for telemetry frames type 1
-#define TLMP3 "TLMP3" // destination for telemetry frames type 1
+#define TLMP1 "TLM" // destination for telemetry frames type 1
+#define TLMP2 "MAX" // destination for telemetry frames type 2
+#define TLMP3 "MIN" // destination for telemetry frames type 3
 #define TLMP5 "TLMP5" // destination for telemetry frames type 1
 #define TLMP_ERROR "ERROR" // destination for telemetry frames type 1
 
