@@ -9,10 +9,13 @@
  *
  */
 #include <pacsat.h>
+#include "redposix.h"
 #include "nonvolManagement.h"
 #include "nonvol.h"
 #include "spiDriver.h"
 #include "TelemAndControlTask.h"
+#include "UplinkTask.h"
+#include "pacsat_dir.h"
 
 static const MRAMmap_t *ptr = (MRAMmap_t *) 0;
 
@@ -610,6 +613,29 @@ void IHUInitSaved(void){
 int SetupMRAM(void){
     uint32_t size = getSizeNV(NVConfigData); /* Will initialize. */
 
+    if (red_umount("/") == -1) {
+        printf("Unable to unmount filesystem: %s\n",
+               red_strerror(red_errno));
+    } else {
+        printf("Filesystem unmounted\n");
+        if (red_format("/") == -1) {
+            printf("Unable to format filesystem: %s\n",
+                   red_strerror(red_errno));
+        } else {
+            printf("Filesystem formatted\n");
+            if (red_mount("/") == -1) {
+                printf("Unable to mount filesystem: %s\n",
+                       red_strerror(red_errno));
+            } else {
+                printf("Filesystem mounted and default folders created\n");
+                // Create the base folders
+                dir_check_folders();
+            }
+        }
+    }
+
+    dir_load(); // this will clear the existing dir, if any, and load the empty dir
+
     SetupMRAMStates(); //This should be first.  It might overwrite part of MRAM.
     printf("Set to start in safe mode\n");
     printf("PB, Uplink, Digi variables disabled. Broadcast periods set to defaults.\n");
@@ -623,10 +649,11 @@ int SetupMRAM(void){
     InitResetCnt();
     printf("Reset Count set to 0\n");
 
-    // TODO Need to zero out FileUploadsTable
+    // Zero out FileUploadsTable
+    ftl0_clear_upload_table();
 
-    //SaveAcrossReset.errorInfo.nonFatalErrorCount = 0; //todo: This should be a routine in errors.h
-    //printf("Nonfatal error count zeroed (TBD)\n");
+//    SaveAcrossReset.errorInfo.nonFatalErrorCount = 0;
+//    printf("Nonfatal error count zeroed\n");
 
     //POST_CalculateAndSaveCRC(); /* Initialize correct Flash CRC */
     printf("CRC calculated for init code and full code (TBD)\n");

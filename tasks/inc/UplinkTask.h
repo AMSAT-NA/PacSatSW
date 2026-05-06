@@ -95,4 +95,5 @@ bool ftl0_debug_list_upload_table();
 int test_ftl0_upload_table();
 int ftl0_get_space_reserved_by_upload_table();
 int ftl0_get_num_of_files_in_upload_table();
+bool ftl0_clear_upload_table();
 void ftl0_maintenance();

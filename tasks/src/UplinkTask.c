@@ -67,7 +67,6 @@ bool ftl0_update_file_upload_record(InProcessFileUpload_t * file_upload_record);
 bool ftl0_remove_file_upload_record(uint32_t id);
 bool ftl0_mram_get_file_upload_record(uint32_t id, InProcessFileUpload_t * file_upload_record);
 bool ftl0_mram_set_file_upload_record(uint32_t id, InProcessFileUpload_t * file_upload_record);
-bool ftl0_clear_upload_table();
 
 /* Local variables */
 static ftl0_state_machine_t ftl0_state_machine[NUM_RX_CHANNELS];
