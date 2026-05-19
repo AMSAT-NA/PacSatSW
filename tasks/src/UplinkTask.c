@@ -1487,7 +1487,7 @@ bool ftl0_debug_list_upload_table() {
         }
     }
     uint32_t space = ftl0_get_space_reserved_by_upload_table();
-    debug_print("Total Space Allocated: %d\n",space);
+    debug_print("Remaining Space Allocated: %d\n",space);
     return TRUE;
 }
 
