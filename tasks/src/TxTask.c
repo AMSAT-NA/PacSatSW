@@ -300,6 +300,9 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
             ReportToWatchdog(CurrentTaskWD);
         }
 
+	/* Leave the PA on a bit to give time for the last bits to go out. */
+        vTaskDelay(CENTISECONDS(5));
+
         //       printf("Turn off TX LED1\n");
         GPIOSetOff(LED1);
         GPIOSetOff(SSPAPower);
