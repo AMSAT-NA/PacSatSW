@@ -524,8 +524,8 @@ void printHelp(char *search,commandPairs *commands, int numberOfCommands)
         numSpace = 20 - sizeCmd;
         printf("%s", command);
         printf("%*s%s\n", numSpace, "", commands[commandNum].help);
-	if (commands[commandNum].help2) {
-	    printf("%22s%s %s\n", "", command, commands[commandNum].help2);
-	}
+        if (commands[commandNum].help2) {
+            printf("%22s%s %s\n", "", command, commands[commandNum].help2);
+        }
     }
 }
