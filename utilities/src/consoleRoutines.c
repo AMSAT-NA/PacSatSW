@@ -345,16 +345,25 @@ char *modulation_to_str(enum radio_modulation mod)
 {
     switch (mod) {
     case MODULATION_AFSK_1200:
-        return "afsk1200";
+        return "1200";
 
-    case MODULATION_AFSK_1200_CONV:
-        return "afsk1200conv";
+    case MODULATION_AFSK_1200_FEC:
+        return "1200fec";
 
     case MODULATION_GMSK_9600:
-        return "gmsk9600";
+        return "9600";
 
-    case MODULATION_GMSK_9600_CONV:
-        return "gmsk9600conv";
+    case MODULATION_GMSK_9600_FEC:
+        return "9600fec";
+
+    case MODULATION_MSK_25K_FEC:
+        return "25kfec";
+
+    case MODULATION_MSK_50K_FEC:
+        return "50kfec";
+
+    case MODULATION_MSK_100K_FEC:
+        return "100kfec";
 
     default:
         return "unknown";

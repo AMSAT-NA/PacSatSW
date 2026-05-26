@@ -461,7 +461,7 @@ commandPairs commonCommands[] = {
     { "mod",
       "Get/set the radio to 1200 bps AFSK or 9600 GMSK",
       Modulation,
-      "[<chan> [1200|9600]]",
+      "[<chan> [1200|9600|1200fec|9600fec|25kfec|50kfec|100kfec]]",
     },
     { "mount fs",
       "Mount the filesystem",
@@ -2233,14 +2233,20 @@ void RealConsoleTask(void)
 
             if (strcmp(modstr, "1200") == 0) {
                 mod = MODULATION_AFSK_1200;
-            } else if (strcmp(modstr, "1200conv") == 0) {
-                mod = MODULATION_AFSK_1200_CONV;
+            } else if (strcmp(modstr, "1200fec") == 0) {
+                mod = MODULATION_AFSK_1200_FEC;
             } else if (strcmp(modstr, "9600") == 0) {
                 mod = MODULATION_GMSK_9600;
-            } else if (strcmp(modstr, "9600conv") == 0) {
-                mod = MODULATION_GMSK_9600_CONV;
+            } else if (strcmp(modstr, "9600fec") == 0) {
+                mod = MODULATION_GMSK_9600_FEC;
+            } else if (strcmp(modstr, "25kfec") == 0) {
+                mod = MODULATION_MSK_25K_FEC;
+            } else if (strcmp(modstr, "50kfec") == 0) {
+                mod = MODULATION_MSK_50K_FEC;
+            } else if (strcmp(modstr, "100kfec") == 0) {
+                mod = MODULATION_MSK_100K_FEC;
             } else {
-                printf("Invalid modulation %s, must be 1200 or 9600\n",
+                printf("Invalid modulation %s, must be 1200, 1200fec, 9600, 9600fec, 25kfec, 50kfec, or 100kfec.\n",
                        modstr);
                 break;
             }
