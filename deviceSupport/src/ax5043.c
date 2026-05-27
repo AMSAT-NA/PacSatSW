@@ -139,6 +139,7 @@ static void ax5043_set_modulation_base(rfchan device,
         break;
 
     case MODULATION_GMSK_9600:
+    case MODULATION_MSK_19200:
     case MODULATION_MSK_25K:
     case MODULATION_MSK_50K:
     case MODULATION_MSK_100K:
@@ -175,6 +176,11 @@ static void ax5043_set_modulation_base(rfchan device,
     case MODULATION_GMSK_9600:
         ax5043WriteReg(device, AX5043_IFFREQ1, 0x04);
         ax5043WriteReg(device, AX5043_IFFREQ0, 0xcd);
+        break;
+
+    case MODULATION_MSK_19200:
+        ax5043WriteReg(device, AX5043_IFFREQ1, 0x06);
+        ax5043WriteReg(device, AX5043_IFFREQ0, 0x25);
         break;
 
     case MODULATION_MSK_25K:
@@ -225,6 +231,11 @@ static void ax5043_set_modulation_base(rfchan device,
         ax5043WriteReg(device, AX5043_DECIMATION, 0x0D);
         break;
 
+    case MODULATION_MSK_19200:
+        /* Per radiolab. */
+        ax5043WriteReg(device, AX5043_DECIMATION, 0x06);
+        break;
+
     case MODULATION_MSK_25K:
         /* Per radiolab. */
         ax5043WriteReg(device, AX5043_DECIMATION, 0x05);
@@ -257,6 +268,13 @@ static void ax5043_set_modulation_base(rfchan device,
         ax5043WriteReg(device, AX5043_RXDATARATE2, 0x00);
         ax5043WriteReg(device, AX5043_RXDATARATE1, 0x40);
         ax5043WriteReg(device, AX5043_RXDATARATE0, 0x1A);
+        break;
+
+    case MODULATION_MSK_19200:
+        /* Per radiolab. */
+        ax5043WriteReg(device, AX5043_RXDATARATE2, 0x00);
+        ax5043WriteReg(device, AX5043_RXDATARATE1, 0x45);
+        ax5043WriteReg(device, AX5043_RXDATARATE0, 0x71);
         break;
 
     case MODULATION_MSK_25K:
@@ -300,6 +318,15 @@ static void ax5043_set_modulation_base(rfchan device,
         ax5043WriteReg(device, AX5043_MAXRFOFFSET1, 0x00);
         ax5043WriteReg(device, AX5043_MAXRFOFFSET0, 0x00);
         break;
+
+    case MODULATION_MSK_19200:
+    case MODULATION_MSK_25K:
+    case MODULATION_MSK_50K:
+    case MODULATION_MSK_100K:
+        /* Per radiolab */
+        ax5043WriteReg(device, AX5043_MAXRFOFFSET1, 0x01);
+        ax5043WriteReg(device, AX5043_MAXRFOFFSET0, 0x32);
+        break;
     }
 
   /*
@@ -313,6 +340,7 @@ static void ax5043_set_modulation_base(rfchan device,
         break;
 
     case MODULATION_GMSK_9600:
+    case MODULATION_MSK_19200:
     case MODULATION_MSK_25K:
     case MODULATION_MSK_50K:
     case MODULATION_MSK_100K:
@@ -341,14 +369,21 @@ static void ax5043_set_modulation_base(rfchan device,
      * SAMPLE_ROT_I/SAMPLE_ROT_Q through the DAC
      *
      * Radio lab sets this to E8
+     *
+     * RX Only
      */
     switch (mod) {
     case MODULATION_AFSK_1200:
-        ax5043WriteReg(device, AX5043_AGCGAIN0, 0xE8); // RX Only
+        ax5043WriteReg(device, AX5043_AGCGAIN0, 0xE8);
         break;
 
     case MODULATION_GMSK_9600:
-        ax5043WriteReg(device, AX5043_AGCGAIN0, 0xB5); // RX Only
+        ax5043WriteReg(device, AX5043_AGCGAIN0, 0xB5);
+        break;
+
+    case MODULATION_MSK_19200:
+        /* Per radiolab */
+        ax5043WriteReg(device, AX5043_AGCGAIN0, 0xa3);
         break;
 
     case MODULATION_MSK_25K:
@@ -407,6 +442,7 @@ static void ax5043_set_modulation_base(rfchan device,
         break;
 
     case MODULATION_GMSK_9600:
+    case MODULATION_MSK_19200:
     case MODULATION_MSK_25K:
         ax5043WriteReg(device, AX5043_TIMEGAIN0, 0x89); // RX Only
         ax5043WriteReg(device, AX5043_DRGAIN0, 0x83); // RX Only
@@ -440,6 +476,14 @@ static void ax5043_set_modulation_base(rfchan device,
         ax5043WriteReg(device, AX5043_FREQUENCYGAIND0, 0x1F);
         break;
 
+    case MODULATION_MSK_19200:
+        /* Per radiolab */
+        ax5043WriteReg(device, AX5043_FREQUENCYGAINA0, 0x26);
+        ax5043WriteReg(device, AX5043_FREQUENCYGAINB0, 0x0A);
+        ax5043WriteReg(device, AX5043_FREQUENCYGAINC0, 0x08);
+        ax5043WriteReg(device, AX5043_FREQUENCYGAIND0, 0x08);
+        break;
+
     case MODULATION_MSK_25K:
         /* Per radiolab */
         ax5043WriteReg(device, AX5043_FREQUENCYGAINA0, 0x0F);
@@ -465,13 +509,19 @@ static void ax5043_set_modulation_base(rfchan device,
         break;
     }
 
+    /* RX Only? */
     switch (mod) {
     case MODULATION_AFSK_1200:
-        ax5043WriteReg(device, AX5043_AGCGAIN1, 0xE8); // RX Only?
+        ax5043WriteReg(device, AX5043_AGCGAIN1, 0xE8);
         break;
 
     case MODULATION_GMSK_9600:
-        ax5043WriteReg(device, AX5043_AGCGAIN1, 0xB5); // RX Only?
+        ax5043WriteReg(device, AX5043_AGCGAIN1, 0xB5);
+        break;
+
+    case MODULATION_MSK_19200:
+        /* Per radiolab. */
+        ax5043WriteReg(device, AX5043_AGCGAIN1, 0xa3);
         break;
 
     case MODULATION_MSK_25K:
@@ -501,6 +551,7 @@ static void ax5043_set_modulation_base(rfchan device,
         break;
 
     case MODULATION_GMSK_9600:
+    case MODULATION_MSK_19200:
         // GOLF was 94, DA per radio lab
         ax5043WriteReg(device, AX5043_TIMEGAIN1, 0x87);
         // GOLF was 90, D5 per radio lab
@@ -548,6 +599,14 @@ static void ax5043_set_modulation_base(rfchan device,
         ax5043WriteReg(device, AX5043_FREQUENCYGAIND1, 0x1F);
         break;
 
+    case MODULATION_MSK_19200:
+        /* Per radiolab. */
+        ax5043WriteReg(device, AX5043_FREQUENCYGAINA1, 0x0f);
+        ax5043WriteReg(device, AX5043_FREQUENCYGAINB1, 0x1f);
+        ax5043WriteReg(device, AX5043_FREQUENCYGAINC1, 0x08);
+        ax5043WriteReg(device, AX5043_FREQUENCYGAIND1, 0x08);
+        break;
+
     case MODULATION_MSK_25K:
         /* Per radiolab */
         ax5043WriteReg(device, AX5043_FREQUENCYGAINA1, 0x0f);
@@ -579,9 +638,7 @@ static void ax5043_set_modulation_base(rfchan device,
         break;
 
     case MODULATION_GMSK_9600:
-        ax5043WriteReg(device, AX5043_FREQDEV01, 0x2D); // per radio lab
-        break;
-
+    case MODULATION_MSK_19200:
     case MODULATION_MSK_25K:
     case MODULATION_MSK_50K:
     case MODULATION_MSK_100K:
@@ -600,6 +657,7 @@ static void ax5043_set_modulation_base(rfchan device,
         break;
 
     case MODULATION_GMSK_9600:
+    case MODULATION_MSK_19200:
     case MODULATION_MSK_25K:
          // GOLF was 93, D9 per radio lab
         ax5043WriteReg(device, AX5043_TIMEGAIN3, 0x86);
@@ -641,6 +699,14 @@ static void ax5043_set_modulation_base(rfchan device,
         ax5043WriteReg(device, AX5043_FREQUENCYGAIND3, 0x1F);
         break;
 
+    case MODULATION_MSK_19200:
+        /* Per radiolab. */
+        ax5043WriteReg(device, AX5043_FREQUENCYGAINA3, 0x0f);
+        ax5043WriteReg(device, AX5043_FREQUENCYGAINB3, 0x1f);
+        ax5043WriteReg(device, AX5043_FREQUENCYGAINC3, 0x0c);
+        ax5043WriteReg(device, AX5043_FREQUENCYGAIND3, 0x0c);
+        break;
+
     case MODULATION_MSK_25K:
         /* Per radiolab */
         ax5043WriteReg(device, AX5043_FREQUENCYGAINA3, 0x0f);
@@ -672,9 +738,7 @@ static void ax5043_set_modulation_base(rfchan device,
         break;
 
     case MODULATION_GMSK_9600:
-        ax5043WriteReg(device, AX5043_FREQDEV03, 0x2D); // per radio lab
-        break;
-
+    case MODULATION_MSK_19200:
     case MODULATION_MSK_25K:
     case MODULATION_MSK_50K:
     case MODULATION_MSK_100K:
@@ -698,6 +762,7 @@ static void ax5043_set_modulation_base(rfchan device,
         ax5043WriteReg(device, AX5043_MODCFGF, 0x03);
         break;
 
+    case MODULATION_MSK_19200:
     case MODULATION_MSK_25K:
     case MODULATION_MSK_50K:
     case MODULATION_MSK_100K:
@@ -736,6 +801,13 @@ static void ax5043_set_modulation_base(rfchan device,
         ax5043WriteReg(device, AX5043_FSKDEV1, 0x09);
         ax5043WriteReg(device, AX5043_FSKDEV0, 0xD5);
         break;
+
+    case MODULATION_MSK_19200:
+        /* Per radiolab. */
+        ax5043WriteReg(device, AX5043_FSKDEV2, 0x00);
+        ax5043WriteReg(device, AX5043_FSKDEV1, 0x13);
+        ax5043WriteReg(device, AX5043_FSKDEV0, 0xa9);
+	break;
 
     case MODULATION_MSK_25K:
         ax5043WriteReg(device, AX5043_FSKDEV2, 0x00);
@@ -777,19 +849,29 @@ static void ax5043_set_modulation_base(rfchan device,
         ax5043WriteReg(device, AX5043_TXRATE0, 0x52);
         break;
 
+    case MODULATION_MSK_19200:
+        /* Per radiolab. */
+        ax5043WriteReg(device, AX5043_TXRATE2, 0x00);
+        ax5043WriteReg(device, AX5043_TXRATE1, 0x4e);
+        ax5043WriteReg(device, AX5043_TXRATE0, 0xa5);
+        break;
+
     case MODULATION_MSK_25K:
+        /* Per radiolab. */
         ax5043WriteReg(device, AX5043_TXRATE2, 0x00);
         ax5043WriteReg(device, AX5043_TXRATE1, 0x66);
         ax5043WriteReg(device, AX5043_TXRATE0, 0x66);
         break;
 
     case MODULATION_MSK_50K:
+        /* Per radiolab. */
         ax5043WriteReg(device, AX5043_TXRATE2, 0x00);
         ax5043WriteReg(device, AX5043_TXRATE1, 0xcc);
         ax5043WriteReg(device, AX5043_TXRATE0, 0xcd);
         break;
 
     case MODULATION_MSK_100K:
+        /* Per radiolab. */
         ax5043WriteReg(device, AX5043_TXRATE2, 0x01);
         ax5043WriteReg(device, AX5043_TXRATE1, 0x99);
         ax5043WriteReg(device, AX5043_TXRATE0, 0x9a);
@@ -814,6 +896,7 @@ static void ax5043_set_modulation_base(rfchan device,
     // unclear if this needs to be different, but it is from radio lab
     switch (mod) {
     case MODULATION_AFSK_1200:
+    case MODULATION_MSK_19200:
     case MODULATION_MSK_25K:
     case MODULATION_MSK_50K:
     case MODULATION_MSK_100K:
@@ -848,6 +931,7 @@ static void ax5043_set_modulation_tx(rfchan device, enum radio_modulation mod)
         break;
 
     case MODULATION_GMSK_9600:
+    case MODULATION_MSK_19200:
     case MODULATION_MSK_25K:
     case MODULATION_MSK_50K:
     case MODULATION_MSK_100K:
@@ -873,6 +957,7 @@ static void ax5043_set_modulation_rx(rfchan device, enum radio_modulation mod)
         break;
 
     case MODULATION_GMSK_9600:
+    case MODULATION_MSK_19200:
     case MODULATION_MSK_25K:
     case MODULATION_MSK_50K:
     case MODULATION_MSK_100K:

@@ -356,6 +356,9 @@ char *modulation_to_str(enum radio_modulation mod)
     case MODULATION_GMSK_9600_FEC:
         return "9600fec";
 
+    case MODULATION_MSK_19200_FEC:
+        return "19200fec";
+
     case MODULATION_MSK_25K_FEC:
         return "25kfec";
 
