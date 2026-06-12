@@ -2235,6 +2235,10 @@ void RealConsoleTask(void)
                 mod = MODULATION_AFSK_1200;
             } else if (strcmp(modstr, "1200fec") == 0) {
                 mod = MODULATION_AFSK_1200_FEC;
+            } else if (strcmp(modstr, "2400fec") == 0) {
+                mod = MODULATION_MSK_2400_FEC;
+            } else if (strcmp(modstr, "4800fec") == 0) {
+                mod = MODULATION_MSK_4800_FEC;
             } else if (strcmp(modstr, "9600") == 0) {
                 mod = MODULATION_GMSK_9600;
             } else if (strcmp(modstr, "9600fec") == 0) {
