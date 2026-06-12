@@ -230,7 +230,7 @@ void receiveLine(COM_NUM ioCom, char *commandString, char prompt, bool echo)
      * block indefinitely provided INCLUDE_vTaskSuspend is set to 1 in
      * FreeRTOSConfig.h.
      */
-    static char prevCommandString[COM_STRING_SIZE], prevSize; /* For up-arrow */
+    static char prevCommandString[COM_STRING_SIZE], prevSize = 0; /* For up-arrow */
     char receivedChar;
     int charNum = 0;
     // Back overwrite space, back
@@ -272,7 +272,7 @@ void receiveLine(COM_NUM ioCom, char *commandString, char prompt, bool echo)
             else if ((escSeq == 2) && receivedChar == 'A') {
                 escSeq = 0;
                 strncpy(commandString, prevCommandString, COM_STRING_SIZE);
-                charNum = prevSize + 1;
+                charNum = prevSize;
                 commandString[charNum] = 0;
                 printf("\r%c%s", prompt, commandString);
 
@@ -280,11 +280,13 @@ void receiveLine(COM_NUM ioCom, char *commandString, char prompt, bool echo)
                 /*Ignore line feed.  Only watch for CR*/
                 /* Echo the received character and record it in the buffer */
                 escSeq = 0;
-                if (echo)
-                    // COM0, value, block time is unused
-                    SerialPutChar(ioCom, receivedChar, 0);
-                /* Force it to be lower case, plus it won't change digits */
-                commandString[charNum++] = receivedChar | 0x20;
+		if (charNum < COM_STRING_SIZE) {
+		    if (echo)
+			// COM0, value, block time is unused
+			SerialPutChar(ioCom, receivedChar, 0);
+		    /* Force it to be lower case, plus it won't change digits */
+		    commandString[charNum++] = receivedChar | 0x20;
+		}
             }
             /*
              * All the code above echos type characters and allows one
@@ -304,20 +306,23 @@ void receiveLine(COM_NUM ioCom, char *commandString, char prompt, bool echo)
                  * Ok, we have the end of the command line.  Decode it
                  * and do the command.
                  */
-                commandString[--charNum] = 0; // Replace the CR with a null terminator
+                commandString[--charNum] = '\0'; // Replace the CR with a null terminator
                 /* Now squeeze out extra spaces */
-                while (commandString[src] != 0) {
+                while (commandString[src] != '\0') {
                     commandString[dest] = commandString[src++];
                     /*
-                     * If we have multiple spaces, only take the last one
+                     * If we have multiple spaces, skip them.
                      */
-                    if ((commandString[dest] != ' ')
-                            || (commandString[src] != ' '))
-                        dest++;
+                    if (commandString[dest] == ' ') {
+			while (commandString[src] == ' ')
+			    src++;
+		    }
+		    dest++;
                 }
-                if (commandString[0]!= 0){
+		commandString[dest] = '\0';
+                if (commandString[0] != 0) {
                     strncpy(prevCommandString, commandString, COM_STRING_SIZE);
-                    prevSize = --dest;
+                    prevSize = dest;
                 }
                 return;
             }
