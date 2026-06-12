@@ -1167,8 +1167,8 @@ void RealConsoleTask(void)
             bool stat;
 
             for (i = 0; i < sizeof(key); i++) {
-                if (!parse_uint8(&afterCommand, &key[i], 16)) {
-                    printf("Not enough numbers or invalid number on item %d",
+                if (parse_uint8(&afterCommand, &key[i], 16)) {
+                    printf("Not enough numbers or invalid number on item %d\n",
                            i);
                     break;
                 }
