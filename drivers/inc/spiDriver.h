@@ -21,8 +21,12 @@ typedef enum {
 typedef enum {
     MRAM0Dev = 0, MRAM1Dev = 1, MRAM2Dev=2, MRAM3Dev=3, Rx1AX5043Dev = 4,
     Rx2AX5043Dev, Rx3AX5043Dev, Rx4AX5043Dev, TxAX5043Dev,
+#ifdef AFSK_HARDWARE3
+    TxDACDev,
+#endif
     InvalidSPI} SPIDevice;
 #endif
+
 #define NUMBER_OF_BUSES 3
 typedef union {
     uint8_t byte[4];

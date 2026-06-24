@@ -2307,6 +2307,22 @@ uint8_t get_rssi(rfchan device)
     return (uint8_t)wordVal;
 }
 
+#ifdef AFSK_HARDWARE3
+/*
+ * Set the DAC setting the PA bias.  0-255 ranges from 0-5V.
+ */
+void
+set_tx_dac(uint8_t val)
+{
+    uint8_t srcbuf[2];
+
+    srcbuf[0] = val >> 2;
+    srcbuf[1] = (val & 3) << 6;
+
+    SPISendCommand(TxDACDev, 0, 0, srcbuf, 2, 0, 0);
+}
+#endif
+
 /* Takes a power as a percentage of full power. */
 void set_tx_power(rfchan device, uint32_t power)
 {

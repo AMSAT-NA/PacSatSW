@@ -162,10 +162,22 @@ static SPIDevInfo SPIRx4AX5043Device={
     .thisBusData = &SPI_AX5043_BUS,
 };
 
+#ifdef AFSK_HARDWARE3
+static SPIDevInfo SPITxDACDevice = {
+    .thisBus     = SPI_AX5043_Reg,
+    .selGPIO     = TX_DAC_Sel,
+    .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
+    .thisBusData = &SPI_AX5043_BUS,
+};
+#endif
+
 static const SPIDevInfo *SPIDevInfoStructures[] = {
     &SPIMram0Device, &SPIMram1Device, &SPIMram2Device, &SPIMram3Device,
-    &SPIRx1AX5043Device, &SPIRx2AX5043Device, &SPIRx3AX5043Device, &SPIRx4AX5043Device,
-    &SPITxAX5043Device
+    &SPIRx1AX5043Device, &SPIRx2AX5043Device, &SPIRx3AX5043Device,
+    &SPIRx4AX5043Device, &SPITxAX5043Device,
+#ifdef AFSK_HARDWARE3
+    &SPITxDACDevice,
+#endif
 };
 
 #endif

@@ -22,6 +22,7 @@ bool rx_working(rfchan chan);
 
 void set_modulation(rfchan chan, enum radio_modulation modulation, bool tx);
 
+void set_tx_dac(uint8_t val);
 void set_tx_power(rfchan chan, uint32_t power);
 uint16_t get_tx_power(rfchan chan);
 

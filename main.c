@@ -188,7 +188,11 @@ void startup(void)
 
     /* Turn this on if there is no other board. */
     if (!GPIOIsOn(OtherPresense))
-	GPIOSetOn(ImActive);
+        GPIOSetOn(ImActive);
+
+#ifdef AFSK_HARDWARE3
+    GPIOSetOn(SSPAPower); /* PA power is controlled with the DAC. */
+#endif
 #endif
 
     xTaskCreate(ConsoleTask, "Console", CONSOLE_STACK_SIZE,
@@ -242,6 +246,9 @@ void ConsoleTask(void *pvParameters){
     SPIInit(Rx2AX5043Dev);
     SPIInit(Rx3AX5043Dev);
     SPIInit(Rx4AX5043Dev);
+#ifdef AFSK_HARDWARE3
+    SPIInit(TxDACDev); // The DAC that controls PA output
+#endif
 #endif
     SPIInit(TxAX5043Dev); // This is the transmitter on UHF
     SPIInit(MRAM0Dev);
@@ -412,25 +419,25 @@ void vApplicationIdleHook()
     ram_err_count2 = tcram2REG->RAMOCCUR;
     val = *scrub;
     if (ram_err_count1 != tcram1REG->RAMOCCUR ||
-		ram_err_count2 != tcram2REG->RAMOCCUR) {
-	/*
-	 * We probably got an error.  Re-read the data, then write it
-	 * back to clean up the RAM address.  We want interrupts off
-	 * because we don't want anything to be able to change the
-	 * data while we do this.  But turning off interrupts is
-	 * somewhat expensive, so we don't want to do it every time.
-	 * We might occasionally run this part and the RAM error was
-	 * elsewhere because of an interrupt, but that's still much
-	 * better than turning off interrupts every time.
-	 */
-	taskDISABLE_INTERRUPTS();
-	val = *scrub;
-	*scrub = val;
-	taskENABLE_INTERRUPTS();
+                ram_err_count2 != tcram2REG->RAMOCCUR) {
+        /*
+         * We probably got an error.  Re-read the data, then write it
+         * back to clean up the RAM address.  We want interrupts off
+         * because we don't want anything to be able to change the
+         * data while we do this.  But turning off interrupts is
+         * somewhat expensive, so we don't want to do it every time.
+         * We might occasionally run this part and the RAM error was
+         * elsewhere because of an interrupt, but that's still much
+         * better than turning off interrupts every time.
+         */
+        taskDISABLE_INTERRUPTS();
+        val = *scrub;
+        *scrub = val;
+        taskENABLE_INTERRUPTS();
     }
     next_scrub_addr += sizeof(size_t);
     if (next_scrub_addr >= RAM_END)
-	next_scrub_addr = RAM_START;
+        next_scrub_addr = RAM_START;
 #endif
 }
 

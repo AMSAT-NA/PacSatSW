@@ -142,6 +142,9 @@ enum {
     SetDCTDrivePower,
     Freq,
     TxPow,
+#ifdef AFSK_HARDWARE3
+    TxDac,
+#endif
     showDownlinkSize,
     ignoreUmb,
     noticeUmb,
@@ -232,6 +235,13 @@ commandPairs setupCommands[] = {
       TxPow,
       "[<chan> [0-100]]",
     },
+#ifdef AFSK_HARDWARE3
+    { "txdac",
+      "Set the tx DAC 0-255, the value used for transmit, or immediate (now)",
+      TxDac,
+      "0-100 [now]",
+    },
+#endif
     { "test internal wd",
       "Force internal watchdog to reset CPU",
       internalWDTimeout},
@@ -1146,6 +1156,33 @@ void RealConsoleTask(void)
             printf("chan%u power set to %d%%\n", chan, power);
             break;
         }
+
+#ifdef AFSK_HARDWARE3
+        case TxDac: {
+            extern uint8_t tx_dac_val;
+            uint8_t val;
+            int err;
+            char *t;
+
+            err = parse_uint8(&afterCommand, &val, 0);
+            if (err) {
+                printf("Current Tx DAC val is %d\n", tx_dac_val);
+                break;
+            }
+
+            t = next_token(&afterCommand);
+            if (!t) {
+                tx_dac_val = val;
+                printf("TX DAC val set to %d\n", val);
+            } else if (strcmp(t, "now") == 0) {
+                set_tx_dac(val);
+                printf("Current DAC val set to %d\n", val);
+            } else {
+                printf("Unknown modifier: %s\n", t);
+            }
+            break;
+        }
+#endif
 
         case initSaved: {
             // Init this thing from scratch (address size, data size,

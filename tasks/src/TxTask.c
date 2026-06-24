@@ -71,6 +71,8 @@ static rfchan txchan = FIRST_TX_CHANNEL;
 
 enum radio_modulation tx_modulation;
 
+uint8_t tx_dac_val = 255;
+
 /* Global Variable that is declared here and prevents the transmitter from generating RF */
 bool inhibitTransmit;
 
@@ -141,7 +143,11 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
 
     //printf("Turn off TX LED1 at init\n");
     GPIOSetOff(LED1);
+#ifdef AFSK_HARDWARE3
+    set_tx_dac(0);
+#else
     GPIOSetOff(SSPAPower);
+#endif
     ReportToWatchdog(CurrentTaskWD);
 
     /*
@@ -164,7 +170,11 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
             continue;
 
         GPIOSetOn(LED1);
+#ifdef AFSK_HARDWARE3
+        set_tx_dac(tx_dac_val);
+#else
         GPIOSetOn(SSPAPower);
+#endif
 
         /* Transmit until we have no more packets. */
         while (xStatus == pdPASS) {
@@ -300,12 +310,16 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
             ReportToWatchdog(CurrentTaskWD);
         }
 
-	/* Leave the PA on a bit to give time for the last bits to go out. */
+        /* Leave the PA on a bit to give time for the last bits to go out. */
         vTaskDelay(CENTISECONDS(5));
 
         //       printf("Turn off TX LED1\n");
         GPIOSetOff(LED1);
+#ifdef AFSK_HARDWARE3
+        set_tx_dac(0);
+#else
         GPIOSetOff(SSPAPower);
+#endif
         //       printf("INFO: Transmission complete\n");
     }
 }
