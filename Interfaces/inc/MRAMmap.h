@@ -109,13 +109,6 @@ typedef struct {
 } StateSavingMRAM_t;
 
 
-
-typedef struct _authKey {
-    uint8_t key[AUTH_KEY_SIZE];
-    uint32_t keyChecksum;
-    uint32_t magic; //Make sure it was initialized
-} AuthKey_t;
-
 /* This stores the details of an in process file upload */
 typedef struct _inProcessFileUpload {
     char callsign[MAX_CALLSIGN_LEN]; /* The callsign of the stations that initiated the upload */
@@ -130,12 +123,11 @@ typedef struct _inProcessFileUpload {
 
 /* Top level MRAM storage map */
 typedef struct {
-        uint32_t testSize[2]; // This will be used to check the address size of the MRAM (it is stored in the status register)
-        uint32_t MRAMVersion1; // This should always have the real version number
-        StateSavingMRAM_t StatesInMRAM;
-                AuthKey_t AuthenticateKey;
-                InProcessFileUpload_t FileUploadsTable[MAX_IN_PROCESS_FILE_UPLOADS];
-        uint32_t MRAMVersion2; // This is likely to be wrong if something above changed size
+    uint32_t testSize[2]; // This will be used to check the address size of the MRAM (it is stored in the status register)
+    uint32_t MRAMVersion1; // This should always have the real version number
+    StateSavingMRAM_t StatesInMRAM;
+    InProcessFileUpload_t FileUploadsTable[MAX_IN_PROCESS_FILE_UPLOADS];
+    uint32_t MRAMVersion2; // This is likely to be wrong if something above changed size
 } MRAMmap_t;
 
 

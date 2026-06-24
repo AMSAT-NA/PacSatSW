@@ -11,10 +11,6 @@
 
 #define AUTH_KEY_SIZE 32
 
-extern uint8_t hmac_sha_key[AUTH_KEY_SIZE];
-
-uint32_t key_checksum(uint8_t *key);
-
-void LoadMRAMKey(void);
+extern const uint8_t hmac_sha_key[AUTH_KEY_SIZE];
 
 #endif // KEYFILE_H

@@ -96,7 +96,6 @@ void CommandTask(void *pvParameters)
     HWCmdCount = 0;
 
     InitInterTask(ToCommand, 10);
-    LoadMRAMKey();
     ReportToWatchdog(CommandWD);
     CommandTimeEnabled = ReadMRAMBoolState(StateCommandTimeCheck);
     /* Wait for the rest of the satellite to come up */

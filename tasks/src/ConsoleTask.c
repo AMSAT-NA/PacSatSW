@@ -142,7 +142,6 @@ enum {
     SetDCTDrivePower,
     Freq,
     TxPow,
-    LoadKey,
     showDownlinkSize,
     ignoreUmb,
     noticeUmb,
@@ -242,9 +241,6 @@ commandPairs setupCommands[] = {
     { "test leds",
       "Flash the LEDs in order",
       testLED},
-    {"load key",
-     "Load an authorization key for uplink commands",
-     LoadKey},
 };
 
 /*
@@ -1157,51 +1153,6 @@ void RealConsoleTask(void)
             initMRAM(true);
             IHUInitSaved(); //Init stuff that we won't want to change on reboot
             SetupMRAM();    //Init stuff that do change (epoch number etc)
-            break;
-        }
-
-        case LoadKey: {
-            uint8_t key[AUTH_KEY_SIZE], i;
-            uint32_t magic = ENCRYPTION_KEY_MAGIC_VALUE, checksum;
-            const MRAMmap_t *LocalFlash = 0;
-            bool stat;
-
-            for (i = 0; i < sizeof(key); i++) {
-                if (parse_uint8(&afterCommand, &key[i], 16)) {
-                    printf("Not enough numbers or invalid number on item %d\n",
-                           i);
-                    break;
-                }
-            }
-            if (i < sizeof(key))
-                break;
-
-            checksum = key_checksum(key);
-            printf("\n");
-            if (i == sizeof(key)) {
-                printf("Writing key...");
-                stat = writeNV(key, sizeof(LocalFlash->AuthenticateKey.key),
-                               NVConfigData,
-                               (int) &LocalFlash->AuthenticateKey.key);
-            } else {
-                stat = false;
-            }
-            if (stat) {
-                printf("Writing checksum=%x...",checksum);
-                stat = writeNV(&checksum,
-                               sizeof(LocalFlash->AuthenticateKey.keyChecksum),
-                               NVConfigData,
-                               (int) &LocalFlash->AuthenticateKey.keyChecksum);
-            }
-            if (stat) {
-                printf("Writing valid\n");
-            } else {
-                magic = 0;
-                printf("Invalidating stored key\n");
-            }
-            stat = writeNV(&magic, sizeof(LocalFlash->AuthenticateKey.magic),
-                           NVConfigData,
-                           (int) &LocalFlash->AuthenticateKey.magic);
             break;
         }
 
