@@ -1536,6 +1536,9 @@ void RealConsoleTask(void)
             printf("CPU temp: %d\n", board_temps[TEMPERATURE_VAL_CPU]);
             printf("PA temp: %d\n", board_temps[TEMPERATURE_VAL_PA]);
             printf("Power temp: %d\n", board_temps[TEMPERATURE_VAL_POWER]);
+#ifdef AFSK_HARDWARE3
+            printf("Osc temp: %d\n", board_temps[TEMPERATURE_VAL_OSC]);
+#endif
 #else
             printf("\nNo temperature available\n");
 #endif

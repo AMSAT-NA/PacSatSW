@@ -47,6 +47,9 @@ enum adc_pins {
     ADC_PIN_PA_TEMP = 23,
     ADC_PIN_POWER_TEMP = 8,
     ADC_PIN_CPU_TEMP = 16,
+#ifdef AFSK_HARDWARE3
+    ADC_PIN_OSC_TEMP = 9,
+#endif
 
     ADC_PIN_PWR_FLAG_5V = 10,
     ADC_PIN_PWR_FLAG_LNA = 11,
@@ -69,6 +72,7 @@ enum temperature_values {
     TEMPERATURE_VAL_CPU,
     TEMPERATURE_VAL_POWER,
     TEMPERATURE_VAL_PA,
+    TEMPERATURE_VAL_OSC,
 
     NUM_TEMPERATURE_VALUES /* Must be last. */
 };

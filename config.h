@@ -20,6 +20,7 @@
 //#define LAUNCHPAD_HARDWARE
 //#define BLINKY_HARDWARE
 #define AFSK_HARDWARE
+#define AFSK_HARDWARE3 // Version 3 board or later.
 
 #define PACSAT_NUMBER "0" // This PacSat number is only used in the PACSAT_FW_VERSION_STRING below.
 

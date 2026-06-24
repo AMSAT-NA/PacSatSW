@@ -65,7 +65,7 @@ typedef enum gu {
     /*
      * Are we in the launch vehicle?  Inhibit any activity if so.
      */
-    UmbilicalAttached,
+    ABF0,
 
     LNAPower, MeasurePower,
 
@@ -73,6 +73,11 @@ typedef enum gu {
     AX5043_Tx_Power,
 
     CANAPower, CANBPower,
+
+#ifdef AFSK_HARDWARE3
+    TX_DAC_Sel, PC104_I2C_En, PC104_UART_En, Ant_Power, Ant_Interrupt,
+    PC104_GPIO1, PC104_GPIO2, PC104_GPIO4,
+#endif
 
     NumberOfGPIOs
 } Gpio_Use;

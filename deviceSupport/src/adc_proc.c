@@ -159,6 +159,12 @@ handle_adc_temp(unsigned int pin, unsigned int millivolts)
         board_temps[TEMPERATURE_VAL_CPU] = temp;
         break;
 
+#ifdef AFSK_HARDWARE3
+    case ADC_PIN_OSC_TEMP:
+        board_temps[TEMPERATURE_VAL_OSC] = temp;
+        break;
+#endif
+
     default:
         break;
     }
@@ -284,6 +290,7 @@ init_adc_proc(void)
     adc_install_handler(ADC_PIN_CPU_TEMP, handle_adc_temp);
     adc_install_handler(ADC_PIN_POWER_TEMP, handle_adc_temp);
     adc_install_handler(ADC_PIN_PA_TEMP, handle_adc_temp);
+    adc_install_handler(ADC_PIN_OSC_TEMP, handle_adc_temp);
 
     adc_install_handler(ADC_PIN_VOLTAGE_3v3, handle_adc_voltage);
     adc_install_handler(ADC_PIN_VOLTAGE_1v2, handle_adc_voltage);

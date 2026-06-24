@@ -246,6 +246,11 @@
 #define GPIO_TxAX5043InterruptPort gioPortBGPIO
 #define GPIO_TxAX5043InterruptPin  2
 
+#ifdef AFSK_HARDWARE3
+#define SPI_TxDAC_Select_Port hetPort1GPIO
+#define SPI_TxDAC_Select_Pin 28
+#endif
+
 #endif /* Launch Pad Hardware vs Blinky vs AFSK */
 
 #endif /* DRIVERS_INC_HARDWARECONFIG_H_ */

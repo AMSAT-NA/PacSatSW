@@ -17,6 +17,7 @@
 #include "het.h"
 #include "i2c.h"
 #include "sci.h"
+#include "reg_adc.h"
 #include "reg_system.h"
 
 /* Golf headers*/
@@ -374,6 +375,50 @@ const GPIOHandler eclkGPIO = {
 };
 
 /*
+ * Functions for handling standard AD1EVT gpio types.
+ */
+static void AD1EVT_GPIO_setBit(const GPIOHandler *h, uint16_t pinNum,
+                               uint16_t val)
+{
+    adcREG1->EVTOUT = val;
+}
+
+static uint16_t AD1EVT_GPIO_getBit(const GPIOHandler *h, uint16_t pinNum)
+{
+    return adcREG1->EVTIN & 1;
+}
+
+static void AD1EVT_GPIO_toggleBit(const GPIOHandler *h, uint16_t pinNum)
+{
+    adcREG1->EVTOUT = !adcREG1->EVTOUT;
+}
+
+static void AD1EVT_GPIO_setDirectionOut(const GPIOHandler *h, uint16_t pinNum,
+                                        bool val)
+{
+    adcREG1->EVTDIR = val;
+}
+
+static void AD1EVT_GPIO_setOpenDrain(const GPIOHandler *h, uint16_t pinNum,
+                                     bool val)
+{
+    adcREG1->EVTPDR = val;
+}
+
+static const GPIOFuncs AD1EVT_GPIOFuncs = {
+    .setBit = AD1EVT_GPIO_setBit,
+    .getBit = AD1EVT_GPIO_getBit,
+    .toggleBit = AD1EVT_GPIO_toggleBit,
+    .setDirectionOut = AD1EVT_GPIO_setDirectionOut,
+    .setOpenDrain = AD1EVT_GPIO_setOpenDrain,
+};
+
+const GPIOHandler AD1EVT_GPIO = {
+    .data = NULL,
+    .funcs = &AD1EVT_GPIOFuncs
+};
+
+/*
  * Functions for handling standard DUMMY gpio types.  These remove ugly
  * ifdefs for setting things.
  */
@@ -659,8 +704,71 @@ static const GPIOInfo SSPAPowerInfo = {
     .PinNum               = GPIOsspaPowerPin,
     .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
+#ifndef AFSK_HARDWARE3
+    .NegativeLogic        = true,
+#endif
+};
+
+#ifdef AFSK_HARDWARE3
+static const GPIOInfo TX_DAC_Selector = {
+    .info                 = &SPI_TxDAC_Select_Port,
+    .PinNum               = SPI_TxDAC_Select_Pin,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
     .NegativeLogic        = true,
 };
+
+static const GPIOInfo PC104_I2C_Enable = {
+    .info                 = &hetPort1GPIO,
+    .PinNum               = 16,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+    .NegativeLogic        = true,
+};
+
+static const GPIOInfo PC104_UART_Enable = {
+    .info                 = &hetPort1GPIO,
+    .PinNum               = 30,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+    .NegativeLogic        = true,
+};
+
+static const GPIOInfo Ant_PowerInfo = {
+    .info                 = &hetPort1GPIO,
+    .PinNum               = 8,
+    .InitialStateOn       = GPIO_OFF,
+    .DirectionIsOut       = GPIO_OUT,
+    .NegativeLogic        = true,
+};
+
+static const GPIOInfo Ant_InterruptInfo = {
+    .info                 = &gioPortAGPIO,
+    .PinNum               = 2,
+    .DirectionIsOut       = GPIO_IN,
+    .NegativeLogic        = true,
+};
+
+static const GPIOInfo PC104_1_Info = {
+    .info                 = &gioPortAGPIO,
+    .PinNum               = 0,
+    .DirectionIsOut       = GPIO_IN,
+    .NegativeLogic        = true,
+};
+
+static const GPIOInfo PC104_2_Info = {
+    .info                 = &eclkGPIO,
+    .DirectionIsOut       = GPIO_IN,
+    .NegativeLogic        = true,
+};
+
+static const GPIOInfo PC104_4_Info = {
+    .info                 = &gioPortBGPIO,
+    .PinNum               = 1,
+    .DirectionIsOut       = GPIO_IN,
+    .NegativeLogic        = true,
+};
+#endif
 
 static const GPIOInfo Ax5043PowerInfo = {
     .info                 = &GPIOax5043PowerPort,
@@ -706,7 +814,7 @@ static const char *GPIONames[NumberOfGPIOs] = {
 };
 #endif
 
-#else
+#else /* FSK hardware */
 
 static const GPIOInfo OtherFaultInfo = {
     .info                 = &gioPortBGPIO,
@@ -721,9 +829,13 @@ static const GPIOInfo OtherPowerOffStateInfo = {
 };
 
 static const GPIOInfo OtherPresenceInfo = {
+#ifdef AFSK_HARDWARE3
+    .info                 = &AD1EVT_GPIO,
+#else
     .info                 = &gioPortAGPIO,
     .PinNum               = 2,
-    .DirectionIsOut       = GPIO_IN,
+#endif
+    .DirectionIsOut       = GPIO_OUT,
     .NegativeLogic        = true,
 };
 
@@ -741,16 +853,28 @@ static const GPIOInfo OtherPowerOffInfo = {
 };
 
 static const GPIOInfo ActiveInfo = {
+#ifdef AFSK_HARDWARE3
+    .info                 = &hetPort1GPIO,
+    .PinNum               = 18,
+#else
     .info                 = &gioPortBGPIO,
     .PinNum               = 1,
+#endif
     .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
 };
 
-static const GPIOInfo UmbilicalAttachedInfo = {
+static const GPIOInfo ABF0Info = {
+#ifdef AFSK_HARDWARE3
+    .info                 = &hetPort1GPIO,
+    .PinNum               = 22,
+    .DirectionIsOut       = GPIO_IN,
+    .NegativeLogic        = true,
+#else
     .info                 = &eclkGPIO,
     .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
+#endif
 };
 
 static const GPIOInfo LNAPowerInfo = {
@@ -837,13 +961,18 @@ static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] =
     &OtherFaultInfo, &OtherPowerOffStateInfo, &OtherPresenceInfo, &OtherActiveInfo,
     &OtherPowerOffInfo, &ActiveInfo,
 
-    &UmbilicalAttachedInfo,
+    &ABF0Info,
     &LNAPowerInfo, &MeasurePowerInfo,
 
     &AX5043_Rx1_PowerInfo, &AX5043_Rx2_PowerInfo, &AX5043_Rx3_PowerInfo,
     &AX5043_Rx4_PowerInfo, &AX5043_Tx_PowerInfo,
 
     &CANAPowerInfo, &CANBPowerInfo, 
+
+#ifdef AFSK_HARDWARE3
+    &TX_DAC_Selector, &PC104_I2C_Enable, &PC104_UART_Enable, &Ant_PowerInfo,
+    &Ant_InterruptInfo, &PC104_1_Info, &PC104_2_Info, &PC104_4_Info,
+#endif
 };
 
 #ifdef DEBUG
@@ -859,13 +988,18 @@ static const char *GPIONames[NumberOfGPIOs] = {
     "OtherFault", "OtherPowerOffState", "OtherPresense", "OtherActive",
     "OtherPowerOff", "ImActive",
 
-    "UmbilicalAttached",
+    "ABF0",
     "LNAPower", "MeasurePower",
 
     "AX5043_Rx1_Power", "AX5043_Rx2_Power", "AX5043_Rx3_Power", "AX5043_Rx4_Power",
     "AX5043_Tx_Power",
 
     "CANAPower", "CANBPower",
+
+#ifdef AFSK_HARDWARE3
+    "TX_DAC", "PC104_I2C_Enable", "PC104_UART_Enable", "Ant_Power",
+    "Ant_Interrupt", "PC104_1", "PC104_2", "PC104_4",
+#endif
 };
 #endif
 
