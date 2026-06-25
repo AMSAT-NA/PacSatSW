@@ -869,7 +869,6 @@ static const GPIOInfo ABF0Info = {
     .info                 = &hetPort1GPIO,
     .PinNum               = 22,
     .DirectionIsOut       = GPIO_IN,
-    .NegativeLogic        = true,
 #else
     .info                 = &eclkGPIO,
     .InitialStateOn       = GPIO_OFF,
