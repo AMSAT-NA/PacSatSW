@@ -67,7 +67,7 @@ typedef struct _SPIDevInfo {
 
 // Here are the per-bus data structures:
 
-SPIBusData bus1Data,bus2Data,bus3Data,bus4Data,bus5Data;
+SPIBusData bus1Data, bus2Data, bus3Data, bus4Data, bus5Data;
 
 /*
  * The Device info structures are the read-only data for each individual device
@@ -88,6 +88,10 @@ SPIBusData bus1Data,bus2Data,bus3Data,bus4Data,bus5Data;
 #define SPI_AX5043_BUS bus1Data
 #else
 #define SPI_AX5043_BUS bus3Data
+#endif
+
+#ifdef AFSK_HARDWARE3
+#define SPI_ACP_BUS bus5Data
 #endif
 
 static SPIDevInfo SPIMram0Device={
@@ -167,7 +171,7 @@ static SPIDevInfo SPITxDACDevice = {
     .thisBus     = SPI_AX5043_Reg,
     .selGPIO     = TX_DAC_Sel,
     .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
-    .thisBusData = &SPI_AX5043_BUS,
+    .thisBusData = &SPI_ACP_BUS,
 };
 #endif
 
@@ -185,13 +189,18 @@ static const SPIDevInfo *SPIDevInfoStructures[] = {
 /*
  * Key to structures.
  *
- * The device name indexes SPIDevInfoStructures, which yields the SPIDevInfo for the device
- * SPIDevInfo.myBus is the bus structure used by HALCoGen code
- * SPIDevInfo.dat1 is the data format structure used by HALCoGen
- * SPIDevInfo.chipSelect is the number of the bus's chip select line that selects this device
- * SPIDevInfo.busData points to an SPIBusData structure for the bus.  Records in this structure
- *    are largely used by this driver
+ * The device name indexes SPIDevInfoStructures, which yields the
+ * SPIDevInfo for the device
  *
+ * SPIDevInfo.myBus is the bus structure used by HALCoGen code
+ *
+ * SPIDevInfo.dat1 is the data format structure used by HALCoGen
+ *
+ * SPIDevInfo.chipSelect is the number of the bus's chip select line
+ * that selects this device
+ *
+ * SPIDevInfo.busData points to an SPIBusData structure for the bus.
+ * Records in this structure are largely used by this driver
  */
 
 
@@ -209,7 +218,8 @@ static void CompleteIO(SPIBusData *thisBusData, const SPIDevInfo *thisDevInfo);
  * Here are the externally callable routines (in spi.h)
  */
 
-void SPIInit(SPIDevice thisDeviceNumber) {
+void SPIInit(SPIDevice thisDeviceNumber)
+{
     /*
      * This routine gets called early in boot to get
      * things set up, turned on, initialized.  Note that on TMS570,
@@ -222,15 +232,16 @@ void SPIInit(SPIDevice thisDeviceNumber) {
 
     GPIOSetOff(thisDevInfo->selGPIO); // Make sure it is disabled initially
 
-    if(!SPIIsInitted){
+    if (!SPIIsInitted) {
         /*
-         * If this is the first time we have called init for any SPI device, init the bus data
-         * arrays to say that there are no semaphores and then call the HALCoGen spi init routine
+         * If this is the first time we have called init for any SPI
+         * device, init the bus data arrays to say that there are no
+         * semaphores and then call the HALCoGen spi init routine
          */
         bus1Data.busInitted = false;
         bus3Data.busInitted = false;
         bus5Data.busInitted = false;
-    } else if(thisBusData->busInitted){
+    } else if (thisBusData->busInitted) {
         return;
     }
 
@@ -241,52 +252,59 @@ void SPIInit(SPIDevice thisDeviceNumber) {
 
     /* Set up the semaphores for use later */
     (void)(vSemaphoreCreateBinary(thisBusData->SPIDoneSemaphore));
-    thisBusData->SPIInUseSemaphore = xSemaphoreCreateMutex(); // In use wants a mutex to get priority inheretance
-    if((thisBusData->SPIDoneSemaphore == NULL) || (thisBusData->SPIInUseSemaphore == NULL)){
+    // In use wants a mutex to get priority inheritance
+    thisBusData->SPIInUseSemaphore = xSemaphoreCreateMutex();
+    if ((thisBusData->SPIDoneSemaphore == NULL)
+		|| (thisBusData->SPIInUseSemaphore == NULL)) {
         ReportError(SemaphoreFail,true,CharString,(int)"SPIAllocSema");
     }
-    if(thisBusData->SPIDoneSemaphore != NULL){
+    if (thisBusData->SPIDoneSemaphore != NULL) {
         /*
          * We want the 'done' semaphore to be taken by default
          * The interrupt routine will give it back (and unblock us)
          * when it is done.
          */
-        if (xSemaphoreTake(thisBusData->SPIDoneSemaphore,0)!= pdTRUE){
+        if (!xSemaphoreTake(thisBusData->SPIDoneSemaphore,0))
             ReportError(SemaphoreFail,true,CharString,(int)"SPITakeSema");
-        };
     }
     thisBusData->busInitted = true;
-    return;
 }
 
 /*
  * These routines starts an I/O
  */
-static inline bool SPISendCommandInternal (SPIDevice device, uint32_t command,uint8_t comLength,
-                                           void *sndBuffer,uint16_t sndLength,
-                                           void *rcvBuffer,uint16_t rcvLength,bool rxWhileTx)
+static inline bool SPISendCommandInternal(SPIDevice device, uint32_t command,
+					  uint8_t comLength,
+					  void *sndBuffer, uint16_t sndLength,
+					  void *rcvBuffer, uint16_t rcvLength,
+					  bool rxWhileTx)
 {
     const SPIDevInfo *thisDevInfo = SPIDevInfoStructures[device];
     SPIBusData *thisBusData = thisDevInfo->thisBusData;
     bool retVal = true;
-    if(comLength+sndLength+rcvLength == 0)return false;
+
+    if (comLength+sndLength+rcvLength == 0)
+	return false;
 
     /*
-     * We send whatever is in 'command' (1 to 4 bytes), and then send what is in sndBuffer (could be
-     * 0 length, and finally receive rcvLength bytes (which also could be 0).
+     * We send whatever is in 'command' (1 to 4 bytes), and then send
+     * what is in sndBuffer (could be 0 length, and finally receive
+     * rcvLength bytes (which also could be 0).
      */
 
     /*
-     * The driver code is not reentrant.  Block here if another task is using it already
+     * The driver code is not reentrant.  Block here if another task
+     * is using it already
      */
-    if(xSemaphoreTake(thisBusData->SPIInUseSemaphore,SHORT_WAIT_TIME)!= pdTRUE){
+    if (!xSemaphoreTake(thisBusData->SPIInUseSemaphore, SHORT_WAIT_TIME)) {
         /* If we can't get it within a few seconds...trouble */
-        ReportError(SPIInUse,false,ReturnAddr,(int)__builtin_return_address(0));
+        ReportError(SPIInUse, false, ReturnAddr,
+		    (int)__builtin_return_address(0));
     }
     /* Don't let someone request too many bytes of command */
-    if (comLength>sizeof(ByteToWord)){
+    if (comLength > sizeof(ByteToWord))
         comLength = sizeof(ByteToWord);
-    }
+
     thisBusData->RxBuffer = rcvBuffer;
     thisBusData->TxBuffer = sndBuffer;
     thisBusData->RxBytes=rcvLength;
@@ -295,38 +313,49 @@ static inline bool SPISendCommandInternal (SPIDevice device, uint32_t command,ui
     thisBusData->cmd.word = command;
     thisBusData->biDirectional = rxWhileTx;
     thisBusData->thisDat1 = &thisDevInfo->thisDat1;
-    if(StartIO(thisBusData,thisDevInfo)){
+
+    if (StartIO(thisBusData, thisDevInfo)) {
         // If SPIStartIO returns false, no IO was started so we don't wait here
-        if(xSemaphoreTake(thisBusData->SPIDoneSemaphore,SHORT_WAIT_TIME)!=pdTRUE){
-            ReportError(SPIOperationTimeout,false,ReturnAddr,(int)__builtin_return_address(0));
+        if (!xSemaphoreTake(thisBusData->SPIDoneSemaphore, SHORT_WAIT_TIME)) {
+            ReportError(SPIOperationTimeout,false,ReturnAddr,
+			(int)__builtin_return_address(0));
             retVal = false;
         }
     }
     CompleteIO(thisBusData,thisDevInfo);
     xSemaphoreGive(thisBusData->SPIInUseSemaphore);
-    return retVal;
 
+    return retVal;
 }
 /*
- * This one sends and receives the same number of bytes simultaneously.  This is mostly useful for
- * the AX5043 where the first transmitted byte is the command and the first received byte is the status.
- * In any case, the txBuffer and the rxBuffer can be the same (but of course the command will be over-written
- * by the status.
+ * This one sends and receives the same number of bytes
+ * simultaneously.  This is mostly useful for the AX5043 where the
+ * first transmitted byte is the command and the first received byte
+ * is the status.  In any case, the txBuffer and the rxBuffer can be
+ * the same (but of course the command will be over-written by the
+ * status.
  */
-
-bool SPIBidirectional(SPIDevice device, void *txBuffer, void *rxBuffer, uint16_t length){
-    return SPISendCommandInternal(device,0,0,txBuffer,length,rxBuffer,0,true);
+bool SPIBidirectional(SPIDevice device, void *txBuffer, void *rxBuffer,
+		      uint16_t length)
+{
+    return SPISendCommandInternal(device, 0, 0,
+				  txBuffer, length, rxBuffer, 0, true);
 }
 
-bool SPISendCommand(SPIDevice device, uint32_t command,uint8_t comLength, void *sndBuffer,uint16_t sndLength,
+bool SPISendCommand(SPIDevice device, uint32_t command, uint8_t comLength,
+		    void *sndBuffer,uint16_t sndLength,
                     void *rcvBuffer,uint16_t rcvLength)
 {
-    return SPISendCommandInternal(device,command,comLength,sndBuffer,sndLength,rcvBuffer,rcvLength,false);
+    return SPISendCommandInternal(device, command, comLength,
+				  sndBuffer, sndLength,
+				  rcvBuffer, rcvLength, false);
 }
+
 static void CompleteIO(SPIBusData *thisBusData, const SPIDevInfo *thisDevInfo)
 {
     GPIOSetOff(thisDevInfo->selGPIO);
 }
+
 static bool StartIO(SPIBusData *thisBusData, const SPIDevInfo *thisDevInfo)
 {
     GPIOSetOn(thisDevInfo->selGPIO);
@@ -335,13 +364,14 @@ static bool StartIO(SPIBusData *thisBusData, const SPIDevInfo *thisDevInfo)
      * Now we start the I/O in the first state that exists.  The
      * interrupt routines take care of switching states from then on.
      */
-    if(thisBusData->CmdBytes != 0){
+    if (thisBusData->CmdBytes != 0) {
         //Initialize the state machine
         thisBusData->State = SendCommandState;
         //Now start the data transfer
         if(thisBusData->biDirectional){
             spiSendAndGetDataByte(thisDevInfo->thisBus, &thisDevInfo->thisDat1,
-                                  thisBusData->CmdBytes,thisBusData->cmd.byte,thisBusData->RxBuffer);
+                                  thisBusData->CmdBytes, thisBusData->cmd.byte,
+				  thisBusData->RxBuffer);
         } else {
             spiSendDataByte(thisDevInfo->thisBus, &thisDevInfo->thisDat1,
                             thisBusData->CmdBytes, thisBusData->cmd.byte);
