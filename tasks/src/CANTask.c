@@ -787,11 +787,12 @@ portTASK_FUNCTION_PROTO(CANTask, pvParameters)
                 printf("CAN %d Status %x\n", msg.argument, msg.argument2);
             break;
 
+#ifdef AFSK_HARDWARE3
         case CANHandleACPMsg:
             /* We handle ACP processing here, too. */
             acp_runner();
             break;
-
+#endif
         }
     }
 }

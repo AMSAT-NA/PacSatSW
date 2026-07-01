@@ -3,6 +3,9 @@
  */
 
 #include <pacsat.h>
+
+#ifdef AFSK_HARDWARE3
+
 #include <errors.h>
 #include <spiDriver.h>
 #include <gpioDriver.h>
@@ -92,3 +95,5 @@ void acp_runner(void)
     /* Send a dummy message to pick up the receive message. */
     acp_send(txmsg);
 }
+
+#endif /* AFSK_HARDWARE3 */

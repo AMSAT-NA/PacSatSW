@@ -290,7 +290,9 @@ init_adc_proc(void)
     adc_install_handler(ADC_PIN_CPU_TEMP, handle_adc_temp);
     adc_install_handler(ADC_PIN_POWER_TEMP, handle_adc_temp);
     adc_install_handler(ADC_PIN_PA_TEMP, handle_adc_temp);
+#ifdef AFSK_HARDWARE3
     adc_install_handler(ADC_PIN_OSC_TEMP, handle_adc_temp);
+#endif
 
     adc_install_handler(ADC_PIN_VOLTAGE_3v3, handle_adc_voltage);
     adc_install_handler(ADC_PIN_VOLTAGE_1v2, handle_adc_voltage);
