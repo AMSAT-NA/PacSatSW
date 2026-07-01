@@ -747,6 +747,15 @@ static const GPIOInfo Ant_InterruptInfo = {
     .PinNum               = 2,
     .DirectionIsOut       = GPIO_IN,
     .NegativeLogic        = true,
+    /* We need to know both sides of the interrupt. */
+    .InterruptBothEdges   = true,
+};
+
+static const GPIOInfo Ant_SelInfo = {
+    .info                 = &spiPort5GPIO,
+    .PinNum               = SPI_PIN_CS0,
+    .DirectionIsOut       = GPIO_OUT,
+    .NegativeLogic        = true,
 };
 
 static const GPIOInfo PC104_1_Info = {
@@ -970,7 +979,8 @@ static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] =
 
 #ifdef AFSK_HARDWARE3
     &TX_DAC_Selector, &PC104_I2C_Enable, &PC104_UART_Enable, &Ant_PowerInfo,
-    &Ant_InterruptInfo, &PC104_1_Info, &PC104_2_Info, &PC104_4_Info,
+    &Ant_InterruptInfo, &Ant_SelInfo,
+    &PC104_1_Info, &PC104_2_Info, &PC104_4_Info,
 #endif
 };
 
@@ -997,7 +1007,7 @@ static const char *GPIONames[NumberOfGPIOs] = {
 
 #ifdef AFSK_HARDWARE3
     "TX_DAC", "PC104_I2C_Enable", "PC104_UART_Enable", "Ant_Power",
-    "Ant_Interrupt", "PC104_1", "PC104_2", "PC104_4",
+    "Ant_Interrupt", "Ant_Sel", "PC104_1", "PC104_2", "PC104_4",
 #endif
 };
 #endif

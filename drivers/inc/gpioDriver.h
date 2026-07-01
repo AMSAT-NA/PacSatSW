@@ -76,6 +76,7 @@ typedef enum gu {
 
 #ifdef AFSK_HARDWARE3
     TX_DAC_Sel, PC104_I2C_En, PC104_UART_En, Ant_Power, Ant_Interrupt,
+    Ant_Sel,
     PC104_GPIO1, PC104_GPIO2, PC104_GPIO4,
 #endif
 

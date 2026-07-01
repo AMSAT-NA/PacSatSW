@@ -90,6 +90,7 @@ typedef enum {
     CANUpdateIDMsg,
     CANErrorMsg,
     CANStatusMsg,
+    CANHandleACPMsg, /* We abuse this for ACP processing. */
 } IntertaskMessageType;
 
 

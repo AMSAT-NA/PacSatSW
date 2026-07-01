@@ -23,6 +23,7 @@
 #include "can.h"
 #include "reg_can.h"
 #include "errors.h"
+#include "acp.h"
 
 #include "CANTask.h"
 
@@ -785,6 +786,12 @@ portTASK_FUNCTION_PROTO(CANTask, pvParameters)
             if (trace_can)
                 printf("CAN %d Status %x\n", msg.argument, msg.argument2);
             break;
+
+        case CANHandleACPMsg:
+            /* We handle ACP processing here, too. */
+            acp_runner();
+            break;
+
         }
     }
 }

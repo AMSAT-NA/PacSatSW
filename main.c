@@ -18,6 +18,7 @@
 #include "gio.h"
 #include "pinmux.h"
 #include "spi.h"
+#include "acp.h"
 #include "het.h"
 #include "i2c.h"
 #include "sci.h"
@@ -248,6 +249,8 @@ void ConsoleTask(void *pvParameters){
     SPIInit(Rx4AX5043Dev);
 #ifdef AFSK_HARDWARE3
     SPIInit(TxDACDev); // The DAC that controls PA output
+    SPIInit(SPIACPDev); // The Antenna Control Processor
+    acp_init();
 #endif
 #endif
     SPIInit(TxAX5043Dev); // This is the transmitter on UHF

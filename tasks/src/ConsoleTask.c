@@ -25,6 +25,7 @@
 #include "gio.h"
 #include "pinmux.h"
 #include "spi.h"
+#include "acp.h"
 #include "het.h"
 #include "i2c.h"
 #include "rti.h"
@@ -144,6 +145,7 @@ enum {
     TxPow,
 #ifdef AFSK_HARDWARE3
     TxDac,
+    ACPSend,
 #endif
     showDownlinkSize,
     ignoreUmb,
@@ -240,6 +242,11 @@ commandPairs setupCommands[] = {
       "Set the tx DAC 0-255, the value used for transmit, or immediate (now)",
       TxDac,
       "0-100 [now]",
+    },
+    { "acpsend",
+      "Set the given message to the ACP",
+      ACPSend,
+      "byte1 [byte2 [...]]",
     },
 #endif
     { "test internal wd",
@@ -1180,6 +1187,31 @@ void RealConsoleTask(void)
             } else {
                 printf("Unknown modifier: %s\n", t);
             }
+            break;
+        }
+
+        case ACPSend: {
+            unsigned int i;
+            unsigned char buf[ACP_MSG_SIZE];
+            int err;
+
+            memset(buf, 0, sizeof(buf));
+            err = parse_uint8(&afterCommand, &buf[0], 0);
+            if (err) {
+                printf("Invalid first byte\n");
+                break;
+            }
+
+            for (i = 1; i < ACP_MSG_SIZE; i++) {
+                err = parse_uint8(&afterCommand, &buf[i], 0);
+                if (err)
+                    break;
+            }
+            err = acp_send(buf);
+            if (err)
+                printf("Error sending ACP message: %d\n", err);
+            else
+                printf("ACP message sent\n");
             break;
         }
 #endif

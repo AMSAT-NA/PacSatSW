@@ -22,7 +22,7 @@ typedef enum {
     MRAM0Dev = 0, MRAM1Dev = 1, MRAM2Dev=2, MRAM3Dev=3, Rx1AX5043Dev = 4,
     Rx2AX5043Dev, Rx3AX5043Dev, Rx4AX5043Dev, TxAX5043Dev,
 #ifdef AFSK_HARDWARE3
-    TxDACDev,
+    TxDACDev, SPIACPDev,
 #endif
     InvalidSPI
 } SPIDevice;
@@ -37,8 +37,8 @@ typedef union {
 void SPIInit(SPIDevice device);
 
 bool SPISendCommand(SPIDevice device, uint32_t command, uint8_t comLength,
-		    void *sndBuffer, uint16_t sndLength,
-		    void *rcvBuffer, uint16_t rcvLength);
+                    const void *sndBuffer, uint16_t sndLength,
+                    void *rcvBuffer, uint16_t rcvLength);
 
 /*
  * SPIBidirectional sends and receives the same number of bytes
@@ -48,8 +48,8 @@ bool SPISendCommand(SPIDevice device, uint32_t command, uint8_t comLength,
  * the same (but of course the command will be over-written by the
  * status.
  */
-bool SPIBidirectional(SPIDevice device, void *txBuffer, void *rxBuffer,
-		      uint16_t length);
+bool SPIBidirectional(SPIDevice device, const void *txBuffer, void *rxBuffer,
+                      uint16_t length);
 
 /* Use for length if there is no command, send data or receive data */
 #define SPI_NONE 0

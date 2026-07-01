@@ -25,6 +25,7 @@
 
 /* HALCoGen Includes */
 #include "spi.h"
+#include "acp.h"
 #include "gio.h"
 #include "het.h"
 
@@ -45,7 +46,8 @@ typedef struct _BusData {
     xSemaphoreHandle SPIDoneSemaphore;
     xSemaphoreHandle SPIInUseSemaphore;
     uint16_t RxBytes, TxBytes, CmdBytes;
-    uint8_t *RxBuffer,*TxBuffer;
+    uint8_t *RxBuffer;
+    const uint8_t *TxBuffer;
     SPIState State;
     bool biDirectional;
     bool busInitted;
@@ -58,6 +60,16 @@ typedef struct _SPIDevInfo {
     Gpio_Use selGPIO;
     spiDAT1_t thisDat1;
     SPIBusData *thisBusData;
+
+    /*
+     * Called after CS is asserted but before the transaction starts.
+     * If this returns false, the transaction is aborted.
+     */
+    bool (*preTransaction)(const struct _SPIDevInfo *info);
+    /* Called after the transaction is complete. */
+    void (*postTransaction)(const struct _SPIDevInfo *info, bool success);
+    /* Called after CS is deasserted. */
+    void (*postCS)(const struct _SPIDevInfo *info, bool success);
 } SPIDevInfo;
 
 
@@ -67,7 +79,7 @@ typedef struct _SPIDevInfo {
 
 // Here are the per-bus data structures:
 
-SPIBusData bus1Data, bus2Data, bus3Data, bus4Data, bus5Data;
+SPIBusData bus1Data, bus3Data, bus5Data;
 
 /*
  * The Device info structures are the read-only data for each individual device
@@ -94,42 +106,42 @@ SPIBusData bus1Data, bus2Data, bus3Data, bus4Data, bus5Data;
 #define SPI_ACP_BUS bus5Data
 #endif
 
-static SPIDevInfo SPIMram0Device={
+static SPIDevInfo SPIMram0Device = {
     .thisBus     = SPI_MRAM_Reg,
     .selGPIO     = MRAM0_Sel,
     .thisDat1    = {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
     .thisBusData = &SPI_MRAM_BUS,
 };
 
-static SPIDevInfo SPIMram1Device={
+static SPIDevInfo SPIMram1Device = {
     .thisBus     = SPI_MRAM_Reg,
     .selGPIO     = MRAM1_Sel,
     .thisDat1    = {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
     .thisBusData = &SPI_MRAM_BUS,
 };
 
-static SPIDevInfo SPIMram2Device={
+static SPIDevInfo SPIMram2Device = {
     .thisBus     = SPI_MRAM_Reg,
     .selGPIO     = MRAM2_Sel,
     .thisDat1    = {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
     .thisBusData = &SPI_MRAM_BUS,
 };
 
-static SPIDevInfo SPIMram3Device={
+static SPIDevInfo SPIMram3Device = {
     .thisBus     = SPI_MRAM_Reg,
     .selGPIO     = MRAM3_Sel,
     .thisDat1    = {.WDEL = false, .DFSEL = SPI_MRAM_Data_Format},
     .thisBusData = &SPI_MRAM_BUS,
 };
 
-static SPIDevInfo SPIRx1AX5043Device={
+static SPIDevInfo SPIRx1AX5043Device = {
     .thisBus     = SPI_AX5043_Reg,
     .selGPIO     = AX5043_Rx1_Sel,
     .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
     .thisBusData = &SPI_AX5043_BUS,
 };
 
-static SPIDevInfo SPITxAX5043Device={
+static SPIDevInfo SPITxAX5043Device = {
     .thisBus     = SPI_AX5043_Reg,
     .selGPIO     = AX5043_Tx_Sel,
     .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
@@ -145,21 +157,21 @@ static const SPIDevInfo *SPIDevInfoStructures[] = {
 
 #else
 
-static SPIDevInfo SPIRx2AX5043Device={
+static SPIDevInfo SPIRx2AX5043Device = {
     .thisBus     = SPI_AX5043_Reg,
     .selGPIO     = AX5043_Rx2_Sel,
     .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
     .thisBusData = &SPI_AX5043_BUS,
 };
 
-static SPIDevInfo SPIRx3AX5043Device={
+static SPIDevInfo SPIRx3AX5043Device = {
     .thisBus     = SPI_AX5043_Reg,
     .selGPIO     = AX5043_Rx3_Sel,
     .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
     .thisBusData = &SPI_AX5043_BUS,
 };
 
-static SPIDevInfo SPIRx4AX5043Device={
+static SPIDevInfo SPIRx4AX5043Device = {
     .thisBus     = SPI_AX5043_Reg,
     .selGPIO     = AX5043_Rx4_Sel,
     .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
@@ -171,7 +183,78 @@ static SPIDevInfo SPITxDACDevice = {
     .thisBus     = SPI_AX5043_Reg,
     .selGPIO     = TX_DAC_Sel,
     .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
+    .thisBusData = &SPI_AX5043_BUS,
+};
+
+static xSemaphoreHandle ant_irq_sem;
+static volatile bool in_acp_transaction;
+
+static void ant_irq_handler(void *handler_data)
+{
+    BaseType_t higherPrioTaskWoken;
+
+    if (in_acp_transaction) {
+        xSemaphoreGiveFromISR(ant_irq_sem, &higherPrioTaskWoken);
+    } else if (GPIOIsOn(Ant_Interrupt)) {
+        /* Ant_Interrupt is asserted, it's asking is to read it. */
+        static Intertask_Message msg;
+
+        /* Tell the CAN task to run the ACP handler to fetch a message. */
+        msg.MsgType = CANHandleACPMsg;
+        NotifyInterTaskFromISR(ToCANTask, &msg);
+    }
+}
+
+const static struct gpio_irq_info ant_irq_gpio_info = {
+    ant_irq_handler, (void *) (uintptr_t) 0
+};
+
+bool ant_irq_preTransaction(const SPIDevInfo *info)
+{
+    in_acp_transaction = true;
+
+    /* Make sure the semaphore is cleared. */
+    xSemaphoreTake(ant_irq_sem, 0);
+
+    if (GPIOIsOn(Ant_Interrupt))
+        return true;
+
+    /* Wait for Ant_Interrupt to be asserted. */
+    if (!xSemaphoreTake(ant_irq_sem, CENTISECONDS(10)))
+        return false;
+
+    return true;
+}
+
+void ant_irq_postTransaction(const SPIDevInfo *info, bool success)
+{
+    /* Make sure the semaphore is cleared. */
+    if (success)
+        xSemaphoreTake(ant_irq_sem, 0);
+}
+
+void ant_irq_postCS(const SPIDevInfo *info, bool success)
+{
+    if (success) {
+        if (GPIOIsOn(Ant_Interrupt)) {
+            /* Wait for Ant_Interrupt to be deasserted. */
+            if (!xSemaphoreTake(ant_irq_sem, CENTISECONDS(10)))
+                /* Tell the ACP code that it failed. */
+                acp_failed = true;
+        }
+    }
+
+    in_acp_transaction = false;
+}
+
+static SPIDevInfo SPIACPDevice = {
+    .thisBus     = spiREG5,
+    .selGPIO     = Ant_Sel,
+    .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
     .thisBusData = &SPI_ACP_BUS,
+    .preTransaction = ant_irq_preTransaction,
+    .postTransaction = ant_irq_postTransaction,
+    .postCS = ant_irq_postCS,
 };
 #endif
 
@@ -180,7 +263,7 @@ static const SPIDevInfo *SPIDevInfoStructures[] = {
     &SPIRx1AX5043Device, &SPIRx2AX5043Device, &SPIRx3AX5043Device,
     &SPIRx4AX5043Device, &SPITxAX5043Device,
 #ifdef AFSK_HARDWARE3
-    &SPITxDACDevice,
+    &SPITxDACDevice, &SPIACPDevice,
 #endif
 };
 
@@ -204,7 +287,6 @@ static const SPIDevInfo *SPIDevInfoStructures[] = {
  */
 
 
-
 portTickType FramDeselectTime = 0;
 
 static bool SPIIsInitted = false;
@@ -212,7 +294,8 @@ static bool SPIIsInitted = false;
 /* Forward (i.e. internal only) routine declarations */
 
 static bool StartIO(SPIBusData *thisBusData, const SPIDevInfo *thisDevInfo);
-static void CompleteIO(SPIBusData *thisBusData, const SPIDevInfo *thisDevInfo);
+static void CompleteIO(SPIBusData *thisBusData, const SPIDevInfo *thisDevInfo,
+                       bool success);
 
 /*
  * Here are the externally callable routines (in spi.h)
@@ -233,6 +316,8 @@ void SPIInit(SPIDevice thisDeviceNumber)
     GPIOSetOff(thisDevInfo->selGPIO); // Make sure it is disabled initially
 
     if (!SPIIsInitted) {
+        SPIIsInitted = true;
+
         /*
          * If this is the first time we have called init for any SPI
          * device, init the bus data arrays to say that there are no
@@ -241,6 +326,11 @@ void SPIInit(SPIDevice thisDeviceNumber)
         bus1Data.busInitted = false;
         bus3Data.busInitted = false;
         bus5Data.busInitted = false;
+
+#ifdef AFSK_HARDWARE3
+        vSemaphoreCreateBinary(ant_irq_sem);
+        GPIOInit(Ant_Interrupt, &ant_irq_gpio_info);
+#endif
     } else if (thisBusData->busInitted) {
         return;
     }
@@ -255,8 +345,8 @@ void SPIInit(SPIDevice thisDeviceNumber)
     // In use wants a mutex to get priority inheritance
     thisBusData->SPIInUseSemaphore = xSemaphoreCreateMutex();
     if ((thisBusData->SPIDoneSemaphore == NULL)
-		|| (thisBusData->SPIInUseSemaphore == NULL)) {
-        ReportError(SemaphoreFail,true,CharString,(int)"SPIAllocSema");
+                || (thisBusData->SPIInUseSemaphore == NULL)) {
+        ReportError(SemaphoreFail, true, CharString, (int)"SPIAllocSema");
     }
     if (thisBusData->SPIDoneSemaphore != NULL) {
         /*
@@ -265,7 +355,7 @@ void SPIInit(SPIDevice thisDeviceNumber)
          * when it is done.
          */
         if (!xSemaphoreTake(thisBusData->SPIDoneSemaphore,0))
-            ReportError(SemaphoreFail,true,CharString,(int)"SPITakeSema");
+            ReportError(SemaphoreFail, true, CharString, (int)"SPITakeSema");
     }
     thisBusData->busInitted = true;
 }
@@ -274,17 +364,18 @@ void SPIInit(SPIDevice thisDeviceNumber)
  * These routines starts an I/O
  */
 static inline bool SPISendCommandInternal(SPIDevice device, uint32_t command,
-					  uint8_t comLength,
-					  void *sndBuffer, uint16_t sndLength,
-					  void *rcvBuffer, uint16_t rcvLength,
-					  bool rxWhileTx)
+                                          uint8_t comLength,
+                                          const void *sndBuffer,
+                                          uint16_t sndLength,
+                                          void *rcvBuffer, uint16_t rcvLength,
+                                          bool rxWhileTx)
 {
     const SPIDevInfo *thisDevInfo = SPIDevInfoStructures[device];
     SPIBusData *thisBusData = thisDevInfo->thisBusData;
     bool retVal = true;
 
-    if (comLength+sndLength+rcvLength == 0)
-	return false;
+    if (comLength + sndLength + rcvLength == 0)
+        return false;
 
     /*
      * We send whatever is in 'command' (1 to 4 bytes), and then send
@@ -293,13 +384,13 @@ static inline bool SPISendCommandInternal(SPIDevice device, uint32_t command,
      */
 
     /*
-     * The driver code is not reentrant.  Block here if another task
+     * The driver code is not re-entrant.  Block here if another task
      * is using it already
      */
     if (!xSemaphoreTake(thisBusData->SPIInUseSemaphore, SHORT_WAIT_TIME)) {
         /* If we can't get it within a few seconds...trouble */
         ReportError(SPIInUse, false, ReturnAddr,
-		    (int)__builtin_return_address(0));
+                    (int)__builtin_return_address(0));
     }
     /* Don't let someone request too many bytes of command */
     if (comLength > sizeof(ByteToWord))
@@ -318,11 +409,13 @@ static inline bool SPISendCommandInternal(SPIDevice device, uint32_t command,
         // If SPIStartIO returns false, no IO was started so we don't wait here
         if (!xSemaphoreTake(thisBusData->SPIDoneSemaphore, SHORT_WAIT_TIME)) {
             ReportError(SPIOperationTimeout,false,ReturnAddr,
-			(int)__builtin_return_address(0));
+                        (int)__builtin_return_address(0));
             retVal = false;
         }
+    } else {
+        retVal = false;
     }
-    CompleteIO(thisBusData,thisDevInfo);
+    CompleteIO(thisBusData,thisDevInfo, retVal);
     xSemaphoreGive(thisBusData->SPIInUseSemaphore);
 
     return retVal;
@@ -335,30 +428,42 @@ static inline bool SPISendCommandInternal(SPIDevice device, uint32_t command,
  * the same (but of course the command will be over-written by the
  * status.
  */
-bool SPIBidirectional(SPIDevice device, void *txBuffer, void *rxBuffer,
-		      uint16_t length)
+bool SPIBidirectional(SPIDevice device, const void *txBuffer, void *rxBuffer,
+                      uint16_t length)
 {
     return SPISendCommandInternal(device, 0, 0,
-				  txBuffer, length, rxBuffer, 0, true);
+                                  txBuffer, length, rxBuffer, 0, true);
 }
 
 bool SPISendCommand(SPIDevice device, uint32_t command, uint8_t comLength,
-		    void *sndBuffer,uint16_t sndLength,
-                    void *rcvBuffer,uint16_t rcvLength)
+                    const void *sndBuffer, uint16_t sndLength,
+                    void *rcvBuffer, uint16_t rcvLength)
 {
     return SPISendCommandInternal(device, command, comLength,
-				  sndBuffer, sndLength,
-				  rcvBuffer, rcvLength, false);
+                                  sndBuffer, sndLength,
+                                  rcvBuffer, rcvLength, false);
 }
 
-static void CompleteIO(SPIBusData *thisBusData, const SPIDevInfo *thisDevInfo)
+static void CompleteIO(SPIBusData *thisBusData, const SPIDevInfo *thisDevInfo,
+                       bool success)
 {
+    if (thisDevInfo->postTransaction)
+        thisDevInfo->postTransaction(thisDevInfo, success);
+
     GPIOSetOff(thisDevInfo->selGPIO);
+
+    if (thisDevInfo->postCS)
+        thisDevInfo->postCS(thisDevInfo, success);
 }
 
 static bool StartIO(SPIBusData *thisBusData, const SPIDevInfo *thisDevInfo)
 {
     GPIOSetOn(thisDevInfo->selGPIO);
+
+    if (thisDevInfo->preTransaction) {
+        if (!thisDevInfo->preTransaction(thisDevInfo))
+            return false;
+    }
 
     /*
      * Now we start the I/O in the first state that exists.  The
@@ -368,25 +473,28 @@ static bool StartIO(SPIBusData *thisBusData, const SPIDevInfo *thisDevInfo)
         //Initialize the state machine
         thisBusData->State = SendCommandState;
         //Now start the data transfer
-        if(thisBusData->biDirectional){
+        if(thisBusData->biDirectional) {
             spiSendAndGetDataByte(thisDevInfo->thisBus, &thisDevInfo->thisDat1,
                                   thisBusData->CmdBytes, thisBusData->cmd.byte,
-				  thisBusData->RxBuffer);
+                                  thisBusData->RxBuffer);
         } else {
             spiSendDataByte(thisDevInfo->thisBus, &thisDevInfo->thisDat1,
                             thisBusData->CmdBytes, thisBusData->cmd.byte);
         }
-    } else if (thisBusData->TxBytes != 0){
+    } else if (thisBusData->TxBytes != 0) {
         thisBusData->State = SendDataState;
-        if(thisBusData->biDirectional){
+        if (thisBusData->biDirectional) {
             spiSendAndGetDataByte(thisDevInfo->thisBus, &thisDevInfo->thisDat1,
-                                  thisBusData->TxBytes,thisBusData->TxBuffer,thisBusData->RxBuffer);
+                                  thisBusData->TxBytes, thisBusData->TxBuffer,
+                                  thisBusData->RxBuffer);
         } else {
-            spiSendDataByte(thisDevInfo->thisBus, &thisDevInfo->thisDat1,thisBusData->TxBytes,thisBusData->TxBuffer);
+            spiSendDataByte(thisDevInfo->thisBus, &thisDevInfo->thisDat1,
+                            thisBusData->TxBytes, thisBusData->TxBuffer);
         }
-    } else if (thisBusData->RxBytes != 0){
+    } else if (thisBusData->RxBytes != 0) {
         thisBusData->State = ReceiveDataState;
-        spiGetDataByte(thisDevInfo->thisBus, &thisDevInfo->thisDat1,thisBusData->RxBytes,thisBusData->RxBuffer);
+        spiGetDataByte(thisDevInfo->thisBus, &thisDevInfo->thisDat1,
+                       thisBusData->RxBytes, thisBusData->RxBuffer);
     } else {
         return false;
     }
@@ -399,91 +507,118 @@ static bool StartIO(SPIBusData *thisBusData, const SPIDevInfo *thisDevInfo)
 
 }
 /*
- * The following routines are all part of the state machine and interrupt routines that run the whole
- * SPI mechanism, either per-character interrupt or DMA.
+ * The following routines are all part of the state machine and
+ * interrupt routines that run the whole SPI mechanism, either
+ * per-character interrupt or DMA.
  */
 
+static SPIBusData *spidev_to_bus(spiBASE_t *spiDev)
+{
+    if (spiDev == spiREG1)
+        return &bus1Data;
+    if (spiDev == spiREG3)
+        return &bus3Data;
+    return &bus5Data;
+}
 
 /* Interrupt Handlers */
 void spiEndNotification(spiBASE_t *spiDev)
 {
-    SPIBusData *thisBusData = (spiDev == spiREG1) ? &bus1Data :((spiDev==spiREG2) ? &bus2Data : ((spiDev==spiREG3) ? &bus3Data:
-            ((spiDev==spiREG4) ? &bus4Data:&bus5Data)));
+    SPIBusData *thisBusData = spidev_to_bus(spiDev);
 
-    //void SPIStateMachine(const SPIBusInfo *thisBusInfo){
+    //void SPIStateMachine(const SPIBusInfo *thisBusInfo) {
     /*
-     * The SPI peripheral is set up as "Two-wire, full duplex".
-     * That means it always sends and receives at the same time (and in fact MUST
-     * do both together).  To get the clock (SCK) to go, you need to send something
-     * even if all you want is receive data.  In addition, when you send good data,
-     * you still get junk coming into the receive buffer.
+     * The SPI peripheral is set up as "Two-wire, full duplex".  That
+     * means it always sends and receives at the same time (and in
+     * fact MUST do both together).  To get the clock (SCK) to go, you
+     * need to send something even if all you want is receive data.
+     * In addition, when you send good data, you still get junk coming
+     * into the receive buffer.
      *
      * The driver is implemented as a state machine with states as follows:
-     *	DoneState,
-     *	SendCommandState,
-     *	SendDataState,
-     *	ReceiveDataState
+     *  DoneState,
+     *  SendCommandState,
+     *  SendDataState,
+     *  ReceiveDataState
      *
      * DoneState = Done. No more interrupts expected
      * SendCommandState = The ISR is entered because sending commands is completed
      * SendDataState = The ISR is entered because sending data is completed
      * ReceiveDataState = The ISR is entered because receiving data is completed
      *
-     * We can use DMA or interrupt-per-character, and only asking for interrupts on the receive channel.  Thus
-     * when we get a receive interrupt, we know that all the transmits are also done (since
-     * the transmitter fetches a new byte just as the old one starts shifting out.  The
-     * receiver writes a new byte (and interrupts when done) AFTER the shift out/in is done.
+     * We can use DMA or interrupt-per-character, and only asking for
+     * interrupts on the receive channel.  Thus when we get a receive
+     * interrupt, we know that all the transmits are also done (since
+     * the transmitter fetches a new byte just as the old one starts
+     * shifting out.  The receiver writes a new byte (and interrupts
+     * when done) AFTER the shift out/in is done.
      *
-     * When we are receiving junk that we don't care about we use the 1-byte buffer called "black
-     * hole" and for DMA disable memory increment so the DMA keeps going there.  Similarly when
-     * we are transmitting junk.
+     * When we are receiving junk that we don't care about we use the
+     * 1-byte buffer called "black hole" and for DMA disable memory
+     * increment so the DMA keeps going there.  Similarly when we are
+     * transmitting junk.
      *
-     * Sometimes, we need to skip an interrupt.  That's why this whole thing is enclosed in a
-     * loop; if we need to skip a state, we set the next state, and then set the variable to loop
-     * around and go to the next state.
+     * Sometimes, we need to skip an interrupt.  That's why this whole
+     * thing is enclosed in a loop; if we need to skip a state, we set
+     * the next state, and then set the variable to loop around and go
+     * to the next state.
      */
 
 
     /*
-     * Find out what we were doing by checking the state.  We use if, not if/else or switch
-     * because sometimes we might skip a state.  For example, if we are in state 1, we have just
-     * finished sending the command.  But if there is no send buffer to send, we immediately
-     * drop into the ==2 handler rather than waiting for another interrupt.
+     * Find out what we were doing by checking the state.  We use if,
+     * not if/else or switch because sometimes we might skip a state.
+     * For example, if we are in state 1, we have just finished
+     * sending the command.  But if there is no send buffer to send,
+     * we immediately drop into the ==2 handler rather than waiting
+     * for another interrupt.
      */
     bool repeatSwitch = true;
-    while(repeatSwitch){
-        switch (thisBusData->State){
+    while(repeatSwitch) {
+        switch (thisBusData->State) {
         case SendCommandState: {
             /*
-             * This was an interrupt saying we just finished sending the command
-             * buffer, let's set up for the data if there is any to do.
+             * This was an interrupt saying we just finished sending
+             * the command buffer, let's set up for the data if there
+             * is any to do.
              */
-            thisBusData->State = SendDataState;     /* State for sending from Tx buffer */
-            if (thisBusData->TxBytes != 0){
+            thisBusData->State = SendDataState; /* State for sending from Tx buffer */
+            if (thisBusData->TxBytes != 0) {
                 // We have sent the command.  Here we have data to send also.
-                //void spiSendDataByte(spiBASE_t *spi, const spiDAT1_t *dataconfig_t, uint32 blocksize, uint8 * srcbuff);
+                //void spiSendDataByte(spiBASE_t *spi,
+                //                     const spiDAT1_t *dataconfig_t,
+                //                     uint32 blocksize, uint8 * srcbuff);
 
-                spiSendDataByte(spiDev, thisBusData->thisDat1,thisBusData->TxBytes,thisBusData->TxBuffer);
+                spiSendDataByte(spiDev, thisBusData->thisDat1,
+                                thisBusData->TxBytes, thisBusData->TxBuffer);
                 repeatSwitch = false;
             }
-            /* If there is no transmit data, repeatSwitch stays true, so we try again on the next state */
+            /*
+             * If there is no transmit data, repeatSwitch stays true,
+             * so we try again on the next state.
+             */
             break;
         }
         case SendDataState: {
             /*
-             * Here we have sent the command as well as the transmit buffer (or it was null).  The
-             * next state is state 3 (receive data).  If there are no bytes to receive, great.  Drop
-             * through and enter the state=3 completion section.  Otherwise, set up to receive and
-             * return to wait for another interrupt.
+             * Here we have sent the command as well as the transmit
+             * buffer (or it was null).  The next state is state 3
+             * (receive data).  If there are no bytes to receive,
+             * great.  Drop through and enter the state=3 completion
+             * section.  Otherwise, set up to receive and return to
+             * wait for another interrupt.
              */
             thisBusData->State = ReceiveDataState;
-            if(thisBusData->RxBytes!=0){
+            if(thisBusData->RxBytes!=0) {
                 uint8_t *rxBuffer = thisBusData->RxBuffer;
-                if(thisBusData->biDirectional){
-                    // If biDirectional, we read CmdBytes (or TxBytes) into the buffer already, so skip
-                    // ahead of that
+                if(thisBusData->biDirectional) {
+                    /*
+                     * If biDirectional, we read CmdBytes (or TxBytes)
+                     * into the buffer already, so skip ahead of that/
+                     */
                     rxBuffer+=(thisBusData->CmdBytes + thisBusData->TxBytes);
-                    thisBusData->biDirectional = false;  // We are done with special stuff for bidirectional
+                    // We are done with special stuff for bidirectional
+                    thisBusData->biDirectional = false;
                 }
                 spiGetDataByte(spiDev, thisBusData->thisDat1,thisBusData->RxBytes,rxBuffer);
                 repeatSwitch=false;
@@ -494,13 +629,15 @@ void spiEndNotification(spiBASE_t *spiDev)
         case ReceiveDataState: {
             BaseType_t higherPrioTaskWoken;
             /*
-             * This came from the Rx DMA done or possibly we just dropped through from
-             * "end of Tx and nothing to Rx" section in state 2 above.
-             * Whatever the case, we are done when we get here. Wake up the caller.
+             * This came from the Rx DMA done or possibly we just
+             * dropped through from "end of Tx and nothing to Rx"
+             * section in state 2 above.  Whatever the case, we are
+             * done when we get here. Wake up the caller.
              */
             repeatSwitch = false;
             thisBusData->State = DoneState;
-            (void)(xSemaphoreGiveFromISR(thisBusData->SPIDoneSemaphore,&higherPrioTaskWoken));
+            (void)(xSemaphoreGiveFromISR(thisBusData->SPIDoneSemaphore,
+                                         &higherPrioTaskWoken));
             break;
         }
         case DoneState:
@@ -508,7 +645,8 @@ void spiEndNotification(spiBASE_t *spiDev)
         {
             repeatSwitch = false;
             /* We should not get these states */
-            //ReportError(UnexpectedBehavior,true,ReturnAddr,(int)__builtin_return_address(0));
+            //ReportError(UnexpectedBehavior, true, ReturnAddr,
+            //            (int)__builtin_return_address(0));
             break;
         }
         }
