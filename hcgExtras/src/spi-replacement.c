@@ -67,7 +67,7 @@ static volatile struct g_spiPacket
     spiDAT1_t g_spiDataFormat;
     uint32  tx_length;
     uint32  rx_length;
-    uint8  * txdata_ptr;
+    const uint8  * txdata_ptr;
     uint8  * rxdata_ptr;
     SpiDataStatus_t tx_data_status;
     SpiDataStatus_t rx_data_status;
@@ -130,7 +130,7 @@ void spiGetDataByte(spiBASE_t *spi, spiDAT1_t *dataconfig_t, uint32 blocksize, u
 *   @return flag register value.
 *
 */
-void spiSendDataByte(spiBASE_t *spi, spiDAT1_t *dataconfig_t, uint32 blocksize, uint8 * srcbuff)
+void spiSendDataByte(spiBASE_t *spi, spiDAT1_t *dataconfig_t, uint32 blocksize, const uint8 * srcbuff)
 {
      uint32 index = (spi == spiREG1) ? 0U :((spi==spiREG2) ? 1U : ((spi==spiREG3) ? 2U:((spi==spiREG4) ? 3U:4U)));
 
@@ -158,7 +158,7 @@ void spiSendDataByte(spiBASE_t *spi, spiDAT1_t *dataconfig_t, uint32 blocksize, 
 *   @param[in] destbuff        - Pointer to the destination data ( 8 bit).
 *
 */
-void spiSendAndGetDataByte(spiBASE_t *spi, spiDAT1_t *dataconfig_t, uint32 blocksize, uint8 * srcbuff, uint8 * destbuff)
+void spiSendAndGetDataByte(spiBASE_t *spi, spiDAT1_t *dataconfig_t, uint32 blocksize, const uint8 * srcbuff, uint8 * destbuff)
 {
 
 /* USER CODE BEGIN (17) */
