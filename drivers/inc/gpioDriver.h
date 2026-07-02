@@ -78,6 +78,13 @@ typedef enum gu {
     TX_DAC_Sel, PC104_I2C_En, PC104_UART_En, Ant_Power, Ant_Interrupt,
     Ant_Sel,
     PC104_GPIO1, PC104_GPIO2, PC104_GPIO4,
+
+    /*
+     * NOTE: Take care using the following GPIOs.  Setting and
+     * fetching the values blocks because they do SPI operations.
+     */
+    PC104_GPIO7, PC104_GPIO8,
+    Ant_Ctl_Power, Ant_ADC_Power, Ant_Extra,
 #endif
 
     NumberOfGPIOs

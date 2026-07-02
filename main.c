@@ -181,6 +181,9 @@ void startup(void)
     /* Just turn on the main 5043 power for now. */
     GPIOSetOn(AX5043Power);
 
+    /* Turn on the antenna control processor. */
+    GPIOSetOn(Ant_Power);
+
     /* Turn on the LNA.  FIXME - do this when necessary. */
     GPIOSetOn(LNAPower);
 

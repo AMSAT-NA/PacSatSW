@@ -14,9 +14,11 @@
 
 volatile bool acp_failed;
 
+bool acp_trace;
+
 static xSemaphoreHandle acp_sem;
 
-void (*acp_rx_msg_handler)(const unsigned char msg[ACP_MSG_SIZE]);
+void (*acp_handlers[MAX_ACP_MSGID])(unsigned char *msg);
 
 void acp_init(void)
 {
@@ -66,7 +68,7 @@ int acp_send(const unsigned char msg[ACP_MSG_SIZE])
         goto out;
     }
 
-    if (rxbuffer[0] != ACP_MSG_ID_INVALID) {
+    if (acp_trace && rxbuffer[0] != ACP_MSG_ID_INVALID) {
         unsigned int i;
 
         printf("Got rx message:  \n");
@@ -74,8 +76,8 @@ int acp_send(const unsigned char msg[ACP_MSG_SIZE])
             printf(" %2.2x", rxbuffer[i]);
         printf("\n");
     }
-    if (rxbuffer[0] != ACP_MSG_ID_INVALID && acp_rx_msg_handler)
-        acp_rx_msg_handler(rxbuffer);
+    if (rxbuffer[0] < MAX_ACP_MSGID && acp_handlers[rxbuffer[0]])
+	acp_handlers[rxbuffer[0]](rxbuffer);
 
  out:
     xSemaphoreGive(acp_sem);

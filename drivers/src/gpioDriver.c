@@ -17,6 +17,7 @@
 #include "het.h"
 #include "i2c.h"
 #include "sci.h"
+#include "errors.h"
 #include "reg_adc.h"
 #include "reg_system.h"
 
@@ -43,6 +44,8 @@
  * Then add your new GPIOInfo struct to GPIOInfoStructures[] for the given
  * hardware and to to GPIONames[].
  */
+
+struct _GPIOInfo;
 
 /*
  * Base functions for a GPIO type, like the PORT ones (gio, het, spi),
@@ -77,6 +80,9 @@ typedef struct GPIOFuncs {
 struct _GPIOHandler {
     void *data;
     const GPIOFuncs *funcs;
+
+    /* Optional initialize function */
+    int (*init)(const struct _GPIOInfo *gpio);
 
     /*
      * Can the GPIO in this type be used as an interrupt?  This should
@@ -483,6 +489,11 @@ typedef struct _GPIOInfo {
     bool InitialStateOn;
 
     /*
+     * Don't set the initial state here.  Just leave it as it is.
+     */
+    bool DoNotSetInitialState;
+
+    /*
      * If true, the GPIO is an output.  If false it is an input.
      */
     bool DirectionIsOut;
@@ -710,6 +721,157 @@ static const GPIOInfo SSPAPowerInfo = {
 };
 
 #ifdef AFSK_HARDWARE3
+/*
+ * Functions for handling GPIOs on the antenna control processor.
+ * These require SPI messaging through the ACP.
+ */
+
+#include "acp.h"
+
+struct acp_gpio {
+    xSemaphoreHandle done_sem;
+    xSemaphoreHandle in_use;
+    bool waiting;
+    int val;
+};
+
+#define ACP_SET_GPIO 3
+#define ACP_GET_GPIO 4
+#define ACP_GPIO_VALUE 5
+
+#define NUM_ACP_GPIOS 5
+static struct acp_gpio acp_gpio[NUM_ACP_GPIOS];
+
+static void acp_gpio_handler(unsigned char *msg)
+{
+    unsigned int pin = msg[1];
+
+    if (pin >= NUM_ACP_GPIOS)
+	return;
+    if (acp_gpio[pin].waiting) {
+	acp_gpio[pin].val = msg[2];
+	xSemaphoreGive(acp_gpio[pin].done_sem);
+    }
+}
+
+static void ACPGPIO_setBit(const GPIOHandler *h, uint16_t pin, uint16_t val)
+{
+    unsigned char msg[ACP_MSG_SIZE];
+
+    msg[0] = ACP_SET_GPIO;
+    msg[1] = pin;
+    msg[2] = val;
+    acp_send(msg);
+}
+
+static uint16_t ACPGPIO_getBit(const GPIOHandler *h, uint16_t pin)
+{
+    unsigned char msg[ACP_MSG_SIZE];
+    uint16_t val = 0;
+
+    msg[0] = ACP_GET_GPIO;
+    msg[1] = pin;
+
+    if (!xSemaphoreTake(acp_gpio[pin].in_use, SHORT_WAIT_TIME)) {
+        ReportError(SPIInUse, false, ReturnAddr,
+                    (int)__builtin_return_address(0));
+	return 0;
+    }
+    acp_gpio[pin].waiting = true;
+    acp_send(msg);
+    if (!xSemaphoreTake(acp_gpio[pin].done_sem, SHORT_WAIT_TIME))
+	ReportError(SemaphoreFail, true, CharString, (int)"ACPGPIOTake");
+    else
+	val = acp_gpio[pin].val;
+    acp_gpio[pin].waiting = false;
+
+    xSemaphoreGive(acp_gpio[pin].in_use);
+
+    return val;
+}
+
+static void ACPGPIO_toggleBit(const GPIOHandler *h, uint16_t pin)
+{
+    ACPGPIO_setBit(h, pin, ACPGPIO_getBit(h, pin));
+}
+
+static void ACPGPIO_setDirectionOut(const GPIOHandler *h, uint16_t pin,
+                                    bool val)
+{
+}
+
+static void ACPGPIO_setOpenDrain(const GPIOHandler *h, uint16_t pin,
+				 bool val)
+{
+}
+
+static const GPIOFuncs ACPGPIOFuncs = {
+    .setBit = ACPGPIO_setBit,
+    .getBit = ACPGPIO_getBit,
+    .toggleBit = ACPGPIO_toggleBit,
+    .setDirectionOut = ACPGPIO_setDirectionOut,
+    .setOpenDrain = ACPGPIO_setOpenDrain,
+};
+
+static int acp_gpio_init(const GPIOInfo *gpio)
+{
+    unsigned int pin = gpio->PinNum;
+
+    vSemaphoreCreateBinary(acp_gpio[pin].done_sem);
+    if (!acp_gpio[pin].done_sem)
+	return 0;
+    xSemaphoreTake(acp_gpio[pin].done_sem, 0);
+    acp_gpio[pin].in_use = xSemaphoreCreateMutex();
+    if (!acp_gpio[pin].in_use)
+	return 0;
+    acp_handlers[ACP_GPIO_VALUE] = acp_gpio_handler;
+    return 1;
+}
+
+const GPIOHandler acpGPIO = {
+    .data = NULL,
+    .init = acp_gpio_init,
+    .funcs = &ACPGPIOFuncs
+};
+
+static const GPIOInfo PC104_7_Info = {
+    .info		= &acpGPIO,
+    .PinNum		= 4,
+    .DoNotSetInitialState = true,
+    .DirectionIsOut	= GPIO_IN,
+};
+
+static const GPIOInfo PC104_8_Info = {
+    .info		= &acpGPIO,
+    .PinNum		= 0,
+    .DoNotSetInitialState = true,
+    .DirectionIsOut	= GPIO_IN,
+};
+
+static const GPIOInfo Ant_Ctl_Power_Info = {
+    .info		= &acpGPIO,
+    .PinNum		= 1,
+    .DoNotSetInitialState = true,
+    .DirectionIsOut	= GPIO_OUT,
+    .NegativeLogic	= true,
+};
+
+static const GPIOInfo Ant_Extra_Info = {
+    .info		= &acpGPIO,
+    .PinNum		= 2,
+    .DoNotSetInitialState = true,
+    .DirectionIsOut	= GPIO_IN,
+};
+
+static const GPIOInfo Ant_ADC_Power_Info = {
+    .info		= &acpGPIO,
+    .PinNum		= 3,
+    .DoNotSetInitialState = true,
+    .DirectionIsOut	= GPIO_OUT,
+    .NegativeLogic	= true,
+};
+
+
 static const GPIOInfo TX_DAC_Selector = {
     .info                 = &SPI_TxDAC_Select_Port,
     .PinNum               = SPI_TxDAC_Select_Pin,
@@ -980,7 +1142,8 @@ static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] =
 #ifdef AFSK_HARDWARE3
     &TX_DAC_Selector, &PC104_I2C_Enable, &PC104_UART_Enable, &Ant_PowerInfo,
     &Ant_InterruptInfo, &Ant_SelInfo,
-    &PC104_1_Info, &PC104_2_Info, &PC104_4_Info,
+    &PC104_1_Info, &PC104_2_Info, &PC104_4_Info, &PC104_7_Info, &PC104_8_Info,
+    &Ant_Ctl_Power_Info, &Ant_ADC_Power_Info, &Ant_Extra_Info,
 #endif
 };
 
@@ -1008,6 +1171,7 @@ static const char *GPIONames[NumberOfGPIOs] = {
 #ifdef AFSK_HARDWARE3
     "TX_DAC", "PC104_I2C_Enable", "PC104_UART_Enable", "Ant_Power",
     "Ant_Interrupt", "Ant_Sel", "PC104_1", "PC104_2", "PC104_4",
+    "PC104_7", "PC104_8", "Ant_Ctl_Power", "Ant_ADC_Power", "Ant_Extra",
 #endif
 };
 #endif
@@ -1055,6 +1219,10 @@ bool GPIOInit(Gpio_Use whichGpio, const struct gpio_irq_info *irqinfo)
     }
 #endif
 
+    if (thisGPIO->info->init)
+	if (!thisGPIO->info->init(thisGPIO))
+	    return false;
+
     if (thisGPIO->DirectionIsOut) {
 
         /*
@@ -1073,10 +1241,12 @@ bool GPIOInit(Gpio_Use whichGpio, const struct gpio_irq_info *irqinfo)
         thisGPIO->info->funcs->setOpenDrain(thisGPIO->info, pinNum, 
                                             thisGPIO->OpenDrain);
 
-        if (thisGPIO->InitialStateOn)
-            GPIOSetOn(whichGpio);
-        else
-            GPIOSetOff(whichGpio);
+	if (!thisGPIO->DoNotSetInitialState) {
+	    if (thisGPIO->InitialStateOn)
+		GPIOSetOn(whichGpio);
+	    else
+		GPIOSetOff(whichGpio);
+	}
 
         /*
          * Delay setting the direction until here to avoid glitching
@@ -1087,7 +1257,6 @@ bool GPIOInit(Gpio_Use whichGpio, const struct gpio_irq_info *irqinfo)
         thisGPIO->info->funcs->setDirectionOut(thisGPIO->info,
                                                thisGPIO->PinNum, true);
     } else {
-
         /*
          * Here the direction is in so check for and set up interrupt
          * possibilities

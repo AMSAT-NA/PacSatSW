@@ -12,7 +12,8 @@
 
 extern volatile bool acp_failed;
 
-extern void (*acp_rx_msg_handler)(const unsigned char msg[ACP_MSG_SIZE]);
+#define MAX_ACP_MSGID 6
+extern void (*acp_handlers[MAX_ACP_MSGID])(unsigned char *msg);
 
 void acp_init(void);
 
