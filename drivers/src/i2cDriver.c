@@ -50,11 +50,11 @@ typedef struct _BusData {
     int RxIndex,TxIndex;
     uint8_t *RxBuffer,*TxBuffer;
     bool resendAddress;
-}I2cBusData;
+} I2cBusData;
 
 // Here are the per-bus data structures:
 
-static I2cBusData bus1Data,bus2Data;
+static I2cBusData bus1Data, bus2Data;
 
 // These are all indexed by the bus number
 
@@ -65,7 +65,6 @@ static volatile bool waitFlag[] = { true, true };
 static volatile bool successFlag[] = { true, true };
 // This is for stuff that looks like the bus has come loose or something
 static volatile bool majorFailure[] = { false, false };
-static volatile bool waitingForSemaphore[] = { false, false };
 static volatile bool firstInit[] = { true, true };
 
 /* Forward (i.e. internal only) routine declarations */
@@ -96,8 +95,6 @@ void I2cInit(I2cBusNum thisBusNumber)
     // Init the data counts
     thisBusData->RxBytes = 0;
     thisBusData->TxBytes = 0;
-    // Don't free the semaphore when we are not waiting!
-    waitingForSemaphore[thisBusNumber] = false;
     // Init the I2c Lines
     if (thisBusNumber == I2C1) {
         //GPIOInit(I2c1Reset,NO_TASK,NO_MESSAGE);
@@ -122,8 +119,10 @@ void I2cInit(I2cBusNum thisBusNumber)
             ReportError(SemaphoreFail, true, CharString, (int)"I2cAllocSema");
         }
     } else {
-        // Not the first time so we are resetting.  Make sure the semaphores are released before we
-        // try to take them again.  This will fail if the semaphore is already released but that is ok
+        // Not the first time so we are resetting.  Make sure the
+        // semaphores are released before we try to take them again.
+        // This will fail if the semaphore is already released but
+        // that is ok
         xSemaphoreGive(thisBusData->I2cDoneSemaphore);
         xSemaphoreGive(thisBusData->I2cInUseSemaphore);
     }
@@ -217,8 +216,9 @@ bool I2cSendCommand(I2cBusNum busNum, uint32_t address,
     ReportToWatchdog(CurrentTaskWD);
     taskWithSemaphore = (((uint32_t)xTaskGetApplicationTaskTag(0)));
     /*
-     * Set up the bus data structure with info about the IO.  This might not be needed except for
-     * the semaphore. Everything else could be local variables, but let's not mess with a generally
+     * Set up the bus data structure with info about the IO.  This
+     * might not be needed except for the semaphore. Everything else
+     * could be local variables, but let's not mess with a generally
      * good thing.
      */
     thisBusData->SlaveAddress = address;
@@ -272,13 +272,10 @@ static inline bool DoIO(void)
     }
     thisBus->MDR = MDRreg;
 
-    waitingForSemaphore[busNum] = true;
     i2cSend(thisBus, thisBusData->TxBytes, thisBusData->TxBuffer);
     if(!xSemaphoreTake(thisBusData->I2cDoneSemaphore, I2C_TIMEOUT)) {
         vPortEnterCritical();
         if (!xSemaphoreTake(thisBusData->I2cDoneSemaphore,0)) {
-	    // Ignore interrupts that might free the semaphore
-            waitingForSemaphore[busNum] = false;
             vPortExitCritical();
             // ReportError(I2cError[busNum],false,CharString,(int)"SemaSend");
             // This is just a timeout here
@@ -311,12 +308,10 @@ static inline bool DoIO(void)
 	thisBus->MDR = MDRreg;
 
 	//Ok, time to pay attention to the semaphore
-        waitingForSemaphore[busNum] = true;
         i2cReceive(thisBus, thisBusData->RxBytes, thisBusData->RxBuffer);
         if (!majorFailure[busNum]) {
             if (!xSemaphoreTake(thisBusData->I2cDoneSemaphore,
 				SECONDS(5)/*SHORT_WAIT_TIME*/)) {
-                waitingForSemaphore[busNum] = false;
                 ReportError(I2cError[busNum], false, CharString,
 			    (int)"Timeout");
             }
@@ -336,12 +331,9 @@ static inline bool DoIO(void)
     if (!successFlag[busNum] && (i2cIsStopDetected(thisBus) == 0)) {
         // If it failed, and bus is not in the stopped condition...
 
-	//Ok, time to pay attention to the semaphore
-        waitingForSemaphore[busNum] = true;
         i2cSetStop(thisBus);    // Stop it
         // And wait for the interrupt saying it has stopped
         if(!xSemaphoreTake(thisBusData->I2cDoneSemaphore,SHORT_WAIT_TIME)) {
-            waitingForSemaphore[busNum] = false;
             ReportError(I2cError[busNum], false, TaskNumber,
 			(int)__builtin_return_address(0));
             return false;
@@ -355,7 +347,6 @@ static inline bool DoIO(void)
  * given by HalCoGen.  We only use the SCD (Stop Condition Detect)
  * interrupt.  It would be good to be able to use other interrupts and
  * recover from bad stuff.
- *
  */
 void i2cNotification(i2cBASE_t *i2cDev, uint32_t interruptType)
 {
@@ -420,6 +411,5 @@ void i2cNotification(i2cBASE_t *i2cDev, uint32_t interruptType)
 
 	(void)(xSemaphoreGiveFromISR(thisBusData->I2cDoneSemaphore,
 				     &higherPrioTaskWoken));
-	waitingForSemaphore[thisBusIndex] = false;
     }
 }
