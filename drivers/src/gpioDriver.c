@@ -1169,7 +1169,7 @@ static const char *GPIONames[NumberOfGPIOs] = {
     "CANAPower", "CANBPower",
 
 #ifdef AFSK_HARDWARE3
-    "TX_DAC", "PC104_I2C_Enable", "PC104_UART_Enable", "Ant_Power",
+    "TX_DAC_Sel", "PC104_I2C_Enable", "PC104_UART_Enable", "Ant_Power",
     "Ant_Interrupt", "Ant_Sel", "PC104_1", "PC104_2", "PC104_4",
     "PC104_7", "PC104_8", "Ant_Ctl_Power", "Ant_ADC_Power", "Ant_Extra",
 #endif
