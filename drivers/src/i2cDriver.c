@@ -139,7 +139,7 @@ void I2cInit(I2cBusNum thisBusNumber)
     return;
 }
 
-void I2cResetBus(uint32_t busNum,bool isError)
+static void I2cResetBus(uint32_t busNum,bool isError)
 {
     I2cBusData *thisBusData = I2cBuses[busNum];
     /*
