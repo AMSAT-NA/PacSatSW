@@ -14,9 +14,8 @@
 #include "errors.h"
 #include "config.h"
 #include "hardwareConfig.h"
-#include "het.h"
 #include "i2cDriver.h"
-#include "gpioDriver.h"
+#indlude "acp.h"
 
 /* FreeRTOS includes. */
 #include "FreeRTOS.h"
@@ -30,7 +29,6 @@
 struct i2c_data;
 
 struct i2c_funcs {
-    ErrorType_t I2cError;
     void (*init)(struct i2c_data *i2c_bus);
     int (*io)(struct i2c_data *i2c_bus,
 	      uint32_t SlaveAddress,
@@ -41,23 +39,45 @@ struct i2c_funcs {
 struct i2c_data {
     const struct i2c_funcs *funcs;
     unsigned int bus_num;
+    ErrorType_t I2cError;
     xSemaphoreHandle I2cDoneSemaphore;
     xSemaphoreHandle I2cInUseSemaphore;
     volatile bool successFlag;
     volatile bool majorFailure;
     int busResetsRemaining;
+
+    /* FIXME - move these to acp specific place. */
+    unsigned int rx_len;
+    uint8_t status;
+    uint8_t curr_addr;
+    uint8_t rxbuffer[32];
 };
 
 static void I2cInitBus(struct i2c_data *i2c_bus);
-static inline bool DoIO(struct i2c_data *i2c_bus,
+static bool DoIO(struct i2c_data *i2c_bus,
+		 uint32_t SlaveAddress,
+		 uint8_t *TxBuffer, uint32_t TxBytes,
+		 uint8_t *RxBuffer, uint32_t RxBytes);
+
+static const struct i2c_funcs main_i2c_funcs = {
+    .init = I2cInitBus,
+    .io = DoIO,
+};
+
+static const struct i2c_funcs main_i2c_funcs = {
+    .io = DoIO,
+};
+
+static void acp_i2c_init(struct i2c_data *i2c_bus);
+static bool acp_i2_DoIO(struct i2c_data *i2c_bus,
 			uint32_t SlaveAddress,
 			uint8_t *TxBuffer, uint32_t TxBytes,
 			uint8_t *RxBuffer, uint32_t RxBytes);
 
 static const struct i2c_funcs main_i2c_funcs = {
     .I2cError = I2C1failure,
-    .init = I2cInitBus,
-    .io = DoIO,
+    .init = acp_i2c_init,
+    .io = acp_i2c_DoIO,
 };
 
 // Here are the per-bus data structures:
@@ -65,6 +85,25 @@ static const struct i2c_funcs main_i2c_funcs = {
 static struct i2c_data i2cBuses[NUM_I2C_BUSSES] = {
     {
 	.funcs = &main_i2c_funcs,
+	.I2cError = I2C1failure,
+	.busResetsRemaining = 5,
+    },
+    {
+	.funcs = &acp_i2c_funcs,
+	.I2cError = I2C2failure,
+	.bus_num = 0,
+	.busResetsRemaining = 5,
+    },
+    {
+	.funcs = &acp_i2c_funcs,
+	.I2cError = I2C2failure,
+	.bus_num = 1,
+	.busResetsRemaining = 5,
+    },
+    {
+	.funcs = &acp_i2c_funcs,
+	.I2cError = I2C2failure,
+	.bus_num = 2,
 	.busResetsRemaining = 5,
     },
 };
@@ -80,29 +119,8 @@ void i2c_init(void)
     for (i = 0; i < NUM_I2C_BUSSES; i++) {
 	struct i2c_data *i2c_bus = &i2cBuses[i];
 
-	i2c_bus->funcs->init(i2c_bus);
-    }
-}
-
-static void I2cInitBus(struct i2c_data *i2c_bus)
-{
-    (void)(vSemaphoreCreateBinary(i2c_bus->I2cDoneSemaphore));
-    // In use wants a mutex to get priority inheritance
-    i2c_bus->I2cInUseSemaphore = xSemaphoreCreateMutex();
-    if ((i2c_bus->I2cDoneSemaphore == NULL)
-	|| (i2c_bus->I2cInUseSemaphore == NULL)) {
-	ReportError(SemaphoreFail, true, CharString, (int)"I2cAllocSema");
-    }
-
-    if (i2c_bus->I2cDoneSemaphore != NULL) {
-	/*
-	 * We want the 'done' semaphore to be taken by default
-	 * The interrupt routine will give it back (and unblock us)
-	 * when it is done.
-	 */
-	if (xSemaphoreTake(i2c_bus->I2cDoneSemaphore, 0) != pdTRUE)
-	    ReportError(SemaphoreFail, true, CharString,
-			(int)"I2cTakeSema");
+	if (i2c_bus->funcs->init)
+	    i2c_bus->funcs->init(i2c_bus);
     }
 }
 
@@ -154,6 +172,112 @@ bool I2cSendCommand(I2cBusNum busNum, uint32_t address,
     return retVal;
 }
 
+/*
+ * Functions for the main I2C busses.
+ */
+
+#define ACP_I2C_CMD 1
+#define ACP_I2C_RSP 2
+
+#define MAX_I2C_ACP_MSG_SIZE (ACP_MSG_SIZE - 5)
+
+static void acp_i2c_rsp(unsigned char *msg)
+{
+    unsigned int i;
+
+    for (i = 0; i < NUM_I2C_BUSSES; i++) {
+	struct i2c_data *i2c_bus = &i2cBuses[i];
+
+	if (i2c_bus->func != &acp_i2c_funcs
+		|| i2c_bus->bus_num != msg[1])
+	    continue;
+
+	if (msg[3] != i2c_bus->rx_len)
+	    break;
+	if (msg[4] != i2c_bus->curr_addr)
+	    break;
+
+	status = msg[2];
+	if (msg[2] == 0)
+	    memcpy(i2c_bus->rxbuffer, &msg[5], msg[3]);
+	xSemaphoreGive(i2c_bus->I2cDoneSemaphore);
+	break;
+    }
+}
+
+static void acp_i2c_init(struct i2c_data *i2c_bus)
+{
+    acp_handlers[ACP_I2C_RSP] = acp_i2c_rsp;
+}
+
+static bool acp_i2c_DoIO(struct i2c_data *i2c_bus,
+			 uint32_t SlaveAddress,
+			 uint8_t *TxBuffer, uint32_t TxBytes,
+			 uint8_t *RxBuffer, uint32_t RxBytes)
+{
+    uint8_t msg[ACP_MSG_SIZE];
+    int rv;
+
+    if (TxBytes >= MAX_I2C_ACP_MSG_SIZE)
+	return false;
+    if (RxBytes >= MAX_I2C_ACP_MSG_SIZE)
+	return false;
+
+    i2c_bus->curr_addr = SlaveAddress;
+    i2c_bus->rx_len = RxBytes;
+
+    msg[0] = ACP_I2C_CMD;
+    msg[1] = i2c_bus->bus_num;
+    msg[2] = TxBytes;
+    msg[3] = RxBytes;
+    msg[4] = SlaveAddress;
+    memcpy(&msg[5], TxBuffer, TxBytes);
+
+    rv = acp_send(msg);
+    if (rv) {
+	ReportError(I2C2failure, true, PortNumber, 0);
+	return false;
+    }
+
+    if (!xSemaphoreTake(i2c_bus->I2cDoneSemaphore, SHORT_WAIT_TIME)) {
+	ReportError(I2C2failure, true, PortNumber, 0);
+	return false;
+    }
+
+    if (i2c_bus->status) {
+	return false;
+    }
+
+    memcpy(RxBuffer, i2c_bus->rxbuffer, RxBytes);
+    return true;
+}
+
+static void I2cInitBus(struct i2c_data *i2c_bus)
+{
+    (void)(vSemaphoreCreateBinary(i2c_bus->I2cDoneSemaphore));
+    // In use wants a mutex to get priority inheritance
+    i2c_bus->I2cInUseSemaphore = xSemaphoreCreateMutex();
+    if ((i2c_bus->I2cDoneSemaphore == NULL)
+	|| (i2c_bus->I2cInUseSemaphore == NULL)) {
+	ReportError(SemaphoreFail, true, CharString, (int)"I2cAllocSema");
+    }
+
+    if (i2c_bus->I2cDoneSemaphore != NULL) {
+	/*
+	 * We want the 'done' semaphore to be taken by default
+	 * The interrupt routine will give it back (and unblock us)
+	 * when it is done.
+	 */
+	if (xSemaphoreTake(i2c_bus->I2cDoneSemaphore, 0) != pdTRUE)
+	    ReportError(SemaphoreFail, true, CharString,
+			(int)"I2cTakeSema");
+    }
+}
+
+/*
+ * Functions for the main TMS570 I2C bus.
+ */
+
 static void I2cResetBus(struct i2c_data *i2c_bus, bool isError)
 {
     /*
@@ -162,7 +286,7 @@ static void I2cResetBus(struct i2c_data *i2c_bus, bool isError)
     xSemaphoreGive(i2c_bus->I2cInUseSemaphore);
 
     if (i2c_bus->busResetsRemaining <= 0) {
-	ReportError(I2C1failure, true, PortNumber, i2c_bus->bus_num);
+	ReportError(I2C1failure, true, PortNumber, 0);
     }
     i2cInit();
     i2cRxError(i2cREG1);
