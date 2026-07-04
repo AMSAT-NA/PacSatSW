@@ -154,10 +154,7 @@ void startup(void)
     rtiInit();
     rtiStartCounter(rtiCOUNTER_BLOCK0);
 
-    I2cInit(I2C1);
-#ifdef LAUNCHPAD_HARDWARE
-    I2cInit(I2C2);
-#endif
+    i2c_init();
 #ifdef AFSK_HARDWARE
     canInit();
 #endif
