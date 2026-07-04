@@ -47,9 +47,7 @@ typedef struct _BusData {
     xSemaphoreHandle I2cInUseSemaphore;
     uint32_t RxBytes, TxBytes;
     uint32_t SlaveAddress;
-    int RxIndex,TxIndex;
     uint8_t *RxBuffer,*TxBuffer;
-    bool resendAddress;
 } I2cBusData;
 
 // Here are the per-bus data structures:
@@ -61,7 +59,6 @@ static I2cBusData bus1Data, bus2Data;
 static I2cBusData *I2cBuses[] = { &bus1Data, &bus2Data };
 static i2cBASE_t *busAddress[] = { i2cREG1, 0 };
 static ErrorType_t I2cError[] = { I2C1failure, I2C2failure };
-static volatile bool waitFlag[] = { true, true };
 static volatile bool successFlag[] = { true, true };
 // This is for stuff that looks like the bus has come loose or something
 static volatile bool majorFailure[] = { false, false };
