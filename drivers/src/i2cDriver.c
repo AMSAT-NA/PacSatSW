@@ -125,6 +125,24 @@ void i2c_init(void)
     for (i = 0; i < NUM_I2C_BUSSES; i++) {
 	struct i2c_data *i2c_bus = &i2cBuses[i];
 
+	(void)(vSemaphoreCreateBinary(i2c_bus->I2cDoneSemaphore));
+	// In use wants a mutex to get priority inheritance
+	i2c_bus->I2cInUseSemaphore = xSemaphoreCreateMutex();
+	if ((i2c_bus->I2cDoneSemaphore == NULL)
+	    || (i2c_bus->I2cInUseSemaphore == NULL)) {
+	    ReportError(SemaphoreFail, true, CharString, (int)"I2cAllocSema");
+	}
+
+	if (i2c_bus->I2cDoneSemaphore != NULL) {
+	    /*
+	     * We want the 'done' semaphore to be taken by default
+	     * The interrupt routine will give it back (and unblock us)
+	     * when it is done.
+	     */
+	    if (xSemaphoreTake(i2c_bus->I2cDoneSemaphore, 0) != pdTRUE)
+		ReportError(SemaphoreFail, true, CharString,
+			    (int)"I2cTakeSema");
+	}
 	if (i2c_bus->funcs->init)
 	    i2c_bus->funcs->init(i2c_bus);
     }
@@ -217,7 +235,7 @@ static void acp_i2c_rsp(unsigned char *msg)
 	    i2c_bus->status = I2C_ERR_OTHER;
 	    break;
 	}
-	if (msg[2] == 0)
+
 	xSemaphoreGive(i2c_bus->I2cDoneSemaphore);
 	break;
     }
@@ -273,24 +291,6 @@ static bool acp_i2c_DoIO(struct i2c_data *i2c_bus,
 
 static void I2cInitBus(struct i2c_data *i2c_bus)
 {
-    (void)(vSemaphoreCreateBinary(i2c_bus->I2cDoneSemaphore));
-    // In use wants a mutex to get priority inheritance
-    i2c_bus->I2cInUseSemaphore = xSemaphoreCreateMutex();
-    if ((i2c_bus->I2cDoneSemaphore == NULL)
-	|| (i2c_bus->I2cInUseSemaphore == NULL)) {
-	ReportError(SemaphoreFail, true, CharString, (int)"I2cAllocSema");
-    }
-
-    if (i2c_bus->I2cDoneSemaphore != NULL) {
-	/*
-	 * We want the 'done' semaphore to be taken by default
-	 * The interrupt routine will give it back (and unblock us)
-	 * when it is done.
-	 */
-	if (xSemaphoreTake(i2c_bus->I2cDoneSemaphore, 0) != pdTRUE)
-	    ReportError(SemaphoreFail, true, CharString,
-			(int)"I2cTakeSema");
-    }
 }
 
 /*
