@@ -71,6 +71,7 @@ static const struct i2c_funcs main_i2c_funcs = {
     .io = DoIO,
 };
 
+#ifdef AFSK_HARDWARE3
 static void acp_i2c_init(struct i2c_data *i2c_bus);
 static bool acp_i2c_DoIO(struct i2c_data *i2c_bus,
 			 uint32_t SlaveAddress,
@@ -81,6 +82,7 @@ static const struct i2c_funcs acp_i2c_funcs = {
     .init = acp_i2c_init,
     .io = acp_i2c_DoIO,
 };
+#endif
 
 // Here are the per-bus data structures:
 
@@ -91,6 +93,7 @@ static struct i2c_data i2cBuses[NUM_I2C_BUSSES] = {
 	.busResetsRemaining = 5,
 	.I2cError = I2C1failure,
     },
+#ifdef AFSK_HARDWARE3
     {
 	.funcs = &acp_i2c_funcs,
 	.I2cError = I2C2failure,
@@ -112,6 +115,7 @@ static struct i2c_data i2cBuses[NUM_I2C_BUSSES] = {
 	.busResetsRemaining = 5,
 	.I2cError = I2C2failure,
     },
+#endif
 };
 
 /*
@@ -193,6 +197,7 @@ bool I2cSendCommand(I2cBusNum busNum, uint32_t address,
     return retVal;
 }
 
+#ifdef AFSK_HARDWARE3
 /*
  * Functions for the ACP I2C busses.
  */
@@ -288,14 +293,15 @@ static bool acp_i2c_DoIO(struct i2c_data *i2c_bus,
     memcpy(RxBuffer, i2c_bus->rxbuffer, RxBytes);
     return true;
 }
-
-static void I2cInitBus(struct i2c_data *i2c_bus)
-{
-}
+#endif
 
 /*
  * Functions for the main TMS570 I2C bus.
  */
+
+static void I2cInitBus(struct i2c_data *i2c_bus)
+{
+}
 
 static void I2cResetBus(struct i2c_data *i2c_bus, bool isError)
 {

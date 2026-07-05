@@ -67,7 +67,7 @@ static volatile struct g_spiPacket
     spiDAT1_t g_spiDataFormat;
     uint32  tx_length;
     uint32  rx_length;
-    uint8  * txdata_ptr;
+    const uint8  * txdata_ptr;
     uint8  * rxdata_ptr;
     SpiDataStatus_t tx_data_status;
     SpiDataStatus_t rx_data_status;
@@ -130,7 +130,7 @@ void spiGetDataByte(spiBASE_t *spi, spiDAT1_t *dataconfig_t, uint32 blocksize, u
 *   @return flag register value.
 *
 */
-void spiSendDataByte(spiBASE_t *spi, spiDAT1_t *dataconfig_t, uint32 blocksize, uint8 * srcbuff)
+void spiSendDataByte(spiBASE_t *spi, spiDAT1_t *dataconfig_t, uint32 blocksize, const uint8 * srcbuff)
 {
      uint32 index = (spi == spiREG1) ? 0U :((spi==spiREG2) ? 1U : ((spi==spiREG3) ? 2U:((spi==spiREG4) ? 3U:4U)));
 
@@ -158,7 +158,7 @@ void spiSendDataByte(spiBASE_t *spi, spiDAT1_t *dataconfig_t, uint32 blocksize, 
 *   @param[in] destbuff        - Pointer to the destination data ( 8 bit).
 *
 */
-void spiSendAndGetDataByte(spiBASE_t *spi, spiDAT1_t *dataconfig_t, uint32 blocksize, uint8 * srcbuff, uint8 * destbuff)
+void spiSendAndGetDataByte(spiBASE_t *spi, spiDAT1_t *dataconfig_t, uint32 blocksize, const uint8 * srcbuff, uint8 * destbuff)
 {
 
 /* USER CODE BEGIN (17) */
@@ -432,7 +432,7 @@ void mibspi1HighLevelInterrupt(void)
 #pragma INTERRUPT(mibspi3LowLevelInterrupt, IRQ)
 void mibspi3LowLevelInterrupt(void)
 {
-    GenericSPIInterrupt(spiREG3,2,spiREG3->INTVECT1);
+    GenericSPIInterrupt(spiREG3,0,spiREG3->INTVECT1);
 }
 
 
@@ -443,19 +443,19 @@ void mibspi3HighInterruptLevel(void)
     GenericSPIInterrupt(spiREG3,2,spiREG3->INTVECT0);
 
 }
-#pragma CODE_STATE(mibspi5LowLevelInterrupt, 32)
-#pragma INTERRUPT(mibspi5LowLevelInterrupt, IRQ)
+#pragma CODE_STATE(mibspi3LowLevelInterrupt, 32)
+#pragma INTERRUPT(mibspi3LowLevelInterrupt, IRQ)
 void mibspi5LowLevelInterrupt(void)
 {
-    GenericSPIInterrupt(spiREG5,4,spiREG5->INTVECT1);
+    GenericSPIInterrupt(spiREG5,0,spiREG5->INTVECT1);
 }
 
 
-#pragma CODE_STATE(mibspi5HighLevelInterrupt, 32)
-#pragma INTERRUPT(mibspi5HighLevelInterrupt, IRQ)
-void mibspi5HighLevelInterrupt(void)
+#pragma CODE_STATE(mibspi3HighInterruptLevel, 32)
+#pragma INTERRUPT(mibspi3HighInterruptLevel, IRQ)
+void mibspi5HighInterruptLevel(void)
 {
-    GenericSPIInterrupt(spiREG5,4,spiREG5->INTVECT0);
+    GenericSPIInterrupt(spiREG5,2,spiREG5->INTVECT0);
 
 }
 static inline void ForceDummy(unsigned int SPIIndex){

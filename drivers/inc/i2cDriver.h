@@ -15,9 +15,11 @@
 
 typedef enum {
     I2C1=0,
+#ifdef AFSK_HARDWARE3
     I2C2,
     I2C3,
     I2C4,
+#endif
     NUM_I2C_BUSSES
 } I2cBusNum;
 

@@ -289,7 +289,7 @@ typedef struct system_config_reg
 /* Configuration registers initial value */
 #define SYS_SYSPC1_CONFIGVALUE  0U
 
-#define SYS_SYSPC2_CONFIGVALUE  0U
+#define SYS_SYSPC2_CONFIGVALUE  1U
 
 #define SYS_SYSPC7_CONFIGVALUE  0U
 
