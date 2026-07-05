@@ -121,6 +121,7 @@ enum {
     externalWDTimeout,
     telem0,
     pollI2c,
+    I2c,
     dropBus,
     safeMode,
     fsMode,
@@ -347,6 +348,11 @@ commandPairs debugCommands[] = {
     { "poll i2c",
       "Poll to see which I2c devices are there",
       pollI2c},
+    { "i2c",
+      "Do an I2C transaction",
+      I2c,
+      "<busnr> <addr> <rxcount> [<tx1> [<tx2> [...]]]",
+    },
     { "tx",
       "Simulate FCC command to turn on/off tx",
       Tx,
@@ -1501,6 +1507,59 @@ void RealConsoleTask(void)
 
         case pollI2c: {
             I2CDevicePoll();
+            break;
+        }
+
+        case I2c: {
+	    unsigned int busnum;
+	    uint8_t txbuf[32], rxbuf[32];
+	    uint32_t i, txcount, rxcount;
+	    uint8_t addr;
+	    int err;
+	    bool rv;
+
+            err = parse_uint32(&afterCommand, &busnum, 0);
+	    if (err) {
+		printf("Invalid or no bus number given\n");
+		break;
+	    }
+	    if (busnum >= NUM_I2C_BUSSES) {
+		printf("Invalid I2C bus, range is %0-%u\n", NUM_I2C_BUSSES - 1);
+		break;
+	    }
+            err = parse_uint8(&afterCommand, &addr, 0);
+	    if (err) {
+		printf("Invalid or no address given\n");
+		break;
+	    }
+            err = parse_uint32(&afterCommand, &rxcount, 0);
+	    if (err) {
+		printf("Invalid or no receive count given\n");
+		break;
+	    }
+	    if (rxcount > sizeof(rxbuf)) {
+		printf("rx count too large, max is %u\n", sizeof(rxbuf));
+		break;
+	    }
+	    for (txcount = 0; txcount <= sizeof(txbuf); ) {
+		err = parse_uint8(&afterCommand, &txbuf[txcount], 0);
+		if (err)
+		    break;
+		txcount++;
+	    }
+	    rv = I2cSendCommand((I2cBusNum) busnum, addr,
+				txbuf, txcount, rxbuf, rxcount);
+	    if (!rv) {
+		printf("Error from I2C send\n");
+		break;
+	    }
+	    printf("Successful I2C transaction\n");
+	    if (rxcount > 0) {
+		printf("RX Data:");
+		for (i = 0; i < rxcount; i++)
+		    printf(" %2.2x", rxbuf[i]);
+	    }
+	    printf("\n");
             break;
         }
 
