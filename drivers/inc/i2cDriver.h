@@ -15,6 +15,9 @@
 
 typedef enum {
     I2C1=0,
+    I2C2,
+    I2C3,
+    I2C4,
     NUM_I2C_BUSSES
 } I2cBusNum;
 

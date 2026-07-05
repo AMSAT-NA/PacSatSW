@@ -15,7 +15,7 @@
 #include "config.h"
 #include "hardwareConfig.h"
 #include "i2cDriver.h"
-#indlude "acp.h"
+#include "acp.h"
 
 /* FreeRTOS includes. */
 #include "FreeRTOS.h"
@@ -30,10 +30,10 @@ struct i2c_data;
 
 struct i2c_funcs {
     void (*init)(struct i2c_data *i2c_bus);
-    int (*io)(struct i2c_data *i2c_bus,
-	      uint32_t SlaveAddress,
-	      uint8_t *TxBuffer, uint32_t TxBytes,
-	      uint8_t *RxBuffer, uint32_t RxBytes);
+    bool (*io)(struct i2c_data *i2c_bus,
+	       uint32_t SlaveAddress,
+	       uint8_t *TxBuffer, uint32_t TxBytes,
+	       uint8_t *RxBuffer, uint32_t RxBytes);
 };
 
 struct i2c_data {
@@ -64,18 +64,13 @@ static const struct i2c_funcs main_i2c_funcs = {
     .io = DoIO,
 };
 
-static const struct i2c_funcs main_i2c_funcs = {
-    .io = DoIO,
-};
-
 static void acp_i2c_init(struct i2c_data *i2c_bus);
-static bool acp_i2_DoIO(struct i2c_data *i2c_bus,
-			uint32_t SlaveAddress,
-			uint8_t *TxBuffer, uint32_t TxBytes,
-			uint8_t *RxBuffer, uint32_t RxBytes);
+static bool acp_i2c_DoIO(struct i2c_data *i2c_bus,
+			 uint32_t SlaveAddress,
+			 uint8_t *TxBuffer, uint32_t TxBytes,
+			 uint8_t *RxBuffer, uint32_t RxBytes);
 
-static const struct i2c_funcs main_i2c_funcs = {
-    .I2cError = I2C1failure,
+static const struct i2c_funcs acp_i2c_funcs = {
     .init = acp_i2c_init,
     .io = acp_i2c_DoIO,
 };
@@ -87,24 +82,28 @@ static struct i2c_data i2cBuses[NUM_I2C_BUSSES] = {
 	.funcs = &main_i2c_funcs,
 	.I2cError = I2C1failure,
 	.busResetsRemaining = 5,
+	.I2cError = I2C1failure,
     },
     {
 	.funcs = &acp_i2c_funcs,
 	.I2cError = I2C2failure,
 	.bus_num = 0,
 	.busResetsRemaining = 5,
+	.I2cError = I2C2failure,
     },
     {
 	.funcs = &acp_i2c_funcs,
 	.I2cError = I2C2failure,
 	.bus_num = 1,
 	.busResetsRemaining = 5,
+	.I2cError = I2C2failure,
     },
     {
 	.funcs = &acp_i2c_funcs,
 	.I2cError = I2C2failure,
 	.bus_num = 2,
 	.busResetsRemaining = 5,
+	.I2cError = I2C2failure,
     },
 };
 
@@ -158,29 +157,24 @@ bool I2cSendCommand(I2cBusNum busNum, uint32_t address,
     }
     ReportToWatchdog(CurrentTaskWD);
     taskWithSemaphore = (((uint32_t)xTaskGetApplicationTaskTag(0)));
-    /*
-     * Set up the bus data structure with info about the IO.  This
-     * might not be needed except for the semaphore. Everything else
-     * could be local variables, but let's not mess with a generally
-     * good thing.
-     */
+
+    /* Have the low-level driver do the actual operation. */
     retVal = i2c_bus->funcs->io(i2c_bus, address, sndBuffer, sndLength,
 				rcvBuffer, rcvLength);
-    xSemaphoreGive(i2c_bus->I2cInUseSemaphore);
+
     taskWithSemaphore = 0;
+    xSemaphoreGive(i2c_bus->I2cInUseSemaphore);
 
     return retVal;
 }
 
 /*
- * Functions for the main I2C busses.
+ * Functions for the ACP I2C busses.
  */
 
-#define ACP_I2C_CMD 1
-#define ACP_I2C_RSP 2
-
-#define MAX_I2C_ACP_MSG_SIZE (ACP_MSG_SIZE - 5)
-
+/*
+ * Got am I2C response message from the ACP.
+ */
 static void acp_i2c_rsp(unsigned char *msg)
 {
     unsigned int i;
@@ -188,7 +182,7 @@ static void acp_i2c_rsp(unsigned char *msg)
     for (i = 0; i < NUM_I2C_BUSSES; i++) {
 	struct i2c_data *i2c_bus = &i2cBuses[i];
 
-	if (i2c_bus->func != &acp_i2c_funcs
+	if (i2c_bus->funcs != &acp_i2c_funcs
 		|| i2c_bus->bus_num != msg[1])
 	    continue;
 
@@ -197,7 +191,7 @@ static void acp_i2c_rsp(unsigned char *msg)
 	if (msg[4] != i2c_bus->curr_addr)
 	    break;
 
-	status = msg[2];
+	i2c_bus->status = msg[2];
 	if (msg[2] == 0)
 	    memcpy(i2c_bus->rxbuffer, &msg[5], msg[3]);
 	xSemaphoreGive(i2c_bus->I2cDoneSemaphore);
@@ -356,7 +350,7 @@ static inline bool DoIO(struct i2c_data *i2c_bus,
     // temp.  Ignore it.  Otherwise, some other sort of major problem.
     // Reset the bus.
     if (i2c_bus->majorFailure) {
-        ReportError(i2c_bus->funcs->I2cError, false, CharString,
+        ReportError(i2c_bus->I2cError, false, CharString,
 		    (int)"ArbitrationFailure");
         I2cResetBus(i2c_bus, true); //Try to reset--call it an error
         return false;
@@ -376,7 +370,7 @@ static inline bool DoIO(struct i2c_data *i2c_bus,
         if (!i2c_bus->majorFailure) {
             if (!xSemaphoreTake(i2c_bus->I2cDoneSemaphore,
 				SECONDS(5)/*SHORT_WAIT_TIME*/)) {
-                ReportError(i2c_bus->funcs->I2cError, false, CharString,
+                ReportError(i2c_bus->I2cError, false, CharString,
 			    (int)"Timeout");
             }
         }
@@ -385,7 +379,7 @@ static inline bool DoIO(struct i2c_data *i2c_bus,
             // in-control CPU poked at the I2c at the same time we
             // tried to get the local temp.  Ignore it.  Otherwise,
             // some other sort of major problem.  Reset the bus.
-            ReportError(i2c_bus->funcs->I2cError, false,
+            ReportError(i2c_bus->I2cError, false,
 			CharString, (int)"MajorFail");
             I2cResetBus(i2c_bus, true); //Try to reset--call it an error
 
@@ -399,7 +393,7 @@ static inline bool DoIO(struct i2c_data *i2c_bus,
         i2cSetStop(thisBus);    // Stop it
         // And wait for the interrupt saying it has stopped
         if(!xSemaphoreTake(i2c_bus->I2cDoneSemaphore, SHORT_WAIT_TIME)) {
-            ReportError(i2c_bus->funcs->I2cError, false, TaskNumber,
+            ReportError(i2c_bus->I2cError, false, TaskNumber,
 			(int)__builtin_return_address(0));
             return false;
         }
@@ -422,7 +416,7 @@ void i2cNotification(i2cBASE_t *i2cDev, uint32_t interruptType)
 	return; /* Shouldn't be possible. */
 
     switch(interruptType) {
-    case I2C_SCD_INT: {
+    case I2C_SCD_INT:
         /*
          * Here we detected a stop condition.  Of course we are the
          * master so we generated it, but it still means that it is
@@ -430,12 +424,11 @@ void i2cNotification(i2cBASE_t *i2cDev, uint32_t interruptType)
          */
         giveSemaphore = true;
         break;
-    }
 
-    case I2C_ARDY_INT: {
+    case I2C_ARDY_INT:
         i2cDev->STR |= I2C_ARDY_INT; //Write to status bit to clear it
         giveSemaphore = true;
-    }
+	break;
 
     case I2C_TX_INT:
     case I2C_RX_INT:
@@ -453,7 +446,7 @@ void i2cNotification(i2cBASE_t *i2cDev, uint32_t interruptType)
         giveSemaphore = true;
         break;
 
-    case I2C_NACK_INT: {
+    case I2C_NACK_INT:
         /*
          * Here we had some sort of failure.  Probably no response to
          * the address.
@@ -461,7 +454,6 @@ void i2cNotification(i2cBASE_t *i2cDev, uint32_t interruptType)
         i2c_bus->successFlag = false;
         giveSemaphore = true;
         break;
-    }
 
     default:
         break;
