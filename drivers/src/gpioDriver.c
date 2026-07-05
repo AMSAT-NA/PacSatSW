@@ -735,11 +735,6 @@ struct acp_gpio {
     int val;
 };
 
-#define ACP_SET_GPIO 3
-#define ACP_GET_GPIO 4
-#define ACP_GPIO_VALUE 5
-
-#define NUM_ACP_GPIOS 5
 static struct acp_gpio acp_gpio[NUM_ACP_GPIOS];
 
 static void acp_gpio_handler(unsigned char *msg)

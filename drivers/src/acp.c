@@ -29,12 +29,10 @@ void acp_init(void)
 
 static void acp_reset(void)
 {
-#if 0
     GPIOSetOff(Ant_Power);
     vTaskDelay(CENTISECONDS(1));
     GPIOSetOn(Ant_Power);
     vTaskDelay(CENTISECONDS(1));
-#endif
     acp_failed = false;
 }
 
@@ -48,23 +46,15 @@ int acp_send(const unsigned char msg[ACP_MSG_SIZE])
         return ACP_ERR_MUTEX_TIMEOUT;
 
  retry:
-    if (!SPIBidirectional(SPIACPDev, msg, rxbuffer, ACP_MSG_SIZE)) {
+    ReportToWatchdog(CurrentTaskWD);
+    if (!SPIBidirectional(SPIACPDev, msg, rxbuffer, ACP_MSG_SIZE)
+		|| acp_failed) {
         ReportToWatchdog(CurrentTaskWD);
         acp_reset();
         retries_left--;
         if (retries_left > 0)
             goto retry;
         rv = ACP_ERR_START_TIMEOUT;
-        goto out;
-    }
-
-    if (acp_failed) {
-        ReportToWatchdog(CurrentTaskWD);
-        acp_reset();
-        retries_left--;
-        if (retries_left > 0)
-            goto retry;
-        rv = ACP_ERR_END_TIMEOUT;
         goto out;
     }
 
@@ -76,6 +66,7 @@ int acp_send(const unsigned char msg[ACP_MSG_SIZE])
             printf(" %2.2x", rxbuffer[i]);
         printf("\n");
     }
+
     if (rxbuffer[0] < MAX_ACP_MSGID && acp_handlers[rxbuffer[0]])
 	acp_handlers[rxbuffer[0]](rxbuffer);
 
