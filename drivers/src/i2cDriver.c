@@ -26,6 +26,15 @@
 /* HALCoGen Includes */
 #include "i2c.h"
 
+/*
+ * I2C Errors
+ */
+#define I2C_ERR_SUCCESS 0
+#define I2C_ERR_NACK 1 /* Got a NACK, probably not device at addr. */
+#define I2C_ERR_BUSY 2 /* Another master was probably using the bus. */
+#define I2C_ERR_HUNG 3 /* Bus is hung, line is probably pulled down. */
+#define I2C_ERR_OTHER 4 /* Some other error. */
+
 struct i2c_data;
 
 struct i2c_funcs {
@@ -38,17 +47,15 @@ struct i2c_funcs {
 
 struct i2c_data {
     const struct i2c_funcs *funcs;
-    unsigned int bus_num;
+    unsigned int bus_num; /* Particular bus number on the driver. */
     ErrorType_t I2cError;
     xSemaphoreHandle I2cDoneSemaphore;
     xSemaphoreHandle I2cInUseSemaphore;
-    volatile bool successFlag;
-    volatile bool majorFailure;
     int busResetsRemaining;
+    uint8_t status;
 
     /* FIXME - move these to acp specific place. */
     unsigned int rx_len;
-    uint8_t status;
     uint8_t curr_addr;
     uint8_t rxbuffer[32];
 };
@@ -191,9 +198,26 @@ static void acp_i2c_rsp(unsigned char *msg)
 	if (msg[4] != i2c_bus->curr_addr)
 	    break;
 
-	i2c_bus->status = msg[2];
-	if (msg[2] == 0)
+	switch (msg[2]) {
+	case I2C_ACP_STATUS_SUCCESS:
 	    memcpy(i2c_bus->rxbuffer, &msg[5], msg[3]);
+	    break;
+
+	case I2C_ACP_STATUS_ADDR_NACK:
+	case I2C_ACP_STATUS_DATA_NACK:
+	    i2c_bus->status = I2C_ERR_NACK;
+	    break;
+	    
+	case I2C_ACP_STATUS_ARB_LOST:
+	case I2C_ACP_STATUS_BUS_BUSY:
+	    i2c_bus->status = I2C_ERR_BUSY;
+	    break;
+
+	default:
+	    i2c_bus->status = I2C_ERR_OTHER;
+	    break;
+	}
+	if (msg[2] == 0)
 	xSemaphoreGive(i2c_bus->I2cDoneSemaphore);
 	break;
     }
@@ -217,6 +241,7 @@ static bool acp_i2c_DoIO(struct i2c_data *i2c_bus,
     if (RxBytes >= MAX_I2C_ACP_MSG_SIZE)
 	return false;
 
+    i2c_bus->status = 0;
     i2c_bus->curr_addr = SlaveAddress;
     i2c_bus->rx_len = RxBytes;
 
@@ -229,12 +254,12 @@ static bool acp_i2c_DoIO(struct i2c_data *i2c_bus,
 
     rv = acp_send(msg);
     if (rv) {
-	ReportError(I2C2failure, true, PortNumber, 0);
+	ReportError(I2C2failure, false, PortNumber, 0);
 	return false;
     }
 
     if (!xSemaphoreTake(i2c_bus->I2cDoneSemaphore, SHORT_WAIT_TIME)) {
-	ReportError(I2C2failure, true, PortNumber, 0);
+	ReportError(I2C2failure, false, PortNumber, i2c_bus->bus_num);
 	return false;
     }
 
@@ -310,54 +335,31 @@ static inline bool DoIO(struct i2c_data *i2c_bus,
     /*
      * Here we do an initial send.  Any I2c must start with a transmit
      * with this driver.
-     *
-     * First just make sure that the semaphore is taken.  It might
-     * have been freed by an error or something.
-     * xSemaphoreTake(i2c_bus->I2cDoneSemaphore,0);
-     *
-     * "Success" will be false if there is a NACK interrupt
-     * "MajorFailure" will be false if there is a AL interrupt.
-     * Note that AL on the satellite probably means that the I2c bus is
-     * disconnected, i.e. not pulled up.
      */
-    i2c_bus->successFlag = true;
-    i2c_bus->majorFailure = false;
+    i2c_bus->status = 0;
 
     thisBus->CNT = TxBytes;
     thisBus->SAR = SlaveAddress;
-    if (RxBytes == 0) {
-	// No receive, so we want a stop state after this data is sent
+    if (RxBytes == 0)
+	/* No receive, so we want a stop state after this data is sent. */
 	MDRreg |= I2C_STOP_COND;
-    }
     thisBus->MDR = MDRreg;
 
     i2cSend(thisBus, TxBytes, TxBuffer);
+
     if(!xSemaphoreTake(i2c_bus->I2cDoneSemaphore, I2C_TIMEOUT)) {
-        vPortEnterCritical();
-        if (!xSemaphoreTake(i2c_bus->I2cDoneSemaphore,0)) {
-            vPortExitCritical();
-            // ReportError(I2cError[busNum],false,CharString,(int)"SemaSend");
-            // This is just a timeout here
-            return false;
-        }
-        // If we are here, the semaphore was released just before we
-        // were going to call the error routine.  It took a while, but
-        // all is well now.
-        vPortExitCritical();
-    }
-    // If we are NOT in control, chances are good the in-control CPU
-    // poked at the I2c at the same time we tried to get the local
-    // temp.  Ignore it.  Otherwise, some other sort of major problem.
-    // Reset the bus.
-    if (i2c_bus->majorFailure) {
-        ReportError(i2c_bus->I2cError, false, CharString,
-		    (int)"ArbitrationFailure");
-        I2cResetBus(i2c_bus, true); //Try to reset--call it an error
-        return false;
+	ReportError(i2c_bus->I2cError, false, CharString, (int)"TxTimeout");
+	goto recover_sem_timeout;
     }
 
-    // Here we do the read.  Similarly, this can accommodate a no-read transaction.
-    if (i2c_bus->successFlag && RxBytes != 0) {
+    if (i2c_bus->status == I2C_ERR_HUNG)
+	goto recover_hung;
+
+    /*
+     * Here we do the read.  Similarly, this can accommodate a no-read
+     * transaction.
+     */
+    if (i2c_bus->status == 0 && RxBytes != 0) {
 	uint32_t MDRreg = (I2C_MASTER | I2C_RECEIVER | I2C_RESET_OUT
 			   | I2C_START_COND | I2C_STOP_COND);
 
@@ -365,29 +367,17 @@ static inline bool DoIO(struct i2c_data *i2c_bus,
 	thisBus->SAR = SlaveAddress;
 	thisBus->MDR = MDRreg;
 
-	//Ok, time to pay attention to the semaphore
         i2cReceive(thisBus, RxBytes, RxBuffer);
-        if (!i2c_bus->majorFailure) {
-            if (!xSemaphoreTake(i2c_bus->I2cDoneSemaphore,
-				SECONDS(5)/*SHORT_WAIT_TIME*/)) {
-                ReportError(i2c_bus->I2cError, false, CharString,
-			    (int)"Timeout");
-            }
-        }
-        if (i2c_bus->majorFailure) {
-            // If we are NOT in control, chances are good the
-            // in-control CPU poked at the I2c at the same time we
-            // tried to get the local temp.  Ignore it.  Otherwise,
-            // some other sort of major problem.  Reset the bus.
-            ReportError(i2c_bus->I2cError, false,
-			CharString, (int)"MajorFail");
-            I2cResetBus(i2c_bus, true); //Try to reset--call it an error
 
-            return false;
+	if (!xSemaphoreTake(i2c_bus->I2cDoneSemaphore, SHORT_WAIT_TIME)) {
+	    ReportError(i2c_bus->I2cError, false, CharString, (int)"RxTimeout");
         }
 
+        if (i2c_bus->status == I2C_ERR_HUNG)
+	    goto recover_hung;
     }
-    if (!i2c_bus->successFlag && (i2cIsStopDetected(thisBus) == 0)) {
+
+    if (!i2c_bus->status == 0 && i2cIsStopDetected(thisBus) == 0) {
         // If it failed, and bus is not in the stopped condition...
 
         i2cSetStop(thisBus);    // Stop it
@@ -395,10 +385,34 @@ static inline bool DoIO(struct i2c_data *i2c_bus,
         if(!xSemaphoreTake(i2c_bus->I2cDoneSemaphore, SHORT_WAIT_TIME)) {
             ReportError(i2c_bus->I2cError, false, TaskNumber,
 			(int)__builtin_return_address(0));
-            return false;
+	    goto recover_sem_timeout;
         }
     }
-    return i2c_bus->successFlag;
+
+    return i2c_bus->status == 0;
+
+ recover_sem_timeout:
+    /*
+     * If we never get the semaphore, then something went wrong,
+     * probably in the hardware.  Reset the device.  After the
+     * reset we don't get a give from the semaphore, so it's safe
+     * to release it then.
+     */
+    I2cResetBus(i2c_bus, true);
+
+    /* Make sure the semaphore is not posted. */
+    if(!xSemaphoreTake(i2c_bus->I2cDoneSemaphore, 0))
+	xSemaphoreGive(i2c_bus->I2cDoneSemaphore);
+    return false;
+
+ recover_hung:
+    /*
+     * Something fairly bad happened, likely the bus hung for some reason.
+     * Try to reset the hardware to recover.
+     */
+    ReportError(i2c_bus->I2cError, false, CharString, (int)"MajorFail");
+    I2cResetBus(i2c_bus, true); //Try to reset--call it an error
+    return false;
 }
 
 /*
@@ -442,7 +456,7 @@ void i2cNotification(i2cBASE_t *i2cDev, uint32_t interruptType)
         break;
 
     case I2C_AL_INT:
-        i2c_bus->majorFailure = true;
+        i2c_bus->status = I2C_ERR_HUNG;
         giveSemaphore = true;
         break;
 
@@ -451,7 +465,7 @@ void i2cNotification(i2cBASE_t *i2cDev, uint32_t interruptType)
          * Here we had some sort of failure.  Probably no response to
          * the address.
          */
-        i2c_bus->successFlag = false;
+        i2c_bus->status = I2C_ERR_NACK;
         giveSemaphore = true;
         break;
 
