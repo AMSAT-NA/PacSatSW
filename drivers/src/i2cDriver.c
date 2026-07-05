@@ -426,7 +426,7 @@ void i2cNotification(i2cBASE_t *i2cDev, uint32_t interruptType)
     struct i2c_data *i2c_bus = &i2cBuses[I2C1];
     bool giveSemaphore = false;
 
-    if (i2cDev == i2cREG1)
+    if (i2cDev != i2cREG1)
 	return; /* Shouldn't be possible. */
 
     switch(interruptType) {
