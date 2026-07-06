@@ -5,7 +5,8 @@
  *      Author: Burns Fisher
  *
  */
-#include <pacsat.h>
+#include "pacsat.h"
+#ifdef BLINKY_HARDWARE
 #include "FreeRTOS.h"
 #include "os_task.h"
 
@@ -220,4 +221,5 @@ uint8_t MagWhami(void){
 
 return response;
 }
+#endif
 #endif

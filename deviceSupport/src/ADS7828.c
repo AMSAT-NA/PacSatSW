@@ -4,7 +4,8 @@
  *  Created on: Oct 14, 2013
  *      Author: Mike McCann KB2GHZ
  */
-#include <pacsat.h>
+#include "pacsat.h"
+#ifdef BLINKY_HARDWARE
 #include "stdint.h"
 #include "i2cDriver.h"
 #include "errors.h"
@@ -60,4 +61,4 @@ void getADCchannels(int num, I2cBusNum port, uint8_t I2Caddress, uint16_t *stora
 	    I2cSendCommand(port,I2Caddress, &powerOffCmd,0,NULL,0);
 	}
 }
-
+#endif
