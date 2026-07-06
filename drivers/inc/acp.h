@@ -25,7 +25,8 @@ void acp_runner(void);
 #define ACP_SET_GPIO 3
 #define ACP_GET_GPIO 4
 #define ACP_GPIO_VALUE 5
-#define MAX_ACP_MSGID 6
+#define ACP_ADC_RESULT 6
+#define MAX_ACP_MSGID 7
 
 extern void (*acp_handlers[MAX_ACP_MSGID])(unsigned char *msg);
 

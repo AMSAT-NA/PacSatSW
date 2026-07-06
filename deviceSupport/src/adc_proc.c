@@ -23,6 +23,9 @@
 #include "gpioDriver.h"
 #include "adc.h"
 #include "adc_proc.h"
+#ifdef AFSK_HARDWARE3
+#include "acp.h"
+#endif
 
 static volatile enum {
     ADC_IDLE,
@@ -31,7 +34,11 @@ static volatile enum {
 } adc_conv_state;
 
 static adcData_t adc_data[24];
+#ifdef AFSK_HARDWARE3
+static adc_handler_func adc_handlers[32]; /* Last 8 are from the ACP. */
+#else
 static adc_handler_func adc_handlers[24];
+#endif
 
 void
 adc_install_handler(unsigned int pin, adc_handler_func func)
@@ -39,7 +46,7 @@ adc_install_handler(unsigned int pin, adc_handler_func func)
     adc_handlers[pin] = func;
 }
 
-unsigned int conv_adc_to_millivolts(unsigned int val)
+int conv_adc_to_millivolts(int val)
 {
     /* 3.3 volt reference. */
     return (val * 3300) / 4096;
@@ -110,7 +117,7 @@ static uint16 temp_conv[NUM_TEMPERATURE_CONV_VALUES] = {
 };
 
 static int
-millivolts_to_temp(unsigned int mv)
+millivolts_to_temp(int mv)
 {
     int np, pos1 = 0, pos2 = NUM_TEMPERATURE_CONV_VALUES - 1;
 
@@ -137,7 +144,7 @@ millivolts_to_temp(unsigned int mv)
 }
 
 static void
-handle_adc_temp(unsigned int pin, unsigned int millivolts)
+handle_adc_temp(unsigned int pin, int millivolts)
 {
     int temp = millivolts_to_temp(millivolts);
 
@@ -173,7 +180,7 @@ handle_adc_temp(unsigned int pin, unsigned int millivolts)
 int board_voltages[NUM_VOLTAGE_VALUES];
 
 static void
-handle_adc_voltage(unsigned int pin, unsigned int millivolts)
+handle_adc_voltage(unsigned int pin, int millivolts)
 {
     // TODO - Add handling for the values going out of range.
     switch (pin) {
@@ -203,7 +210,7 @@ handle_adc_voltage(unsigned int pin, unsigned int millivolts)
 bool board_power_flags[NUM_POWER_FLAG_VALUES];
 
 static void
-handle_adc_power_flag(unsigned int pin, unsigned int millivolts)
+handle_adc_power_flag(unsigned int pin, int millivolts)
 {
     // TODO - Add handling for the the flags going bad.
     switch (pin) {
@@ -231,7 +238,7 @@ handle_adc_power_flag(unsigned int pin, unsigned int millivolts)
 bool print_rf_power;
 
 static void
-handle_adc_rf_power(unsigned int pin, unsigned int millivolts)
+handle_adc_rf_power(unsigned int pin, int millivolts)
 {
     switch (pin) {
     case ADC_PIN_FORWARD_POWER:
@@ -265,6 +272,24 @@ read_adc_board_version(void)
 
     printf("Board version is %d, board number %d\n", board_version, board_num);
 }
+
+#ifdef AFSK_HARDWARE3
+/* Messages from the ACP come here. */
+static void
+adc_acp_handler(unsigned char *msg)
+{
+    uint8_t flags = msg[1];
+    unsigned int i;
+
+    for (i = 0; i < 8; i++) {
+	if ((flags & (1 << i)) && adc_handlers[i + 24]) {
+	    int16_t value = (msg[i * 2 + 2] << 8) | msg[i * 2 + 3];
+
+	    adc_handlers[i + 24](i + 24, value);
+	}
+    }
+}
+#endif
 
 bool
 init_adc_proc(void)
@@ -306,6 +331,10 @@ init_adc_proc(void)
 
     adc_install_handler(ADC_PIN_FORWARD_POWER, handle_adc_rf_power);
     adc_install_handler(ADC_PIN_REVERSE_POWER, handle_adc_rf_power);
+#endif
+
+#ifdef AFSK_HARDWARE3
+    acp_handlers[ACP_ADC_RESULT] = adc_acp_handler;
 #endif
 
     return true;

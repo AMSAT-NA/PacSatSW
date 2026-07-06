@@ -21,7 +21,7 @@
 #ifndef ADC_PROC
 #define ADC_PROC
 
-typedef void (*adc_handler_func)(unsigned int pin, unsigned int value);
+typedef void (*adc_handler_func)(unsigned int pin, int value);
 
 /* Set up and do the first conversion. */
 bool init_adc_proc(void);
@@ -66,6 +66,17 @@ enum adc_pins {
 
     ADC_PIN_EXTERN_CONTROL = 18,
     ADC_PIN_BOARD_NUM = 17,
+#ifdef AFSK_HARDWARE3
+    /* These are from message from the ACP. */
+    ACP_ADC1 = 24,
+    ACP_ADC2 = 25,
+    ACP_ADC3 = 26,
+    ACP_ADC4 = 27,
+    ACP_ADC5 = 28,
+    ACP_ADC6 = 29,
+    ACP_ADC7 = 30,
+    ACP_ADC8 = 31,
+#endif
 };
 
 enum temperature_values {
