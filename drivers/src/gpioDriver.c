@@ -1113,7 +1113,7 @@ static const GPIOInfo CANBPowerInfo = {
 };
 
 
-static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] =
+static const GPIOInfo * const GPIOInfoStructures[NumberOfGPIOs] =
 {
     &LED1Info, &LED2Info, &LED3Info,
     &AX5043_Rx1_InterruptInfo, &AX5043_Rx2_InterruptInfo, &AX5043_Rx3_InterruptInfo,
@@ -1143,7 +1143,7 @@ static const GPIOInfo *GPIOInfoStructures[NumberOfGPIOs] =
 };
 
 #ifdef DEBUG
-static const char *GPIONames[NumberOfGPIOs] = {
+static const char * const GPIONames[NumberOfGPIOs] = {
     "LED1", "LED2", "LED3",
     "AX5043_Rx1_Interrupt", "AX5043_Rx2_Interrupt", "AX5043_Rx3_Interrupt", "AX5043_Rx4_Interrupt",
     "AX5043_Tx_Interrupt",

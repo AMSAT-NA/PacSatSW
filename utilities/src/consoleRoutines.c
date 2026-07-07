@@ -5,9 +5,11 @@
  *      Author: bfisher
  */
 #include <ctype.h>
-#include <pacsat.h>
-#include "stdarg.h"
-#include "stdlib.h"
+#include <stdarg.h>
+#include <stdlib.h>
+
+#include "pacsat.h"
+#include "TMS570Hardware.h"
 #include "rti.h"
 #include "consoleRoutines.h" // My own
 #include "downlink.h"
@@ -475,7 +477,8 @@ void DisplayTelemetry(uint32_t typeRequested)
     } /* End of switch */
 }
 
-void printID(void){
+void printID(void)
+{
     printf("\nAMSAT-NA PacSat Console\n");
     printf("Flight Software %s (built on %s at %s)\n",
            PACSAT_FW_VERSION_STRING, __DATE__, __TIME__);
@@ -502,7 +505,6 @@ void printID(void){
 #endif
             " premption enabled;\n");
 
-
     printf("Free heap size is %d\n",xPortGetFreeHeapSize());
     {
         uint32_t *addr= (uint32_t *)0xf008015c,value,megs,kilos;
@@ -521,13 +523,13 @@ void printID(void){
     //            localErrorCollection.LegWdReports,localErrorCollection.LegTaskNumber);
 }
 
-void printHelp(char *search,commandPairs *commands, int numberOfCommands)
+void printHelp(char *search, const commandPairs *commands, int numberOfCommands)
 {
     int commandNum, sizeCmd, numSpace;
 
     for (commandNum = 0; commandNum < numberOfCommands; commandNum++) {
-        char *command = commands[commandNum].typedCommand;
-        char *helpText = commands[commandNum].help;
+        const char *command = commands[commandNum].typedCommand;
+        const char *helpText = commands[commandNum].help;
 
         if (strstr(command, search) == NULL &&
                 strstr(helpText, search) == NULL) {

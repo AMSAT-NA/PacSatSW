@@ -221,7 +221,7 @@ enum {
  * These commands should only be required to setup a new board and
  * configure it.
  */
-commandPairs setupCommands[] = {
+const commandPairs setupCommands[] = {
     { "init new proc",
       "Init DCT and MRAM stuff that will be set once for each unit",
       initSaved},
@@ -265,7 +265,7 @@ commandPairs setupCommands[] = {
  * These commands are used to operate the PB and the FTL0 system
  * through the console.
  */
-commandPairs pacsatCommands[] = {
+const commandPairs pacsatCommands[] = {
     { "monitor",
       "Enable/disable monitoring of sent and received packets",
       Monitor,
@@ -327,7 +327,7 @@ commandPairs pacsatCommands[] = {
  * the flight unit or an other task performed once the software is
  * complete.
  */
-commandPairs debugCommands[] = {
+const commandPairs debugCommands[] = {
     { "test scrub",
       "Run the memory scrub routine once",
       TestMemScrub},
@@ -421,7 +421,7 @@ commandPairs debugCommands[] = {
 #endif
 };
 
-commandPairs commonCommands[] = {
+const commandPairs commonCommands[] = {
     { "reset ihu",
       "Reset this processor",
       reset},
@@ -599,9 +599,9 @@ commandPairs commonCommands[] = {
       Help},
 };
 
-struct command_table {
+const struct command_table {
     const char *name;
-    commandPairs *pairs;
+    const commandPairs *pairs;
     unsigned int num_cmds;
 } command_tables[] = {
 #define HELP_COMMON_INDEX 0
@@ -619,8 +619,10 @@ struct command_table {
     {}
 };
 
-char *ResetReasons[] = {
-    NULL,
+#if 0
+#define NUM_RESET_REASONS 16
+static const char * const ResetReasons[NUM_RESET_REASONS] = {
+    "External Watchdog", /* Not a TMS570 bit, read from the RTC. */
     NULL,
     NULL,
     "External",
@@ -637,6 +639,7 @@ char *ResetReasons[] = {
     "Oscillator",
     "Power On"
 };
+#endif
 
 static char *get_dev_modulation_str(uint8_t devb)
 {
@@ -762,12 +765,12 @@ void RealConsoleTask(void)
         for (tablenum = 0;
              index == 0 && command_tables[tablenum].pairs;
              tablenum++) {
-            struct command_table *table = &command_tables[tablenum];
+            const struct command_table *table = &command_tables[tablenum];
 
             for (commandNumber = 0;
                  index == 0 && commandNumber < table->num_cmds;
                  commandNumber++) {
-                commandPairs *cmd = &table->pairs[commandNumber];
+                const commandPairs *cmd = &table->pairs[commandNumber];
 
                 /*
                  * If a command is found at the start of the type
@@ -2377,7 +2380,7 @@ void RealConsoleTask(void)
         case HelpPacsat:
         case HelpSetup:
         case HelpDevo: {
-            struct command_table *table = NULL;
+            const struct command_table *table = NULL;
             char *t = next_token(&afterCommand);
 
             if (index == Help)

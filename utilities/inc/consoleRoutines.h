@@ -12,14 +12,14 @@
 #include "serialDriver.h"
 
 typedef struct _commandPairs {
-    char *typedCommand;
-    char *help;
+    const char *typedCommand;
+    const char *help;
     //CommandIndex
     int indexVal;
-    char *help2;
+    const char *help2;
 } commandPairs;
 
-void printHelp(char *search,commandPairs *commands, int numberOfCommands);
+void printHelp(char *search, const commandPairs *commands, int numberOfCommands);
 void print8BitTemp(uint8_t temp8);
 void DisplayTelemetry(uint32_t typeRequested);
 void PreflightInitNow(CanIDNode cameFrom);
