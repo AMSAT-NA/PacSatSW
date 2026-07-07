@@ -171,6 +171,7 @@ bool InitRtc31331(void)
 
     buf[0] = MAX31331_RTC_CONFIG1;
     /* Disable DIN pin when running on VBat (bit 0x40). */
+    /* DIN on falling edge, (0x08) */
     buf[1] = 0x02; /* I2C_TIMEOUT - Enable I2C timeout. */
     /*
      * If time is not valid, do not enable the oscillator.  We want
@@ -193,12 +194,17 @@ bool InitRtc31331(void)
     vTaskDelay(CENTISECONDS(1));
 
     buf[0] = MAX31331_PWR_MGMT;
+#ifdef AFSK_HARDWARE3
+    buf[1] = 0; /* Automatic power management. */
+#else
     /*
      * If you don't always power the chip from Vbat, then when the
-     * power fails it loses the time.
+     * power fails it loses the time.  The voltage on VCC drops too
+     * fast.  This is fixed on version 3 hardware.
      */
     buf[1] = (0x02     /* VBACK_SEL - Use VBat as the power supply. */
               | 0x01); /* MANUAL_SEL - Manually select power supply. */
+#endif
     if (!I2cSendCommand(MAX31331_PORT, MAX31331_ADDR, buf, 2, NULL, 0))
         return FALSE;
 
@@ -212,9 +218,10 @@ bool InitRtc31331(void)
 
 bool GetStatus31331(uint8_t *cfg)
 {
-    uint8_t buf[2];
+    uint8_t buf[1];
 
-    buf[0] = MAX31331_STATUS;
+    /* Don't get the status register, that will clear some bits. */
+    buf[0] = MAX31331_RTC_RESET;
     return I2cSendCommand(MAX31331_PORT, MAX31331_ADDR, buf, 1, cfg, 1);
 }
 
