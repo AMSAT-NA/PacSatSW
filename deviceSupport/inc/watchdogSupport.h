@@ -21,7 +21,7 @@
  * current task.
  * These need to be in the same order as the Task Name string enum in errors.c */
 typedef enum {
-    CurrentTaskWD=0,
+    CurrentTaskWD = 0,
     TelemetryAndControlWD,
     RxTaskWD,
     TxTaskWD,

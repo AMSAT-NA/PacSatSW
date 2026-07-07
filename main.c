@@ -36,7 +36,6 @@
 #include "MET.h"
 #include "radio.h"
 #include "serialDriver.h"
-#include "TMS570Hardware.h"
 #include "spiDriver.h"
 #include "i2cDriver.h"
 #include "I2cPoll.h"
