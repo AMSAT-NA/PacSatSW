@@ -118,7 +118,7 @@ char *LIHUErrMsg[EndOfErrors]={
 /* These task names need to correspond to the id returned by xTaskGetApplicationTaskTag(0)
  * These need to be in the same order as the WdReporters_t enum in watchdogSupport.h
  * as that is the enum used to set the task id */
-char *TaskNames[]={
+char *TaskNames[] = {
                    "Unspecified",
                    "Telemetry & Control",
                    "Rx",
@@ -128,6 +128,7 @@ char *TaskNames[]={
                    "PB",
                    "Command",
                    "Idle",
+                   "CAN",
                    "Interrupt",
                    "Console"
 };
