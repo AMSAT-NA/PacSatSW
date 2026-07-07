@@ -67,16 +67,7 @@ void ForceExternalWatchdogTrigger(void)
 
 void ResetExternalWatchdog(void)
 {
-    static bool isOn = true;
-
-    if (DoExternalResetOk) {
-        if (isOn) {
-            GPIOSetOff(Watchdog);
-        } else {
-            GPIOSetOn(Watchdog);
-        }
-        isOn = !isOn;
-    }
+    GPIOToggle(Watchdog);
 }
 
 void ResetInternalWatchdog(void)
