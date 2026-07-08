@@ -619,7 +619,6 @@ const struct command_table {
     {}
 };
 
-#if 0
 #define NUM_RESET_REASONS 16
 static const char * const ResetReasons[NUM_RESET_REASONS] = {
     "External Watchdog", /* Not a TMS570 bit, read from the RTC. */
@@ -639,7 +638,6 @@ static const char * const ResetReasons[NUM_RESET_REASONS] = {
     "Oscillator",
     "Power On"
 };
-#endif
 
 static char *get_dev_modulation_str(uint8_t devb)
 {
@@ -733,6 +731,21 @@ void RealConsoleTask(void)
     char *afterCommand;
     bool DoEcho = true;
     rfchan chan;
+    unsigned int rr;
+    bool first = true;
+
+    /* Have to wait until after the RTC is initialized to do this. */
+    printf("Last reset was due to:");
+    for (rr = 0; rr < NUM_RESET_REASONS; rr++) {
+	if ((last_reset_reasons & (1 << rr)) && ResetReasons[rr]) {
+	    if (!first)
+		printf(",");
+	    else
+		first = false;
+	    printf(" %s", ResetReasons[rr]);
+	}
+    }
+    printf("\n");
 
     for (chan = 0; chan < NUM_CHANNELS; chan++) {
         DCTFreq[chan] = ReadMRAMFreq(chan);

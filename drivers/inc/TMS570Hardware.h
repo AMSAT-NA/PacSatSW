@@ -30,6 +30,9 @@ void ProcessorReset(void);
 
 void ScrubECCMemory(uint64_t *start, uint32_t length);
 
+uint32_t last_reset_reasons;
+uint32_t read_last_reset_reasons(void);
+
 /*
  * ESM Error Channels
  */
