@@ -184,7 +184,7 @@ bool InitRtc31331(void)
         return FALSE;
     if (reg[0] & 1) {
 	/* Record the external watchdog failure. */
-	last_reset_reasons |= 1;
+	last_reset_reasons |= RESET_EXTERNAL_WATCHDOG;
 	/* Reset the timestamp registers, it will be re-enabled in a bit. */
 	buf[0] = MAX31331_TIMESTAMP_CONFIG;
 	buf[1] = 0x02; /* TSR, reset timestamp registers. */
