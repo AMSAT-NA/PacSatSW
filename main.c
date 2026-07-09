@@ -464,6 +464,3 @@ vApplicationStackOverflowHook(pxCurrentTCB,taskName ){
 }
 
 #endif
-/* This is used to null out debug_print and debug trace statements when DEBUG is off */
-void NullPrint(char * format,...){
-};

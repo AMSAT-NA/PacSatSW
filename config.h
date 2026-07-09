@@ -14,9 +14,12 @@
 
 #include <stdint.h>
 
-/* Set LAUNCHPAD_HARDWARE if this will run on the launchpad with the booster board rather than
- * on blinky.  You must also copy in the hcg files from the PacSatHardware project.  See the
- * instructions in the README file of PacSatHardware */
+/*
+ * Set LAUNCHPAD_HARDWARE if this will run on the launchpad with the
+ * booster board rather than on blinky.  You must also copy in the hcg
+ * files from the PacSatHardware project.  See the instructions in the
+ * README file of PacSatHardware.
+ */
 //#define LAUNCHPAD_HARDWARE
 //#define BLINKY_HARDWARE
 #define AFSK_HARDWARE
@@ -27,14 +30,18 @@
 
 #define PACSAT_NUMBER "0" // This PacSat number is only used in the PACSAT_FW_VERSION_STRING below.
 
-/* Defining ENGINEERING_MODEL changes the version number below, but only if UNDEFINE_BEFORE_FLIGHT
- * has been undefined */
+/*
+ * Defining ENGINEERING_MODEL changes the version number below, but
+ * only if UNDEFINE_BEFORE_FLIGHT has been undefined.
+ */
 //#define ENGINEERING_MODEL
 
-/* UNDEFINE BEFORE FLIGHT is used to surround any test or temporary code that we never want to fly.  For
- * example test routines or debug routines.  Use this for any code that is not needed and may contain bugs
- * that could crash the
- * spacecraft. */
+/*
+ * UNDEFINE BEFORE FLIGHT is used to surround any test or temporary
+ * code that we never want to fly.  For example test routines or debug
+ * routines.  Use this for any code that is not needed and may contain
+ * bugs that could crash the spacecraft.
+ */
 #define UNDEFINE_BEFORE_FLIGHT
 
 #if defined(UNDEFINE_BEFORE_FLIGHT)
@@ -42,10 +49,15 @@
  * other code that is only used in debugging. */
 #define DEBUG
 
-/* Defining WATCHDOG_ENABLE turns on the watchdog.  A watchdog routine then runs to reset the hardware
- * watchdog periodically.  It also waits for all of the tasks to confirm they are still running.  If any
- * tasks fail to report then it does not reset the hardware watchdog and we are rebooted.   If you enable this
- * and get resets in a loop then make sure all tasks are setup to report into the watchdog periodically. */
+/*
+ * Defining WATCHDOG_ENABLE turns on the watchdog.  A watchdog routine
+ * then runs to reset the hardware watchdog periodically.  It also
+ * waits for all of the tasks to confirm they are still running.  If
+ * any tasks fail to report then it does not reset the hardware
+ * watchdog and we are rebooted.  If you enable this and get resets in
+ * a loop then make sure all tasks are setup to report into the
+ * watchdog periodically.
+ */
 //#define WATCHDOG_ENABLE
 
 /* */
@@ -79,40 +91,36 @@
 /* Debug print is automatically enabled above when DEBUG is defined.  This is where we setup what debug_print
  * means when DEBUG is on or off */
 #ifdef DEBUG_PRINT
-#define debug_print printf
+#define debug_print(...) printf(__VA_ARGS__)
 #else
-void NullPrint(char *, ...);
-#define debug_print NullPrint
+#define debug_print(...)
 #endif
 
 /* If TRACE_PB is defined then we print debug statements throughout the Pacsat Broadcast task.  This is verbose
  * and only useful for debugging errors. Turn off when debugging is complete */
 //#define TRACE_PB
 #ifdef TRACE_PB
-#define trace_pb printf
+#define trace_pb(...) printf(__VA_ARGS__)
 #else
-void NullPrint(char *, ...);
-#define trace_pb NullPrint
+#define trace_pb(...)
 #endif
 
 /* If TRACE_AX25_DL is defined then we print debug statements throughout the AX25 Data Link state machine.
  * This is verbose and only useful for debugging errors. Turn off when debugging is complete */
 //#define TRACE_AX25_DL
 #ifdef TRACE_AX25_DL
-#define trace_dl printf
+#define trace_dl(...) printf(__VA_ARGS__)
 #else
-void NullPrint(char *, ...);
-#define trace_dl NullPrint
+#define trace_dl(...)
 #endif
 
 /* If TRACE_FTL0 is defined then we print debug statements throughout the Pacsat Uplink task.  This is verbose
  * and only useful for debugging errors. Turn off when debugging is complete */
 //#define TRACE_FTL0
 #ifdef TRACE_FTL0
-#define trace_ftl0 printf
+#define trace_ftl0(...) printf(__VA_ARGS__)
 #else
-void NullPrint(char *, ...);
-#define trace_ftl0 NullPrint
+#define trace_ftl0(...)
 #endif
 
 /*
