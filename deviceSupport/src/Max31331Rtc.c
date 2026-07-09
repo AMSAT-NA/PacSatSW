@@ -170,29 +170,6 @@ bool InitRtc31331(void)
         rtc_time_valid = true;
     }
 
-#ifdef AFSK_HARDWARE3
-    /*
-     * We abuse the timestamp registers to record if the watchdog
-     * timer fired.  Using the DIF field in the status doesn't seem to
-     * work, it appears to get cleared when power is lost.  However,
-     * the timestamps are not lost, and we can use the DIN pin to
-     * trigger a timestamp and then see if the timestamp happened due
-     * to a DIN toggle.
-     */
-    buf[0] = MAX31331_TS0_FLAGS;
-    if (!I2cSendCommand(MAX31331_PORT, MAX31331_ADDR, buf, 1, reg, 1))
-        return FALSE;
-    if (reg[0] & 1) {
-	/* Record the external watchdog failure. */
-	last_reset_reasons |= RESET_EXTERNAL_WATCHDOG;
-	/* Reset the timestamp registers, it will be re-enabled in a bit. */
-	buf[0] = MAX31331_TIMESTAMP_CONFIG;
-	buf[1] = 0x02; /* TSR, reset timestamp registers. */
-	if (!I2cSendCommand(MAX31331_PORT, MAX31331_ADDR, buf, 2, NULL, 0))
-	    return FALSE;
-    }
-#endif
-
     buf[0] = MAX31331_RTC_CONFIG1;
     /* Disable DIN pin when running on VBat (bit 0x40). */
     /* DIN on falling edge, (0x08) */
@@ -237,15 +214,10 @@ bool InitRtc31331(void)
     if (!I2cSendCommand(MAX31331_PORT,MAX31331_ADDR, buf, 2, NULL, 0))
         return FALSE;
 
-#ifdef AFSK_HARDWARE3
-    /* Turn on timestamps, see discussion above. */
     buf[0] = MAX31331_TIMESTAMP_CONFIG;
-    buf[1] = (0x08 | /* TSDIN, Record timestamps on DIN transition. */
-	      0x04 | /* TSOW, overwrite timestamps. */
-	      0x01); /* TSE, enable timestamps. */
+    buf[1] = 0x00; /* Make sure the timestamp registers can be used for RAM. */
     if (!I2cSendCommand(MAX31331_PORT,MAX31331_ADDR, buf, 2, NULL, 0))
         return FALSE;
-#endif
 
     return true;
 }

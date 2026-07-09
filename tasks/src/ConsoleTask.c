@@ -621,7 +621,7 @@ const struct command_table {
 
 #define NUM_RESET_REASONS 16
 static const char * const ResetReasons[NUM_RESET_REASONS] = {
-    "External Watchdog", /* Not a TMS570 bit, read from the RTC. */
+    NULL,
     NULL,
     NULL,
     "External",

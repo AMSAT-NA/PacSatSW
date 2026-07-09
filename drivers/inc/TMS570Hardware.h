@@ -30,8 +30,7 @@ void ScrubECCMemory(uint64_t *start, uint32_t length);
 #define RESET_CPURESET 0x20
 #define RESET_SOFTWARE 0x10
 #define RESET_EXTERNAL 0x8
-#define RESET_EXTERNAL_WATCHDOG 0x1
-uint32_t last_reset_reasons;
+extern uint32_t last_reset_reasons;
 uint32_t read_last_reset_reasons(void);
 
 /*

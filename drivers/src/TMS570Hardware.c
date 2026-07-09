@@ -31,6 +31,20 @@ uint32_t last_reset_reasons;
 uint32_t read_last_reset_reasons(void)
 {
     last_reset_reasons = systemREG1->SYSESR;
+    systemREG1->SYSESR = 0xffff; /* Clear all the bits. */
+    if (last_reset_reasons & RESET_POWER_ON) {
+	/* If it was a power on reset, all other reset bits are invalid. */
+	last_reset_reasons = RESET_POWER_ON;
+    } else if (last_reset_reasons & (RESET_OSCRST | RESET_WATCHDOG
+				     | RESET_SOFTWARE)) {
+	/*
+	 * The oscillator, watchdog, and software resets cause the
+	 * external reset flag to be set, too, but we don't care in
+	 * that case.
+	 */
+	last_reset_reasons &= ~RESET_EXTERNAL;
+    }
+
     return last_reset_reasons;
 }
 
