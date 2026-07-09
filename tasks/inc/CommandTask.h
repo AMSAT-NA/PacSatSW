@@ -8,12 +8,10 @@
 #ifndef TASKS_INC_COMMANDTASK_H_
 #define TASKS_INC_COMMANDTASK_H_
 
-
-void CommandTask(void *pvParameters);
-
-
 #include <pacsat.h> /* Must precede stdio */
 #include "UplinkCommands.h"
+
+extern uint8_t SWCmdRing[4];
 
 bool DecodeSoftwareCommand(SWCmdUplink *softwareCommand);
 bool CorrelateSync(uint32_t data);

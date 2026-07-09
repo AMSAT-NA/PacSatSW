@@ -71,9 +71,6 @@
 #include "UplinkTask.h"
 
 
-//Extern definition
-extern uint8_t SWCmdRing[SW_CMD_RING_SIZE], SWCmdIndex;
-
 /* Must be long enough for worst case: Uploadtest20xxxxxx  which is 86 */
 static char commandString[COM_STRING_SIZE];
 

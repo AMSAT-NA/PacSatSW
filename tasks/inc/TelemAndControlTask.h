@@ -8,6 +8,9 @@
 #ifndef TASKS_SRC_TELEMANDCONTROLTASK_H_
 #define TASKS_SRC_TELEMANDCONTROLTASK_H_
 
+extern bool allow_autosafe;
+extern uint16_t into_autosafe_voltage;
+extern uint16_t outof_autosafe_voltage;
 
 /*
  * Routine prototypes

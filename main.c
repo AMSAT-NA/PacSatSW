@@ -97,14 +97,13 @@ bool time_valid;
  * Diagnostic payload pieces for each processor
  */
 
-rt1Errors_t localErrorCollection;
 int currentStandbyDiagIndex=0,currentLegacyDiagIndex=0;
 
 //Module variables
 static volatile bool i2cSCDWait=true,i2cRxWait=false;
 static volatile uint32_t interruptBits = 0;
 
-bool JustReleasedFromBooster; //Extern definition
+bool JustReleasedFromBooster;
 bool AllTasksStarted = false,CoordinationMessageReceived = false,SimDoppler=false;
 resetMemory_t tempPrintReset;
 
@@ -354,8 +353,6 @@ void ConsoleTask(void *pvParameters){
              (int)"ERROR: Could not load directory from MRAM");
     }
 
-    xTaskCreate(CommandTask, "Command", COMMAND_STACK_SIZE,
-                NULL, COMMAND_PRIORITY, NULL);
     xTaskCreate(IOTask, "IOTask", CAN_STACK_SIZE, NULL,
                 CAN_PRIORITY, NULL);
     xTaskCreate(RxTask, "RxTask", RX_STACK_SIZE, NULL,

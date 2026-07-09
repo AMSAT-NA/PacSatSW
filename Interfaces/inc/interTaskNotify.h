@@ -20,7 +20,6 @@
 typedef enum {
     ToNone=-1,
     ToDownlinkControl=0,
-    ToCommand,
     ToTelemetryAndControl,
     ToIOTask,
     // New message destinations go above here

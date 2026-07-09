@@ -28,14 +28,14 @@ typedef enum {
     Ax25TaskWD,
     UplinkTaskWD,
     PBTaskWD,
-    CommandWD,
     IdleWD,
     IOTaskWD,
     /* Add any new tasks to watch in here.  Maximum number of tasks is 9. */
     /* The nine limit is the number of bits available in the downlink */
     LastWD,
     InterruptThd = LastWD,
-    ConsoleTsk
+    ConsoleTsk,
+    NUM_TASKS,
     /*
      * NB: any changes must be recorded in FoxTelem's
      * golf_task_name.tab file.

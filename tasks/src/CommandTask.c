@@ -30,20 +30,14 @@
 #include "I2cPoll.h"
 #include "redposix.h"
 #include "TelemAndControlTask.h"
+#include "errors.h"
 
 #define command_print if(PrintCommandInfo)printf
 
-extern bool InSafeMode,InScienceMode,InHealthMode;
-extern bool JustReleasedFromBooster;
-extern uint16_t NumWODSaved;
-extern int32_t WODHkStoreIndex,WODSciStoreIndex;
-extern rt1Errors_t localErrorCollection;
-extern uint16_t into_autosafe_voltage;
-extern uint16_t outof_autosafe_voltage;
-extern bool state_autosafe;
-extern bool allow_autosafe;
+uint8_t SWCmdRing[4] = {0,0,0,0};
 
-static uint8_t SWCmdCount,HWCmdCount;
+static uint8_t SWCmdCount, HWCmdCount;
+static bool FallbackTimerActive = true;
 
 /*
  * Forward Routines
@@ -52,12 +46,10 @@ static void DecodeHardwareCommand(UplinkCommands);
 static bool TlmSWCommands(CommandAndArgs *comarg);
 static bool OpsSWCommands(CommandAndArgs *comarg);
 static bool DispatchSoftwareCommand(SWCmdUplink *uplink,bool local);
-bool AuthenticateSoftwareCommand(SWCmdUplink *uplink);
-bool CommandTimeOK(SWCmdUplink *uplink);
-
+static bool AuthenticateSoftwareCommand(SWCmdUplink *uplink);
+static bool CommandTimeOK(SWCmdUplink *uplink);
 
 static bool PrintCommandInfo = false,CommandTimeEnabled = false;
-uint8_t SWCmdRing[4] = {0,0,0,0};
 static Intertask_Message statusMsg; // Storage used to send messages to the Telemetry and Control task
 
 
@@ -73,81 +65,6 @@ static Intertask_Message statusMsg; // Storage used to send messages to the Tele
         }
 
 
-void CommandTask(void *pvParameters)
-{
-    bool FallbackTimerActive = true;
-
-    /*
-     * This is a task which sits around waiting for a message either from the the hardware or the software
-     * command decoder to tell it that a command has been received.  When that happens, it acts on the
-     * command.
-     *
-     * It is also used to update time time-based items that can't be done from the MET module because
-     * they must not be done from an interrupt routine.
-     */
-
-
-    //Intertask_Message message;
-    vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)CommandWD );
-    ReportToWatchdog(CommandWD);
-
-    //RestartUplinkDecode(); // Initialize software command decoder
-    SWCmdCount = 0;
-    HWCmdCount = 0;
-
-    InitInterTask(ToCommand, 10);
-    ReportToWatchdog(CommandWD);
-    CommandTimeEnabled = ReadMRAMBoolState(StateCommandTimeCheck);
-    /* Wait for the rest of the satellite to come up */
-    vTaskDelay(1);
-    debug_print("Waiting for command ...\n");
-    while (1) {
-        ReportToWatchdog(CommandWD);
-        taskYIELD();
-        bool gotSomething;
-        Intertask_Message msg;
-        ReportToWatchdog(CommandWD);
-        gotSomething=WaitInterTask(ToCommand,SECONDS(2), &msg);
-        /*
-         * Since this task is not terribly busy, we will also use it to trigger things that
-         * run on a timer.
-         */
-        ReportToWatchdog(CommandWD);
-        if(gotSomething){
-            /* Here we actually received a message, so there is a command */
-            //GPIOSetOff(LED3); // THere was a command.  Tell a human for ground testing
-            JustReleasedFromBooster = false;
-            if(FallbackTimerActive){
-                /*
-                 * Remember we have received a command and turn off the fallback
-                 * timer.
-                 */
-                WriteMRAMCommandReceived(true);
-                FallbackTimerActive = false;
-            }
-            if(msg.MsgType == CmdTypeRawSoftware){
-                debug_print("COMMAND VIA MESSAGE NOT SUPPORTED!!\n");
-            } else if(msg.MsgType == CmdTypeHardware){
-                debug_print("HW COMMAND!!\n");
-                int fixedUp=0;
-                //
-                // The data lines are not attached to adjacent pins
-                // in order so we have to straighten them out.
-                if(msg.argument & 2){
-                    fixedUp |= 8;
-                }
-                if(msg.argument & 1){
-                    fixedUp |= 1;
-                }
-                DecodeHardwareCommand((UplinkCommands)fixedUp);
-            }
-        } else {
-            // Just another timed thing not really related to this task
-            //GPIOSetOn(LED3); // Turn the light off (so command light was on about 2 seconds)
-        }
-    }
-}
-
 /*******************************************************************
  * Here are some utility routines.
  *
@@ -155,36 +72,63 @@ void CommandTask(void *pvParameters)
  * CheckCommandTimeout is called from the command task.
  *
  ********************************************************************/
-void SimulateHWCommand(UplinkCommands cmd){
-    Intertask_Message msg;
-    msg.MsgType = CmdTypeHardware;
-    msg.argument = cmd;
-    //debug_print("Fake command %d\n",cmd);
-    NotifyInterTask(ToCommand,WATCHDOG_SHORT_WAIT_TIME,(Intertask_Message *)&msg);
-}
-void SimulateSwCommand(uint8_t namesp, uint16_t cmd, const uint16_t *args,int numargs){
-//    Intertask_Message msg;
-//    int i;
-//    msg.MsgType = CmdTypeValidatedSoftwareLocal;
-//    msg.argument = namesp;
-//    msg.argument2 = cmd;
-//    if(numargs > sizeof(msg.data))numargs=sizeof(msg.data);
-//    for(i=0;i<numargs;i++){
-//        msg.data[i] = args[i];
-//    }
-    debug_print("Simulated SW command %d\n",cmd);
-//    NotifyInterTask(ToCommand,WATCHDOG_SHORT_WAIT_TIME,(Intertask_Message *)&msg);
 
+/*
+ * TODO - This was pulled from the command task when it got a command.
+ *
+ * The only time this would have been invoked as it was was from
+ * SimulateHWCommand.  What is it supposed to do?
+ */
+static void GotCommand(void)
+{
+    JustReleasedFromBooster = false;
+    if (FallbackTimerActive) {
+	/*
+	 * Remember we have received a command and turn off the fallback
+	 * timer.
+	 */
+	WriteMRAMCommandReceived(true);
+	FallbackTimerActive = false;
+    }
+}
+
+void SimulateHWCommand(UplinkCommands cmd)
+{
+    int fixedUp = 0;
+
+    debug_print("HW COMMAND!!\n");
+
+    GotCommand();
+    HWCmdCount++;
+
+    // The data lines are not attached to adjacent pins
+    // in order so we have to straighten them out.
+    if (cmd & 2) {
+	fixedUp |= 8;
+    }
+    if (cmd & 1) {
+	fixedUp |= 1;
+    }
+    DecodeHardwareCommand((UplinkCommands)fixedUp);
+}
+
+void SimulateSwCommand(uint8_t namesp, uint16_t cmd,
+		       const uint16_t *args, int numargs)
+{
     int i;
     SWCmdUplink uplink;
+
+    debug_print("Simulated SW command %d\n",cmd);
+
     uplink.comArg.command = cmd;
-    for(i=0;i<numargs;i++){
+    for (i = 0; i < numargs; i++){
         uplink.comArg.arguments[i] = args[i];
     }
     uplink.namespaceNumber = namesp;
     uplink.address = OUR_ADDRESS;
     DispatchSoftwareCommand(&uplink, true);
 }
+
 static void DecodeHardwareCommand(UplinkCommands command){
 
     /*
@@ -200,7 +144,7 @@ static void DecodeHardwareCommand(UplinkCommands command){
     }
 }
 
-bool DispatchSoftwareCommand(SWCmdUplink *uplink,bool local){
+static bool DispatchSoftwareCommand(SWCmdUplink *uplink,bool local){
     uint8_t nameSpace;
 
     /*
@@ -586,7 +530,7 @@ bool DecodeSoftwareCommand(SWCmdUplink *softwareCommand) {
 
 }
 
-bool AuthenticateSoftwareCommand(SWCmdUplink *uplink){
+static bool AuthenticateSoftwareCommand(SWCmdUplink *uplink){
     uint8_t localSecureHash[32];
     bool shaOK;
 
@@ -613,7 +557,8 @@ bool AuthenticateSoftwareCommand(SWCmdUplink *uplink){
     }
 
 }
-bool CommandTimeOK(SWCmdUplink *uplink){
+
+static bool CommandTimeOK(SWCmdUplink *uplink){
     logicalTime_t timeNow;
     static int lastCommandTime = 0;
     int secondsOff,uplinkSeconds;

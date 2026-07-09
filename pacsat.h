@@ -59,4 +59,6 @@ extern bool time_valid;
 extern bool monitorTxPackets, monitorRxPackets, monitorRSSI, monitor_raw;
 
 
+extern bool JustReleasedFromBooster;
+
 #endif /* PACSAT_H_ */

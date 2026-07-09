@@ -24,8 +24,6 @@
 #include "I2cPoll.h"
 
 
-extern rt1Errors_t localErrorCollection;
-
 void print8BitTemp(uint8_t temp8)
 {
     int16_t temp = temp8;
@@ -380,8 +378,10 @@ char *modulation_to_str(enum radio_modulation mod)
 }
 
 #ifdef DEBUG
-static const char *getTaskName(int task)
+static const char *getTaskName(unsigned int task)
 {
+    if (task >= NUM_TASKS)
+	return "Invalid";
     return TaskNames[task];
 }
 

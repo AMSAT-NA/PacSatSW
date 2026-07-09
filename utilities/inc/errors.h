@@ -10,7 +10,8 @@
 
 #include <pacsat.h>
 #include "config.h"
-
+#include "downlink.h"
+#include "rt1ErrorsDownlink.h"
 
 /* Here are the errors that we can report */
 typedef enum _error {
@@ -234,5 +235,7 @@ typedef struct _save {
 } resetMemory_t;
 
 extern resetMemory_t SaveAcrossReset;
+
+extern rt1Errors_t localErrorCollection;
 
 #endif /* ERRORS_H_ */

@@ -119,7 +119,6 @@ const char * const TaskNames[] = {
     "Ax25",
     "Uplink",
     "PB",
-    "Command",
     "Idle",
     "IO",
     "Interrupt",
@@ -129,7 +128,7 @@ const char * const TaskNames[] = {
 
 // Error Condition Event-Counter
 
-extern rt1Errors_t localErrorCollection; // Here is where we collect the errors
+rt1Errors_t localErrorCollection; // Here is where we collect the errors
 
 /*
  * Debugging Macros and Structures for errors and unexpected interrupts
