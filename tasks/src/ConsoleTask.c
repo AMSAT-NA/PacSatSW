@@ -619,26 +619,6 @@ const struct command_table {
     {}
 };
 
-#define NUM_RESET_REASONS 16
-static const char * const ResetReasons[NUM_RESET_REASONS] = {
-    NULL,
-    NULL,
-    NULL,
-    "External",
-    "Software",
-    "CPU Reset",
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    "Watchdog",
-    "Oscillator",
-    "Power On"
-};
-
 static char *get_dev_modulation_str(uint8_t devb)
 {
     return modulation_to_str(DCTModulation[devb]);
@@ -733,21 +713,6 @@ void RealConsoleTask(void)
     char *afterCommand;
     bool DoEcho = true;
     rfchan chan;
-    unsigned int rr;
-    bool first = true;
-
-    /* Have to wait until after the RTC is initialized to do this. */
-    printf("Last reset was due to:");
-    for (rr = 0; rr < NUM_RESET_REASONS; rr++) {
-	if ((last_reset_reasons & (1 << rr)) && ResetReasons[rr]) {
-	    if (!first)
-		printf(",");
-	    else
-		first = false;
-	    printf(" %s", ResetReasons[rr]);
-	}
-    }
-    printf("\n");
 
     for (chan = 0; chan < NUM_CHANNELS; chan++) {
         DCTFreq[chan] = ReadMRAMFreq(chan);
@@ -1621,6 +1586,8 @@ void RealConsoleTask(void)
             if (!time_valid)
                 printf("***Unix Time is not valid\n");
 
+	    printf("***A: %d\n", SaveAcrossReset.fields.filler);
+	    SaveAcrossReset.fields.filler++;
             printf("Short boot count: %d, short boot flag %d\n\r",
                    SaveAcrossReset.fields.earlyResetCount,
                    SaveAcrossReset.fields.wasStillEarlyInBoot);

@@ -118,7 +118,6 @@ void startup(void)
 #ifndef UNDEFINE_BEFORE_FLIGHT
 #error Be sure to enable self test in processor
 #endif
-    read_last_reset_reasons();
     InitErrors();
     gioInit();
     muxInit();

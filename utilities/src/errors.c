@@ -37,44 +37,45 @@ bool ErrorInProgress = false;
 #include <nonvolManagement.h>
 
 /* Debugging error messages */
-#ifdef DEBUG
-char *ErrMsg[EndOfErrors]={
-                            " Unspecified  "
-                           ,"  PowerCycle  "
-                           ," Int Watchdog "
-                           ,"Software Reset"
-                           ,"External Reset"
-                           ,"Oscillator Failure"
-                           ,"StackOverflow"
-                           ,"NMI Exception"
-                           ,"SPIInUse"
-                           ,"SPIOperationTimeout"
-                           ,"SPIMramTimeout"
-                           ,"UnexpectedBehavior"
-                           ,"SemaphoreFail"
-                           ,"USARTError"
-                           ,"DMAInUseTimeout"
-                           ,"Illegal GPIO Output"
-                           ,"Illegal GPIO Input"
-                           ,"Illegal GPIO Wait"
-                           ,"MRAMcrc"
-                           ,"MRAMread"
-                           ,"MRAMwrite"
-                           ,"RTOS failure"
-                           ,"I2C In Use"
-                           ,"I2C1 failure"
-                           ,"I2C2 failure"
-                           ,"ControlQueueOverflow"
-                           ,"ControlTimerNotStarted"
-                           ,"Coordination Timer Not Started"
-                           ,"CAN write timeout"
-                           ,"Experiment Failure"
-                           ,"Debug Startup "
-                           ,"TX dropped packet"
-                           ,"RX dropped packet"
-                           ,"CAN In Use"
-                           ,"REDFS IO Error"
+static const char * const ErrMsg[EndOfErrors] = {
+    "Unspecified", //0
+    "PowerCycle",
+    "Int Watchdog",
+    "Software Reset",
+    "External Reset",
+    "Oscillator Failure", //5
+    "StackOverflow",
+    "NMI Exception",
+    "SPIInUse",
+    "SPIOperationTimeout",
+    "SPIMramTimeout", //10
+    "UnexpectedBehavior",
+    "SemaphoreFail",
+    "USARTError",
+    "DMAInUseTimeout",
+    "Illegal GPIO Output", //15
+    "Illegal GPIO Input",
+    "Illegal GPIO Wait",
+    "MRAMcrc",
+    "MRAMread",
+    "MRAMwrite", //20
+    "RTOS failure",
+    "I2C In Use",
+    "I2C1 failure",
+    "I2C2 failure",
+    "ControlQueueOverflow", //25
+    "ControlTimerNotStarted",
+    "Coordination Timer Not Started",
+    "CAN write timeout",
+    "Experiment Failure",
+    "Debug Startup ", //30
+    "TX dropped packet",
+    "RX dropped packet",
+    "CAN In Use",
+    "REDFS IO Error",
+    "AX5043 Error", //35
 };
+
 #ifdef LEGACY_AND_NOT_USED
 char *LIHUErrMsg[EndOfErrors]={
                                 " Int Watchdog "
@@ -114,21 +115,20 @@ char *LIHUErrMsg[EndOfErrors]={
 /* These task names need to correspond to the id returned by xTaskGetApplicationTaskTag(0)
  * These need to be in the same order as the WdReporters_t enum in watchdogSupport.h
  * as that is the enum used to set the task id */
-char *TaskNames[] = {
-                   "Unspecified",
-                   "Telemetry & Control",
-                   "Rx",
-                   "Tx",
-                   "Ax25",
-                   "Uplink",
-                   "PB",
-                   "Command",
-                   "Idle",
-                   "CAN",
-                   "Interrupt",
-                   "Console"
+const char * const TaskNames[] = {
+    "Unspecified",
+    "Telemetry & Control",
+    "Rx",
+    "Tx",
+    "Ax25",
+    "Uplink",
+    "PB",
+    "Command",
+    "Idle",
+    "CAN",
+    "Interrupt",
+    "Console",
 };
-#endif
 
 
 // Error Condition Event-Counter
@@ -331,11 +331,10 @@ void ReportError(ErrorType_t code, bool fatal, ErrorInfoType_t infoType, uint32_
     }
 }
 
-#ifdef DEBUG
-char * ErrorMessageString(ErrorType_t code){
+const char *ErrorMessageString(ErrorType_t code)
+{
     return ErrMsg[code];
 }
-#endif
 
 void ClearShortBootFlag(){
     // This gets called after we have been up long enough that

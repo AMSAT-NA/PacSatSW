@@ -24,15 +24,6 @@ void ProcessorReset(void);
 
 void ScrubECCMemory(uint64_t *start, uint32_t length);
 
-#define RESET_POWER_ON 0x8000
-#define RESET_OSCRST 0x4000
-#define RESET_WATCHDOG 0x2000
-#define RESET_CPURESET 0x20
-#define RESET_SOFTWARE 0x10
-#define RESET_EXTERNAL 0x8
-extern uint32_t last_reset_reasons;
-uint32_t read_last_reset_reasons(void);
-
 /*
  * ESM Error Channels
  */

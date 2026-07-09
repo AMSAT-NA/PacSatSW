@@ -53,7 +53,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>
  */
 #include <pacsat.h>
-#include "TMS570Hardware.h" /* For last_reset_reasons */
 #include "Max31331Rtc.h"
 #include "i2cDriver.h"
 #include <time.h>

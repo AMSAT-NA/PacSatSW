@@ -26,8 +26,6 @@
 
 extern rt1Errors_t localErrorCollection;
 
-extern char *ErrMsg[], *LIHUErrMsg[],*TaskNames[];
-
 void print8BitTemp(uint8_t temp8)
 {
     int16_t temp = temp8;
@@ -277,13 +275,13 @@ void receiveLine(COM_NUM ioCom, char *commandString, char prompt, bool echo)
                 /*Ignore line feed.  Only watch for CR*/
                 /* Echo the received character and record it in the buffer */
                 escSeq = 0;
-		if (charNum < COM_STRING_SIZE) {
-		    if (echo)
-			// COM0, value, block time is unused
-			SerialPutChar(ioCom, receivedChar, 0);
-		    /* Force it to be lower case, plus it won't change digits */
-		    commandString[charNum++] = receivedChar | 0x20;
-		}
+                if (charNum < COM_STRING_SIZE) {
+                    if (echo)
+                        // COM0, value, block time is unused
+                        SerialPutChar(ioCom, receivedChar, 0);
+                    /* Force it to be lower case, plus it won't change digits */
+                    commandString[charNum++] = receivedChar | 0x20;
+                }
             }
             /*
              * All the code above echos type characters and allows one
@@ -311,12 +309,12 @@ void receiveLine(COM_NUM ioCom, char *commandString, char prompt, bool echo)
                      * If we have multiple spaces, skip them.
                      */
                     if (commandString[dest] == ' ') {
-			while (commandString[src] == ' ')
-			    src++;
-		    }
-		    dest++;
+                        while (commandString[src] == ' ')
+                            src++;
+                    }
+                    dest++;
                 }
-		commandString[dest] = '\0';
+                commandString[dest] = '\0';
                 if (commandString[0] != 0) {
                     strncpy(prevCommandString, commandString, COM_STRING_SIZE);
                     prevSize = dest;
@@ -406,7 +404,7 @@ void DisplayTelemetry(uint32_t typeRequested)
                 "  CommandedSafeMode=%d,Autosafe=%d\n\r"
                 "  CommandRcvd=%d,AllowAutoSafe=%d\n\r"
                 "  Enabled: PB=%d,FTL0=%d,Digi=%d,Telem=%d,Time=%d,WOD=%d,Err WOD=%d\n\r",
-	       ReadMRAMBoolState(StateTransmitInhibit),
+               ReadMRAMBoolState(StateTransmitInhibit),
                ReadMRAMBoolState(StateCommandedSafeMode),
                ReadMRAMBoolState(StateAutoSafe),
                ReadMRAMBoolState(StateCommandReceived),
@@ -516,9 +514,11 @@ void printID(void)
                getSizeNV(NVConfigData), getSizeNV(NVFileSystem));
     }
 
-    //    printf("Previous reboot reason=%d (%s), WD reports=%x,task=%d\n",localErrorCollection.LegErrorCode,
-    //            ErrMsg[localErrorCollection.LegErrorCode],
-    //            localErrorCollection.LegWdReports,localErrorCollection.LegTaskNumber);
+    printf("Previous reboot reason=%d (%s), WD reports=%x, task=%d\n",
+           localErrorCollection.errorCode,
+           ErrorMessageString((ErrorType_t) localErrorCollection.errorCode),
+           localErrorCollection.wdReports,
+           localErrorCollection.taskNumber);
 }
 
 void printHelp(char *search, const commandPairs *commands, int numberOfCommands)
