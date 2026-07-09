@@ -30,7 +30,7 @@ typedef enum {
     PBTaskWD,
     CommandWD,
     IdleWD,
-    CANTaskWD,
+    IOTaskWD,
     /* Add any new tasks to watch in here.  Maximum number of tasks is 9. */
     /* The nine limit is the number of bits available in the downlink */
     LastWD,

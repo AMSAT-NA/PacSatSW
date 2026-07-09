@@ -25,7 +25,7 @@
 #define NUM_CAN_BUSSES 2
 
 void CANInit(void);
-void CANTask(void *pvParameters);
+void CANSetup(void);
 
 bool CANSend(int canNum, uint8_t priority, uint8_t type,
              uint16_t msgid, uint8_t dest,
@@ -63,5 +63,10 @@ struct can_counts {
 };
 
 void CANGetCounts(int canNum, struct can_counts *counts);
+
+void CANHandleReceive(int canNum, int box);
+void CANHandleUpdateID(int canNum, int box);
+void CANHandleError(int canNum, int box);
+void CANHandleStatus(int canNum, int box);
 
 #endif /* CANTASK_H */

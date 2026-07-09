@@ -37,7 +37,7 @@
 #include "inet.h"
 #include "str_util.h"
 #include "adc_proc.h"
-#include "CANTask.h"
+#include "canDriver.h"
 #include "TelemAndControlTask.h"
 #include "exp_interface.h"
 #include "CommandTask.h"

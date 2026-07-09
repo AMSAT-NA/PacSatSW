@@ -61,7 +61,7 @@
 #include "Max31725Temp.h"
 #endif
 
-#include "CANTask.h" // For test routines
+#include "canDriver.h" // For test routines
 #include "TxTask.h" // for test routines
 #include "PbTask.h" // for test routines
 #include "pacsat_header.h" // for test routines

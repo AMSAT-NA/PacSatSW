@@ -1,5 +1,5 @@
 /*
- * CANTask.c
+ * canDriver.c
  *
  *  Created on: Dec 7, 2025
  *      Author: Corey Minyard  AE5KM
@@ -25,7 +25,7 @@
 #include "errors.h"
 #include "acp.h"
 
-#include "CANTask.h"
+#include "canDriver.h"
 
 /*
  * This code uses message box 1 for transmission and message box 2+ for
@@ -333,6 +333,26 @@ static bool CANSetOneBox(int canNum, int box, int enable, int transmit,
     return true;
 }
 
+static void CANSetupRxBoxes(int canNum)
+{
+    unsigned int i;
+
+    for (i = CAN_RECEIVE_FIRST_BOX;
+         i < CAN_RECEIVE_FIRST_BOX + CAN_RECEIVE_NUM_BOXES;
+         i++) {
+        CANSetOneBox(canNum, i, CAN_BOX_ENABLE, CAN_BOX_RECEIVE,
+                     can[canNum].myID << 12, 0xf << 12, NULL, 8);
+    }
+}
+
+void CANSetup(void)
+{
+    unsigned int i;
+
+    for (i = 0; i < NUM_CAN_BUSSES; i++)
+        CANSetupRxBoxes(i);
+}
+
 /*
  * Extract message data for a message in the given box.  For receive
  * only.
@@ -580,7 +600,7 @@ deliver_can_msg(int canNum, uint8_t type, uint16_t msgid, uint8_t src,
  * together long messages as required and delivering them to a
  * user-defined function.
  */
-static void CANHandleReceive(int canNum, int box)
+void CANHandleReceive(int canNum, int box)
 {
     uint32_t id;
     uint8_t msg[8];
@@ -690,6 +710,27 @@ static void CANHandleReceive(int canNum, int box)
 }
 
 /*
+ * Handle an update status.
+ */
+void CANHandleUpdateID(int canNum, int box)
+{
+    can[canNum].myID = box;
+    CANSetupRxBoxes(canNum);
+}
+
+void CANHandleError(int canNum, int box)
+{
+    if (trace_can)
+	printf("CAN %d Error %x errc %x\n", canNum, box, can[canNum].regs->EERC);
+}
+
+void CANHandleStatus(int canNum, int box)
+{
+    if (trace_can)
+	printf("CAN %d Status %x\n", canNum, box);
+}
+
+/*
  * Register a handler to be called when a message comes in on a CAN
  * bus.
  */
@@ -698,18 +739,6 @@ void CANRegisterReceiveHandler(int canNum, CANReceiveHandler rxhandler)
     if (canNum >= NUM_CAN_BUSSES)
         return;
     can[canNum].rxhandler = rxhandler;
-}
-
-static void CANSetupRxBoxes(int canNum)
-{
-    unsigned int i;
-
-    for (i = CAN_RECEIVE_FIRST_BOX;
-         i < CAN_RECEIVE_FIRST_BOX + CAN_RECEIVE_NUM_BOXES;
-         i++) {
-        CANSetOneBox(canNum, i, CAN_BOX_ENABLE, CAN_BOX_RECEIVE,
-                     can[canNum].myID << 12, 0xf << 12, NULL, 8);
-    }
 }
 
 /*
@@ -726,11 +755,11 @@ void CANSetMyID(int canNum, int id)
     if (id >= 16)
         return;
 
-    /* Tell CANTask to update the id. */
+    /* Tell IOTask to update the id. */
     msg.MsgType = CANUpdateIDMsg;
     msg.argument = canNum;
     msg.argument2 = id;
-    NotifyInterTaskFromISR(ToCANTask, &msg);
+    NotifyInterTaskFromISR(ToIOTask, &msg);
 }
 
 int CANGetMyID(int canNum)
@@ -739,62 +768,6 @@ int CANGetMyID(int canNum)
         return -1;
 
     return can[canNum].myID;
-}
-
-portTASK_FUNCTION_PROTO(CANTask, pvParameters)
-{
-    unsigned int i;
-
-    vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)CANTaskWD);
-    /* Enough for all message boxes and some for other purposes. */
-    InitInterTask(ToCANTask, CAN_RECEIVE_NUM_BOXES * NUM_CAN_BUSSES + 5);
-    ReportToWatchdog(CANTaskWD);
-
-    for (i = 0; i < NUM_CAN_BUSSES; i++)
-        CANSetupRxBoxes(i);
-
-    for (;;) {
-        Intertask_Message msg;
-        int status;
-
-        ReportToWatchdog(CurrentTaskWD);
-        status = WaitInterTask(ToCANTask, CENTISECONDS(10), &msg);
-        ReportToWatchdog(CurrentTaskWD);
-
-        if (status != 1)
-            /* No message. */
-            continue;
-
-        switch (msg.MsgType) {
-        case CANRxDataMsg:
-            CANHandleReceive(msg.argument, msg.argument2);
-            break;
-
-        case CANUpdateIDMsg:
-            can[msg.argument].myID = msg.argument2;
-            CANSetupRxBoxes(msg.argument);
-            break;
-
-        case CANErrorMsg:
-            if (trace_can)
-                printf("CAN %d Error %x errc %x\n",
-                       msg.argument, msg.argument2,
-                       can[msg.argument].regs->EERC);
-            break;
-
-        case CANStatusMsg:
-            if (trace_can)
-                printf("CAN %d Status %x\n", msg.argument, msg.argument2);
-            break;
-
-#ifdef AFSK_HARDWARE3
-        case CANHandleACPMsg:
-            /* We handle ACP processing here, too. */
-            acp_runner();
-            break;
-#endif
-        }
-    }
 }
 
 void CANGetCounts(int canNum, struct can_counts *counts)
@@ -851,7 +824,7 @@ void canStatusChangeNotification(canBASE_t *node, uint32 box)
             msg.MsgType = CANErrorMsg;
             msg.argument = canNum;
             msg.argument2 = ES;
-            NotifyInterTaskFromISR(ToCANTask, &msg);
+            NotifyInterTaskFromISR(ToIOTask, &msg);
         }
 
         if (ES & (1 << 8)) { /* Parity error */
@@ -935,7 +908,7 @@ void canStatusChangeNotification(canBASE_t *node, uint32 box)
             msg.MsgType = CANStatusMsg;
             msg.argument = canNum;
             msg.argument2 = LEC;
-            NotifyInterTaskFromISR(ToCANTask, &msg);
+            NotifyInterTaskFromISR(ToIOTask, &msg);
         }
     }
 
@@ -966,7 +939,7 @@ void canStatusChangeNotification(canBASE_t *node, uint32 box)
             msg.MsgType = CANRxDataMsg;
             msg.argument = canNum;
             msg.argument2 = box;
-            NotifyInterTaskFromISR(ToCANTask, &msg);
+            NotifyInterTaskFromISR(ToIOTask, &msg);
         }
     }
 }

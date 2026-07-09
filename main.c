@@ -43,7 +43,8 @@
 #include "Max31331Rtc.h"
 #include "ConsoleTask.h"
 #include "CommandTask.h"
-#include "CANTask.h"
+#include "canDriver.h"
+#include "IOTask.h"
 #include "TxTask.h"
 #include "RxTask.h"
 #include "Ax25Task.h"
@@ -355,7 +356,7 @@ void ConsoleTask(void *pvParameters){
 
     xTaskCreate(CommandTask, "Command", COMMAND_STACK_SIZE,
                 NULL, COMMAND_PRIORITY, NULL);
-    xTaskCreate(CANTask, "CANTask", CAN_STACK_SIZE, NULL,
+    xTaskCreate(IOTask, "IOTask", CAN_STACK_SIZE, NULL,
                 CAN_PRIORITY, NULL);
     xTaskCreate(RxTask, "RxTask", RX_STACK_SIZE, NULL,
                 RX_PRIORITY, NULL);

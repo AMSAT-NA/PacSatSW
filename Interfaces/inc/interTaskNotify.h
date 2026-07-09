@@ -22,7 +22,7 @@ typedef enum {
     ToDownlinkControl=0,
     ToCommand,
     ToTelemetryAndControl,
-    ToCANTask,
+    ToIOTask,
     // New message destinations go above here
     ToCoordinate,
     NumberOfDestinations

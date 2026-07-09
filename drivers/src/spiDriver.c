@@ -199,9 +199,9 @@ static void ant_irq_handler(void *handler_data)
         /* Ant_Interrupt is asserted, it's asking is to read it. */
         static Intertask_Message msg;
 
-        /* Tell the CAN task to run the ACP handler to fetch a message. */
-        msg.MsgType = CANHandleACPMsg;
-        NotifyInterTaskFromISR(ToCANTask, &msg);
+        /* Tell the IO task to run the ACP handler to fetch a message. */
+        msg.MsgType = ACPHandleMsg;
+        NotifyInterTaskFromISR(ToIOTask, &msg);
     }
 }
 

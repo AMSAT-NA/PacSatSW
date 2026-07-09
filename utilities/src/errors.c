@@ -121,7 +121,7 @@ const char * const TaskNames[] = {
     "PB",
     "Command",
     "Idle",
-    "CAN",
+    "IO",
     "Interrupt",
     "Console",
 };
