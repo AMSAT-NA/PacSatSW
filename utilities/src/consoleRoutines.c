@@ -28,11 +28,6 @@ extern rt1Errors_t localErrorCollection;
 
 extern char *ErrMsg[], *LIHUErrMsg[],*TaskNames[];
 
-static const char *getTaskName(int task)
-{
-    return TaskNames[task];
-}
-
 void print8BitTemp(uint8_t temp8)
 {
     int16_t temp = temp8;
@@ -386,6 +381,12 @@ char *modulation_to_str(enum radio_modulation mod)
     }
 }
 
+#ifdef DEBUG
+static const char *getTaskName(int task)
+{
+    return TaskNames[task];
+}
+
 void DisplayTelemetry(uint32_t typeRequested)
 {
     printf("Mode: %s\n", getSpacecraftModeStr());
@@ -405,8 +406,7 @@ void DisplayTelemetry(uint32_t typeRequested)
                 "  CommandedSafeMode=%d,Autosafe=%d\n\r"
                 "  CommandRcvd=%d,AllowAutoSafe=%d\n\r"
                 "  Enabled: PB=%d,FTL0=%d,Digi=%d,Telem=%d,Time=%d,WOD=%d,Err WOD=%d\n\r",
-
-                ReadMRAMBoolState(StateTransmitInhibit),
+	       ReadMRAMBoolState(StateTransmitInhibit),
                ReadMRAMBoolState(StateCommandedSafeMode),
                ReadMRAMBoolState(StateAutoSafe),
                ReadMRAMBoolState(StateCommandReceived),
@@ -458,15 +458,12 @@ void DisplayTelemetry(uint32_t typeRequested)
 
         printf("Watchdog Reports in Errors.c:\n");
 
-        int bit;
-
-        for (bit = 0; bit < 9; bit ++) {
-            printf(" %s=%d,",TaskNames[bit+1],
-                   (localErrorCollection.wdReports>>bit) & 0x01);
+        for (i = 0; i < 9; i++) {
+            printf(" %s=%d,", TaskNames[i+1],
+                   (localErrorCollection.wdReports >> i) & 0x01);
         }
         printf("\n");
-        i = xPortGetFreeHeapSize();
-        printf("Free heap size is %d\n\r", i);
+        printf("Free heap size is %d\n\r", xPortGetFreeHeapSize());
         return;
     }
 
@@ -476,6 +473,7 @@ void DisplayTelemetry(uint32_t typeRequested)
     }
     } /* End of switch */
 }
+#endif
 
 void printID(void)
 {

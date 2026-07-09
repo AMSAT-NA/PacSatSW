@@ -71,7 +71,7 @@ static rfchan txchan = FIRST_TX_CHANNEL;
 
 enum radio_modulation tx_modulation;
 
-uint8_t tx_dac_val = 255;
+uint8_t tx_dac_val = 215;
 
 /* Global Variable that is declared here and prevents the transmitter from generating RF */
 bool inhibitTransmit;

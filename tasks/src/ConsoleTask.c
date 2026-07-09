@@ -119,7 +119,6 @@ enum {
     getI2cState,
     internalWDTimeout,
     externalWDTimeout,
-    telem0,
     pollI2c,
     I2c,
     dropBus,
@@ -186,7 +185,9 @@ enum {
     testPfhFile,
     testDecode,
     makePfhFiles,
+    showPfh,
     testDir,
+    listDir,
     testInternalFile,
     makeWodQueFile,
     makeTxtQueFile,
@@ -194,6 +195,7 @@ enum {
     testRetransmission,
     testUploadTable,
     listUploadTable,
+    telem0,
 #endif
     Monitor,
     pbShut,
@@ -202,12 +204,10 @@ enum {
     uplinkOpen,
     digiShut,
     digiOpen,
-    showPfh,
     mramHxd,
     expireFile,
     dirLoad,
     dirClear,
-    listDir,
     getNextFileNumber,
     resetNextFileNumber,
     heapFree,
@@ -289,12 +289,6 @@ const commandPairs pacsatCommands[] = {
     { "open digi",
       "Enable the Digipeater",
       digiOpen},
-    { "send pb status",
-      "Immediately transmit the status of the PB",
-      testPbStatus},
-    { "pfh",
-        "Display the PACSAT File header for a file",
-        showPfh},
     { "hxd",
       "Display Hex for file",
       mramHxd},
@@ -307,18 +301,12 @@ const commandPairs pacsatCommands[] = {
     { "clear dir",
       "Clear the directory but leave the files in filesystem",
       dirClear},
-    { "list dir",
-      "List the Pacsat Directory.",
-      listDir},
     { "next filenumber",
       "Show the next file number that the Dir will assign to an uploaded file",
       getNextFileNumber},
     { "reset filenumber",
       "Reset the next Dir file number to zero.",
       resetNextFileNumber},
-    { "list upload table",
-      "List the Upload records in the MRAM table",
-      listUploadTable},
 };
 
 /*
@@ -367,6 +355,9 @@ const commandPairs debugCommands[] = {
       "[size | test <blksize> 42 | clear | sr <nr>|all [val] | wake <nr> | sleep <nr> | wren <nr>",
     },
 #ifdef DEBUG
+    { "status",
+      "Print some general status info",
+      telem0},
     { "test pacsat",
       "Run all of the PACSAT self tst routines",
       testPacsat},
@@ -376,6 +367,9 @@ const commandPairs debugCommands[] = {
     { "test tx",
       "Test the Pacsat TX Packet routines",
       testTx},
+    { "send pb status",
+      "Immediately transmit the status of the PB",
+      testPbStatus},
     { "test pb ok",
       "Test the Pacsat Broadcast by sending OK packet",
       testPbOk},
@@ -391,6 +385,9 @@ const commandPairs debugCommands[] = {
     { "test psf",
       "Test the Pacsat Files in MRAM",
       testPfhFile},
+    { "pfh",
+      "Display the PACSAT File header for a file",
+      showPfh},
     { "test decode",
       "Test decode of AX25 packets",
       testDecode},
@@ -400,6 +397,9 @@ const commandPairs debugCommands[] = {
     { "test dir",
       "Test the Pacsat Directory.  The command 'make psf' must already have been run",
      testDir},
+    { "list dir",
+      "List the Pacsat Directory.",
+      listDir},
     { "test internal file",
       "Generate a test internal file and add it to the directory",
       testInternalFile},
@@ -418,6 +418,9 @@ const commandPairs debugCommands[] = {
     { "test upload table",
       "Test the storage of Upload records in the MRAM table",
       testUploadTable},
+    { "list upload table",
+      "List the Upload records in the MRAM table",
+      listUploadTable},
 #endif
 };
 
@@ -428,9 +431,6 @@ const commandPairs commonCommands[] = {
     { "uptime",
       "Display reset number and seconds",
       upTime},
-    { "status",
-      "Print some general status info",
-      telem0},
     { "rssi",
       "Get the current RSSI reading(s) from the AX5043 Rx",
       RSSI,
@@ -667,6 +667,7 @@ static int parse_mramnr(char **str, uint8_t *mramnr)
     return 0;
 }
 
+#ifdef DEBUG
 static int parse_CAN_bus(char **str, uint8_t *canNum)
 {
     char *t = next_token(str);
@@ -694,6 +695,7 @@ static int parse_CAN_bus(char **str, uint8_t *canNum)
 
     return 0;
 }
+#endif
 
 static int parse_chan_de(char **str, rfchan *dev, int off, bool doerr)
 {
@@ -1586,11 +1588,6 @@ void RealConsoleTask(void)
             break;
         }
 
-        case telem0: {
-            DisplayTelemetry(0);
-            break;
-        }
-
         case startRx:{
             int err = parse_chan(&afterCommand, &chan, 1);
 
@@ -1986,6 +1983,33 @@ void RealConsoleTask(void)
             break;
         }
 
+        case showPfh: {
+            char *t = next_token(&afterCommand);
+            if (!t || strlen(t) == 0) {
+                printf("Usage: pfh <file name with path>\n");
+                break;
+            }
+            HEADER pfh;
+            int rc = pfh_load_from_file(t, &pfh);
+            if (rc == EXIT_SUCCESS) {
+                pfh_debug_print(&pfh);
+            } else {
+                debug_print("No valid PFH found in file %s\n",t);
+            }
+            break;
+        }
+
+        case listDir: {
+            // pass NULL to print from the head of the list
+            dir_debug_print(NULL);
+            break;
+        }
+
+        case telem0: {
+            DisplayTelemetry(0);
+            break;
+        }
+
 #endif /* DEBUG */
 
         case Monitor: {
@@ -2116,22 +2140,6 @@ void RealConsoleTask(void)
             break;
         }
 
-
-        case showPfh: {
-            char *t = next_token(&afterCommand);
-            if (!t || strlen(t) == 0) {
-                printf("Usage: pfh <file name with path>\n");
-                break;
-            }
-            HEADER pfh;
-            int rc = pfh_load_from_file(t, &pfh);
-            if (rc == EXIT_SUCCESS) {
-                pfh_debug_print(&pfh);
-            } else {
-                debug_print("No valid PFH found in file %s\n",t);
-            }
-            break;
-        }
         case mramHxd: {
             char *t = next_token(&afterCommand);
 
@@ -2215,12 +2223,6 @@ void RealConsoleTask(void)
 
         case dirClear:{
             dir_free();
-            break;
-        }
-
-        case listDir:{
-            // pass NULL to print from the head of the list
-            dir_debug_print(NULL);
             break;
         }
 

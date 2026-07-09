@@ -36,12 +36,8 @@ bool ErrorInProgress = false;
 #include "errors.h"
 #include <nonvolManagement.h>
 
-#ifdef UNDEFINE_BEFORE_FLIGHT
-#define DEBUG_AIDS
-#endif
-
 /* Debugging error messages */
-#ifdef DEBUG_AIDS
+#ifdef DEBUG
 char *ErrMsg[EndOfErrors]={
                             " Unspecified  "
                            ,"  PowerCycle  "
@@ -143,12 +139,9 @@ extern rt1Errors_t localErrorCollection; // Here is where we collect the errors
  * Debugging Macros and Structures for errors and unexpected interrupts
  */
 
-#ifdef DEBUG_AIDS
-
+#ifdef DEBUG
 volatile DebugTaskHandle_t *stackInfo;
 void * __builtin_return_address (unsigned int level);
-
-
 #endif
 
 
@@ -291,7 +284,7 @@ void ReportError(ErrorType_t code, bool fatal, ErrorInfoType_t infoType, uint32_
         SaveAcrossReset.fields.errorData = htotl(info); /* Get bottom 8 bits of info */
     }
 
-#ifdef DEBUG_AIDS
+#ifdef DEBUG
     printf("\r\n\n!!!!Error %d reported from task %s;'%s'\n\r",
            code,
            TaskNames[(int)xTaskGetApplicationTaskTag(0)],
@@ -337,11 +330,13 @@ void ReportError(ErrorType_t code, bool fatal, ErrorInfoType_t infoType, uint32_
         ReportToWatchdog(CurrentTaskWD);
     }
 }
-#ifdef UNDEFINE_BEFORE_FLIGHT
+
+#ifdef DEBUG
 char * ErrorMessageString(ErrorType_t code){
     return ErrMsg[code];
 }
 #endif
+
 void ClearShortBootFlag(){
     // This gets called after we have been up long enough that
     // we don't count this as a short boot, (which forces a power

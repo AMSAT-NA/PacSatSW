@@ -561,7 +561,7 @@ bool ftl0_add_request(char *from_callsign, uint8_t channel) {
  *
  */
 bool ftl0_remove_request(uint8_t channel) {
-#ifdef DEBUG
+#ifdef TRACE_FTL0
     uint32_t now = getSeconds();
     int duration = (int)(now - ftl0_state_machine[channel].request_time);
     trace_ftl0("FTL0 Disconnecting %s - connected for %d seconds\n",ftl0_state_machine[channel].callsign, duration);

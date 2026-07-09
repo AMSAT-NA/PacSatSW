@@ -365,12 +365,15 @@ int print_packet(char *label, uint8_t *packet, int len)
 int print_decoded_packet(char *label, AX25_PACKET *decoded)
 {
     int loc;
+#ifdef DEBUG_PRINT
     char *command;
 
     if (decoded->command)
         command = "Cmd";
     else
         command = "Res";
+#endif
+
     debug_print("%s- %s: %s>%s",label, frame_type_strings[decoded->frame_type],
                 decoded->from_callsign, decoded->to_callsign);
     if (decoded->via_callsign[0] != 0) {
@@ -378,7 +381,7 @@ int print_decoded_packet(char *label, AX25_PACKET *decoded)
         if (decoded->via_h)
             debug_print(":h");
     }
-    debug_print(" %s pid:%0x pf:%d ",command, decoded->pid, decoded->PF);
+    debug_print(" %s pid:%0x pf:%d ", command, decoded->pid, decoded->PF);
     if (decoded->frame_type == TYPE_I) {
         debug_print("nr:%d ns:%d ",decoded->NR, decoded->NS);
     } else if (decoded->frame_type == TYPE_S_RR ||

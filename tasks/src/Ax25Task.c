@@ -124,7 +124,9 @@ bool in_test = false;
 static bool seize_requested[NUM_RX_CHANNELS];
 
 static char *rx_channel_names[] = {"A", "B", "C", "D"};
+#ifdef TRACE_AX25_DL
 static char *state_names[] = {"DISC","AWAIT CONN","AWAIT REL","CONN", "TIMER REC", "AWAIT_22_CONN"};
+#endif
 
 static void clear_packet(AX25_PACKET *packet)
 {
@@ -349,8 +351,9 @@ void ax25_t1_expired(TimerHandle_t xTimer)
 void ax25_t3_expired(TimerHandle_t xTimer)
 {
     BaseType_t xStatus;
+    // timer id is treated as an integer and not as a pointer
+    uint32_t chan = (uint32_t)pvTimerGetTimerID( xTimer );
 #ifdef DEBUG
-    uint32_t chan = (uint32_t)pvTimerGetTimerID( xTimer ); // timer id is treated as an integer and not as a pointer
     trace_dl("AX25[%d]: Timeout... Timer T3 Expiry Int at %d\n", chan, getSeconds());
 #endif
 

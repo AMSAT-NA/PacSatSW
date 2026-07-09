@@ -144,19 +144,23 @@ portTASK_FUNCTION_PROTO(RxTask, pvParameters)
         GPIOSetOff(LED2);
 
         if (monitorRSSI) {
-            uint8_t rssi;
-            int16_t dbm;
-            rfchan chan;
+#ifdef DEBUG
+	    rfchan chan;
 
             for (chan = FIRST_RX_CHANNEL; chan <= LAST_RX_CHANNEL; chan++) {
+                uint8_t rssi;
+
                 // this magic value is supposed to be above the background
                 // noise, so we only see actual transmissions
                 rssi = get_rssi(chan);
                 if (rssi > ADJ_RX_RSSI_THRESHOLD) {
-                    dbm = rssi - 255;
+                    int16_t dbm = rssi - 255;
+
                     debug_print("RSSI-%d: %d dBm\n", chan, dbm);
                 }
             }
+#endif
+
 #if 0
             // FRAMING Pkt start bit detected - will print 128
             debug_print("FRMRX: %d   ",
@@ -246,10 +250,10 @@ static void handle_fifo_data(rfchan chan, uint8_t fifo_flags, uint8_t len)
         char rx_str[10];
 
         snprintf(rx_str, sizeof(rx_str), "RX[%d]", chan);
-	if (monitor_raw)
-	    print_raw_packet(rx_str, rxb->bytes, rxb->len);
-	else
-	    print_packet(rx_str, rxb->bytes, rxb->len);
+        if (monitor_raw)
+            print_raw_packet(rx_str, rxb->bytes, rxb->len);
+        else
+            print_packet(rx_str, rxb->bytes, rxb->len);
     }
 
     // Store the channel here - same as device id

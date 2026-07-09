@@ -511,7 +511,7 @@ void SetupMRAMStates() {
      */
     WriteMRAMBoolState(StateExp1Enabled,false);
 #else
-    WriteMRAMBoolState(StateExp1Disabled,false);
+    WriteMRAMBoolState(StateExp1Enabled,true);
 #endif
 
     WriteMRAMBoolState(StateUplinkEnabled,false);
