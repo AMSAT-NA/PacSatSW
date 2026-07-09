@@ -123,9 +123,9 @@ static AX25_event_t lm_event; /* Static storage for Link Multiplexer event */
 bool in_test = false;
 static bool seize_requested[NUM_RX_CHANNELS];
 
-static char *rx_channel_names[] = {"A", "B", "C", "D"};
+static const char * const rx_channel_names[] = {"A", "B", "C", "D"};
 #ifdef TRACE_AX25_DL
-static char *state_names[] = {"DISC","AWAIT CONN","AWAIT REL","CONN", "TIMER REC", "AWAIT_22_CONN"};
+static const char * const state_names[] = {"DISC","AWAIT CONN","AWAIT REL","CONN", "TIMER REC", "AWAIT_22_CONN"};
 #endif
 
 static void clear_packet(AX25_PACKET *packet)
