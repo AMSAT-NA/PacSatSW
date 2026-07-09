@@ -45,6 +45,9 @@ typedef enum {
 #error Too many watchdog tasks
 #endif
 
+/* Mask of all watchdog tasks, 9 bits, one for each task. */
+#define WATCHDOG_TASK_MASK ((1 << (LastWD - 1)) - 1)
+
 void ReportToWatchdog(WdReporters_t reporter);
 void CheckAndResetWatchdogs(xTimerHandle x);
 void ResetExternalWatchdog(void);

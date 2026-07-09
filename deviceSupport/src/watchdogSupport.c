@@ -180,13 +180,8 @@ void CheckAndResetWatchdogs(xTimerHandle x)
      // Todo Set the bottom bit to indicate potentially a real WD timeout
      SaveAcrossReset.fields.errorData |= 1;
 
-     if ((WatchdogBits & ((1 << (LastWD - 1)) - 1)) == (1 << (LastWD - 1)) - 1) {
-	 /*
-	  * Note that LastWD is 1 greater than the last WD that must
-	  * check in.  Thus we subtract 1, shift, and subtract 1 again
-	  * to get all the bits that must be set.
-	  * Everyone has checked in.  We can reset the WDs
-	  */
+     if ((WatchdogBits & WATCHDOG_TASK_MASK) == WATCHDOG_TASK_MASK) {
+	 /*Everyone has checked in.  We can reset the WDs. */
 	 ResetAllWatchdogs();
 	 WatchdogBits = 0; /* Start again */
 
