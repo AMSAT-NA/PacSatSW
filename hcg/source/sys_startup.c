@@ -64,6 +64,7 @@
 
 #include "errata_SSWF021_45.h"
 /* USER CODE BEGIN (1) */
+#include "errors.h" /* For SaveAcrossReset */
 /* USER CODE END */
 
 
@@ -138,6 +139,13 @@ void _c_int00(void)
     if ((SYS_EXCEPTION & POWERON_RESET) != 0U)
     {		
 /* USER CODE BEGIN (12) */
+        /* Add condition to check whether PLL can be started successfully */
+        if (_errata_SSWF021_45_pll1(PLL_RETRIES) != 0U)
+        {
+            /* Put system in a safe state */
+			handlePLLLockFail();
+        }
+#if 0 /* Don't clear SYSESR (SYS_EXCEPTION), we want those bits later. */
 /* USER CODE END */
         /* Add condition to check whether PLL can be started successfully */
         if (_errata_SSWF021_45_pll1(PLL_RETRIES) != 0U)
@@ -149,6 +157,7 @@ void _c_int00(void)
         SYS_EXCEPTION = 0xFFFFU;
 
 /* USER CODE BEGIN (13) */
+#endif
 /* USER CODE END */
 /* USER CODE BEGIN (14) */
 /* USER CODE END */
@@ -177,6 +186,7 @@ void _c_int00(void)
         {
             /* Add user code here to handle watchdog violation. */ 
 /* USER CODE BEGIN (17) */
+#if 0
 /* USER CODE END */
 
             /* Clear the Watchdog reset flag in Exception Status register */ 
@@ -190,6 +200,7 @@ void _c_int00(void)
             /* Clear the ICEPICK reset flag in Exception Status register */ 
             SYS_EXCEPTION = ICEPICK_RESET;
 /* USER CODE BEGIN (19) */
+#endif
 /* USER CODE END */
 		}
     }
@@ -201,12 +212,14 @@ void _c_int00(void)
         by toggling the "CPU RESET" bit of the CPU Reset Control Register. */
 
 /* USER CODE BEGIN (20) */
+#if 0
 /* USER CODE END */
 
         /* clear all reset status flags */
         SYS_EXCEPTION = CPU_RESET;
 
 /* USER CODE BEGIN (21) */
+#endif
 /* USER CODE END */
 
     }
@@ -319,6 +332,35 @@ void _c_int00(void)
 /* USER CODE END */
 
 /* USER CODE BEGIN (31) */
+    /*
+     * This code save the contents of SaveAcrossReset in the MIBSPI1
+     * RAM, then restores it a little later.
+     *
+     * This must be done twice, once here, and once later on when
+     * memory is initialized.
+     */
+#define SPI1_BASE_ADDR 0xfff7f400
+#define SPI1_SPIGCR0_ADDR ((uint32_t *) (SPI1_BASE_ADDR + 0x0000))
+#define SPI1_SPIFLG_ADDR ((uint32_t *) (SPI1_BASE_ADDR + 0x0010))
+#define SPI1_MIBSPIE_ADDR ((uint32_t *) (SPI1_BASE_ADDR + 0x0070))
+#define SPI1_MBRAM_ADDR ((void *) 0xFF0E0000)
+
+    if (!(SYS_EXCEPTION & POWERON_RESET)) {
+	unsigned int i;
+	uint16_t *saddr = (uint16_t *) &SaveAcrossReset;
+	uint16_t *daddr = ((uint16_t *) SPI1_MBRAM_ADDR) + 1;
+
+	*SPI1_SPIGCR0_ADDR = 1; /* Take SPI1 out of reset. */
+	while (*SPI1_SPIFLG_ADDR & (1 << 24))
+	    ; /* Wait for BUFINITACTIVE to be 0 so that SPI RAM is ready. */
+	*SPI1_MIBSPIE_ADDR = 0x10001; /* Enable MIBSPI so we can use the RAM. */
+
+	for (i = 0; i < sizeof(SaveAcrossReset); i += 2) {
+	    *daddr = *saddr;
+	    daddr += 2; /* Can only use the bottom 16 bits of the data. */
+	    saddr++;
+	}
+    }
 /* USER CODE END */
 
     /* Disable RAM ECC before doing PBIST for Main RAM */
@@ -381,6 +423,18 @@ void _c_int00(void)
     memoryInit(0x1U);
 
 /* USER CODE BEGIN (38) */
+    if (!(SYS_EXCEPTION & POWERON_RESET)) {
+	unsigned int i;
+	uint16_t *saddr = ((uint16_t *) SPI1_MBRAM_ADDR) + 1;
+	uint16_t *daddr = (uint16_t *) &SaveAcrossReset;
+
+	for (i = 0; i < sizeof(SaveAcrossReset); i += 2) {
+	    *daddr = *saddr;
+	    daddr++;
+	    saddr += 2; /* Can only use the bottom 16 bits of the data. */
+	}
+	*SPI1_SPIGCR0_ADDR = 0; /* Put SPI1 back in reset. */
+    }
 /* USER CODE END */
     
     /* Enable ECC checking for TCRAM accesses.
@@ -627,6 +681,27 @@ void _c_int00(void)
     vimInit();    
 
 /* USER CODE BEGIN (74) */
+    /*
+     * __TI_auto_init() clears RAM, so we have to do this again.  But
+     * we can't save it in SPI RAM for the whole time, SPI RAM gets
+     * tested and destroyed in the above tests.
+     */
+    if (!(SYS_EXCEPTION & POWERON_RESET)) {
+	unsigned int i;
+	uint16_t *saddr = (uint16_t *) &SaveAcrossReset;
+	uint16_t *daddr = ((uint16_t *) SPI1_MBRAM_ADDR) + 1;
+
+	*SPI1_SPIGCR0_ADDR = 1; /* Take SPI1 out of reset. */
+	while (*SPI1_SPIFLG_ADDR & (1 << 24))
+	    ; /* Wait for BUFINITACTIVE to be 0 so that SPI RAM is ready. */
+	*SPI1_MIBSPIE_ADDR = 0x10001; /* Enable MIBSPI so we can use the RAM. */
+
+	for (i = 0; i < sizeof(SaveAcrossReset); i += 2) {
+	    *daddr = *saddr;
+	    daddr += 2; /* Can only use the bottom 16 bits of the data. */
+	    saddr++;
+	}
+    }
 /* USER CODE END */
 
     /* Configure system response to error conditions signaled to the ESM group1 */
@@ -635,6 +710,37 @@ void _c_int00(void)
     /* initialize copy table */
     __TI_auto_init();
 /* USER CODE BEGIN (75) */
+    if (SYS_EXCEPTION & POWERON_RESET) {
+	/* Data isn't valid. */
+	SaveAcrossReset.errorCode = PowerCycle;
+    } else {
+	unsigned int i;
+	uint16_t *saddr = ((uint16_t *) SPI1_MBRAM_ADDR) + 1;
+	uint16_t *daddr = (uint16_t *) &SaveAcrossReset;
+
+	for (i = 0; i < sizeof(SaveAcrossReset); i += 2) {
+	    *daddr = *saddr;
+	    daddr++;
+	    saddr += 2; /* Can only use the bottom 16 bits of the data. */
+	}
+
+	*SPI1_SPIGCR0_ADDR = 0; /* Put SPI1 back in reset. */
+
+	if (SYS_EXCEPTION & OSC_FAILURE_RESET)
+	    SaveAcrossReset.errorCode = OscFailure;
+	else if (SYS_EXCEPTION & WATCHDOG_RESET)
+	    SaveAcrossReset.errorCode = IntWatchdog;
+	else if (SYS_EXCEPTION & SW_RESET) {
+	    /*
+	     * If it's a software reset, that may mean that an error
+	     * was set that we need to preserve.
+	     */
+	    if (SaveAcrossReset.errorCode == 0)
+		SaveAcrossReset.errorCode = SoftwareReset;
+	} else if (SYS_EXCEPTION & 0x8) /* EXTRST isn't a define? */
+	    SaveAcrossReset.errorCode = ExternalReset;
+    }
+    SYS_EXCEPTION = 0xFFFFU; /* Now we can clear SYS_EXCEPTION. */
 /* USER CODE END */
     
     /* call the application */
