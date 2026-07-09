@@ -42,7 +42,7 @@
 #include "gpioDriver.h"
 #include "Max31331Rtc.h"
 #include "ConsoleTask.h"
-#include "CommandTask.h"
+#include "command_handler.h"
 #include "canDriver.h"
 #include "IOTask.h"
 #include "TxTask.h"

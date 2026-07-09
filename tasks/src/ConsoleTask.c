@@ -16,7 +16,7 @@
 #include "sys_common.h"
 #include "serialDriver.h"
 #include "UplinkCommands.h"
-#include "CommandTask.h"
+#include "command_handler.h"
 #include "TelemAndControlTask.h"
 #include "consoleRoutines.h"
 #include "radio.h"

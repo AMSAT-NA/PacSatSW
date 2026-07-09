@@ -16,7 +16,7 @@
 #include <stdint.h>
 #include "errors.h"
 #include "gpioDriver.h"
-#include "CommandTask.h"
+#include "command_handler.h"
 #include "watchdogSupport.h"
 
 extern bool SimDoppler;

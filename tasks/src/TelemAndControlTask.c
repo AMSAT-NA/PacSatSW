@@ -40,7 +40,7 @@
 #include "canDriver.h"
 #include "TelemAndControlTask.h"
 #include "exp_interface.h"
-#include "CommandTask.h"
+#include "command_handler.h"
 
 #ifdef BLINKY_HARDWARE
 #include "Max31725Temp.h"

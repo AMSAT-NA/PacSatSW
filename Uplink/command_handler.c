@@ -1,5 +1,5 @@
 /*
- * Command.c
+ * command_handler.c
  *
  *  Created on: Mar 12, 2019
  *      Author: burns
@@ -9,7 +9,7 @@
 #include "os_task.h"
 
 //Flight software headers
-#include "CommandTask.h"
+#include "command_handler.h"
 #include "TxTask.h"
 #include "PbTask.h"
 #include "gpioDriver.h"

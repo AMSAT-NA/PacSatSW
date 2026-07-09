@@ -44,7 +44,7 @@
 
 #include "MRAMmap.h"
 #include "TelemetryBufferMgmt.h"
-#include "CommandTask.h"
+#include "command_handler.h"
 #include "downlink.h"
 #include "ax5043_access.h"
 
