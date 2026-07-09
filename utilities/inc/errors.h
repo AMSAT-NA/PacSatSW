@@ -25,34 +25,28 @@ typedef enum _error {
     SPIInUse,
     SPIOperationTimeout,
     SPIMramTimeout, //10
-    UnexpectedBehavior,
+    SPIBadState,
     SemaphoreFail,
-    USARTError,
-    DMAInUseTimeout,
-    IllegalGPIOOutput, //15
-    IllegalGPIOInput,
-    IllegalGPIOWait,
     MRAMcrc,
     MRAMread,
-    MRAMwrite, //20
+    MRAMwrite, //15
     RTOSfailure,
     I2CInUse,
     I2C1failure,
     I2C2failure,
-    ControlQueueOverflow, //25
+    ControlQueueOverflow, //20
     ControlTimerNotStarted,
     CoordTimerNotStarted,
     CANWriteTimeout,
     ExperimentFailure,
-    DebugStartup, //30
+    DebugStartup, //25
     TxPacketDropped,
     RxPacketDropped,
     CANInUse,
     REDFSIOerror,
-    AX5043error, //35
-    EndOfErrors //36
-    // TODO -- this used to have a max of 32, Need to reduce to 32
-    // or extend the 5 bits in the telemetry that store this code
+    AX5043error, //30
+    EndOfErrors //31
+    /* Cannot have more than 31 bits set above. */
 } ErrorType_t;
 
 /* These are the structures that we downlink to the ground...32 bits each*/
@@ -221,25 +215,24 @@ extern const char * const TaskNames[];
  * These have the RT1 name so #define can change them to the local form
  */
 
-typedef struct __attribute__((__packed__)) _save { //We really want this packet into two words for saving
-    unsigned int wdReports:9;       //Offset=0
-    unsigned int errorCode:5;       //Offset=9
-    unsigned int taskNumber:4;      //Offset=17
-    unsigned int previousTask:4;    //Offset=21
-    bool         wasStillEarlyInBoot:1; //Offset = 25
-    uint8_t      earlyResetCount:3;   //Offset=26
-    unsigned int filler:3;// Offset 29
-    uint32_t     errorData;          // Offset 32
-}resetMemoryFields_t;
-typedef union _saveUnion {
-    uint32_t words[2];
-    resetMemoryFields_t fields;
-}resetMemory_t;
+/*
+ * Saved across reset, except some things are modified in our HaLCoGen
+ * changes based upon reboot type.  This structure is referenced in
+ * The HaLCoGen code in the PacSatHardware repository, so any changes
+ * here need to be reflected there.
+ *
+ * This can be up to 512 bytes long.
+ */
+typedef struct _save {
+    uint16_t wdReports;
+    uint8_t errorCode;
+    uint8_t taskNumber;
+    uint8_t previousTask;
+    uint8_t earlyResetCount;
+    bool wasStillEarlyInBoot;
+    uint32_t errorData;
+} resetMemory_t;
 
-#ifndef ERRORS_C
-// Don't mark this as an extern reference if we are in the errors routine itself
-// where it is actually allocated
-extern  resetMemory_t SaveAcrossReset;
+extern resetMemory_t SaveAcrossReset;
 
-#endif
 #endif /* ERRORS_H_ */

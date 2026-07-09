@@ -19,7 +19,6 @@
  #endif
 
 static uint32_t WatchdogBits;
-static bool DoExternalResetOk=true;
 
 void StartWatchdogTimer(void)
 {
@@ -47,7 +46,6 @@ void InitWatchdog(void) {
     dwdInit(DWD_RESET_VALUE);
     dwdCounterEnable();
 #endif
-    DoExternalResetOk = true;
 }
 
 void ForceInternalWatchdogTrigger(void)
@@ -57,17 +55,17 @@ void ForceInternalWatchdogTrigger(void)
     }
 }
 
+static volatile bool pet_external_watchdog = true;
+
 void ForceExternalWatchdogTrigger(void)
 {
-    DoExternalResetOk = false;
-    while (1) {
-	ResetInternalWatchdog();
-    }
+    pet_external_watchdog = false;
 }
 
 void ResetExternalWatchdog(void)
 {
-    GPIOToggle(Watchdog);
+    if (pet_external_watchdog)
+	GPIOToggle(Watchdog);
 }
 
 void ResetInternalWatchdog(void)
@@ -171,14 +169,14 @@ void CheckAndResetWatchdogs(xTimerHandle x)
 	 ResetAllWatchdogs();
 	 CheckReportCounter--;
 	 // Todo Clear the bottom bit to show no WD problem
-	 SaveAcrossReset.fields.errorData &= 0xfffffffe;
+	 SaveAcrossReset.errorData &= 0xfffffffe;
 	 return;
      }
 
      // Todo Save the reporting status in case of a WD timeout
-     SaveAcrossReset.fields.wdReports = WatchdogBits;
+     SaveAcrossReset.wdReports = WatchdogBits;
      // Todo Set the bottom bit to indicate potentially a real WD timeout
-     SaveAcrossReset.fields.errorData |= 1;
+     SaveAcrossReset.errorData |= 1;
 
      if ((WatchdogBits & WATCHDOG_TASK_MASK) == WATCHDOG_TASK_MASK) {
 	 /*Everyone has checked in.  We can reset the WDs. */

@@ -641,12 +641,11 @@ void spiEndNotification(spiBASE_t *spiDev)
             break;
         }
         case DoneState:
-        default:
-        {
+        default: {
             repeatSwitch = false;
             /* We should not get these states */
-            //ReportError(UnexpectedBehavior, true, ReturnAddr,
-            //            (int)__builtin_return_address(0));
+            ReportError(SPIBadState, true, ReturnAddr,
+                        (int)__builtin_return_address(0));
             break;
         }
         }

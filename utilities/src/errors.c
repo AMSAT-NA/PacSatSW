@@ -14,7 +14,8 @@
 #include "downlink.h"
 #include "inet.h"
 
-resetMemory_t SaveAcrossReset; // These will not be defined in errors.h
+resetMemory_t SaveAcrossReset;
+
 bool ErrorInProgress = false;
 
 /*
@@ -49,31 +50,26 @@ static const char * const ErrMsg[EndOfErrors] = {
     "SPIInUse",
     "SPIOperationTimeout",
     "SPIMramTimeout", //10
-    "UnexpectedBehavior",
+    "SPIBadState",
     "SemaphoreFail",
-    "USARTError",
-    "DMAInUseTimeout",
-    "Illegal GPIO Output", //15
-    "Illegal GPIO Input",
-    "Illegal GPIO Wait",
     "MRAMcrc",
     "MRAMread",
-    "MRAMwrite", //20
+    "MRAMwrite", //15
     "RTOS failure",
     "I2C In Use",
     "I2C1 failure",
     "I2C2 failure",
-    "ControlQueueOverflow", //25
+    "ControlQueueOverflow", //20
     "ControlTimerNotStarted",
     "Coordination Timer Not Started",
     "CAN write timeout",
     "Experiment Failure",
-    "Debug Startup ", //30
+    "Debug Startup ", //25
     "TX dropped packet",
     "RX dropped packet",
     "CAN In Use",
     "REDFS IO Error",
-    "AX5043 Error", //35
+    "AX5043 Error", //30
 };
 
 #ifdef LEGACY_AND_NOT_USED
@@ -160,25 +156,25 @@ void InitErrors(void){
      * saveAcrossReset and localErrorCollection is cleared.
      */
     memset(&localErrorCollection,0,sizeof(localErrorCollection));
-    if(SaveAcrossReset.fields.errorCode == PowerCycle){
+    if(SaveAcrossReset.errorCode == PowerCycle){
         localErrorCollection.errorCode = PowerCycle;
     } else {
-        localErrorCollection.earlyResetCount = SaveAcrossReset.fields.earlyResetCount;
-        localErrorCollection.wasStillEarlyInBoot = SaveAcrossReset.fields.wasStillEarlyInBoot;
-        localErrorCollection.previousTask = SaveAcrossReset.fields.previousTask;
-        localErrorCollection.taskNumber = SaveAcrossReset.fields.taskNumber;
-        localErrorCollection.errorCode = SaveAcrossReset.fields.errorCode;
-        localErrorCollection.wdReports = SaveAcrossReset.fields.wdReports;
-        localErrorCollection.errorData = SaveAcrossReset.fields.errorData;
+        localErrorCollection.earlyResetCount = SaveAcrossReset.earlyResetCount;
+        localErrorCollection.wasStillEarlyInBoot = SaveAcrossReset.wasStillEarlyInBoot;
+        localErrorCollection.previousTask = SaveAcrossReset.previousTask;
+        localErrorCollection.taskNumber = SaveAcrossReset.taskNumber;
+        localErrorCollection.errorCode = SaveAcrossReset.errorCode;
+        localErrorCollection.wdReports = SaveAcrossReset.wdReports;
+        localErrorCollection.errorData = SaveAcrossReset.errorData;
     }
     /*
      * Now we can initialize the memory that will be saved during the next reset.
      * Zero it all and then restore the couple things we want to be there.
      */
     memset(&SaveAcrossReset,0,sizeof(SaveAcrossReset));
-    SaveAcrossReset.fields.errorCode = Unspecified; //Nothing specified yet
-    SaveAcrossReset.fields.earlyResetCount = localErrorCollection.earlyResetCount; //We saved this above
-    SaveAcrossReset.fields.wasStillEarlyInBoot = true; //So it will be there on the next reset
+    SaveAcrossReset.errorCode = Unspecified; //Nothing specified yet
+    SaveAcrossReset.earlyResetCount = localErrorCollection.earlyResetCount; //We saved this above
+    SaveAcrossReset.wasStillEarlyInBoot = true; //So it will be there on the next reset
     OKToWriteSaveAcrossReset = true;
 
     /*
@@ -193,13 +189,13 @@ void InitErrors(void){
          * soon after the boot before that.  The info was copied to localErrorCollection
          * but we want to keep count of early resets so they will be here on the next boot.
          */
-        SaveAcrossReset.fields.earlyResetCount++;  // Increment the early reset count
-        if (SaveAcrossReset.fields.earlyResetCount > RESETS_BEFORE_POWER_CYCLE){
+        SaveAcrossReset.earlyResetCount++;  // Increment the early reset count
+        if (SaveAcrossReset.earlyResetCount > RESETS_BEFORE_POWER_CYCLE){
             //If too many quick reboots, we want to power cycle.
 #ifdef WATCHDOG_ENABLE
             ForceExternalWatchdogTrigger();
 #else
-            SaveAcrossReset.fields.earlyResetCount = 0; // This is only for debug with wd disabled
+            SaveAcrossReset.earlyResetCount = 0; // This is only for debug with wd disabled
             ProcessorReset();
 #endif
         }
@@ -279,9 +275,9 @@ void ReportError(ErrorType_t code, bool fatal, ErrorInfoType_t infoType, uint32_
         }
     } else {
         /* Save the reason we are going to crash */
-        SaveAcrossReset.fields.errorCode = code; // TODO - code has a max value of 34, not 32, so we need 6 bits.  But probably better to shorten number of error codes.
-        SaveAcrossReset.fields.taskNumber = (int)xTaskGetApplicationTaskTag(0);
-        SaveAcrossReset.fields.errorData = htotl(info); /* Get bottom 8 bits of info */
+        SaveAcrossReset.errorCode = code; // TODO - code has a max value of 34, not 32, so we need 6 bits.  But probably better to shorten number of error codes.
+        SaveAcrossReset.taskNumber = (int)xTaskGetApplicationTaskTag(0);
+        SaveAcrossReset.errorData = htotl(info); /* Get bottom 8 bits of info */
     }
 
 #ifdef DEBUG
@@ -340,17 +336,17 @@ void ClearShortBootFlag(){
     // This gets called after we have been up long enough that
     // we don't count this as a short boot, (which forces a power
     // cycle if it happens enough
-    SaveAcrossReset.fields.wasStillEarlyInBoot = false;
-    SaveAcrossReset.fields.earlyResetCount = 0;
+    SaveAcrossReset.wasStillEarlyInBoot = false;
+    SaveAcrossReset.earlyResetCount = 0;
 }
 void RecordNewTask(uint32_t task){
     if(OKToWriteSaveAcrossReset){
-//        bool saveShort = SaveAcrossReset.fields.wasStillEarlyInBoot;
-//        uint8_t saveShortCount = SaveAcrossReset.fields.earlyResetCount;
-        SaveAcrossReset.fields.previousTask = SaveAcrossReset.fields.taskNumber;
-        SaveAcrossReset.fields.taskNumber = task;
-//        SaveAcrossReset.fields.wasStillEarlyInBoot = saveShort;
-//        SaveAcrossReset.fields.earlyResetCount = saveShortCount;
+//        bool saveShort = SaveAcrossReset.wasStillEarlyInBoot;
+//        uint8_t saveShortCount = SaveAcrossReset.earlyResetCount;
+        SaveAcrossReset.previousTask = SaveAcrossReset.taskNumber;
+        SaveAcrossReset.taskNumber = task;
+//        SaveAcrossReset.wasStillEarlyInBoot = saveShort;
+//        SaveAcrossReset.earlyResetCount = saveShortCount;
 //        saveShort = 0;
     }
 }
@@ -360,10 +356,9 @@ void ReportInterruptRoutine(InterruptRoutine intRout){
     // Save the interrupt number in the saved RAM so we will have it
     // in case of a Watchdog reset
     intRout <<=1; //Don't use the bottom bit;
-    SaveAcrossReset.fields.errorData &= 1; // Clear the top 7 bits
-    SaveAcrossReset.fields.errorData |= (uint8_t)(intRout); // Or in the interrupt number
+    SaveAcrossReset.errorData &= 1; // Clear the top 7 bits
+    SaveAcrossReset.errorData |= (uint8_t)(intRout); // Or in the interrupt number
 }
 void EndInterruptRoutine(void){
-    SaveAcrossReset.fields.errorData = (uint8_t)Int_NONE;
+    SaveAcrossReset.errorData = (uint8_t)Int_NONE;
 }
-

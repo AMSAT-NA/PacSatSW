@@ -1323,9 +1323,10 @@ void GPIOSet(Gpio_Use whichGpio, bool v)
     if (!gpio_usable[whichGpio])
         return;
 
-#ifdef DEBUG_BUILD
-    if (thisGPIO->Mode != GPIO_Mode_OUT) {
-        ReportError(IllegalGPIOOutput, TRUE, PortNumber, whichGpio);
+#ifdef DEBUG
+    if (!thisGPIO->DirectionIsOut) {
+        printf("GPIO %d was set, but is an input\n", whichGpio);
+	return;
     }
 #endif
 
@@ -1353,9 +1354,10 @@ void GPIOToggle(Gpio_Use whichGpio)
     if (!gpio_usable[whichGpio])
         return;
 
-#ifdef DEBUG_BUILD
-    if (thisGPIO->Mode != GPIO_Mode_IN) {
-        ReportError(IllegalGPIOOutput, TRUE, PortNumber, whichGpio);
+#ifdef DEBUG
+    if (!thisGPIO->DirectionIsOut) {
+        printf("GPIO %d was toggled, but is an input\n", whichGpio);
+	return;
     }
 #endif
 
@@ -1379,12 +1381,6 @@ uint16_t GPIORead(Gpio_Use whichGpio)
 
     if (!gpio_usable[whichGpio])
         return 0;
-
-#ifdef DEBUG_BUILD
-    if (thisGPIO->Mode != GPIO_Mode_IN) {
-        ReportError(IllegalGPIOOutput, TRUE, PortNumber, whichGpio);
-    }
-#endif
 
     val = thisGPIO->info->funcs->getBit(thisGPIO->info, thisGPIO->PinNum);
     return val;

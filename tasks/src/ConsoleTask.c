@@ -1587,8 +1587,8 @@ void RealConsoleTask(void)
                 printf("***Unix Time is not valid\n");
 
             printf("Short boot count: %d, short boot flag %d\n\r",
-                   SaveAcrossReset.fields.earlyResetCount,
-                   SaveAcrossReset.fields.wasStillEarlyInBoot);
+                   SaveAcrossReset.earlyResetCount,
+                   SaveAcrossReset.wasStillEarlyInBoot);
             break;
         }
         case preflight: {
