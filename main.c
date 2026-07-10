@@ -238,6 +238,9 @@ void ConsoleTask(void *pvParameters){
 
     init_adc_proc();
 
+    /* Do before SPI, ACP and CAN. */
+    init_IOTask();
+
     CANInit();
 
     // Initialize the SPI driver for our SPI devices

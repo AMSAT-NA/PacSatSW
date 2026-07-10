@@ -22,6 +22,8 @@
 #ifndef IOTASK_H
 #define IOTASK_H
 
+void init_IOTask(void);
+
 /*
  * This IOTask is basically something that is messaged from interrupts
  * to run IO operations in a task context.  It currently serves the

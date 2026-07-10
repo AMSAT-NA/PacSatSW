@@ -27,11 +27,16 @@
 #include "canDriver.h"
 #include "IOTask.h"
 
+void init_IOTask(void)
+{
+    /* Set this up before interrupts are enabled. */
+    InitInterTask(ToIOTask, 40);
+}
+
 portTASK_FUNCTION_PROTO(IOTask, pvParameters)
 {
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)IOTaskWD);
     /* Enough for all message boxes and some for other purposes. */
-    InitInterTask(ToIOTask, 40);
     ReportToWatchdog(IOTaskWD);
 
     CANSetup();
