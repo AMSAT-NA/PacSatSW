@@ -85,7 +85,6 @@ bool inhibitTransmit;
 void set_tx_dac_val(uint8_t val)
 {
     WriteMRAMPaDAC(val);
-    tx_pow = ReadMRAMPaPower();
     tx_dac_val = val;
 }
 
