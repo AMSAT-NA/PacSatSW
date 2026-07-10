@@ -408,8 +408,7 @@ static inline bool SPISendCommandInternal(SPIDevice device, uint32_t command,
     if (StartIO(thisBusData, thisDevInfo)) {
         // If SPIStartIO returns false, no IO was started so we don't wait here
         if (!xSemaphoreTake(thisBusData->SPIDoneSemaphore, SHORT_WAIT_TIME)) {
-            ReportError(SPIOperationTimeout,false,ReturnAddr,
-                        (int)__builtin_return_address(0));
+            ReportError(SPIOperationTimeout, false, PortNumber, device);
             retVal = false;
         }
     } else {
