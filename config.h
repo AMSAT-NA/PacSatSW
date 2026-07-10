@@ -443,11 +443,8 @@ extern const uint32_t DCT_DEFAULT_FREQ[NUM_CHANNELS];
 extern const enum radio_modulation DCT_DEFAULT_MODULATION[NUM_CHANNELS];
 extern const uint8_t DCT_DEFAULT_MODE[NUM_CHANNELS];
 
-// For now, we want the output to be something like 100mW (20dBm) and 500mW (27dBm)
-// I believe this makes the DCT output be about -7dBM and +3dBM
-// TODO - figure out what to do with this.  It doesn't do anything right now.
-#define DCT_DEFAULT_LOW_POWER 261   // This seems about right for 20dBm
-#define DCT_DEFAULT_HIGH_POWER 632 // TODO:  This should be defined so we get about 27dBm out of the PA.
+#define DCT_DEFAULT_PA_DAC 215 /* Run the PA in pure class C. */
+#define DCT_DEFAULT_PA_POWER 5 /* Low power to start. */
 
 /*
  * MET Constants.  The MET timer goes off every second.  Other time constants

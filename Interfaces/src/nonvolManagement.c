@@ -365,19 +365,24 @@ enum radio_modulation ReadMRAMModulation(uint8_t devnum)
     return (enum radio_modulation) getmrammod(devnum);
 }
 
-void WriteMRAMDCTDriveLowPower(uint32_t regVal){
-    WRITE_UINT32(DCTDriveLowPower,regVal);
-}
-uint32_t ReadMRAMDCTDriveLowPower(void){
-    READ_UINT32(DCTDriveLowPower,DCT_DEFAULT_LOW_POWER);
+void WriteMRAMPaDAC(uint8_t val)
+{
+    WRITE_UINT8(DCTPaDAC, val);
 }
 
-void WriteMRAMDCTDriveHighPower(uint32_t regVal){
-    WRITE_UINT32(DCTDriveHighPower,regVal);
+uint8_t ReadMRAMPaDAC(void)
+{
+    READ_UINT8(DCTPaDAC, 215);
 }
 
-uint32_t ReadMRAMDCTDriveHighPower(void){
-    READ_UINT32(DCTDriveHighPower,DCT_DEFAULT_HIGH_POWER);
+void WriteMRAMPaPower(uint8_t val)
+{
+    WRITE_UINT8(DCTPaPower, val);
+}
+
+uint8_t ReadMRAMPaPower(void)
+{
+    READ_UINT8(DCTPaPower, 5);
 }
 
 void WriteMRAMHighestFileNumber(uint32_t id){
@@ -603,8 +608,8 @@ void IHUInitSaved(void){
 
     for(i = 0; i < NUM_CHANNELS; i++)
         WriteMRAMFreq(i, DCT_DEFAULT_FREQ[i]);
-    WriteMRAMDCTDriveHighPower(DCT_DEFAULT_HIGH_POWER);
-    WriteMRAMDCTDriveLowPower(DCT_DEFAULT_LOW_POWER);
+    WriteMRAMPaDAC(DCT_DEFAULT_PA_DAC);
+    WriteMRAMPaPower(DCT_DEFAULT_PA_POWER);
 }
 
 /**

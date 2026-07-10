@@ -66,10 +66,10 @@ uint32_t ReadMRAMTimeout(TimeoutType type);
 uint32_t ReadMRAMCountdownAfterRelease(void);
 void WriteMRAMCountdownAfterRelease(uint32_t);
 
-uint32_t ReadMRAMDCTDriveHighPower(void);
-void WriteMRAMDCTDriveHighPower(uint32_t);
-uint32_t ReadMRAMDCTDriveLowPower(void);
-void WriteMRAMDCTDriveLowPower(uint32_t);
+void WriteMRAMPaDAC(uint8_t val);
+uint8_t ReadMRAMPaDAC(void);
+void WriteMRAMPaPower(uint8_t val);
+uint8_t ReadMRAMPaPower(void);
 
 uint32_t ReadMRAMFreq(uint8_t devnum);
 void WriteMRAMFreq(uint8_t devnum, uint32 freq);

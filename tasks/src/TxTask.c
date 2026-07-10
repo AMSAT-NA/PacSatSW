@@ -71,7 +71,9 @@ static rfchan txchan = FIRST_TX_CHANNEL;
 
 enum radio_modulation tx_modulation;
 
-uint8_t tx_dac_val = 215;
+/* By default we set this to bias the PAin class C. */
+static uint8_t tx_dac_val = DCT_DEFAULT_PA_DAC;
+static uint8_t tx_pow = DCT_DEFAULT_PA_POWER;
 
 /* Global Variable that is declared here and prevents the transmitter from generating RF */
 bool inhibitTransmit;
@@ -79,6 +81,32 @@ bool inhibitTransmit;
 /* Test Buffer PB Empty */
 //uint8_t byteBuf[] = {0xA0,0x84,0x98,0x92,0xA6,0xA8,0x00,0xA0,0x8C,0xA6,0x66,
 //                     0x40,0x40,0x17,0x03,0xF0,0x50,0x42,0x3A,0x20,0x45,0x6D,0x70,0x74,0x79,0x2E,0x0D};
+
+void set_tx_dac_val(uint8_t val)
+{
+    WriteMRAMPaDAC(val);
+    tx_pow = ReadMRAMPaPower();
+    tx_dac_val = val;
+}
+
+uint8_t get_tx_dac_val(void)
+{
+    return tx_dac_val;
+}
+
+/* Used to set the output power for the AX5043. */
+void set_tx_pow(uint8_t val)
+{
+    if (val > 100)
+        val = 100;
+    WriteMRAMPaPower(val);
+    tx_pow = val;
+}
+
+uint8_t get_tx_pow(void)
+{
+    return tx_pow;
+}
 
 static void
 print_raw_packet(const char *str, uint8_t *data, unsigned int len)
@@ -110,6 +138,10 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
     enum radio_modulation curr_modulation = MODULATION_INVALID;
 
     tx_modulation = ReadMRAMModulation(txchan);
+    tx_dac_val = ReadMRAMPaDAC();
+    tx_pow = ReadMRAMPaPower();
+    if (tx_pow > 100)
+        tx_pow = 100;
 
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE) TxTaskWD);
 
@@ -136,7 +168,7 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
     //set_tx_power(1); // minimum power to test RF output on AX5043
     //set_tx_power(50); // midrange power to test RF output on AX5043
     //set_tx_power(txchan, 100); // maximum power to test RF output on AX5043
-    set_tx_power(txchan, 5); // Low power, in case it's not plugged in.
+    //set_tx_power(txchan, 5); // Low power, in case it's not plugged in.
 
     /* Set Power state to FULL_TX */
     ax5043WriteReg(txchan, AX5043_PWRMODE, AX5043_PWRSTATE_FULL_TX);
@@ -144,7 +176,8 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
     //printf("Turn off TX LED1 at init\n");
     GPIOSetOff(LED1);
 #ifdef AFSK_HARDWARE3
-    set_tx_dac(0);
+    set_tx_dac(tx_dac_val);
+    GPIOSetOn(SSPAPower);
 #else
     GPIOSetOff(SSPAPower);
 #endif
@@ -170,10 +203,11 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
             continue;
 
         GPIOSetOn(LED1);
+
+        GPIOSetOn(SSPAPower);
 #ifdef AFSK_HARDWARE3
         set_tx_dac(tx_dac_val);
-#else
-        GPIOSetOn(SSPAPower);
+        set_tx_power(txchan, tx_pow);
 #endif
 
         /* Transmit until we have no more packets. */
@@ -311,15 +345,12 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
         }
 
         /* Leave the PA on a bit to give time for the last bits to go out. */
+        /* TODO - this should be calculated. */
         vTaskDelay(CENTISECONDS(5));
 
         //       printf("Turn off TX LED1\n");
         GPIOSetOff(LED1);
-#ifdef AFSK_HARDWARE3
-        set_tx_dac(0);
-#else
         GPIOSetOff(SSPAPower);
-#endif
         //       printf("INFO: Transmission complete\n");
     }
 }

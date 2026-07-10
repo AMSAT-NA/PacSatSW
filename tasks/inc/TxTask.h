@@ -17,6 +17,14 @@
 #define EXPEDITED true
 #define NOT_EXPEDITED false
 
+/* Used to set the value of the DAC setting the bias on the PA. */
+void set_tx_dac_val(uint8_t val);
+uint8_t get_tx_dac_val(void);
+
+/* Used to set the output power for the AX5043. */
+void set_tx_pow(uint8_t val);
+uint8_t get_tx_pow(void);
+
 typedef struct {
     uint8_t channel;
     uint8_t tx_modulation;

@@ -59,15 +59,17 @@ typedef enum _SpacecraftModeTypes {
 } SpacecraftMode_t;
 
 typedef struct {
-        /* Each entry has two because we want extra bits for checking */
+    /* Each entry has two because we want extra bits for checking */
 
-    /* These we don't want to change with each MRAM change.  They are generally set only once
-       for each processor. */
+    /*
+     * These we don't want to change with each MRAM change.  They are
+     * generally set only once for each processor.
+     */
     uint32_t DCTFrequency[5][2];
     uint8_t  DCTModulation[5][2];
-    uint8_t  unused1[3][2];
-    uint32_t DCTDriveLowPower[2];
-    uint32_t DCTDriveHighPower[2];
+    uint8_t  DCTPaDAC[2]; /* PA DAC value (0-255). */
+    uint8_t  DCTPaPower[2]; /* TX AX5043 power (0-100). */
+    uint8_t  unused1[9][2];
 
     /* These are initted by console commands like mram clear or preflight init */
     uint32_t TimeSinceFirstBoot[2];
