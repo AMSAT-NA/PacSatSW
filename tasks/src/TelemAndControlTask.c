@@ -327,12 +327,12 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
                             TAC_TIMER_ADC_PERIOD, TRUE,
                             NULL, tac_adc_timer_callback);
     if (timerADC != NULL) {
-    // Block time of zero as this can not block
-    timerStatus = xTimerStart(timerADC, 0);
-    if (timerStatus != pdPASS) {
-        ReportError(RTOSfailure, FALSE, CharString,
-                    (int)"ERROR: Failed in starting ADC Timer");
-    }
+        // Block time of zero as this can not block
+        timerStatus = xTimerStart(timerADC, 0);
+        if (timerStatus != pdPASS) {
+            ReportError(RTOSfailure, FALSE, CharString,
+                        (int)"ERROR: Failed in starting ADC Timer");
+        }
     } else {
         ReportError(RTOSfailure, FALSE, CharString,
                     (int)"TAC: ERROR: Could not create ADC Timer");
