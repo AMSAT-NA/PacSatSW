@@ -75,8 +75,6 @@ typedef enum {
     TacMaintenanceMsg,
     TacSendErrorsResetMsg,
     TacSendErrorsPowerCycleMsg,
-    TacADCStartMsg,
-    TacADCProcessMsg,
     TacSaveWodMsg,
     TacUpdateWodTimer,
     TacSaveErrWodMsg,
@@ -93,6 +91,10 @@ typedef enum {
 
     /* Used to start an ACP transaction. */
     ACPHandleMsg,
+
+    /* Handling the ADC. */
+    ADCStartMsg,
+    ADCProcessMsg,
 } IntertaskMessageType;
 
 

@@ -108,7 +108,6 @@ void tac_telem_timer_callback(TimerHandle_t xTimer);
 void tac_time_timer_callback(TimerHandle_t xTimer);
 void tac_wod_save_timer_callback(TimerHandle_t xTimer);
 void tac_errwod_save_timer_callback(TimerHandle_t xTimer);
-void tac_adc_timer_callback(TimerHandle_t xTimer);
 void tac_maintenance_timer_callback(TimerHandle_t xTimer);
 void tac_check_file_queues_timer_callback(TimerHandle_t xTimer);
 void tac_science_mode_timer_callback(TimerHandle_t xTimer);
@@ -150,9 +149,6 @@ static xTimerHandle timerCheckFileQueues;
 
 /* timer to send the PB status periodically */
 static xTimerHandle timerPbStatus;
-
-/* timer to read the ADC periodically */
-static xTimerHandle timerADC;
 
 /* timer to end science mode */
 static xTimerHandle timerScienceMode;
@@ -320,22 +316,6 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
     } else {
         ReportError(RTOSfailure, FALSE, CharString,
                     (int)"TAC: ERROR: Could not create File Queue Check Timer");
-    }
-
-    /* Create a periodic timer for reading the ADC */
-    timerADC = xTimerCreate("ADC",
-                            TAC_TIMER_ADC_PERIOD, TRUE,
-                            NULL, tac_adc_timer_callback);
-    if (timerADC != NULL) {
-        // Block time of zero as this can not block
-        timerStatus = xTimerStart(timerADC, 0);
-        if (timerStatus != pdPASS) {
-            ReportError(RTOSfailure, FALSE, CharString,
-                        (int)"ERROR: Failed in starting ADC Timer");
-        }
-    } else {
-        ReportError(RTOSfailure, FALSE, CharString,
-                    (int)"TAC: ERROR: Could not create ADC Timer");
     }
 
     /*
@@ -572,15 +552,7 @@ portTASK_FUNCTION_PROTO(TelemAndControlTask, pvParameters)
                     }
                 }
                 break;
-            case TacADCStartMsg:
-                adc_start_conversion();
-                break;
-
-            case TacADCProcessMsg:
-                adc_process_data();
-                tac_check_auto_safe();
-                break;
-            }
+	    }
         }
     }
 }
@@ -659,18 +631,6 @@ void tac_errwod_save_timer_callback(TimerHandle_t xTimer)
 }
 
 /**
- * tac_void_timer_callback()
- *
- * This is called from a timer whenever the ADC conversion process
- * needs to start.
- */
-void tac_adc_timer_callback(TimerHandle_t xTimer)
-{
-    statusMsg.MsgType = TacADCStartMsg;
-    NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
-}
-
-/**
  * tac_maintenance_timer_callback()
  *
  * This is called from a timer whenever directory and upload table
@@ -731,7 +691,7 @@ void tac_stop_science_mode_timer() {
  * TODO - update if this should check the battery line
  *
  */
-void tac_check_auto_safe() {
+void tac_check_auto_safe(void) {
     if (!allow_autosafe)
         return;
 

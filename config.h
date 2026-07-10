@@ -297,7 +297,7 @@ typedef uint8_t rfchan;
 #define TAC_TIMER_CHECK_FILE_QUEUES_PERIOD SECONDS(1*60)
 
 // Every second for reading ADC values, probably reduce this.
-#define TAC_TIMER_ADC_PERIOD CENTISECONDS(100)
+#define IO_TIMER_ADC_PERIOD CENTISECONDS(100)
 
 /* These are the default periods to keep files in the dir */
 #define DIR_MAX_FILE_AGE 5*24*60*60 // 5*24*60*60 5 days to keep files

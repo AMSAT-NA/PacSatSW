@@ -18,6 +18,7 @@ extern uint16_t outof_autosafe_voltage;
 void TelemAndControlTask(void *pvParameters);
 void tac_clear_minmax();
 void tac_roll_file(char *file_name_with_path, char *folder, char *prefix);
+void tac_check_auto_safe(void);
 
 /* Test routines */
 bool tac_test_wod_file();

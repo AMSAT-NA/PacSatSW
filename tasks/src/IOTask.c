@@ -24,8 +24,14 @@
 #include "reg_can.h"
 #include "errors.h"
 #include "acp.h"
+#include "adc_proc.h"
 #include "canDriver.h"
+#include "TelemAndControlTask.h"
 #include "IOTask.h"
+
+/* timer to read the ADC periodically */
+static xTimerHandle timerADC;
+static Intertask_Message statusMsg;
 
 void init_IOTask(void)
 {
@@ -33,13 +39,43 @@ void init_IOTask(void)
     InitInterTask(ToIOTask, 40);
 }
 
+/**
+ * adc_timer_callback()
+ *
+ * This is called from a timer whenever the ADC conversion process
+ * needs to start.
+ */
+void adc_timer_callback(TimerHandle_t xTimer)
+{
+    statusMsg.MsgType = ADCStartMsg;
+    NotifyInterTaskFromISR(ToIOTask, &statusMsg);
+}
+
 portTASK_FUNCTION_PROTO(IOTask, pvParameters)
 {
+    portBASE_TYPE timerStatus;
+
     vTaskSetApplicationTaskTag((xTaskHandle) 0, (pdTASK_HOOK_CODE)IOTaskWD);
     /* Enough for all message boxes and some for other purposes. */
     ReportToWatchdog(IOTaskWD);
 
     CANSetup();
+
+    /* Create a periodic timer for reading the ADC */
+    timerADC = xTimerCreate("ADC",
+                            IO_TIMER_ADC_PERIOD, TRUE,
+                            NULL, adc_timer_callback);
+    if (timerADC != NULL) {
+        // Block time of zero as this can not block
+        timerStatus = xTimerStart(timerADC, 0);
+        if (timerStatus != pdPASS) {
+            ReportError(RTOSfailure, FALSE, CharString,
+                        (int)"ERROR: Failed in starting ADC Timer");
+        }
+    } else {
+        ReportError(RTOSfailure, FALSE, CharString,
+                    (int)"TAC: ERROR: Could not create ADC Timer");
+    }
 
     for (;;) {
         Intertask_Message msg;
@@ -76,6 +112,15 @@ portTASK_FUNCTION_PROTO(IOTask, pvParameters)
             acp_runner();
             break;
 #endif
+
+	case ADCStartMsg:
+	    adc_start_conversion();
+	    break;
+
+	case ADCProcessMsg:
+	    adc_process_data();
+	    tac_check_auto_safe();
+	    break;
         }
     }
 }

@@ -39,6 +39,7 @@ static adc_handler_func adc_handlers[32]; /* Last 8 are from the ACP. */
 #else
 static adc_handler_func adc_handlers[24];
 #endif
+static volatile bool adc_init_done;
 
 void
 adc_install_handler(unsigned int pin, adc_handler_func func)
@@ -82,10 +83,13 @@ adcNotification(adcBASE_t *adc, uint32 group)
 {
     Intertask_Message statusMsg;
 
+    if (!adc_init_done)
+	return;
+
     adc_conv_state = ADC_IN_PROCESSING;
 
-    statusMsg.MsgType = TacADCProcessMsg;
-    NotifyInterTaskFromISR(ToTelemetryAndControl, &statusMsg);
+    statusMsg.MsgType = ADCProcessMsg;
+    NotifyInterTaskFromISR(ToIOTask, &statusMsg);
 }
 
 int board_temps[NUM_TEMPERATURE_VALUES];
@@ -336,6 +340,8 @@ init_adc_proc(void)
 #ifdef AFSK_HARDWARE3
     acp_handlers[ACP_ADC_RESULT] = adc_acp_handler;
 #endif
+
+    adc_init_done = true;
 
     return true;
 }
