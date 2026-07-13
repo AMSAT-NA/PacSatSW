@@ -1,4 +1,3 @@
-
 /*
  * AMSAT Golf SPI Driver
  * Burns Fisher, AMSAT-NA
@@ -236,18 +235,46 @@ void ant_irq_postTransaction(const SPIDevInfo *info, bool success)
 void ant_irq_postCS(const SPIDevInfo *info, bool success)
 {
     if (success) {
-	/* Wait for Ant_Interrupt to be deasserted. */
+        /* Wait for Ant_Interrupt to be deasserted. */
         /*
-	 * Do not check for Ant_Interrupt to be deasserted here.  The
-	 * ACP may de-assert and immediately re-assert the line and we
-	 * might miss it.  Only rely on the interrupt.
-	 */
-	if (!xSemaphoreTake(ant_irq_sem, CENTISECONDS(10)))
-	    /* Tell the ACP code that it failed. */
-	    acp_failed = true;
+         * Do not check for Ant_Interrupt to be deasserted here.  The
+         * ACP may de-assert and immediately re-assert the line and we
+         * might miss it.  Only rely on the interrupt.
+         *
+         * Also, you must set in_acp_transaction after the semaphore
+         * is taken or the interrupt handler won't do the right thing.
+         * So it has to be set in a bunch of places.
+         */
+        if (!xSemaphoreTake(ant_irq_sem, CENTISECONDS(10))) {
+            /* Tell the ACP code that it failed. */
+            acp_failed = true;
+            in_acp_transaction = false;
+        } else {
+            /*
+             * Do this before the interrupt check, so the interrupt
+             * handler will do the right thing if interrupted after
+             * the check for Ant_Interrupt.
+             */
+            in_acp_transaction = false;
+            if (GPIOIsOn(Ant_Interrupt)) {
+                static Intertask_Message msg;
+                /*
+                 * The IRQ line was deasserted and re-asserted.  If
+                 * this happens fast enough it's possible to miss the
+                 * assertion interrupt.  However, we can check for
+                 * assertion here to compensate.
+                 *
+                 * This is not a problem on the assertion side, when
+                 * the ACP asserts the interrupt it must wait until
+                 * a transaction runs to de-assert it.
+                 */
+                msg.MsgType = ACPHandleMsg;
+                NotifyInterTask(ToIOTask, 0, &msg);
+            }
+        }
+    } else {
+        in_acp_transaction = false;
     }
-
-    in_acp_transaction = false;
 }
 
 static SPIDevInfo SPIACPDevice = {
