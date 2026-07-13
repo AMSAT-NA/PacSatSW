@@ -236,12 +236,15 @@ void ant_irq_postTransaction(const SPIDevInfo *info, bool success)
 void ant_irq_postCS(const SPIDevInfo *info, bool success)
 {
     if (success) {
-        if (GPIOIsOn(Ant_Interrupt)) {
-            /* Wait for Ant_Interrupt to be deasserted. */
-            if (!xSemaphoreTake(ant_irq_sem, CENTISECONDS(10)))
-                /* Tell the ACP code that it failed. */
-                acp_failed = true;
-        }
+	/* Wait for Ant_Interrupt to be deasserted. */
+        /*
+	 * Do not check for Ant_Interrupt to be deasserted here.  The
+	 * ACP may de-assert and immediately re-assert the line and we
+	 * might miss it.  Only rely on the interrupt.
+	 */
+	if (!xSemaphoreTake(ant_irq_sem, CENTISECONDS(10)))
+	    /* Tell the ACP code that it failed. */
+	    acp_failed = true;
     }
 
     in_acp_transaction = false;

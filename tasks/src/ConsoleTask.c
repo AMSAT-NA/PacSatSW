@@ -1510,7 +1510,7 @@ void RealConsoleTask(void)
                 break;
             }
             if (busnum >= NUM_I2C_BUSSES) {
-                printf("Invalid I2C bus, range is %0-%u\n", NUM_I2C_BUSSES - 1);
+                printf("Invalid I2C bus, range is 0-%u\n", NUM_I2C_BUSSES - 1);
                 break;
             }
             err = parse_uint8(&afterCommand, &addr, 0);
