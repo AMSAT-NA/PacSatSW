@@ -103,6 +103,7 @@ SPIBusData bus1Data, bus3Data, bus5Data;
 
 #ifdef AFSK_HARDWARE3
 #define SPI_ACP_BUS bus5Data
+#define SPI_TXDAC_BUS bus1Data
 #endif
 
 static SPIDevInfo SPIMram0Device = {
@@ -179,10 +180,10 @@ static SPIDevInfo SPIRx4AX5043Device = {
 
 #ifdef AFSK_HARDWARE3
 static SPIDevInfo SPITxDACDevice = {
-    .thisBus     = SPI_AX5043_Reg,
+    .thisBus     = SPI_TXDAC_Reg,
     .selGPIO     = TX_DAC_Sel,
-    .thisDat1    = {.WDEL = false, .DFSEL = SPI_AX5043_Data_Format},
-    .thisBusData = &SPI_AX5043_BUS,
+    .thisDat1    = { .WDEL = false, .DFSEL = SPI_TXDAC_Data_Format },
+    .thisBusData = &SPI_TXDAC_BUS,
 };
 
 static xSemaphoreHandle ant_irq_sem;

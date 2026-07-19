@@ -233,6 +233,11 @@
 #define SPI_TxAX5043_Select_Pin SPI_PIN_ENA
 #define SPI_AX5043_Data_Format SPI_FMT_0
 
+#ifdef AFSK_HARDWARE3
+#define SPI_TXDAC_Reg spiREG1
+#define SPI_TXDAC_Data_Format SPI_FMT_0
+#endif
+
 //AX5043 IRQ Pins
 
 #define GPIO_Rx1AX5043InterruptPort gioPortAGPIO
