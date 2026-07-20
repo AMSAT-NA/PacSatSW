@@ -235,7 +235,7 @@
 
 #ifdef AFSK_HARDWARE3
 #define SPI_TXDAC_Reg spiREG1
-#define SPI_TXDAC_Data_Format SPI_FMT_0
+#define SPI_TXDAC_Data_Format SPI_FMT_1
 #endif
 
 //AX5043 IRQ Pins
