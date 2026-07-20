@@ -26,7 +26,7 @@
 
 // Version 3 board or later, you must also define AFSK_HARDWARE if you
 // define this.
-//#define AFSK_HARDWARE3
+#define AFSK_HARDWARE3
 
 #define PACSAT_NUMBER "0" // This PacSat number is only used in the PACSAT_FW_VERSION_STRING below.
 
@@ -443,7 +443,7 @@ extern const uint32_t DCT_DEFAULT_FREQ[NUM_CHANNELS];
 extern const enum radio_modulation DCT_DEFAULT_MODULATION[NUM_CHANNELS];
 extern const uint8_t DCT_DEFAULT_MODE[NUM_CHANNELS];
 
-#define DCT_DEFAULT_PA_DAC 215 /* Run the PA in pure class C. */
+#define DCT_DEFAULT_PA_DAC 133 /* Run the PA in pure class C. */
 #define DCT_DEFAULT_PA_POWER 5 /* Low power to start. */
 
 /*
