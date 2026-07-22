@@ -324,7 +324,7 @@ void receiveLine(COM_NUM ioCom, char *commandString, char prompt, bool echo)
     }
 }
 
-void PreflightInitNow(CanIDNode cameFrom)
+void PreflightInitNow(void)
 {
     int size;
 

@@ -1595,8 +1595,7 @@ void RealConsoleTask(void)
             break;
         }
         case preflight: {
-            // We will take Any_Node to mean send to everyone
-            PreflightInitNow(Any_Node);
+            PreflightInitNow();
             break;
 
         }

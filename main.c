@@ -56,7 +56,6 @@
 //#include "TelemetryRadio.h"
 #include "RTISetup.h"
 #include "nonvol.h"
-#include "canID.h"
 #include "Max31725Temp.h"
 #include "GPIO9539.h"
 #include "errors.h"

@@ -8,7 +8,6 @@
 #ifndef UTILITIES_INC_CONSOLEROUTINES_H_
 #define UTILITIES_INC_CONSOLEROUTINES_H_
 
-#include "canID.h"
 #include "serialDriver.h"
 
 typedef struct _commandPairs {
@@ -22,7 +21,7 @@ typedef struct _commandPairs {
 void printHelp(char *search, const commandPairs *commands, int numberOfCommands);
 void print8BitTemp(uint8_t temp8);
 void DisplayTelemetry(uint32_t typeRequested);
-void PreflightInitNow(CanIDNode cameFrom);
+void PreflightInitNow(void);
 
 void receiveLine(COM_NUM ioCom, char *commandString, char prompt, bool echo);
 
