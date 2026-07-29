@@ -1624,7 +1624,9 @@ void RealConsoleTask(void)
                 stop_chan(chan);
                 start_tx(chan, freq, DCTModulation[chan]);
                 GPIOSetOn(SSPAPower);
+#ifdef AFSK_HARDWARE3
                 set_tx_dac(dacval);
+#endif
                 set_tx_power(chan, axpower);
                 test_freq(chan, freq, DCTModulation[chan], 0);
             }
