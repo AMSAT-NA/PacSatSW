@@ -169,7 +169,9 @@ enum {
     Help,
     MRAM,
     startRx,
-    stopRx,
+    startTx,
+    stopChan,
+    txFr,
 #ifdef DEBUG
     testPacsat,
     testCallsigns,
@@ -327,9 +329,17 @@ const commandPairs debugCommands[] = {
     { "start rx",
       "Start up the 5043 receiver",
       startRx},
-    { "stop rx",
-      "Stop the 5043 receiver",
-      stopRx},
+    { "start tx",
+      "Start up the 5043 transmitter",
+      startTx},
+    { "stop chan",
+      "Stop the ax5043",
+      stopChan},
+    { "txfr",
+      "Transmit on the ax5043",
+      txFr,
+      "<chan> <dac> <start> [<stop> [<step>]]"
+    },
     { "poll i2c",
       "Poll to see which I2c devices are there",
       pollI2c},
@@ -687,7 +697,7 @@ static int parse_chan_de(char **str, rfchan *dev, int off, bool doerr)
     if (devb >= NUM_CHANNELS - off) {
         if (doerr)
             printf("Give a channel number between 0 and %d\n",
-                   NUM_CHANNELS - off);
+                   NUM_CHANNELS - off - 1);
         return -100;
     }
     *dev = devb;
@@ -1565,11 +1575,59 @@ void RealConsoleTask(void)
             break;
         }
 
-        case stopRx: {
-            int err = parse_chan(&afterCommand, &chan, 1);
+        case startTx:{
+            int err = parse_chan(&afterCommand, &chan, 0);
 
             if (err)
                 break;
+            start_tx(chan, DCTFreq[chan], DCTModulation[chan]);
+            break;
+        }
+
+        case stopChan: {
+            int err = parse_chan(&afterCommand, &chan, 0);
+
+            if (err)
+                break;
+            stop_chan(chan);
+            break;
+        }
+
+        case txFr: {
+            int err = parse_chan(&afterCommand, &chan, 0);
+            uint32_t freq, start_freq, stop_freq, step_freq;
+            uint8_t dacval, axpower;
+
+            if (err)
+                break;
+            err = parse_uint8(&afterCommand, &dacval, 0);
+            if (err) {
+                printf("Missing or invalid DAC val\n");
+                break;
+            }
+            err = parse_freq(&afterCommand, &start_freq);
+            if (err) {
+                printf("Missing or invalid frequency\n");
+                break;
+            }
+            err = parse_freq(&afterCommand, &stop_freq);
+            if (err)
+                stop_freq = start_freq;
+            err = parse_freq(&afterCommand, &step_freq);
+            if (err)
+                step_freq = 10000000;
+            err = parse_uint8(&afterCommand, &axpower, 0);
+            if (err)
+                axpower = 80;
+
+            for (freq = start_freq; freq <= stop_freq; freq += step_freq) {
+                stop_chan(chan);
+                start_tx(chan, freq, DCTModulation[chan]);
+                GPIOSetOn(SSPAPower);
+                set_tx_dac(dacval);
+                set_tx_power(chan, axpower);
+                test_freq(chan, freq, DCTModulation[chan], 0);
+            }
             stop_chan(chan);
             break;
         }
