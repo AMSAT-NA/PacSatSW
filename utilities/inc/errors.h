@@ -16,10 +16,14 @@
 /* Here are the errors that we can report */
 typedef enum _error {
     Unspecified = 0,
+    /*
+     * 1-5 are used in startup code, don't change these unless you
+     * change it there, too.
+     */
     PowerCycle = 1,
-    IntWatchdog=2,
-    SoftwareReset=3,
-    ExternalReset,
+    IntWatchdog = 2,
+    SoftwareReset = 3,
+    ExternalReset = 4,
     OscFailure, //5
     StackOverflow,
     NMIExc,
@@ -218,16 +222,15 @@ extern const char * const TaskNames[];
 
 /*
  * Saved across reset, except some things are modified in our HaLCoGen
- * changes based upon reboot type.  This structure is referenced in
- * The HaLCoGen code in the PacSatHardware repository, so any changes
- * here need to be reflected there.
+ * changes based upon reboot type.  This is stored in the ".savearea"
+ * section which is saved in customizations to the HalCoGen code.
  *
- * This can be up to 512 bytes long.
+ * This can be up to 252 bytes long.
  */
 typedef struct _save {
-    uint16_t wdReports;
-    uint8_t errorCode;
+    uint8_t errorCode; /* Must be first, set by bootloader. */
     uint8_t taskNumber;
+    uint16_t wdReports;
     uint8_t previousTask;
     uint8_t earlyResetCount;
     bool wasStillEarlyInBoot;

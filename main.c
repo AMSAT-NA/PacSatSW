@@ -106,13 +106,21 @@ bool JustReleasedFromBooster;
 bool AllTasksStarted = false,CoordinationMessageReceived = false,SimDoppler=false;
 resetMemory_t tempPrintReset;
 
+/* Bootstrap vector pointer. */
+extern uint32_t resetEntry;
+uint32_t *int_vec_ptr __attribute__((section(".vecptr")));
+
 void startup(void)
 {
     Gpio_Use gpion;
 
+    int_vec_ptr = &resetEntry;
+
     /*
-     * Start of by doing a bunch of HalCoGen routine initializations.  In most cases, this still will require
-     * Golf Driver inits after the OS starts, but in many cases, the IO will work before the OS starts.
+     * Start of by doing a bunch of HalCoGen routine initializations.
+     * In most cases, this still will require Golf Driver inits after
+     * the OS starts, but in many cases, the IO will work before the
+     * OS starts.
      */
 #ifndef UNDEFINE_BEFORE_FLIGHT
 #error Be sure to enable self test in processor
@@ -121,7 +129,8 @@ void startup(void)
     gioInit();
     muxInit();
     sciInit();
-    sciDisableNotification(sciREG,SCI_TX_INT | SCI_RX_INT); // No interrupts before we start the OS
+    // No interrupts before we start the OS
+    sciDisableNotification(sciREG,SCI_TX_INT | SCI_RX_INT);
     sciSetBaudrate(sciREG, COM2_BAUD);
 
     // Initialize all GPIOs.  Ones with special handling can override this later.

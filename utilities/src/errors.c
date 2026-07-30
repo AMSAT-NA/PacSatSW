@@ -14,7 +14,7 @@
 #include "downlink.h"
 #include "inet.h"
 
-resetMemory_t SaveAcrossReset;
+resetMemory_t SaveAcrossReset __attribute__((section(".savearea")));
 
 bool ErrorInProgress = false;
 
