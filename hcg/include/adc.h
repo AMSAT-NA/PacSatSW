@@ -244,7 +244,7 @@ typedef struct adc_config_reg
 #define ADC1_BNDEND_CONFIGVALUE			(2U)
 
 #define ADC1_G0SAMP_CONFIGVALUE			(1U)
-#define ADC1_G1SAMP_CONFIGVALUE			(1U)
+#define ADC1_G1SAMP_CONFIGVALUE			(6U)
 #define ADC1_G2SAMP_CONFIGVALUE			(1U)
 
 #define ADC1_G0SAMPDISEN_CONFIGVALUE	((uint32)((uint32)0U << 8U) | 0x00000000U)

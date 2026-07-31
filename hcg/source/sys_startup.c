@@ -64,7 +64,6 @@
 
 #include "errata_SSWF021_45.h"
 /* USER CODE BEGIN (1) */
-#include "errors.h" /* For SaveAcrossReset */
 /* USER CODE END */
 
 
@@ -101,6 +100,13 @@ void _c_int00(void);
 void _c_int00(void)
 {    
 /* USER CODE BEGIN (5) */
+    /*
+     * The interrupt vectors must be installed before the ECC test because
+     * the data abort vector gets called.
+     */
+    extern uint32_t resetEntry;
+    extern uint32_t *int_vec_ptr;
+    int_vec_ptr = &resetEntry;
 /* USER CODE END */
 
     /* Initialize Core Registers to avoid CCM Error */
@@ -344,10 +350,22 @@ void _c_int00(void)
 #define SPI1_SPIFLG_ADDR ((uint32_t *) (SPI1_BASE_ADDR + 0x0010))
 #define SPI1_MIBSPIE_ADDR ((uint32_t *) (SPI1_BASE_ADDR + 0x0070))
 #define SPI1_MBRAM_ADDR ((void *) 0xFF0E0000)
+#define SAVE_AREA_START ((void *) 0x08001504)
+#define SAVE_AREA_LEN 0xfc
+
+/*
+ * Error codes defined in PacSatSw errors.h file.  This is the first
+ * byte in the structure.
+ */
+#define SavePowerCycle 1
+#define SaveOscFailure 5
+#define SaveIntWatchdog 2
+#define SaveSoftwareReset 3
+#define SaveExternalReset 4
 
     if (!(SYS_EXCEPTION & POWERON_RESET)) {
 	unsigned int i;
-	uint16_t *saddr = (uint16_t *) &SaveAcrossReset;
+	uint16_t *saddr = (uint16_t *) SAVE_AREA_START;
 	uint16_t *daddr = ((uint16_t *) SPI1_MBRAM_ADDR) + 1;
 
 	*SPI1_SPIGCR0_ADDR = 1; /* Take SPI1 out of reset. */
@@ -355,7 +373,7 @@ void _c_int00(void)
 	    ; /* Wait for BUFINITACTIVE to be 0 so that SPI RAM is ready. */
 	*SPI1_MIBSPIE_ADDR = 0x10001; /* Enable MIBSPI so we can use the RAM. */
 
-	for (i = 0; i < sizeof(SaveAcrossReset); i += 2) {
+	for (i = 0; i < SAVE_AREA_LEN; i += 2) {
 	    *daddr = *saddr;
 	    daddr += 2; /* Can only use the bottom 16 bits of the data. */
 	    saddr++;
@@ -426,9 +444,9 @@ void _c_int00(void)
     if (!(SYS_EXCEPTION & POWERON_RESET)) {
 	unsigned int i;
 	uint16_t *saddr = ((uint16_t *) SPI1_MBRAM_ADDR) + 1;
-	uint16_t *daddr = (uint16_t *) &SaveAcrossReset;
+	uint16_t *daddr = (uint16_t *) SAVE_AREA_START;
 
-	for (i = 0; i < sizeof(SaveAcrossReset); i += 2) {
+	for (i = 0; i < SAVE_AREA_LEN; i += 2) {
 	    *daddr = *saddr;
 	    daddr++;
 	    saddr += 2; /* Can only use the bottom 16 bits of the data. */
@@ -470,6 +488,13 @@ void _c_int00(void)
              ,(uint32) PBIST_March13N_DP);
 
 /* USER CODE BEGIN (40) */
+    /*
+     * The interrupt vectors must be installed before the ECC test because
+     * the data abort vector gets called.
+     */
+    extern uint32_t resetEntry;
+    extern uint32_t *int_vec_ptr;
+    int_vec_ptr = &resetEntry;
 /* USER CODE END */
 
     /* Test the CPU ECC mechanism for RAM accesses.
@@ -688,7 +713,7 @@ void _c_int00(void)
      */
     if (!(SYS_EXCEPTION & POWERON_RESET)) {
 	unsigned int i;
-	uint16_t *saddr = (uint16_t *) &SaveAcrossReset;
+	uint16_t *saddr = (uint16_t *) SAVE_AREA_START;
 	uint16_t *daddr = ((uint16_t *) SPI1_MBRAM_ADDR) + 1;
 
 	*SPI1_SPIGCR0_ADDR = 1; /* Take SPI1 out of reset. */
@@ -696,7 +721,7 @@ void _c_int00(void)
 	    ; /* Wait for BUFINITACTIVE to be 0 so that SPI RAM is ready. */
 	*SPI1_MIBSPIE_ADDR = 0x10001; /* Enable MIBSPI so we can use the RAM. */
 
-	for (i = 0; i < sizeof(SaveAcrossReset); i += 2) {
+	for (i = 0; i < SAVE_AREA_LEN; i += 2) {
 	    *daddr = *saddr;
 	    daddr += 2; /* Can only use the bottom 16 bits of the data. */
 	    saddr++;
@@ -712,13 +737,13 @@ void _c_int00(void)
 /* USER CODE BEGIN (75) */
     if (SYS_EXCEPTION & POWERON_RESET) {
 	/* Data isn't valid. */
-	SaveAcrossReset.errorCode = PowerCycle;
+	*((uint8_t *) SAVE_AREA_START) = SavePowerCycle;
     } else {
 	unsigned int i;
 	uint16_t *saddr = ((uint16_t *) SPI1_MBRAM_ADDR) + 1;
-	uint16_t *daddr = (uint16_t *) &SaveAcrossReset;
+	uint16_t *daddr = (uint16_t *) SAVE_AREA_START;
 
-	for (i = 0; i < sizeof(SaveAcrossReset); i += 2) {
+	for (i = 0; i < SAVE_AREA_LEN; i += 2) {
 	    *daddr = *saddr;
 	    daddr++;
 	    saddr += 2; /* Can only use the bottom 16 bits of the data. */
@@ -727,18 +752,18 @@ void _c_int00(void)
 	*SPI1_SPIGCR0_ADDR = 0; /* Put SPI1 back in reset. */
 
 	if (SYS_EXCEPTION & OSC_FAILURE_RESET)
-	    SaveAcrossReset.errorCode = OscFailure;
+	    *((uint8_t *) SAVE_AREA_START) = SaveOscFailure;
 	else if (SYS_EXCEPTION & WATCHDOG_RESET)
-	    SaveAcrossReset.errorCode = IntWatchdog;
+	    *((uint8_t *) SAVE_AREA_START) = SaveIntWatchdog;
 	else if (SYS_EXCEPTION & SW_RESET) {
 	    /*
 	     * If it's a software reset, that may mean that an error
 	     * was set that we need to preserve.
 	     */
-	    if (SaveAcrossReset.errorCode == 0)
-		SaveAcrossReset.errorCode = SoftwareReset;
+	    if (*((uint8_t *) SAVE_AREA_START) == 0)
+		*((uint8_t *) SAVE_AREA_START) = SaveSoftwareReset;
 	} else if (SYS_EXCEPTION & 0x8) /* EXTRST isn't a define? */
-	    SaveAcrossReset.errorCode = ExternalReset;
+	    *((uint8_t *) SAVE_AREA_START) = SaveExternalReset;
     }
     SYS_EXCEPTION = 0xFFFFU; /* Now we can clear SYS_EXCEPTION. */
 /* USER CODE END */

@@ -133,7 +133,7 @@ void adcInit(void)
                    | (uint32)ADC1_EVENT;
 
     /** - Setup group 1 sample window */
-    adcREG1->G1SAMP = 1U;
+    adcREG1->G1SAMP = 6U;
 
     /** - Setup group 1 sample discharge 
     *     - Setup discharge prescaler
