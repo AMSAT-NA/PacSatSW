@@ -413,7 +413,7 @@ void systemInit(void)
     systemREG1->SYSPC4 = 0U;
 
     /** - set ECLK pins output direction */
-    systemREG1->SYSPC2 = 0U;
+    systemREG1->SYSPC2 = 1U;
 
     /** - set ECLK pins open drain enable */
     systemREG1->SYSPC7 = 0U;
