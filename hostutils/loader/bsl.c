@@ -191,6 +191,30 @@ bsl_write_data_s(struct bsl_host *h, uint32_t addr, uint8_t *data, uint32_t len)
 }
 
 static uint8_t
+bsl_start_app_s(struct bsl_host *h)
+{
+    int rv;
+    unsigned int retries = 5;
+    gensio_time timeout;
+
+    while (retries > 0) {
+	rv = bsl_start_app(h, bsl_op_done);
+	if (rv)
+	    return rv;
+
+	timeout.secs = 2;
+	timeout.nsecs = 0;
+	rv = gensio_os_funcs_wait(o, rsp_waiter, 1, &timeout);
+	if (!rv)
+	    return last_result;
+	bsl_host_reset(h);
+	retries--;
+    }
+
+    return BSL_INTERNAL_TIMED_OUT;
+}
+
+static uint8_t
 serio_write(struct bsl_protocol *p, uint8_t *buf, unsigned int len)
 {
     int rv;
@@ -389,6 +413,10 @@ main(int argc, char *argv[])
 	printf("\r");
 	fflush(stdout);
     }
+
+    rv = bsl_start_app_s(&bsl_host);
+    if (rv)
+	fprintf(stderr, "Error starting app: %x\n", rv);
 
     elfc_free(e);
     close(fd);
