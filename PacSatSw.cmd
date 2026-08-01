@@ -48,11 +48,11 @@ MEMORY
 #undef USE_BOOTLOADER /* Define this if the bootloader is being used. */
 
 #ifdef USE_BOOTLOADER
-    /* For use without the bootloader, put our vectors at 0. */
-    VECTORS  (X)  : origin=0x00000000 length=0x00000020
-#else
     /* For use with the bootloader.  The bootloader will use our vectors at 0x10000 */
     VECTORS  (X)  : origin=0x00010000 length=0x00000020
+#else
+    /* For use without the bootloader, put our vectors at 0. */
+    VECTORS  (X)  : origin=0x00000000 length=0x00000020
 #endif
     FLASH0   (RX) : origin=0x00010020 length=0x000AFFE0
 
