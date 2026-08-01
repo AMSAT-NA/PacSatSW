@@ -35,6 +35,8 @@
 *
 */
 
+#include "loader_config.h"
+
 /*----------------------------------------------------------------------------*/
 /* Linker Settings                                                            */
 
@@ -45,7 +47,6 @@
 
 MEMORY
 {
-#undef USE_BOOTLOADER /* Define this if the bootloader is being used. */
 
 #ifdef USE_BOOTLOADER
     /* For use with the bootloader.  The bootloader will use our vectors at 0x10000 */

@@ -13,6 +13,7 @@
 #define CONFIG_H_
 
 #include <stdint.h>
+#include <loader_config.h>
 
 /*
  * Set LAUNCHPAD_HARDWARE if this will run on the launchpad with the
@@ -26,7 +27,7 @@
 
 // Version 3 board or later, you must also define AFSK_HARDWARE if you
 // define this.
-//#define AFSK_HARDWARE3
+#define AFSK_HARDWARE3
 
 #define PACSAT_NUMBER "0" // This PacSat number is only used in the PACSAT_FW_VERSION_STRING below.
 
