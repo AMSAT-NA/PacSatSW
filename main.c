@@ -138,7 +138,7 @@ void startup(void)
         GPIOEzInit(gpion);
     GPIOToggle(LED1);
 
-    sciSend(sciREG,38,"Starting a test on the SCI register\r\n");
+    sciSend(sciREG, 38, "Starting a test on the SCI register\r\n");
 
     i2cInit();
     spiInit();
@@ -154,9 +154,10 @@ void startup(void)
     //MRAM
 
     /*
-     * RTI is used by FreeRTOS as its clock and also by the watchdog as its counter.
-     * FreeRTOS uses counter 0, compare 0 for its interrupt.  Let's start the counter
-     * here.  We'll start the compare interrupt when FreeRTOS wants it (in os_port.c)
+     * RTI is used by FreeRTOS as its clock and also by the watchdog
+     * as its counter.  FreeRTOS uses counter 0, compare 0 for its
+     * interrupt.  Let's start the counter here.  We'll start the
+     * compare interrupt when FreeRTOS wants it (in os_port.c)
      */
     rtiInit();
     rtiStartCounter(rtiCOUNTER_BLOCK0);
@@ -167,8 +168,9 @@ void startup(void)
 #endif
 
     /*
-     * Many of the devices that are working now only via the HalCoGen routines still use interrupt...
-     * they just don't use any of the OS features till later.
+     * Many of the devices that are working now only via the HalCoGen
+     * routines still use interrupt...  they just don't use any of the
+     * OS features till later.
      */
 
     _enable_interrupt_();
@@ -206,22 +208,30 @@ void startup(void)
 #endif
 
     xTaskCreate(ConsoleTask, "Console", CONSOLE_STACK_SIZE,
-                NULL,CONSOLE_PRIORITY, NULL);
+                NULL, CONSOLE_PRIORITY, NULL);
 
-    StartWatchdogTimer();  //This doesn't actually run until the scheduler starts.  Run it all the time to reset the HW WD
-#ifdef WATCHDOG_ENABLE    /* start up the watchdog - relies on CheckAndResetWatchdogs running faster than timeout */
-    InitWatchdog();  // Starts the HW watchdog.  CheckAndResetWatchdogs needs to start up before the WD times out (300 mSec)
-
+    // This doesn't actually run until the scheduler starts.  Run it
+    // all the time to reset the HW WD
+    StartWatchdogTimer();
+#ifdef WATCHDOG_ENABLE
+    /*
+     * start up the watchdog - relies on CheckAndResetWatchdogs
+     * running faster than timeout.
+     */
+    InitWatchdog();
 #endif
 
     /*
-     * Here is the end of the first part of initialization.  Now we get the OS
-     * running.  We will be creating a single task right now, and we will then
-     * start the OS.  When that task runs, it will create the other required tasks, use the clock
-     * to wait in orbit after first release from the LV, and open antennas as required.
+     * Here is the end of the first part of initialization.  Now we
+     * get the OS running.  We will be creating a single task right
+     * now, and we will then start the OS.  When that task runs, it
+     * will create the other required tasks, use the clock to wait in
+     * orbit after first release from the LV, and open antennas as
+     * required.
      *
-     * This scheme allows us to be sure that the tasks have pre-conditions met (like having
-     * other tasks running or otherwise requiring the OS) for their initialization.
+     * This scheme allows us to be sure that the tasks have
+     * pre-conditions met (like having other tasks running or
+     * otherwise requiring the OS) for their initialization.
      */
 
     /* Start the tasks and timer running. */
@@ -231,18 +241,24 @@ void startup(void)
 
 }
 
-void ConsoleTask(void *pvParameters){
-    bool haveWaited,umbilicalAttached; //todo: Fix charger when we get that line in V1.2
+void ConsoleTask(void *pvParameters)
+{
+    bool haveWaited, umbilicalAttached;
+    //todo: Fix charger when we get that line in V1.2
     //GPIOInit(WatchdogFeed,NO_TASK,NO_MESSAGE);
-    ResetAllWatchdogs(); // This is started before MET and other tasks so just reporting in does not help
+
+    // This is started before MET and other tasks so just reporting in
+    // does not help
+    ResetAllWatchdogs();
+
     //debug_print("Starting console task\n");
     /*
-     * Now we have an OS going, so we call the init routines, which use OS structures like
-     * semaphores and queues.
+     * Now we have an OS going, so we call the init routines, which
+     * use OS structures like semaphores and queues.
      */
 
-    SerialInitPort(COM1,COM1_BAUD, 10,10);//Max of 38400 for the moment
-    SerialInitPort(COM2,COM2_BAUD,10,10);
+    SerialInitPort(COM1, COM1_BAUD, 10, 10); //Max of 38400 for the moment
+    SerialInitPort(COM2, COM2_BAUD, 10, 10);
 
     init_adc_proc();
 
