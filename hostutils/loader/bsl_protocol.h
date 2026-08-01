@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 #define BSL_MAX_BUFFER_SIZE 1024
-#define BSL_MAX_MSG_SIZE (BSL_MAX_BUFFER_SIZE + 8)
+#define BSL_MAX_MSG_SIZE (BSL_MAX_BUFFER_SIZE + 12)
 
 /*
  * Commands from the host to the target.

@@ -138,6 +138,7 @@ bsl_unlock_s(struct bsl_host *h, uint8_t password[32])
 	rv = gensio_os_funcs_wait(o, rsp_waiter, 1, &timeout);
 	if (!rv)
 	    return last_result;
+	bsl_host_reset(h);
 	retries--;
     }
 
@@ -161,6 +162,7 @@ bsl_erase_range_s(struct bsl_host *h, uint32_t start_addr, uint32_t end_addr)
 	rv = gensio_os_funcs_wait(o, rsp_waiter, 1, &timeout);
 	if (!rv)
 	    return last_result;
+	bsl_host_reset(h);
 	retries--;
     }
 
@@ -184,6 +186,7 @@ bsl_write_data_s(struct bsl_host *h, uint32_t addr, uint8_t *data, uint32_t len)
 	rv = gensio_os_funcs_wait(o, rsp_waiter, 1, &timeout);
 	if (!rv)
 	    return last_result;
+	bsl_host_reset(h);
 	retries--;
     }
 
@@ -397,7 +400,7 @@ main(int argc, char *argv[])
 	    fflush(stdout);
 	    rv = bsl_erase_range_s(&bsl_host, addr, addr + sizeof(buf) - 1);
 	    if (rv) {
-		fprintf(stderr, "Could not erase range: %8.8llx:%8.8llx: %d\n",
+		fprintf(stderr, "Could not erase range: %8.8llx:%8.8llx: %x\n",
 			(unsigned long long) addr,
 			(unsigned long long) (addr + sizeof(buf) - 1),
 			rv);
@@ -405,7 +408,7 @@ main(int argc, char *argv[])
 	    }
 	    rv = bsl_write_data_s(&bsl_host, addr, buf, sizeof(buf));
 	    if (rv) {
-		fprintf(stderr, "Could not write at: %8.8llx: %d\n",
+		fprintf(stderr, "Could not write at: %8.8llx: %x\n",
 			(unsigned long long) addr, rv);
 		return 1;
 	    }
