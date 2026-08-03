@@ -91,9 +91,19 @@ static void
 bsl_op_done(struct bsl_host *h, uint8_t result, uint8_t *data, unsigned int len)
 {
     last_result = result;
+    if (len > sizeof(last_data))
+	len = sizeof(last_data);
     last_len = len;
     if (len > 0)
 	memcpy(last_data, data, len);
+    if (result && len > 0) {
+	unsigned int i;
+
+	printf("Got error result:");
+	for (i = 0; i < len; i++)
+	    printf(" %2.2x", data[i]);
+	printf("\n");
+    }
     gensio_os_funcs_wake(o, rsp_waiter);
 }
 
@@ -276,6 +286,7 @@ main(int argc, char *argv[])
     int i;
     int rv;
     gensio_time timeout;
+    Elf64_Addr min_erase, max_erase;
 
     argv0 = argv[0];
 
@@ -356,10 +367,15 @@ main(int argc, char *argv[])
     }
     printf("Target unlocked\n");
 
+    min_erase = ~0;
+    max_erase = 0;
+
     nphdrs = elfc_get_num_phdrs(e);
+
+    /* First calculate the range and erase everything. */
     for (i = 0; i < nphdrs; i++) {
 	GElf_Phdr hdr;
-	Elf64_Off j, len, addr;
+	Elf64_Off end, addr;
 	uint8_t buf[1024];
 
 	if (elfc_get_phdr(e, i, &hdr) == -1) {
@@ -367,7 +383,7 @@ main(int argc, char *argv[])
 		    strerror(elfc_get_errno(e)));
 	    return 1;
 	}
-#if 0
+#if 1
 	printf("%2d: %4d %8.8llx %8.8llx %8.8llx %8.8llx %8.8llx %8.8llx %8.8llx\n",
 	       i, hdr.p_type,
 	       (unsigned long long) hdr.p_flags,
@@ -378,6 +394,44 @@ main(int argc, char *argv[])
 	       (unsigned long long) hdr.p_memsz,
 	       (unsigned long long) hdr.p_align);
 #endif
+	if (hdr.p_type != PT_LOAD || hdr.p_filesz == 0)
+	    continue;
+
+	addr = hdr.p_paddr;
+	if (addr < min_erase)
+	    min_erase = addr;
+	end = addr + hdr.p_filesz - 1;
+	if (end > max_erase)
+	    max_erase = end;
+    }
+
+    if (min_erase > max_erase) {
+	fprintf(stderr, "No data to load\n");
+	return 1;
+    }
+
+    printf("Erasing 0x%llx to 0x%llx\n",
+	   (unsigned long long) min_erase,
+	   (unsigned long long) max_erase);
+    rv = bsl_erase_range_s(&bsl_host, min_erase, max_erase);
+    if (rv) {
+	fprintf(stderr, "Could not erase range: %8.8llx:%8.8llx: %x\n",
+		(unsigned long long) min_erase,
+		(unsigned long long) max_erase,
+		rv);
+	return 1;
+    }
+
+    for (i = 0; i < nphdrs; i++) {
+	GElf_Phdr hdr;
+	Elf64_Off j, len, addr;
+	uint8_t buf[1024];
+
+	if (elfc_get_phdr(e, i, &hdr) == -1) {
+	    fprintf(stderr, "Unable to get phdr %d: %s\n", i,
+		    strerror(elfc_get_errno(e)));
+	    return 1;
+	}
 	if (hdr.p_type != PT_LOAD)
 	    continue;
 	addr = hdr.p_paddr;
@@ -398,15 +452,7 @@ main(int argc, char *argv[])
 	    
 	    printf("\rWriting at 0x%llx", (unsigned long long) addr);
 	    fflush(stdout);
-	    rv = bsl_erase_range_s(&bsl_host, addr, addr + sizeof(buf) - 1);
-	    if (rv) {
-		fprintf(stderr, "Could not erase range: %8.8llx:%8.8llx: %x\n",
-			(unsigned long long) addr,
-			(unsigned long long) (addr + sizeof(buf) - 1),
-			rv);
-		return 1;
-	    }
-	    rv = bsl_write_data_s(&bsl_host, addr, buf, sizeof(buf));
+	    rv = bsl_write_data_s(&bsl_host, addr, buf, len);
 	    if (rv) {
 		fprintf(stderr, "Could not write at: %8.8llx: %x\n",
 			(unsigned long long) addr, rv);
