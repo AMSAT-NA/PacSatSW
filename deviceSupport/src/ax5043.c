@@ -2341,6 +2341,7 @@ uint16_t get_tx_power(rfchan device)
 
     power = ax5043ReadReg(device, AX5043_TXPWRCOEFFB1) << 8;
     power |= ax5043ReadReg(device, AX5043_TXPWRCOEFFB0);
+    power &= 0xfff;
 
     return ((power * 100) + 2048) / 4095;
 }
