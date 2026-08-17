@@ -13,6 +13,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <libusb-1.0/libusb.h>
 
 struct {
@@ -42,12 +43,15 @@ main(int argc, char *argv[])
     unsigned int value = 0;
     unsigned char buffer[1];
     int rv = 1;
+    unsigned int gpio;
 
     if (argc < 2) {
+    usage:
 	fprintf(stderr, "Not enough arguments, run as:\n");
 	fprintf(stderr, "  %s 0\n", argv[0]);
 	fprintf(stderr, "to list all compatible USB devices and\n");
-	fprintf(stderr, "  %s <dev nr> 0|1\n", argv[0]);
+	fprintf(stderr, "  %s <dev nr> power|nowdog|cpubsl|acpbsl 0|1\n",
+		argv[0]);
 	fprintf(stderr, "to turn off/on the board\n");
 	return 1;
     }
@@ -55,12 +59,23 @@ main(int argc, char *argv[])
     count = strtoul(argv[1], NULL, 0);
 
     if (count > 0) {
-	if (argc < 3) {
+	if (argc < 4) {
 	    fprintf(stderr, "Not enough arguments\n");
 	    return 1;
 	}
 
-	value = strtoul(argv[2], NULL, 0);
+	if (strcmp(argv[2], "power") == 0)
+	    gpio = 9;
+	else if (strcmp(argv[2], "cpubsl") == 0)
+	    gpio = 2;
+	else if (strcmp(argv[2], "acpbsl") == 0)
+	    gpio = 4;
+	else if (strcmp(argv[2], "nowdog") == 0)
+	    gpio = 3;
+	else
+	    goto usage;
+
+	value = strtoul(argv[3], NULL, 0);
 	if (value > 0)
 	    value = 1;
     }
@@ -114,7 +129,7 @@ main(int argc, char *argv[])
     }
 
     usbrv = libusb_control_transfer(handle, CY_VENDOR_REQUEST_DEVICE_TO_HOST,
-				    CY_GPIO_SET_VALUE_CMD, 9, value,
+				    CY_GPIO_SET_VALUE_CMD, gpio, value,
 				    buffer, 0,
 				    CY_USB_SERIAL_TIMEOUT);
     if (usbrv != LIBUSB_SUCCESS) {
