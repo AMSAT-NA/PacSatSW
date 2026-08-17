@@ -338,7 +338,7 @@ const commandPairs debugCommands[] = {
     { "txfr",
       "Transmit on the ax5043",
       txFr,
-      "<chan> <dac> <start> [<stop> [<step>]]"
+      "<chan> <dac> <start> [<stop> [<step> [axpower [paon]]]"
     },
     { "poll i2c",
       "Poll to see which I2c devices are there",
@@ -1596,7 +1596,7 @@ void RealConsoleTask(void)
         case txFr: {
             int err = parse_chan(&afterCommand, &chan, 0);
             uint32_t freq, start_freq, stop_freq, step_freq;
-            uint8_t dacval, axpower;
+            uint8_t dacval, axpower, paon;
 
             if (err)
                 break;
@@ -1619,11 +1619,15 @@ void RealConsoleTask(void)
             err = parse_uint8(&afterCommand, &axpower, 0);
             if (err)
                 axpower = 80;
+            err = parse_uint8(&afterCommand, &paon, 0);
+            if (err)
+                paon = 1;
 
             for (freq = start_freq; freq <= stop_freq; freq += step_freq) {
                 stop_chan(chan);
                 start_tx(chan, freq, DCTModulation[chan]);
-                GPIOSetOn(SSPAPower);
+		if (paon)
+		    GPIOSetOn(SSPAPower);
 #ifdef AFSK_HARDWARE3
                 set_tx_dac(dacval);
 #endif
