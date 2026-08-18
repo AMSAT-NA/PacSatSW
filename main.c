@@ -144,6 +144,9 @@ void startup(void)
     spiInit();
     adcInit();
     canInit();
+#ifdef AFSK_HARDWARE
+    hetInit();
+#endif
 
     /*
      * A few things need to be started and initialized via HAL
