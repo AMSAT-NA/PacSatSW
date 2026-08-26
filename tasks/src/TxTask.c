@@ -174,12 +174,7 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
 
     //printf("Turn off TX LED1 at init\n");
     GPIOSetOff(LED1);
-#ifdef AFSK_HARDWARE3
-    set_tx_dac(tx_dac_val);
-    GPIOSetOn(SSPAPower);
-#else
     GPIOSetOff(SSPAPower);
-#endif
     ReportToWatchdog(CurrentTaskWD);
 
     /*
@@ -205,8 +200,8 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
 
         GPIOSetOn(SSPAPower);
 #ifdef AFSK_HARDWARE3
-        set_tx_dac(tx_dac_val);
         set_tx_power(txchan, tx_pow);
+        set_tx_dac(tx_dac_val);
 #endif
 
         /* Transmit until we have no more packets. */

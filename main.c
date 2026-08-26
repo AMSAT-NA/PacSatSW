@@ -204,10 +204,6 @@ void startup(void)
     /* Turn this on if there is no other board. */
     if (!GPIOIsOn(OtherPresense))
         GPIOSetOn(ImActive);
-
-#ifdef AFSK_HARDWARE3
-    GPIOSetOn(SSPAPower); /* PA power is controlled with the DAC. */
-#endif
 #endif
 
     xTaskCreate(ConsoleTask, "Console", CONSOLE_STACK_SIZE,
