@@ -50,7 +50,7 @@ main(int argc, char *argv[])
 	fprintf(stderr, "Not enough arguments, run as:\n");
 	fprintf(stderr, "  %s 0\n", argv[0]);
 	fprintf(stderr, "to list all compatible USB devices and\n");
-	fprintf(stderr, "  %s <dev nr> power|nowdog|cpubsl|acpbsl 0|1\n",
+	fprintf(stderr, "  %s <dev nr> power|nowdog|reset|acpbsl 0|1\n",
 		argv[0]);
 	fprintf(stderr, "to turn off/on the board\n");
 	return 1;
@@ -66,7 +66,7 @@ main(int argc, char *argv[])
 
 	if (strcmp(argv[2], "power") == 0)
 	    gpio = 9;
-	else if (strcmp(argv[2], "cpubsl") == 0)
+	else if (strcmp(argv[2], "reset") == 0)
 	    gpio = 2;
 	else if (strcmp(argv[2], "acpbsl") == 0)
 	    gpio = 4;
