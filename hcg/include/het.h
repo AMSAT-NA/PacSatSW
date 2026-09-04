@@ -333,9 +333,9 @@ typedef struct het_config_reg
 
 /* Configuration registers initial value for HET1*/
 #define HET1_DIR_CONFIGVALUE     ((uint32)0x00000000U \
+                                | (uint32)0x40000000U \
                                 | (uint32)0x00000000U \
-                                | (uint32)0x00000000U \
-                                | (uint32)0x00000000U \
+                                | (uint32)0x10000000U \
                                 | (uint32)0x00000000U \
                                 | (uint32)0x04000000U \
                                 | (uint32)0x00000000U \
@@ -345,9 +345,9 @@ typedef struct het_config_reg
                                 | (uint32)0x00000000U \
 								| (uint32)0x00100000U \
 								| (uint32)0x00000000U \
+								| (uint32)0x00040000U \
 								| (uint32)0x00000000U \
-								| (uint32)0x00000000U \
-								| (uint32)0x00000000U \
+								| (uint32)0x00010000U \
 								| (uint32)0x00008000U \
 								| (uint32)0x00004000U \
 								| (uint32)0x00000000U \
@@ -355,7 +355,7 @@ typedef struct het_config_reg
 								| (uint32)0x00000000U \
 								| (uint32)0x00000400U \
 								| (uint32)0x00000200U \
-								| (uint32)0x00000000U \
+								| (uint32)0x00000100U \
 								| (uint32)0x00000080U \
 								| (uint32)0x00000000U \
 								| (uint32)0x00000020U \
@@ -411,7 +411,7 @@ typedef struct het_config_reg
                                 | (uint32)0x00200000U \
 								| (uint32)0x00100000U \
 								| (uint32)0x00080000U \
-								| (uint32)0x00000000U \
+								| (uint32)0x00040000U \
 								| (uint32)0x00020000U \
 								| (uint32)0x00000000U \
 								| (uint32)0x00000000U \
@@ -434,9 +434,9 @@ typedef struct het_config_reg
 #define HET1_PSL_CONFIGVALUE     ((uint32)0x80000000U \
                                 | (uint32)0x40000000U \
                                 | (uint32)0x20000000U \
-                                | (uint32)0x00000000U \
+                                | (uint32)0x10000000U \
                                 | (uint32)0x08000000U \
-                                | (uint32)0x00000000U \
+                                | (uint32)0x04000000U \
                                 | (uint32)0x02000000U \
                                 | (uint32)0x01000000U \
                                 | (uint32)0x00800000U \
