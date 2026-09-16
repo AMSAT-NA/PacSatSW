@@ -51,6 +51,15 @@ bool SPISendCommand(SPIDevice device, uint32_t command, uint8_t comLength,
 bool SPIBidirectional(SPIDevice device, const void *txBuffer, void *rxBuffer,
                       uint16_t length);
 
+/*
+ * Lock the bus to prevent anything from transmitting on the bus.  If
+ * you are powering off a device on the bus, you need to lock the bus
+ * to avoid latch up.  And powering on a device can glitch the lines,
+ * so use this whenever turning a device on and off on a SPI bus.
+ */
+bool SPILockBus(SPIDevice device);
+void SPIUnlockBus(SPIDevice device);
+
 /* Use for length if there is no command, send data or receive data */
 #define SPI_NONE 0
 

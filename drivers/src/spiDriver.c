@@ -391,6 +391,29 @@ void SPIInit(SPIDevice thisDeviceNumber)
     thisBusData->busInitted = true;
 }
 
+bool SPILockBus(SPIDevice device)
+{
+    const SPIDevInfo *thisDevInfo = SPIDevInfoStructures[device];
+    SPIBusData *thisBusData = thisDevInfo->thisBusData;
+
+    if (!xSemaphoreTake(thisBusData->SPIInUseSemaphore, SHORT_WAIT_TIME)) {
+        /* If we can't get it within a few seconds...trouble */
+        ReportError(SPIInUse, false, ReturnAddr,
+                    (int)__builtin_return_address(0));
+        return false;
+    }
+
+    return true;
+}
+
+void SPIUnlockBus(SPIDevice device)
+{
+    const SPIDevInfo *thisDevInfo = SPIDevInfoStructures[device];
+    SPIBusData *thisBusData = thisDevInfo->thisBusData;
+
+    xSemaphoreGive(thisBusData->SPIInUseSemaphore);
+}
+
 /*
  * These routines starts an I/O
  */

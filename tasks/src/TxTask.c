@@ -130,6 +130,23 @@ const static struct gpio_irq_info tx_gpio_info = {
     tx_irq_handler, (void *) (uintptr_t) 0
 };
 
+static void
+set_pa_power(bool on)
+{
+    /*
+     * The DAC sits on the AX5043 SPI bus but is powered by SSPAPower,
+     * so we need to make sure no SPI activity is in progress when we
+     * power it up and down.
+     */
+    SPILockBus(TxAX5043Dev);
+    if (on)
+        GPIOSetOn(SSPAPower);
+    else
+        GPIOSetOff(SSPAPower);
+    vTaskDelay(CENTISECONDS(1)); /* Wait for the device to power on/off. */
+    SPIUnlockBus(TxAX5043Dev);
+}
+
 portTASK_FUNCTION_PROTO(TxTask, pvParameters)
 {
     /* Buffer used when data copied from tx queue */
@@ -174,7 +191,9 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
 
     //printf("Turn off TX LED1 at init\n");
     GPIOSetOff(LED1);
-    GPIOSetOff(SSPAPower);
+
+    set_pa_power(false);
+
     ReportToWatchdog(CurrentTaskWD);
 
     /*
@@ -198,7 +217,8 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
 
         GPIOSetOn(LED1);
 
-        GPIOSetOn(SSPAPower);
+        set_pa_power(true);
+
 #ifdef AFSK_HARDWARE3
         set_tx_power(txchan, tx_pow);
         set_tx_dac(tx_dac_val);
@@ -344,7 +364,7 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
 
         //       printf("Turn off TX LED1\n");
         GPIOSetOff(LED1);
-        GPIOSetOff(SSPAPower);
+        set_pa_power(false);
         //       printf("INFO: Transmission complete\n");
     }
 }

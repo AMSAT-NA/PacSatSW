@@ -68,6 +68,8 @@
 
 /* Forward declarations */
 static uint8_t ax5043_reset(rfchan device);
+static void ax5043PowerOff(rfchan device);
+static void ax5043PowerOn(rfchan device);
 
 static const uint8_t axradio_phy_chanpllrnginit = 0x09;
 
@@ -1611,9 +1613,18 @@ static uint8_t ax5043_reset(rfchan device)
     unsigned int retries = 5;
 
  retry:
-    // Initialize Interface
-    // Reset Device
-    ax5043WriteReg(device, AX5043_PWRMODE, 0x80);
+    /* Reset Device */
+
+    /*
+     * Experiments have shown that the following sequence is the best
+     * way to reset or power up the AX5043s.  Just resetting them with
+     * the PWRMODE register can result in them being non-functional.
+     *
+     * The power off and power on operations have built-in delays, so
+     * no need to wait.
+     */
+    ax5043PowerOff(device);
+    ax5043PowerOn(device);
     ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_POWERDOWN);
     // Wait some time for regulator startup
     vTaskDelay(CENTISECONDS(2));
@@ -1697,7 +1708,8 @@ static int start_ax5043_rx(rfchan device,
                 device, freq, modulation_to_str(mod), flags);
 
     //uint8_t retVal;
-    ax5043WriteReg(device, AX5043_PINFUNCIRQ, 0x0); //disable IRQs
+    // Device should be off, interrupts shouldn't happen.
+    //ax5043WriteReg(device, AX5043_PINFUNCIRQ, 0x0); //disable IRQs
 
     //    debug_print("In start_rx, Setting freq to %d\n", freq); //DEBUG RBG
     status = axradio_init(device, freq, mod, flags, true);
@@ -1745,14 +1757,15 @@ static int start_ax5043_tx(rfchan device,
 
     /* Get ready for TX */
     //printf("Disabling IRQs\n");
-    ax5043WriteReg(device, AX5043_PINFUNCIRQ, 0x0); //disable IRQs
+    // Device should be off, interrupts shouldn't happen.
+    //ax5043WriteReg(device, AX5043_PINFUNCIRQ, 0x0); //disable IRQs
 
     //  debug_print("In start_tx, Setting freq to %d\n", freq); //DEBUG RBG
     status = axradio_init(device, freq, mod, flags, true);
     if (status != AXRADIO_ERR_NOERROR) {
-        printf("ERROR: In start_tx, axradio_init_70cm returned: %d\n", status);
+        printf("ERROR: In start_tx, axradio_init returned: %d\n", status);
         ReportError(AX5043error, FALSE, CharString,
-                              (int)"ax5043: ERROR: In start_tx, axradio_init_70cm");
+                              (int)"ax5043: ERROR: In start_tx, axradio_init");
         return status;
     }
 
@@ -2012,10 +2025,12 @@ static void ax5043PowerOn(rfchan device)
         return;
 
 #ifdef AFSK_HARDWARE
+    SPILockBus(info->spidev);
     GPIOSetOn(ax5043_power_gpio[device]);
+    vTaskDelay(CENTISECONDS(1)); /* Wait for the device to power on. */
+    SPIUnlockBus(info->spidev);
 #endif
     info->on = true;
-    vTaskDelay(CENTISECONDS(1)); // Don't try to mess with it for a bit
 }
 
 static void ax5043PowerOff(rfchan device)
@@ -2026,10 +2041,13 @@ static void ax5043PowerOff(rfchan device)
         return;
 
 #ifdef AFSK_HARDWARE
+    SPILockBus(info->spidev);
     if (is_tx_chan(device))
         // Make sure the PA is off if we are turning off the TX 5043.
         GPIOSetOff(SSPAPower);
     GPIOSetOff(ax5043_power_gpio[device]);
+    vTaskDelay(CENTISECONDS(1)); /* Wait for the device to power off. */
+    SPIUnlockBus(info->spidev);
 #endif
 
     info->on = false;
@@ -2048,13 +2066,8 @@ void start_rx(rfchan device, uint32_t freq, enum radio_modulation mod)
         return;
 
     //printf("StartRx: Power=%d,Txing=%d,Rxing=%d\n",PowerOn,Txing,Rxing);
-    if (!info->on) {
-        ax5043PowerOn(device);
-    } else {
+    if (info->on)
         stop_chan(device);
-        ax5043PowerOn(device);
-    }
-    vTaskDelay(CENTISECONDS(1));
 
     start_ax5043_rx(device, freq, mod, 0);
     info->rxing = true;
@@ -2068,13 +2081,8 @@ void start_tx(rfchan device, uint32_t freq, enum radio_modulation mod)
     if (!info)
         return;
 
-    if (!info->on) {
-        ax5043PowerOn(device);
-    } else {
+    if (info->on)
         stop_chan(device);
-        ax5043PowerOn(device);
-    }
-    vTaskDelay(CENTISECONDS(1));
 
     start_ax5043_tx(device, freq, mod, 0);
     info->txing = true;
