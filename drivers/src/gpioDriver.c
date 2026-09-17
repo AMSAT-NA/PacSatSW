@@ -591,10 +591,16 @@ static const GPIOInfo AX5043_Tx_InterruptInfo = {
     .NegativeLogic        = true,
 };
 
+/*
+ * All SPI devices on the AX5043 bus start with the select pins on,
+ * set to 0, because those lines can latch up.  So we want them zero
+ * at startup to remove the latch up and then and set them to off (1)
+ * in the startup code.
+ */
 static const GPIOInfo AX5043_Rx1_Selector = {
     .info                 = &SPI_Rx1AX5043_Select_Port,
     .PinNum               = SPI_Rx1AX5043_Select_Pin,
-    .InitialStateOn       = GPIO_OFF,
+    .InitialStateOn       = GPIO_ON,
     .DirectionIsOut       = GPIO_OUT,
     .NegativeLogic        = true,
 };
@@ -602,7 +608,7 @@ static const GPIOInfo AX5043_Rx1_Selector = {
 static const GPIOInfo AX5043_Tx_Selector = {
     .info                 = &SPI_TxAX5043_Select_Port,
     .PinNum               = SPI_TxAX5043_Select_Pin,
-    .InitialStateOn       = GPIO_OFF,
+    .InitialStateOn       = GPIO_ON,
     .DirectionIsOut       = GPIO_OUT,
     .NegativeLogic        = true,
 };
@@ -689,7 +695,7 @@ static const GPIOInfo AX5043_Rx4_InterruptInfo = {
 static const GPIOInfo AX5043_Rx2_Selector = {
     .info                 = &SPI_Rx2AX5043_Select_Port,
     .PinNum               = SPI_Rx2AX5043_Select_Pin,
-    .InitialStateOn       = GPIO_OFF,
+    .InitialStateOn       = GPIO_ON,
     .DirectionIsOut       = GPIO_OUT,
     .NegativeLogic        = true,
 };
@@ -697,7 +703,7 @@ static const GPIOInfo AX5043_Rx2_Selector = {
 static const GPIOInfo AX5043_Rx3_Selector = {
     .info                 = &SPI_Rx3AX5043_Select_Port,
     .PinNum               = SPI_Rx3AX5043_Select_Pin,
-    .InitialStateOn       = GPIO_OFF,
+    .InitialStateOn       = GPIO_ON,
     .DirectionIsOut       = GPIO_OUT,
     .NegativeLogic        = true,
 };
@@ -705,7 +711,7 @@ static const GPIOInfo AX5043_Rx3_Selector = {
 static const GPIOInfo AX5043_Rx4_Selector = {
     .info                 = &SPI_Rx4AX5043_Select_Port,
     .PinNum               = SPI_Rx4AX5043_Select_Pin,
-    .InitialStateOn       = GPIO_OFF,
+    .InitialStateOn       = GPIO_ON,
     .DirectionIsOut       = GPIO_OUT,
     .NegativeLogic        = true,
 };
@@ -870,7 +876,7 @@ static const GPIOInfo Ant_ADC_Power_Info = {
 static const GPIOInfo TX_DAC_Selector = {
     .info                 = &SPI_TxDAC_Select_Port,
     .PinNum               = SPI_TxDAC_Select_Pin,
-    .InitialStateOn       = GPIO_OFF,
+    .InitialStateOn       = GPIO_ON,
     .DirectionIsOut       = GPIO_OUT,
     .NegativeLogic        = true,
 };
@@ -908,9 +914,11 @@ static const GPIOInfo Ant_InterruptInfo = {
     .InterruptBothEdges   = true,
 };
 
+/* Want this on (0) at startup to avoid latch up issues. */
 static const GPIOInfo Ant_SelInfo = {
     .info                 = &spiPort5GPIO,
     .PinNum               = SPI_PIN_CS0,
+    .InitialStateOn       = GPIO_ON,
     .DirectionIsOut       = GPIO_OUT,
     .NegativeLogic        = true,
 };

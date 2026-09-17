@@ -140,6 +140,23 @@ void startup(void)
 
     sciSend(sciREG, 38, "Starting a test on the SCI register\r\n");
 
+    /*
+     * This strange looking piece of code attempts to correct for a
+     * latch up issue on the AX5043 and other SPI select lines.  See
+     * the comment in drivers/src/gpiDriver.c above
+     * AX5043_Rx1_Selector for details.  The print above provides
+     * enough delay for the latch up to go away.
+     */
+    GPIOSetOff(AX5043_Tx_Sel);
+    GPIOSetOff(AX5043_Rx1_Sel);
+#ifdef AFSK_HARDWARE
+    GPIOSetOff(AX5043_Rx2_Sel);
+    GPIOSetOff(AX5043_Rx3_Sel);
+    GPIOSetOff(AX5043_Rx4_Sel);
+    GPIOSetOff(TX_DAC_Sel);
+    GPIOSetOff(Ant_Sel);
+#endif
+
     i2cInit();
     spiInit();
     adcInit();

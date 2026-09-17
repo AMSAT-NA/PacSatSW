@@ -1612,22 +1612,27 @@ static uint8_t ax5043_reset(rfchan device)
     uint8_t i;
     unsigned int retries = 5;
 
+    printf("AX5043 reset on %d\n", device);
  retry:
     /* Reset Device */
 
+#ifdef AFSK_HARDWARE
     /*
-     * Experiments have shown that the following sequence is the best
-     * way to reset or power up the AX5043s.  Just resetting them with
-     * the PWRMODE register can result in them being non-functional.
-     *
      * The power off and power on operations have built-in delays, so
-     * no need to wait.
+     * no need to wait.  You could use the PWRMODE register to disable
+     * and enable the chip, but just powering it off and on is more
+     * reliable in case it's gone into latch up or something like
+     * that.
      */
     ax5043PowerOff(device);
     ax5043PowerOn(device);
+#else
+    /* Older boards without power controls on the AX5043s. */
+    ax5043WriteReg(device, AX5043_PWRMODE, 0x80);
     ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_POWERDOWN);
     // Wait some time for regulator startup
     vTaskDelay(CENTISECONDS(2));
+#endif
 
     // Check the version and that we can read/write to scratch.  Then
     // we know the chip is connected
@@ -1635,6 +1640,7 @@ static uint8_t ax5043_reset(rfchan device)
     i = ax5043ReadReg(device, AX5043_SILICONREVISION);
 
     if (i != SILICONREV1) {
+	printf("Version error on %d: %x %x\n", device, i, SILICONREV1);
         if (retries > 0) {
             retries--;
             vTaskDelay(CENTISECONDS(1));
@@ -2027,7 +2033,8 @@ static void ax5043PowerOn(rfchan device)
 #ifdef AFSK_HARDWARE
     SPILockBus(info->spidev);
     GPIOSetOn(ax5043_power_gpio[device]);
-    vTaskDelay(CENTISECONDS(1)); /* Wait for the device to power on. */
+    /* Give the device a little time to come up. */
+    vTaskDelay(CENTISECONDS(1));
     SPIUnlockBus(info->spidev);
 #endif
     info->on = true;
@@ -2043,10 +2050,14 @@ static void ax5043PowerOff(rfchan device)
 #ifdef AFSK_HARDWARE
     SPILockBus(info->spidev);
     if (is_tx_chan(device))
-        // Make sure the PA is off if we are turning off the TX 5043.
+        /* Make sure the PA is off if we are turning off the TX 5043. */
         GPIOSetOff(SSPAPower);
     GPIOSetOff(ax5043_power_gpio[device]);
-    vTaskDelay(CENTISECONDS(1)); /* Wait for the device to power off. */
+    /*
+     * Wait for the device to power off so that it won't go into
+     * latch up from a driven line.
+     */
+    vTaskDelay(CENTISECONDS(1));
     SPIUnlockBus(info->spidev);
 #endif
 
