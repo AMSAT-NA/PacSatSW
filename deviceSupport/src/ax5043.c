@@ -1612,7 +1612,6 @@ static uint8_t ax5043_reset(rfchan device)
     uint8_t i;
     unsigned int retries = 5;
 
-    printf("AX5043 reset on %d\n", device);
  retry:
     /* Reset Device */
 
