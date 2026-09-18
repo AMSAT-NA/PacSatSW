@@ -1640,7 +1640,7 @@ static uint8_t ax5043_reset(rfchan device)
     i = ax5043ReadReg(device, AX5043_SILICONREVISION);
 
     if (i != SILICONREV1) {
-	printf("Version error on %d: %x %x\n", device, i, SILICONREV1);
+        printf("Version error on %d: %x %x\n", device, i, SILICONREV1);
         if (retries > 0) {
             retries--;
             vTaskDelay(CENTISECONDS(1));
@@ -2023,6 +2023,16 @@ static Gpio_Use ax5043_power_gpio[NUM_CHANNELS] = {
 };
 #endif
 
+static Gpio_Use ax5043_sel_gpio[NUM_CHANNELS] = {
+    AX5043_Rx1_Sel,
+#if NUM_CHANNELS > 2
+    AX5043_Rx2_Sel,
+    AX5043_Rx3_Sel,
+    AX5043_Rx4_Sel,
+#endif
+    AX5043_Tx_Sel,
+};
+
 static void ax5043PowerOn(rfchan device)
 {
     struct AX5043Info *info = ax5043_get_info(device);
@@ -2049,15 +2059,29 @@ static void ax5043PowerOff(rfchan device)
 
 #ifdef AFSK_HARDWARE
     SPILockBus(info->spidev);
-    if (is_tx_chan(device))
+    if (is_tx_chan(device)) {
         /* Make sure the PA is off if we are turning off the TX 5043. */
+#ifdef AFSK_HARDWARE3
+        /* Avoid latch up on the DAC select line. */
+        GPIOSetOn(TX_DAC_Sel);
+#endif
         GPIOSetOff(SSPAPower);
+    }
+
+    /* Set the select line to 0 to prevent it from latching up. */
+    GPIOSetOn(ax5043_sel_gpio[device]);
     GPIOSetOff(ax5043_power_gpio[device]);
     /*
      * Wait for the device to power off so that it won't go into
      * latch up from a driven line.
      */
     vTaskDelay(CENTISECONDS(1));
+    /* Restore the select line. */
+    GPIOSetOff(ax5043_sel_gpio[device]);
+#ifdef AFSK_HARDWARE3
+    if (is_tx_chan(device))
+        GPIOSetOff(TX_DAC_Sel);
+#endif
     SPIUnlockBus(info->spidev);
 #endif
 

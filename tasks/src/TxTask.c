@@ -139,11 +139,20 @@ set_pa_power(bool on)
      * power it up and down.
      */
     SPILockBus(TxAX5043Dev);
-    if (on)
+    if (on) {
         GPIOSetOn(SSPAPower);
-    else
+    } else {
+#ifdef AFSK_HARDWARE3
+        /* Avoid latch up on the DAC select line. */
+        GPIOSetOn(TX_DAC_Sel);
+#endif
         GPIOSetOff(SSPAPower);
+    }
     vTaskDelay(CENTISECONDS(1)); /* Wait for the device to power on/off. */
+#ifdef AFSK_HARDWARE3
+        /* Restore the DAC select line. */
+    GPIOSetOff(TX_DAC_Sel);
+#endif
     SPIUnlockBus(TxAX5043Dev);
 }
 
