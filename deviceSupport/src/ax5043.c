@@ -1167,11 +1167,13 @@ static void ax5043_set_registers(rfchan device, unsigned int flags)
     set_tx_power(device, 1);
 
     /**
-     * PLL VCO Current GOLF sets this to 97, which is half the radio
-     * lab suggested value.  Given it works this is left as 97 Radio
-     * lab suggests AA ox 0x87 for 9600
+     * PLL VCO Current GOLF sets this to 97.  Radiolab has 0x99 if
+     * RFDIV is set and 0x87 if RFDIV is not set.
      */
-    ax5043WriteReg(device, AX5043_PLLVCOI, 0x97);
+    if (flags & AX5043_FLAG_DIV2)
+	ax5043WriteReg(device, AX5043_PLLVCOI, 0x99);
+    else
+	ax5043WriteReg(device, AX5043_PLLVCOI, 0x87);
 
     // per radio lab.  Unclear what this means due to misprint in
     // programming manual
