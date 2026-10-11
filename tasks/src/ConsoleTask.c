@@ -83,11 +83,15 @@ const uint32_t DCT_DEFAULT_FREQ[NUM_CHANNELS] =
     { 145780000, 435760000 };
 #endif
 
-static enum radio_modulation DCTModulation[NUM_CHANNELS];
-const enum radio_modulation DCT_DEFAULT_MODULATION[NUM_CHANNELS] = {
-    MODULATION_AFSK_1200, MODULATION_AFSK_1200,
-    MODULATION_AFSK_1200, MODULATION_AFSK_1200,
-    MODULATION_AFSK_1200,
+static radio_modulation DCTModulation[NUM_CHANNELS];
+const radio_modulation DCT_DEFAULT_MODULATION[NUM_CHANNELS] = {
+    RADIO_MODULATION_SET(MODULATION_AFSK, SPEED_1200, FEC_NONE),
+    RADIO_MODULATION_SET(MODULATION_AFSK, SPEED_1200, FEC_NONE),
+#if NUM_CHANNELS > 2
+    RADIO_MODULATION_SET(MODULATION_AFSK, SPEED_1200, FEC_NONE),
+    RADIO_MODULATION_SET(MODULATION_AFSK, SPEED_1200, FEC_NONE),
+    RADIO_MODULATION_SET(MODULATION_AFSK, SPEED_1200, FEC_NONE),
+#endif
 };
 
 const uint8_t DCT_DEFAULT_MODE[NUM_CHANNELS] = { 0x15, 0x15, 0x15, 0x15, 15 };
@@ -485,9 +489,9 @@ const commandPairs commonCommands[] = {
       "Get the status and time from the Real Time Clock",
       getRtc},
     { "mod",
-      "Get/set the radio to 1200 bps AFSK or 9600 GMSK",
+      "Get/set the radio to the given modulation, speed, and error correction",
       Modulation,
-      "[<chan> [1200|9600|1200fec|9600fec|19200fec|25kfec|50kfec|100kfec]]",
+      "[<chan> [afsk|msk|psk][1200|2400|4800|9600|19200|25k|50k|100k][conv|]",
     },
     { "mount fs",
       "Mount the filesystem",
@@ -625,11 +629,6 @@ const struct command_table {
       debugCommands, sizeof(debugCommands) / sizeof(commandPairs) },
     {}
 };
-
-static char *get_dev_modulation_str(uint8_t devb)
-{
-    return modulation_to_str(DCTModulation[devb]);
-}
 
 static bool mram_mounted(void)
 {
@@ -1842,7 +1841,9 @@ void RealConsoleTask(void)
             freq = DCTFreq[chan];
 
             printf("Testing TX for channel %d\n", chan);
-            test_freq(chan, freq, MODULATION_AFSK_1200, 0);
+            test_freq(chan, freq,
+		      RADIO_MODULATION_SET(MODULATION_AFSK,
+					   SPEED_1200, FEC_NONE), 0);
             break;
         }
 
@@ -1869,7 +1870,10 @@ void RealConsoleTask(void)
                    start, end, incr, chan);
 
             // test the range of the receiver on 2m
-            test_pll_range(chan, MODULATION_GMSK_9600, 0, start, end, incr);
+            test_pll_range(chan,
+			   RADIO_MODULATION_SET(MODULATION_MSK,
+						SPEED_9600, FEC_NONE),
+			   0, start, end, incr);
             break;
         }
 
@@ -2342,53 +2346,50 @@ void RealConsoleTask(void)
         }
 
         case Modulation: {
-            char *modstr;
-            enum radio_modulation mod;
+	    const char *modstr;
+            radio_modulation mod;
+	    enum fec fec;
+	    enum modulation modulation;
+	    enum speed speed;
             int err;
 
             err = parse_chan_noerr(&afterCommand, &chan, 0);
             if (err) {
                 for (chan = 0; chan < NUM_CHANNELS; chan++) {
-                    modstr = get_dev_modulation_str(chan);
-                    printf("channel %d: %s\n", chan, modstr);
+		    mod = DCTModulation[chan];
+                    printf("channel %d: %s%s%s\n", chan,
+			   modulation_mod_str(mod), modulation_speed_str(mod),
+			   modulation_fec_str(mod));
                 }
                 break;
             }
 
             modstr = next_token(&afterCommand);
             if (!modstr) {
-                modstr = get_dev_modulation_str(chan);
-                printf("channel %d: %s\n", chan, modstr);
+		mod = DCTModulation[chan];
+                printf("channel %d: %s\n", chan,
+		       modulation_mod_str(mod), modulation_speed_str(mod),
+		       modulation_fec_str(mod));
                 break;
             }
 
-            if (strcmp(modstr, "1200") == 0) {
-                mod = MODULATION_AFSK_1200;
-            } else if (strcmp(modstr, "1200fec") == 0) {
-                mod = MODULATION_AFSK_1200_FEC;
-            } else if (strcmp(modstr, "2400fec") == 0) {
-                mod = MODULATION_MSK_2400_FEC;
-            } else if (strcmp(modstr, "4800fec") == 0) {
-                mod = MODULATION_MSK_4800_FEC;
-            } else if (strcmp(modstr, "9600") == 0) {
-                mod = MODULATION_GMSK_9600;
-            } else if (strcmp(modstr, "9600fec") == 0) {
-                mod = MODULATION_GMSK_9600_FEC;
-            } else if (strcmp(modstr, "19200fec") == 0) {
-                mod = MODULATION_MSK_19200_FEC;
-            } else if (strcmp(modstr, "25kfec") == 0) {
-                mod = MODULATION_MSK_25K_FEC;
-            } else if (strcmp(modstr, "50kfec") == 0) {
-                mod = MODULATION_MSK_50K_FEC;
-            } else if (strcmp(modstr, "100kfec") == 0) {
-                mod = MODULATION_MSK_100K_FEC;
-            } else {
-                printf("Invalid modulation %s, must be 1200, 1200fec, 9600, 9600fec, 19200fec, 25kfec, 50kfec, or 100kfec.\n",
-                       modstr);
-                break;
-            }
+	    if (!str_to_mod(&modstr, &modulation)) {
+		printf("Invalid modulation type, must be afsk, msk, or psk.\n");
+		break;
+	    }
+	    if (!str_to_speed(&modstr, &speed)) {
+		printf("Invalid speed, must be 1200, 2400, 4800, 9600, 19200, 25k, 50k or 100k.\n");
+		break;
+	    }
+	    if (!str_to_fec(&modstr, &fec)) {
+		printf("Invalid fed, must be empty or conv.\n");
+		break;
+	    }
 
-            printf("Setting Radio %u to %s.\n", chan, modstr);
+	    mod = RADIO_MODULATION_SET(modulation, speed, fec);
+            printf("Setting Radio %u to %s%s%s.\n", chan,
+		   modulation_mod_str(mod), modulation_speed_str(mod),
+		   modulation_fec_str(mod));
 
             WriteMRAMModulation(chan, mod);
             DCTModulation[chan] = mod;

@@ -352,7 +352,7 @@ uint32_t ReadMRAMFreq(uint8_t devnum)
     READ_UINT32(DCTFrequency[devnum], DCT_DEFAULT_FREQ[devnum]);
 }
 
-void WriteMRAMModulation(uint8_t devnum, enum radio_modulation mod)
+void WriteMRAMModulation(uint8_t devnum, radio_modulation mod)
 {
     WRITE_UINT8(DCTModulation[devnum], mod);
 }
@@ -360,9 +360,9 @@ static uint8_t getmrammod(uint8_t devnum)
 {
     READ_UINT8(DCTModulation[devnum], DCT_DEFAULT_MODULATION[devnum]);
 }
-enum radio_modulation ReadMRAMModulation(uint8_t devnum)
+radio_modulation ReadMRAMModulation(uint8_t devnum)
 {
-    return (enum radio_modulation) getmrammod(devnum);
+    return (radio_modulation) getmrammod(devnum);
 }
 
 void WriteMRAMPaDAC(uint8_t val)

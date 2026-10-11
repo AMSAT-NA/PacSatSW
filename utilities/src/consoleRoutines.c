@@ -7,6 +7,7 @@
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <strings.h>
 
 #include "pacsat.h"
 #include "TMS570Hardware.h"
@@ -339,42 +340,152 @@ void PreflightInitNow(void)
     }
 }
 
-char *modulation_to_str(enum radio_modulation mod)
+const char *modulation_fec_str(radio_modulation mod)
 {
-    switch (mod) {
-    case MODULATION_AFSK_1200:
-        return "1200";
+    switch (RADIO_MODULATION_GET_FEC(mod)) {
+    case FEC_NONE:
+        return "";
 
-    case MODULATION_AFSK_1200_FEC:
-        return "1200fec";
+    case FEC_CONV:
+        return "conv";
 
-    case MODULATION_MSK_2400_FEC:
-        return "2400fec";
+    case FEC_RS:
+        return "rs";
 
-    case MODULATION_MSK_4800_FEC:
-        return "4800fec";
-
-    case MODULATION_GMSK_9600:
-        return "9600";
-
-    case MODULATION_GMSK_9600_FEC:
-        return "9600fec";
-
-    case MODULATION_MSK_19200_FEC:
-        return "19200fec";
-
-    case MODULATION_MSK_25K_FEC:
-        return "25kfec";
-
-    case MODULATION_MSK_50K_FEC:
-        return "50kfec";
-
-    case MODULATION_MSK_100K_FEC:
-        return "100kfec";
+    case FEC_CONV | FEC_RS:
+        return "conv+rs";
 
     default:
         return "unknown";
     }
+}
+
+const char *modulation_mod_str(radio_modulation mod)
+{
+    switch (RADIO_MODULATION_GET_MOD(mod)) {
+    case MODULATION_AFSK:
+        return "afsk";
+
+    case MODULATION_MSK:
+        return "msk";
+
+    case MODULATION_PSK:
+        return "psk";
+
+    default:
+        return "unknown";
+    }
+}
+
+const char *modulation_speed_str(radio_modulation mod)
+{
+    switch (RADIO_MODULATION_GET_SPEED(mod)) {
+    case SPEED_1200:
+        return "1200";
+
+    case SPEED_2400:
+        return "2400";
+
+    case SPEED_4800:
+        return "4800";
+
+    case SPEED_9600:
+        return "9600";
+
+    case SPEED_19200:
+        return "19200";
+
+    case SPEED_25K:
+        return "25k";
+
+    case SPEED_50K:
+        return "50k";
+
+    case SPEED_100K:
+        return "100k";
+
+    default:
+        return "unknown";
+    }
+}
+
+bool str_to_fec(const char **str, enum fec *fec)
+{
+    if (strcmp(*str, "") == 0) {
+	*fec = FEC_NONE;
+	return true;
+    }
+    if (strcasecmp(*str, "conv") == 0) {
+	*str += 4;
+	*fec = FEC_CONV;
+	return true;
+    }
+    return false;
+}
+
+bool str_to_mod(const char **str, enum modulation *mod)
+{
+    if (strncasecmp(*str, "afsk", 4) == 0) {
+	*str += 4;
+	*mod = MODULATION_AFSK;
+	return true;
+    }
+    if (strncasecmp(*str, "msk", 3) == 0) {
+	*str += 3;
+	*mod = MODULATION_MSK;
+	return true;
+    }
+    if (strncasecmp(*str, "psk", 3) == 0) {
+	*str += 3;
+	*mod = MODULATION_PSK;
+	return true;
+    }
+    return false;
+}
+
+bool str_to_speed(const char **str, enum speed *speed)
+{
+    if (strncasecmp(*str, "1200", 4) == 0) {
+	*str += 4;
+	*speed = SPEED_1200;
+	return true;
+    }
+    if (strncasecmp(*str, "2400", 4) == 0) {
+	*str += 4;
+	*speed = SPEED_2400;
+	return true;
+    }
+    if (strncasecmp(*str, "4800", 4) == 0) {
+	*str += 4;
+	*speed = SPEED_4800;
+	return true;
+    }
+    if (strncasecmp(*str, "9600", 4) == 0) {
+	*str += 4;
+	*speed = SPEED_9600;
+	return true;
+    }
+    if (strncasecmp(*str, "19200", 5) == 0) {
+	*str += 5;
+	*speed = SPEED_19200;
+	return true;
+    }
+    if (strncasecmp(*str, "25K", 3) == 0) {
+	*str += 3;
+	*speed = SPEED_25K;
+	return true;
+    }
+    if (strncasecmp(*str, "50K", 3) == 0) {
+	*str += 3;
+	*speed = SPEED_50K;
+	return true;
+    }
+    if (strncasecmp(*str, "100K", 4) == 0) {
+	*str += 4;
+	*speed = SPEED_100K;
+	return true;
+    }
+    return false;
 }
 
 #ifdef DEBUG
@@ -387,6 +498,8 @@ static const char *getTaskName(unsigned int task)
 
 void DisplayTelemetry(uint32_t typeRequested)
 {
+    radio_modulation mod;
+
     printf("Mode: %s\n", getSpacecraftModeStr());
     switch(typeRequested){
     case 0: {
@@ -431,10 +544,15 @@ void DisplayTelemetry(uint32_t typeRequested)
                 ReadMRAMWODMaxFileSize4kBlocks()*4096,
                 ReadMRAMErrWODMaxFileSize4kBlocks()*4096,
                 ReadMRAMExpMaxFileSize4kBlocks()*4096);
-        printf("  TX Mode: %s\n",modulation_to_str(ReadMRAMModulation(FIRST_TX_CHANNEL)));
+	mod = ReadMRAMModulation(FIRST_TX_CHANNEL);
+        printf("  TX Mode: %s%s%s\n", modulation_mod_str(mod),
+	       modulation_speed_str(mod), modulation_fec_str(mod));
         printf("  RX Modes:");
-        for (i = 0; i < NUM_RX_CHANNELS; i++)
-            printf(" [%d] %s", i, modulation_to_str(ReadMRAMModulation(i)));
+        for (i = 0; i < NUM_RX_CHANNELS; i++) {
+	    mod = ReadMRAMModulation(i);
+            printf(" [%d] %s", i, modulation_mod_str(mod),
+		   modulation_speed_str(mod), modulation_fec_str(mod));
+	}
         printf("\n  Uncommanded Seconds in Orbit=%d\n\r",
                 (unsigned int) ReadMRAMSecondsOnOrbit());
                 bool onOrbit = ReadMRAMBoolState(StateInOrbit);

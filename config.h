@@ -13,6 +13,7 @@
 #define CONFIG_H_
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <loader_config.h>
 
 /*
@@ -410,38 +411,42 @@ enum fec {
     FEC_RS = 2, /* Reed Solomon. */
 };
 
-/*
- * This is set up so the bottom 4 routines are the modulation time and
- * the top 4 bits of an 8-bit value.  The ax5043 routine takes this
- * apart.
- */
-enum radio_modulation {
-    MODULATION_INVALID = -1, // Also used to pick the default Tx modulation.
-    MODULATION_AFSK_1200 = 0,
-    MODULATION_AFSK_1200_FEC = FEC_CONV << 4 | MODULATION_AFSK_1200,
-    MODULATION_MSK_2400 = 1,
-    MODULATION_MSK_2400_FEC = FEC_CONV << 4 | MODULATION_MSK_2400,
-    MODULATION_MSK_4800 = 2,
-    MODULATION_MSK_4800_FEC = FEC_CONV << 4 | MODULATION_MSK_4800,
-    MODULATION_GMSK_9600 = 3,
-    MODULATION_GMSK_9600_FEC = FEC_CONV << 4 | MODULATION_GMSK_9600,
-    MODULATION_MSK_19200 = 4,
-    MODULATION_MSK_19200_FEC = FEC_CONV << 4 | MODULATION_MSK_19200,
-    MODULATION_MSK_25K = 5,
-    MODULATION_MSK_25K_FEC = FEC_CONV << 4 | MODULATION_MSK_25K,
-    MODULATION_MSK_50K = 6,
-    MODULATION_MSK_50K_FEC = FEC_CONV << 4 | MODULATION_MSK_50K,
-    MODULATION_MSK_100K = 7,
-    MODULATION_MSK_100K_FEC = FEC_CONV << 4 | MODULATION_MSK_100K,
+enum modulation {
+    MODULATION_AFSK = 0,
+    MODULATION_MSK,
+    MODULATION_PSK,
 };
-char *modulation_to_str(enum radio_modulation mod);
 
-#define MODULATION_TO_BASE_MODULATION(mod) ((enum radio_modulation) ((mod) & 0xf))
-#define MODULATION_TO_FEC(mod) ((enum fec) (((mod) >> 4) & 0xf))
+enum speed {
+    SPEED_1200 = 0,
+    SPEED_2400,
+    SPEED_4800,
+    SPEED_9600,
+    SPEED_19200,
+    SPEED_25K,
+    SPEED_50K,
+    SPEED_100K,
+};
+
+typedef int radio_modulation;
+#define MODULATION_INVALID -1
+
+#define RADIO_MODULATION_SET(modulation, speed, fec) \
+    (((fec) << 6) | ((modulation) << 4) | (speed))
+#define RADIO_MODULATION_GET_FEC(mod) ((enum fec) (((mod) >> 6) & 3))
+#define RADIO_MODULATION_GET_MOD(mod) ((enum modulation) (((mod) >> 4) & 3))
+#define RADIO_MODULATION_GET_SPEED(mod) ((enum speed) ((mod) & 0xf))
+
+const char *modulation_fec_str(radio_modulation mod);
+const char *modulation_mod_str(radio_modulation mod);
+const char *modulation_speed_str(radio_modulation mod);
+bool str_to_fec(const char **str, enum fec *fec);
+bool str_to_mod(const char **str, enum modulation *mod);
+bool str_to_speed(const char **str, enum speed *speed);
 
 /* Defined in ConsoleTask.c */
 extern const uint32_t DCT_DEFAULT_FREQ[NUM_CHANNELS];
-extern const enum radio_modulation DCT_DEFAULT_MODULATION[NUM_CHANNELS];
+extern const radio_modulation DCT_DEFAULT_MODULATION[NUM_CHANNELS];
 extern const uint8_t DCT_DEFAULT_MODE[NUM_CHANNELS];
 
 #define DCT_DEFAULT_PA_DAC 133 /* Run the PA in pure class C. */

@@ -39,9 +39,9 @@ typedef struct {
 void TxTask(void *pvParameters);
 bool tx_send_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid,
 		       uint8_t *bytes, int len, bool block,
-		       enum radio_modulation modulation);
+		       radio_modulation modulation);
 bool tx_send_packet(AX25_PACKET *packet, bool expedited, bool block,
-		    enum radio_modulation modulation);
+		    radio_modulation modulation);
 
 bool tx_test_make_packet(uint32_t len);
 
@@ -49,6 +49,6 @@ bool tx_test_make_packet(uint32_t len);
 extern bool inhibitTransmit;
 
 /* Current transmit mode. */
-extern enum radio_modulation tx_modulation;
+extern radio_modulation tx_modulation;
 
 #endif /* TASKS_INC_TXTASK_H_ */

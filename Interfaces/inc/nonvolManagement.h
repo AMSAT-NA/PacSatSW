@@ -73,8 +73,8 @@ uint8_t ReadMRAMPaPower(void);
 
 uint32_t ReadMRAMFreq(uint8_t devnum);
 void WriteMRAMFreq(uint8_t devnum, uint32 freq);
-enum radio_modulation ReadMRAMModulation(uint8_t devnum);
-void WriteMRAMModulation(uint8_t devnum, enum radio_modulation mod);
+radio_modulation ReadMRAMModulation(uint8_t devnum);
+void WriteMRAMModulation(uint8_t devnum, radio_modulation mod);
 
 void WriteMRAMVersionNumber(void);
 bool CheckMRAMVersionNumber(void);

@@ -69,7 +69,7 @@
 
 static rfchan txchan = FIRST_TX_CHANNEL;
 
-enum radio_modulation tx_modulation;
+radio_modulation tx_modulation;
 
 /* By default we set this to bias the PAin class C. */
 static uint8_t tx_dac_val = DCT_DEFAULT_PA_DAC;
@@ -160,7 +160,7 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
 {
     /* Buffer used when data copied from tx queue */
     tx_radio_buffer_t tx_packet_buffer;
-    enum radio_modulation curr_modulation = MODULATION_INVALID;
+    radio_modulation curr_modulation = MODULATION_INVALID;
 
     tx_modulation = ReadMRAMModulation(txchan);
     tx_dac_val = ReadMRAMPaDAC();
@@ -239,28 +239,33 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
             uint8_t preamble_length = 32;
             unsigned int numbytesleft = tx_packet_buffer.len;
             unsigned int numbytes, flag, bytepos, retries;
-            enum radio_modulation mod;
+            radio_modulation mod;
             enum fec fec;
+            enum modulation modulation;
+	    enum speed speed;
 
-            mod = (enum radio_modulation) tx_packet_buffer.tx_modulation;
+            mod = (radio_modulation) tx_packet_buffer.tx_modulation;
 
             if (mod != curr_modulation) {
                 set_modulation(txchan, mod, true);
                 curr_modulation = mod;
             }
 
-            fec = MODULATION_TO_FEC(mod);
-            mod = MODULATION_TO_BASE_MODULATION(mod);
+            fec = RADIO_MODULATION_GET_FEC(mod);
+            speed = RADIO_MODULATION_GET_SPEED(mod);
+            modulation = RADIO_MODULATION_GET_MOD(mod);
 
             // 10 for 1200 bps - Radio lab recommends 32 for 9600, may
             // need as much as 56.
-            switch (mod) {
-            case MODULATION_AFSK_1200:
+            switch (speed) {
+            case SPEED_1200:
                 preamble_length = 10;
                 break;
-            case MODULATION_GMSK_9600:
+            default: /* FIXME - other speeds? */
                 break;
             }
+	    if (modulation == MODULATION_PSK)
+		preamble_length *= 2;
 
             if (monitorTxPackets) {
                 if (monitor_raw)
@@ -390,7 +395,7 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
  */
 static bool tx_make_ui_packet(char *from_callsign, char *to_callsign,
                               uint8_t pid, uint8_t *bytes, int len,
-                              enum radio_modulation modulation,
+                              radio_modulation modulation,
                               tx_radio_buffer_t *tx_radio_buffer)
 {
     unsigned int packet_len;
@@ -450,7 +455,7 @@ static bool tx_make_ui_packet(char *from_callsign, char *to_callsign,
  * TODO - this should be in ax25_util and be called encode_packet()
  */
 static bool tx_make_packet(AX25_PACKET *packet,
-                           enum radio_modulation modulation,
+                           radio_modulation modulation,
                            tx_radio_buffer_t *tx_radio_buffer)
 {
     unsigned int packet_len;
@@ -605,7 +610,7 @@ static bool tx_make_packet(AX25_PACKET *packet,
  */
 bool tx_send_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid,
                        uint8_t *bytes, int len, bool block,
-                       enum radio_modulation modulation)
+                       radio_modulation modulation)
 {
     tx_radio_buffer_t tmp_packet_buffer;
     //uint8_t raw_bytes[AX25_PKT_BUFFER_LEN];
@@ -648,7 +653,7 @@ bool tx_send_ui_packet(char *from_callsign, char *to_callsign, uint8_t pid,
  * a bad packet in a loop.
  */
 bool tx_send_packet(AX25_PACKET *packet, bool expedited, bool block,
-                    enum radio_modulation modulation)
+                    radio_modulation modulation)
 {
     tx_radio_buffer_t tmp_packet_buffer;
     bool rc = tx_make_packet(packet, modulation, &tmp_packet_buffer);

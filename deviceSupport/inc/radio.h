@@ -13,14 +13,14 @@
 #include <stdbool.h>
 #include "spiDriver.h"
 
-void start_rx(rfchan chan, uint32_t freq, enum radio_modulation mod);
-void start_tx(rfchan chan, uint32_t freq, enum radio_modulation mod);
+void start_rx(rfchan chan, uint32_t freq, radio_modulation mod);
+void start_tx(rfchan chan, uint32_t freq, radio_modulation mod);
 void stop_chan(rfchan chan);
 
 bool rxing(rfchan chan);
 bool rx_working(rfchan chan);
 
-void set_modulation(rfchan chan, enum radio_modulation modulation, bool tx);
+void set_modulation(rfchan chan, radio_modulation modulation, bool tx);
 
 void set_tx_dac(uint8_t val);
 void set_tx_power(rfchan chan, uint32_t power);
@@ -28,8 +28,8 @@ uint16_t get_tx_power(rfchan chan);
 
 uint8_t get_rssi(rfchan chan);
 void test_freq(rfchan chan, uint32_t freq,
-               enum radio_modulation modulation, unsigned int flags);
-void test_pll_range(rfchan chan, enum radio_modulation modulation,
+               radio_modulation modulation, unsigned int flags);
+void test_pll_range(rfchan chan, radio_modulation modulation,
                     unsigned int flags, uint32_t start, uint32_t end,
                     uint32_t incr);
 
