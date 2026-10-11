@@ -242,7 +242,7 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
             radio_modulation mod;
             enum fec fec;
             enum modulation modulation;
-	    enum speed speed;
+            enum speed speed;
 
             mod = (radio_modulation) tx_packet_buffer.tx_modulation;
 
@@ -264,8 +264,8 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
             default: /* FIXME - other speeds? */
                 break;
             }
-	    if (modulation == MODULATION_PSK)
-		preamble_length *= 2;
+            if (modulation == MODULATION_PSK)
+                preamble_length *= 2;
 
             if (monitorTxPackets) {
                 if (monitor_raw)

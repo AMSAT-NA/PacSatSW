@@ -404,21 +404,21 @@ typedef uint8_t rfchan;
  */
 #define AX5043_USES_TCXO // If this is not defined then we are using an XTAL
 
-/* FEC is a bitmask. */
 enum fec {
     FEC_NONE = 0,
     FEC_CONV = 1, /* Convolutional coding per AX5043. */
-    FEC_RS = 2, /* Reed Solomon. */
+    FEC_COUNT
 };
 
 enum modulation {
-    MODULATION_AFSK = 0,
-    MODULATION_MSK,
+    MODULATION_MSK = 0,
     MODULATION_PSK,
+    MODULATION_COUNT
 };
 
 enum speed {
-    SPEED_1200 = 0,
+    SPEED_SPECIAL = 0, /* Used for AFSK 1200 along with MSK */
+    SPEED_1200,
     SPEED_2400,
     SPEED_4800,
     SPEED_9600,
@@ -426,6 +426,7 @@ enum speed {
     SPEED_25K,
     SPEED_50K,
     SPEED_100K,
+    SPEED_COUNT
 };
 
 typedef int radio_modulation;
@@ -437,12 +438,14 @@ typedef int radio_modulation;
 #define RADIO_MODULATION_GET_MOD(mod) ((enum modulation) (((mod) >> 4) & 3))
 #define RADIO_MODULATION_GET_SPEED(mod) ((enum speed) ((mod) & 0xf))
 
+bool radio_modulation_valid(radio_modulation mod);
+
 const char *modulation_fec_str(radio_modulation mod);
 const char *modulation_mod_str(radio_modulation mod);
 const char *modulation_speed_str(radio_modulation mod);
 bool str_to_fec(const char **str, enum fec *fec);
-bool str_to_mod(const char **str, enum modulation *mod);
-bool str_to_speed(const char **str, enum speed *speed);
+bool str_to_mod(const char **str, enum modulation *mod, enum speed *speed);
+bool str_to_speed(const char **str, enum modulation mod, enum speed *speed);
 
 /* Defined in ConsoleTask.c */
 extern const uint32_t DCT_DEFAULT_FREQ[NUM_CHANNELS];

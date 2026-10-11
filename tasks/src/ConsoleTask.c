@@ -85,12 +85,12 @@ const uint32_t DCT_DEFAULT_FREQ[NUM_CHANNELS] =
 
 static radio_modulation DCTModulation[NUM_CHANNELS];
 const radio_modulation DCT_DEFAULT_MODULATION[NUM_CHANNELS] = {
-    RADIO_MODULATION_SET(MODULATION_AFSK, SPEED_1200, FEC_NONE),
-    RADIO_MODULATION_SET(MODULATION_AFSK, SPEED_1200, FEC_NONE),
+    RADIO_MODULATION_SET(MODULATION_MSK, SPEED_SPECIAL, FEC_NONE),
+    RADIO_MODULATION_SET(MODULATION_MSK, SPEED_SPECIAL, FEC_NONE),
 #if NUM_CHANNELS > 2
-    RADIO_MODULATION_SET(MODULATION_AFSK, SPEED_1200, FEC_NONE),
-    RADIO_MODULATION_SET(MODULATION_AFSK, SPEED_1200, FEC_NONE),
-    RADIO_MODULATION_SET(MODULATION_AFSK, SPEED_1200, FEC_NONE),
+    RADIO_MODULATION_SET(MODULATION_MSK, SPEED_SPECIAL, FEC_NONE),
+    RADIO_MODULATION_SET(MODULATION_MSK, SPEED_SPECIAL, FEC_NONE),
+    RADIO_MODULATION_SET(MODULATION_MSK, SPEED_SPECIAL, FEC_NONE),
 #endif
 };
 
@@ -1625,8 +1625,8 @@ void RealConsoleTask(void)
             for (freq = start_freq; freq <= stop_freq; freq += step_freq) {
                 stop_chan(chan);
                 start_tx(chan, freq, DCTModulation[chan]);
-		if (paon)
-		    GPIOSetOn(SSPAPower);
+                if (paon)
+                    GPIOSetOn(SSPAPower);
 #ifdef AFSK_HARDWARE3
                 set_tx_dac(dacval);
 #endif
@@ -1842,8 +1842,8 @@ void RealConsoleTask(void)
 
             printf("Testing TX for channel %d\n", chan);
             test_freq(chan, freq,
-		      RADIO_MODULATION_SET(MODULATION_AFSK,
-					   SPEED_1200, FEC_NONE), 0);
+                      RADIO_MODULATION_SET(MODULATION_MSK,
+                                           SPEED_SPECIAL, FEC_NONE), 0);
             break;
         }
 
@@ -1871,9 +1871,9 @@ void RealConsoleTask(void)
 
             // test the range of the receiver on 2m
             test_pll_range(chan,
-			   RADIO_MODULATION_SET(MODULATION_MSK,
-						SPEED_9600, FEC_NONE),
-			   0, start, end, incr);
+                           RADIO_MODULATION_SET(MODULATION_MSK,
+                                                SPEED_9600, FEC_NONE),
+                           0, start, end, incr);
             break;
         }
 
@@ -2346,50 +2346,50 @@ void RealConsoleTask(void)
         }
 
         case Modulation: {
-	    const char *modstr;
+            const char *modstr;
             radio_modulation mod;
-	    enum fec fec;
-	    enum modulation modulation;
-	    enum speed speed;
+            enum fec fec;
+            enum modulation modulation;
+            enum speed speed;
             int err;
 
             err = parse_chan_noerr(&afterCommand, &chan, 0);
             if (err) {
                 for (chan = 0; chan < NUM_CHANNELS; chan++) {
-		    mod = DCTModulation[chan];
+                    mod = DCTModulation[chan];
                     printf("channel %d: %s%s%s\n", chan,
-			   modulation_mod_str(mod), modulation_speed_str(mod),
-			   modulation_fec_str(mod));
+                           modulation_mod_str(mod), modulation_speed_str(mod),
+                           modulation_fec_str(mod));
                 }
                 break;
             }
 
             modstr = next_token(&afterCommand);
             if (!modstr) {
-		mod = DCTModulation[chan];
+                mod = DCTModulation[chan];
                 printf("channel %d: %s\n", chan,
-		       modulation_mod_str(mod), modulation_speed_str(mod),
-		       modulation_fec_str(mod));
+                       modulation_mod_str(mod), modulation_speed_str(mod),
+                       modulation_fec_str(mod));
                 break;
             }
 
-	    if (!str_to_mod(&modstr, &modulation)) {
-		printf("Invalid modulation type, must be afsk, msk, or psk.\n");
-		break;
-	    }
-	    if (!str_to_speed(&modstr, &speed)) {
-		printf("Invalid speed, must be 1200, 2400, 4800, 9600, 19200, 25k, 50k or 100k.\n");
-		break;
-	    }
-	    if (!str_to_fec(&modstr, &fec)) {
-		printf("Invalid fed, must be empty or conv.\n");
-		break;
-	    }
+            if (!str_to_mod(&modstr, &modulation, &speed)) {
+                printf("Invalid modulation type, must be afsk, msk, or psk.\n");
+                break;
+            }
+            if (!str_to_speed(&modstr, modulation, &speed)) {
+                printf("Invalid speed, must be 1200, 2400, 4800, 9600, 19200, 25k, 50k or 100k.\n");
+                break;
+            }
+            if (!str_to_fec(&modstr, &fec)) {
+                printf("Invalid fed, must be empty or conv.\n");
+                break;
+            }
 
-	    mod = RADIO_MODULATION_SET(modulation, speed, fec);
+            mod = RADIO_MODULATION_SET(modulation, speed, fec);
             printf("Setting Radio %u to %s%s%s.\n", chan,
-		   modulation_mod_str(mod), modulation_speed_str(mod),
-		   modulation_fec_str(mod));
+                   modulation_mod_str(mod), modulation_speed_str(mod),
+                   modulation_fec_str(mod));
 
             WriteMRAMModulation(chan, mod);
             DCTModulation[chan] = mod;

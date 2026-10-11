@@ -362,7 +362,11 @@ static uint8_t getmrammod(uint8_t devnum)
 }
 radio_modulation ReadMRAMModulation(uint8_t devnum)
 {
-    return (radio_modulation) getmrammod(devnum);
+    radio_modulation mod = (radio_modulation) getmrammod(devnum);
+
+    if (!radio_modulation_valid(mod))
+        return RADIO_MODULATION_SET(MODULATION_MSK, SPEED_SPECIAL, FEC_NONE);
+    return mod;
 }
 
 void WriteMRAMPaDAC(uint8_t val)

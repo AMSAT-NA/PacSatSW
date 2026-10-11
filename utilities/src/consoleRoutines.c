@@ -340,6 +340,21 @@ void PreflightInitNow(void)
     }
 }
 
+bool radio_modulation_valid(radio_modulation mod)
+{
+    enum fec fec = RADIO_MODULATION_GET_FEC(mod);
+    enum speed speed = RADIO_MODULATION_GET_SPEED(mod);
+    enum modulation modulation = RADIO_MODULATION_GET_MOD(mod);
+
+    if (mod < 0 || mod > 255)
+        return false;
+    if (speed == SPEED_SPECIAL && modulation == MODULATION_MSK)
+        return true;
+    return (fec <= FEC_COUNT
+            && speed > SPEED_SPECIAL && speed < SPEED_COUNT
+            && modulation < MODULATION_COUNT);
+}
+
 const char *modulation_fec_str(radio_modulation mod)
 {
     switch (RADIO_MODULATION_GET_FEC(mod)) {
@@ -349,12 +364,6 @@ const char *modulation_fec_str(radio_modulation mod)
     case FEC_CONV:
         return "conv";
 
-    case FEC_RS:
-        return "rs";
-
-    case FEC_CONV | FEC_RS:
-        return "conv+rs";
-
     default:
         return "unknown";
     }
@@ -362,10 +371,13 @@ const char *modulation_fec_str(radio_modulation mod)
 
 const char *modulation_mod_str(radio_modulation mod)
 {
-    switch (RADIO_MODULATION_GET_MOD(mod)) {
-    case MODULATION_AFSK:
+    enum speed speed = RADIO_MODULATION_GET_SPEED(mod);
+    enum modulation modulation = RADIO_MODULATION_GET_MOD(mod);
+
+    if (modulation == MODULATION_MSK && speed == SPEED_SPECIAL)
         return "afsk";
 
+    switch (modulation) {
     case MODULATION_MSK:
         return "msk";
 
@@ -379,7 +391,14 @@ const char *modulation_mod_str(radio_modulation mod)
 
 const char *modulation_speed_str(radio_modulation mod)
 {
-    switch (RADIO_MODULATION_GET_SPEED(mod)) {
+    enum speed speed = RADIO_MODULATION_GET_SPEED(mod);
+    enum modulation modulation = RADIO_MODULATION_GET_MOD(mod);
+
+    switch (speed) {
+    case SPEED_SPECIAL:
+        if (modulation != MODULATION_MSK)
+            return "unknown";
+        /* fallthrough */
     case SPEED_1200:
         return "1200";
 
@@ -412,78 +431,86 @@ const char *modulation_speed_str(radio_modulation mod)
 bool str_to_fec(const char **str, enum fec *fec)
 {
     if (strcmp(*str, "") == 0) {
-	*fec = FEC_NONE;
-	return true;
+        *fec = FEC_NONE;
+        return true;
     }
     if (strcasecmp(*str, "conv") == 0) {
-	*str += 4;
-	*fec = FEC_CONV;
-	return true;
+        *str += 4;
+        *fec = FEC_CONV;
+        return true;
     }
     return false;
 }
 
-bool str_to_mod(const char **str, enum modulation *mod)
+bool str_to_mod(const char **str, enum modulation *mod, enum speed *speed)
 {
+    *speed = SPEED_1200;
     if (strncasecmp(*str, "afsk", 4) == 0) {
-	*str += 4;
-	*mod = MODULATION_AFSK;
-	return true;
+        *str += 4;
+        *mod = MODULATION_MSK;
+        *speed = SPEED_SPECIAL;
+        return true;
     }
     if (strncasecmp(*str, "msk", 3) == 0) {
-	*str += 3;
-	*mod = MODULATION_MSK;
-	return true;
+        *str += 3;
+        *mod = MODULATION_MSK;
+        return true;
     }
     if (strncasecmp(*str, "psk", 3) == 0) {
-	*str += 3;
-	*mod = MODULATION_PSK;
-	return true;
+        *str += 3;
+        *mod = MODULATION_PSK;
+        return true;
     }
     return false;
 }
 
-bool str_to_speed(const char **str, enum speed *speed)
+bool str_to_speed(const char **str, enum modulation mod, enum speed *speed)
 {
+    if (mod == MODULATION_MSK && *speed == SPEED_SPECIAL) {
+        if (strncasecmp(*str, "1200", 4) != 0)
+            return false;
+        *str += 4;
+        return true;
+    }
     if (strncasecmp(*str, "1200", 4) == 0) {
-	*str += 4;
-	*speed = SPEED_1200;
-	return true;
+        *str += 4;
+        *speed = SPEED_1200;
+        return true;
     }
     if (strncasecmp(*str, "2400", 4) == 0) {
-	*str += 4;
-	*speed = SPEED_2400;
-	return true;
+        *str += 4;
+        *speed = SPEED_2400;
+        return true;
     }
     if (strncasecmp(*str, "4800", 4) == 0) {
-	*str += 4;
-	*speed = SPEED_4800;
-	return true;
+        *str += 4;
+        *speed = SPEED_4800;
+        return true;
     }
     if (strncasecmp(*str, "9600", 4) == 0) {
-	*str += 4;
-	*speed = SPEED_9600;
-	return true;
+        *str += 4;
+        *speed = SPEED_9600;
+        return true;
     }
     if (strncasecmp(*str, "19200", 5) == 0) {
-	*str += 5;
-	*speed = SPEED_19200;
-	return true;
+        *str += 5;
+        *speed = SPEED_19200;
+        return true;
     }
     if (strncasecmp(*str, "25K", 3) == 0) {
-	*str += 3;
-	*speed = SPEED_25K;
-	return true;
+        *str += 3;
+        *speed = SPEED_25K;
+        return true;
     }
     if (strncasecmp(*str, "50K", 3) == 0) {
-	*str += 3;
-	*speed = SPEED_50K;
-	return true;
+        *str += 3;
+        *speed = SPEED_50K;
+        return true;
     }
     if (strncasecmp(*str, "100K", 4) == 0) {
-	*str += 4;
-	*speed = SPEED_100K;
-	return true;
+        *str += 4;
+        *speed = SPEED_100K;
+        return true;
     }
     return false;
 }
@@ -492,7 +519,7 @@ bool str_to_speed(const char **str, enum speed *speed)
 static const char *getTaskName(unsigned int task)
 {
     if (task >= NUM_TASKS)
-	return "Invalid";
+        return "Invalid";
     return TaskNames[task];
 }
 
@@ -544,15 +571,15 @@ void DisplayTelemetry(uint32_t typeRequested)
                 ReadMRAMWODMaxFileSize4kBlocks()*4096,
                 ReadMRAMErrWODMaxFileSize4kBlocks()*4096,
                 ReadMRAMExpMaxFileSize4kBlocks()*4096);
-	mod = ReadMRAMModulation(FIRST_TX_CHANNEL);
+        mod = ReadMRAMModulation(FIRST_TX_CHANNEL);
         printf("  TX Mode: %s%s%s\n", modulation_mod_str(mod),
-	       modulation_speed_str(mod), modulation_fec_str(mod));
+               modulation_speed_str(mod), modulation_fec_str(mod));
         printf("  RX Modes:");
         for (i = 0; i < NUM_RX_CHANNELS; i++) {
-	    mod = ReadMRAMModulation(i);
+            mod = ReadMRAMModulation(i);
             printf(" [%d] %s", i, modulation_mod_str(mod),
-		   modulation_speed_str(mod), modulation_fec_str(mod));
-	}
+                   modulation_speed_str(mod), modulation_fec_str(mod));
+        }
         printf("\n  Uncommanded Seconds in Orbit=%d\n\r",
                 (unsigned int) ReadMRAMSecondsOnOrbit());
                 bool onOrbit = ReadMRAMBoolState(StateInOrbit);
