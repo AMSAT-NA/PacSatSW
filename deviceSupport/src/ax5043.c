@@ -174,7 +174,55 @@ static void ax5043_set_modulation_base(rfchan device,
      * 9600bps = 0x01D8
      *
      * Note that Radio lab calculates 04CD, which is 1229, so this is
-     * the same freq as the bit rate..
+     * the same freq as the bit rate.
+     *
+     * The IF frequency calculated by Radiolab is bizarre.  To calculate
+     * the IFFREQ register from the IF, you use the following:
+     *
+     *   IFFREQ = 2^20 * FreqIF / Fxtal + 1/2
+     *
+     * Spinning that around, you can calculate FreqIF from the IFFREQ
+     * value radiolab produces:
+     *
+     *   FreqIF = IFFREQ * Fxtal / 2^20
+     *
+     * So I went through a large number of values in Radiolab to
+     * figure out the calculations.  Below 20kHz, the IF calculation
+     * is:
+     *
+     *   FreqIF = bandwidth / 2 + bandwidth / 4 + bandwidth / 12
+     *
+     * Above that, it's even stranger:
+     *
+     * datarate   FreqIF   IFFREQ
+     * --------   ------   ------
+     * 20k-28k  - 25.0k  - 0x0666
+     * 29k      - 36.3k  - 0x0948
+     * 30k-41k  - 37.5k  - 0x099a
+     * 42k-57k  - 50.0k  - 0x0ccd
+     *
+     * Above that, the following calculation is reasonably close:
+     *
+     *   FreqIF = bandwidth / (1.55 * (.0183 * (datarate / 1000 - 58)))
+     *
+     * datarate   IFFREQ
+     * --------   ------
+     * 58k      - 0x0e5d
+     * 59k      - 0x0e6a
+     * 60k      - 0x0e78
+     * 61k      - 0x0e85
+     * 62k      - 0x0e92
+     * 63k      - 0x0ea0
+     * 64k      - 0x0ead
+     * 65k      - 0x0eba
+     * 68k      - 0x0ee2
+     * 75k      - 0x0f40
+     * 79k      - 0x0f75
+     * 100k     - 0x108d
+     *
+     * The IF frequency probably isn't that critical as long as it's
+     * reasonable.  Also 0x00cd appears to be a minimum value for
+     * IFFREQ.
      */
     switch (speed) {
     case SPEED_SPECIAL:
@@ -230,10 +278,12 @@ static void ax5043_set_modulation_base(rfchan device,
      * = 2 * (3000 + 2200)
      *
      * For 9600bps the bandwidth is also 2 * (Fdev + Fmod) where:
-     *   Fdev = * 0.5 * modulation_index * bitrate
+     *   Fdev = 0.5 * modulation_index * bitrate
      * and
-     *   Fmod = 0.5 * bitrate modulation_index = 0.5
+     *   Fmod = 0.5 * bitrate
      * for GMSK.  So bandwidth is 14.4 kHz from 2 * (0.5*0.5*9600 + 0.5*9600)
+     *
+     * Or, bandwidth = bitrate + bitrate * modulation_index
      *
      * Min bw of lpf has to equal bw calculated above.  it is set by
      * FILTIDX bits of PHASEGAIN register.  See prog manual.
@@ -242,7 +292,10 @@ static void ax5043_set_modulation_base(rfchan device,
      * Assuming FILTERIDX bits of PHASEGAIN0 set to default value of
      * 0.25 using bits 11
      *
-     * RadioLab sets the Decimation to 08
+     * RadioLab sets the Decimation to 08 for 1200AFSK
+     *
+     * Doing some analysis, Radiolab seems to use around .1985 instead of
+     * .25 and it doesn't seem to round.
      */
     switch (speed) {
     case SPEED_SPECIAL:
@@ -293,6 +346,8 @@ static void ax5043_set_modulation_base(rfchan device,
     /**
      * Radiolab sets the 1200bps data rate to 034155, which is 213k and
      * seems really wide...  Black magic uses 0115c8
+     *
+     * RXDATARATE = 2^7 * Fxtal / (bitrate * decimation)
      */
     switch (speed) {
     case SPEED_SPECIAL:
