@@ -131,6 +131,7 @@ static void ax5043_set_modulation_base(rfchan device,
     enum fec fec = RADIO_MODULATION_GET_FEC(mod);
     enum modulation modulation = RADIO_MODULATION_GET_MOD(mod);
     enum speed speed = RADIO_MODULATION_GET_SPEED(mod);
+    uint32_t val = 0;
 
     switch (modulation) {
     case MODULATION_MSK:
@@ -226,50 +227,43 @@ static void ax5043_set_modulation_base(rfchan device,
      */
     switch (speed) {
     case SPEED_SPECIAL:
-        ax5043WriteReg(device, AX5043_IFFREQ1, 0x04);
-        ax5043WriteReg(device, AX5043_IFFREQ0, 0xcd);
+        val = 0x04cd;
         break;
 
     case SPEED_1200:
-        ax5043WriteReg(device, AX5043_IFFREQ1, 0x00);
-        ax5043WriteReg(device, AX5043_IFFREQ0, 0xcd);
+        val = 0x00cd;
         break;
 
     case SPEED_2400:
-        ax5043WriteReg(device, AX5043_IFFREQ1, 0x00);
-        ax5043WriteReg(device, AX5043_IFFREQ0, 0xcd);
+        val = 0x00cd;
         break;
 
     case SPEED_4800:
-        ax5043WriteReg(device, AX5043_IFFREQ1, 0x01);
-        ax5043WriteReg(device, AX5043_IFFREQ0, 0x89);
+        val = 0x0189;
         break;
 
     case SPEED_9600:
-        ax5043WriteReg(device, AX5043_IFFREQ1, 0x04);
-        ax5043WriteReg(device, AX5043_IFFREQ0, 0xcd);
+        val = 0x04cd;
         break;
 
     case SPEED_19200:
-        ax5043WriteReg(device, AX5043_IFFREQ1, 0x06);
-        ax5043WriteReg(device, AX5043_IFFREQ0, 0x25);
+        val = 0x0625;
         break;
 
     case SPEED_25K:
-        ax5043WriteReg(device, AX5043_IFFREQ1, 0x06);
-        ax5043WriteReg(device, AX5043_IFFREQ0, 0x66);
+        val = 0x0666;
         break;
 
     case SPEED_50K:
-        ax5043WriteReg(device, AX5043_IFFREQ1, 0x0c);
-        ax5043WriteReg(device, AX5043_IFFREQ0, 0xcd);
+        val = 0x0ccd;
         break;
 
     case SPEED_100K:
-        ax5043WriteReg(device, AX5043_IFFREQ1, 0x10);
-        ax5043WriteReg(device, AX5043_IFFREQ0, 0x8d);
+        val = 0x108d;
         break;
     }
+    ax5043WriteReg(device, AX5043_IFFREQ1, (val >> 8) & 0xff);
+    ax5043WriteReg(device, AX5043_IFFREQ0, val & 0xff);
 
     /**
      * RX DATA RATE and DECIMATION
@@ -351,60 +345,47 @@ static void ax5043_set_modulation_base(rfchan device,
      */
     switch (speed) {
     case SPEED_SPECIAL:
-        ax5043WriteReg(device, AX5043_RXDATARATE2, 0x03);
-        ax5043WriteReg(device, AX5043_RXDATARATE1, 0x41);
-        ax5043WriteReg(device, AX5043_RXDATARATE0, 0x55);
+        val = 0x034155;
         break;
 
     case SPEED_1200:
-        ax5043WriteReg(device, AX5043_RXDATARATE2, 0x00);
-        ax5043WriteReg(device, AX5043_RXDATARATE1, 0x3c);
-        ax5043WriteReg(device, AX5043_RXDATARATE0, 0x0f);
+        val = 0x003c0f;
         break;
 
     case SPEED_2400:
         /* Per radiolab. */
-        ax5043WriteReg(device, AX5043_RXDATARATE2, 0x00);
-        ax5043WriteReg(device, AX5043_RXDATARATE1, 0x3c);
-        ax5043WriteReg(device, AX5043_RXDATARATE0, 0x9b);
+        val = 0x003c9b;
         break;
 
     case SPEED_4800:
         /* Per radiolab. */
-        ax5043WriteReg(device, AX5043_RXDATARATE2, 0x00);
-        ax5043WriteReg(device, AX5043_RXDATARATE1, 0x3d);
-        ax5043WriteReg(device, AX5043_RXDATARATE0, 0xBA);
+        val = 0x003dba;
         break;
 
     case SPEED_9600:
         // 0x003106 for 9600
-        ax5043WriteReg(device, AX5043_RXDATARATE2, 0x00);
-        ax5043WriteReg(device, AX5043_RXDATARATE1, 0x40);
-        ax5043WriteReg(device, AX5043_RXDATARATE0, 0x1A);
+        val = 0x00401a;
         break;
 
     case SPEED_19200:
         /* Per radiolab. */
-        ax5043WriteReg(device, AX5043_RXDATARATE2, 0x00);
-        ax5043WriteReg(device, AX5043_RXDATARATE1, 0x45);
-        ax5043WriteReg(device, AX5043_RXDATARATE0, 0x71);
+        val = 0x004571;
         break;
 
     case SPEED_25K:
         /* Per radiolab. */
-        ax5043WriteReg(device, AX5043_RXDATARATE2, 0x00);
-        ax5043WriteReg(device, AX5043_RXDATARATE1, 0x40);
-        ax5043WriteReg(device, AX5043_RXDATARATE0, 0x00);
+        val = 0x004000;
         break;
 
     case SPEED_50K:
     case SPEED_100K:
         /* Per radiolab. */
-        ax5043WriteReg(device, AX5043_RXDATARATE2, 0x00);
-        ax5043WriteReg(device, AX5043_RXDATARATE1, 0x50);
-        ax5043WriteReg(device, AX5043_RXDATARATE0, 0x00);
+        val = 0x005000;
         break;
     }
+    ax5043WriteReg(device, AX5043_RXDATARATE2, (val >> 16) & 0xff);
+    ax5043WriteReg(device, AX5043_RXDATARATE1, (val >> 8) & 0xff);
+    ax5043WriteReg(device, AX5043_RXDATARATE0, val & 0xff);
 
     /**
      * AFC is bounded by MAXRFOFFSET = 2^24 * Foffset / Fxtal + 0.5
@@ -491,51 +472,45 @@ static void ax5043_set_modulation_base(rfchan device,
     switch (speed) {
     case SPEED_SPECIAL:
     case SPEED_1200:
-        ax5043WriteReg(device, AX5043_AGCGAIN0, 0xE8);
-        ax5043WriteReg(device, AX5043_AGCGAIN1, 0xE8);
+        val = 0xE8;
         break;
 
     case SPEED_2400:
         /* Per radiolab. */
-        ax5043WriteReg(device, AX5043_AGCGAIN0, 0xd7);
-        ax5043WriteReg(device, AX5043_AGCGAIN1, 0xd7);
+        val = 0xd7;
         break;
 
     case SPEED_4800:
         /* Per radiolab. */
-        ax5043WriteReg(device, AX5043_AGCGAIN0, 0xc6);
-        ax5043WriteReg(device, AX5043_AGCGAIN1, 0xc6);
+        val = 0xc6;
         break;
 
     case SPEED_9600:
-        ax5043WriteReg(device, AX5043_AGCGAIN0, 0xB5);
-        ax5043WriteReg(device, AX5043_AGCGAIN1, 0xB5);
-        break;
+        val = 0xB5;
 
     case SPEED_19200:
         /* Per radiolab */
-        ax5043WriteReg(device, AX5043_AGCGAIN0, 0xa3);
-        ax5043WriteReg(device, AX5043_AGCGAIN1, 0xa3);
+        val = 0xa3;
         break;
 
     case SPEED_25K:
         /* Per radiolab */
-        ax5043WriteReg(device, AX5043_AGCGAIN0, 0xA3);
-        ax5043WriteReg(device, AX5043_AGCGAIN1, 0xa3);
+        val = 0xA3;
         break;
 
     case SPEED_50K:
         /* Per radiolab */
-        ax5043WriteReg(device, AX5043_AGCGAIN0, 0x93);
-        ax5043WriteReg(device, AX5043_AGCGAIN1, 0x93);
+        val = 0x93;
         break;
 
     case SPEED_100K:
         /* Per radiolab */
-        ax5043WriteReg(device, AX5043_AGCGAIN0, 0x83);
-        ax5043WriteReg(device, AX5043_AGCGAIN1, 0x83);
+        val = 0x83;
         break;
     }
+    /* Gains always are the same, it seems. */
+    ax5043WriteReg(device, AX5043_AGCGAIN0, val);
+    ax5043WriteReg(device, AX5043_AGCGAIN1, val);
 
     /**
      * TIMEGAIN contains two 4 bit numbers TIMEGAINxM and TIMEGAINxE
@@ -947,63 +922,48 @@ static void ax5043_set_modulation_base(rfchan device,
      */
     switch (speed) {
     case SPEED_SPECIAL:
-        ax5043WriteReg(device, AX5043_FSKDEV2, 0x00);
-        ax5043WriteReg(device, AX5043_FSKDEV1, 0x0A);
-        ax5043WriteReg(device, AX5043_FSKDEV0, 0x8E);
+        val = 0x000A8E;
         break;
 
     case SPEED_1200:
         /* Per radiolab. */
-        ax5043WriteReg(device, AX5043_FSKDEV2, 0x00);
-        ax5043WriteReg(device, AX5043_FSKDEV1, 0x02);
-        ax5043WriteReg(device, AX5043_FSKDEV0, 0x0c);
+        val = 0x00020c;
         break;
 
     case SPEED_2400:
         /* Per radiolab. */
-        ax5043WriteReg(device, AX5043_FSKDEV2, 0x00);
-        ax5043WriteReg(device, AX5043_FSKDEV1, 0x02);
-        ax5043WriteReg(device, AX5043_FSKDEV0, 0x75);
+        val = 0x000275;
         break;
 
     case SPEED_4800:
         /* Per radiolab. */
-        ax5043WriteReg(device, AX5043_FSKDEV2, 0x00);
-        ax5043WriteReg(device, AX5043_FSKDEV1, 0x04);
-        ax5043WriteReg(device, AX5043_FSKDEV0, 0xea);
+        val = 0x0004ea;
         break;
 
     case SPEED_9600:
-        ax5043WriteReg(device, AX5043_FSKDEV2, 0x00);
-        ax5043WriteReg(device, AX5043_FSKDEV1, 0x09);
-        ax5043WriteReg(device, AX5043_FSKDEV0, 0xD5);
+        val = 0x0009D5;
         break;
 
     case SPEED_19200:
         /* Per radiolab. */
-        ax5043WriteReg(device, AX5043_FSKDEV2, 0x00);
-        ax5043WriteReg(device, AX5043_FSKDEV1, 0x13);
-        ax5043WriteReg(device, AX5043_FSKDEV0, 0xa9);
+        val = 0x0013a9;
         break;
 
     case SPEED_25K:
-        ax5043WriteReg(device, AX5043_FSKDEV2, 0x00);
-        ax5043WriteReg(device, AX5043_FSKDEV1, 0x19);
-        ax5043WriteReg(device, AX5043_FSKDEV0, 0x9a);
+        val = 0x00199a;
         break;
 
     case SPEED_50K:
-        ax5043WriteReg(device, AX5043_FSKDEV2, 0x00);
-        ax5043WriteReg(device, AX5043_FSKDEV1, 0x33);
-        ax5043WriteReg(device, AX5043_FSKDEV0, 0x33);
+        val = 0x003333;
         break;
 
     case SPEED_100K:
-        ax5043WriteReg(device, AX5043_FSKDEV2, 0x00);
-        ax5043WriteReg(device, AX5043_FSKDEV1, 0x66);
-        ax5043WriteReg(device, AX5043_FSKDEV0, 0x66);
+        val = 0x006666;
         break;
     }
+    ax5043WriteReg(device, AX5043_FSKDEV2, (val >> 16) & 0xff);
+    ax5043WriteReg(device, AX5043_FSKDEV1, (val >> 8) & 0xff);
+    ax5043WriteReg(device, AX5043_FSKDEV0, val & 0xff);
 
     /* TXRATE = BITRATE/Fxtal * 2^24 + 1/2
      * Where Fxtal = 16,000,000
@@ -1015,59 +975,46 @@ static void ax5043_set_modulation_base(rfchan device,
     switch (speed) {
     case SPEED_SPECIAL:
     case SPEED_1200:
-        ax5043WriteReg(device, AX5043_TXRATE2, 0x00);
-        ax5043WriteReg(device, AX5043_TXRATE1, 0x04);
-        ax5043WriteReg(device, AX5043_TXRATE0, 0xEA);
+        val = 0x0004EA;
         break;
 
     case SPEED_2400:
         /* Per radiolab. */
-        ax5043WriteReg(device, AX5043_TXRATE2, 0x00);
-        ax5043WriteReg(device, AX5043_TXRATE1, 0x09);
-        ax5043WriteReg(device, AX5043_TXRATE0, 0xd5);
+        val = 0x0009d5;
         break;
 
     case SPEED_4800:
         /* Per radiolab. */
-        ax5043WriteReg(device, AX5043_TXRATE2, 0x00);
-        ax5043WriteReg(device, AX5043_TXRATE1, 0x13);
-        ax5043WriteReg(device, AX5043_TXRATE0, 0xa9);
+        val = 0x0013a9;
         break;
 
     case SPEED_9600:
-        ax5043WriteReg(device, AX5043_TXRATE2, 0x00);
-        ax5043WriteReg(device, AX5043_TXRATE1, 0x27);
-        ax5043WriteReg(device, AX5043_TXRATE0, 0x52);
+        val = 0x002752;
         break;
 
     case SPEED_19200:
         /* Per radiolab. */
-        ax5043WriteReg(device, AX5043_TXRATE2, 0x00);
-        ax5043WriteReg(device, AX5043_TXRATE1, 0x4e);
-        ax5043WriteReg(device, AX5043_TXRATE0, 0xa5);
+        val = 0x004ea5;
         break;
 
     case SPEED_25K:
         /* Per radiolab. */
-        ax5043WriteReg(device, AX5043_TXRATE2, 0x00);
-        ax5043WriteReg(device, AX5043_TXRATE1, 0x66);
-        ax5043WriteReg(device, AX5043_TXRATE0, 0x66);
+        val = 0x006666;
         break;
 
     case SPEED_50K:
         /* Per radiolab. */
-        ax5043WriteReg(device, AX5043_TXRATE2, 0x00);
-        ax5043WriteReg(device, AX5043_TXRATE1, 0xcc);
-        ax5043WriteReg(device, AX5043_TXRATE0, 0xcd);
+        val = 0x00cccd;
         break;
 
     case SPEED_100K:
         /* Per radiolab. */
-        ax5043WriteReg(device, AX5043_TXRATE2, 0x01);
-        ax5043WriteReg(device, AX5043_TXRATE1, 0x99);
-        ax5043WriteReg(device, AX5043_TXRATE0, 0x9a);
+        val = 0x01999a;
         break;
     }
+    ax5043WriteReg(device, AX5043_TXRATE2, (val >> 16) & 0xff);
+    ax5043WriteReg(device, AX5043_TXRATE1, (val >> 8) & 0xff);
+    ax5043WriteReg(device, AX5043_TXRATE0, val & 0xff);
 
     /* baseband tuning value - per radio lab */
     switch (speed) {
