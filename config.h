@@ -410,9 +410,31 @@ enum fec {
     FEC_COUNT
 };
 
+/*
+ * We have three modulations:
+ *
+ * * MSK - FSK with a modulation index of .5.  This minimizes the
+ *   bandwidth used by the signal to around 1.5 the data rate.
+ *
+ * * PSK - Phase shift keying, main bandwidth is the same as the data
+ *   rate but it has a lot of spill over outside the main bandwidth
+ *   due to the abrupt transitions between bits.
+ *
+ * * FSK2M - FSK with a modulation index of 2.  This spaces out the
+ *   frequencies farther.  Especially at lower data rates, the two
+ *   frequencies in MSK are very close together and very sensitive to
+ *   the signal being off a small amount.  This should work better
+ *   at lower data rates.  However, the bandwidth is 3 times the
+ *   data rate.
+ *
+ * TODO - It's likely we will use FSK2M for lower data rates and
+ * MSK/PSK for higher data rates, so those two could be consolidated
+ * but leave them separate for now for experimenting.
+ */
 enum modulation {
     MODULATION_MSK = 0,
     MODULATION_PSK,
+    MODULATION_FSK2M, /* Modulation index of 2. */
     MODULATION_COUNT
 };
 
@@ -425,6 +447,10 @@ enum speed {
     SPEED_19200,
     SPEED_25K,
     SPEED_50K,
+    /*
+     * Modulation at FSKM2 above 50K is not going to work, not enough
+     * receive or transmit bandwidth.
+     */
     SPEED_100K,
     SPEED_COUNT
 };
@@ -432,6 +458,7 @@ enum speed {
 typedef int radio_modulation;
 #define MODULATION_INVALID -1
 
+/* The modulation value is designed to be 8 bits. */
 #define RADIO_MODULATION_SET(modulation, speed, fec) \
     (((fec) << 6) | ((modulation) << 4) | (speed))
 #define RADIO_MODULATION_GET_FEC(mod) ((enum fec) (((mod) >> 6) & 3))

@@ -384,6 +384,9 @@ const char *modulation_mod_str(radio_modulation mod)
     case MODULATION_PSK:
         return "psk";
 
+    case MODULATION_FSK2M:
+        return "fsk2m";
+
     default:
         return "unknown";
     }
@@ -459,6 +462,11 @@ bool str_to_mod(const char **str, enum modulation *mod, enum speed *speed)
     if (strncasecmp(*str, "psk", 3) == 0) {
         *str += 3;
         *mod = MODULATION_PSK;
+        return true;
+    }
+    if (strncasecmp(*str, "fsk2m", 5) == 0) {
+        *str += 5;
+        *mod = MODULATION_FSK2M;
         return true;
     }
     return false;
