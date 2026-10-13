@@ -439,7 +439,9 @@ enum modulation {
 };
 
 enum speed {
-    SPEED_SPECIAL = 0, /* Used for AFSK 1200 along with MSK */
+    /* Used for AFSK 1200 along with MSK, GFSK 9600 with PSK */
+    SPEED_SPECIAL = 0,
+
     SPEED_1200,
     SPEED_2400,
     SPEED_4800,

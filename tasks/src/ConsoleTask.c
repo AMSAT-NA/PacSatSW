@@ -491,7 +491,7 @@ const commandPairs commonCommands[] = {
     { "mod",
       "Get/set the radio to the given modulation, speed, and error correction",
       Modulation,
-      "[<chan> [afsk|msk|psk][1200|2400|4800|9600|19200|25k|50k|100k][conv|]",
+      "[<chan> [afsk|gmsk|msk|psk][1200|2400|4800|9600|19200|25k|50k|100k][conv|]",
     },
     { "mount fs",
       "Mount the filesystem",
@@ -2374,11 +2374,12 @@ void RealConsoleTask(void)
             }
 
             if (!str_to_mod(&modstr, &modulation, &speed)) {
-                printf("Invalid modulation type, must be afsk, msk, or psk.\n");
+                printf("Invalid modulation type, must be afsk, gmsk, msk, or psk.\n");
                 break;
             }
             if (!str_to_speed(&modstr, modulation, &speed)) {
                 printf("Invalid speed, must be 1200, 2400, 4800, 9600, 19200, 25k, 50k or 100k.\n");
+                printf("  afsk only supports 1200, gmsk only supports 9600\n");
                 break;
             }
             if (!str_to_fec(&modstr, &fec)) {

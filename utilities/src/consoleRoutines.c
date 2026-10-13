@@ -350,6 +350,8 @@ bool radio_modulation_valid(radio_modulation mod)
         return false;
     if (speed == SPEED_SPECIAL && modulation == MODULATION_MSK)
         return true;
+    if (speed == SPEED_SPECIAL && modulation == MODULATION_PSK)
+        return true;
     return (fec <= FEC_COUNT
             && speed > SPEED_SPECIAL && speed < SPEED_COUNT
             && modulation < MODULATION_COUNT);
@@ -376,6 +378,8 @@ const char *modulation_mod_str(radio_modulation mod)
 
     if (modulation == MODULATION_MSK && speed == SPEED_SPECIAL)
         return "afsk";
+    if (modulation == MODULATION_PSK && speed == SPEED_SPECIAL)
+        return "gmsk";
 
     switch (modulation) {
     case MODULATION_MSK:
@@ -399,9 +403,12 @@ const char *modulation_speed_str(radio_modulation mod)
 
     switch (speed) {
     case SPEED_SPECIAL:
-        if (modulation != MODULATION_MSK)
-            return "unknown";
-        /* fallthrough */
+        if (modulation == MODULATION_MSK)
+            return "1200";
+        if (modulation == MODULATION_PSK)
+            return "9600";
+	return "unknown";
+
     case SPEED_1200:
         return "1200";
 
@@ -454,6 +461,12 @@ bool str_to_mod(const char **str, enum modulation *mod, enum speed *speed)
         *speed = SPEED_SPECIAL;
         return true;
     }
+    if (strncasecmp(*str, "gmsk", 4) == 0) {
+        *str += 4;
+        *mod = MODULATION_PSK;
+        *speed = SPEED_SPECIAL;
+        return true;
+    }
     if (strncasecmp(*str, "msk", 3) == 0) {
         *str += 3;
         *mod = MODULATION_MSK;
@@ -476,6 +489,12 @@ bool str_to_speed(const char **str, enum modulation mod, enum speed *speed)
 {
     if (mod == MODULATION_MSK && *speed == SPEED_SPECIAL) {
         if (strncasecmp(*str, "1200", 4) != 0)
+            return false;
+        *str += 4;
+        return true;
+    }
+    if (mod == MODULATION_PSK && *speed == SPEED_SPECIAL) {
+        if (strncasecmp(*str, "9600", 4) != 0)
             return false;
         *str += 4;
         return true;

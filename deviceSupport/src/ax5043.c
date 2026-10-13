@@ -125,6 +125,11 @@ static void ax5043_set_fec(rfchan device, enum fec fec)
     }
 }
 
+/*
+ * This setup up the modulation for the AX5043.  Note that the
+ * SPEED_SPECIAL is used for the legacy AFSK1200 (with modulatio MSK)
+ * and GMSK9600 (with modulation PSK).
+ */
 static void ax5043_set_modulation_base(rfchan device,
                                        radio_modulation mod)
 {
@@ -142,32 +147,40 @@ static void ax5043_set_modulation_base(rfchan device,
             // Differential encoding, bit inversion, no scrambler.
             ax5043WriteReg(device, AX5043_ENCODING, 0x03);
         } else {
-            /* NOTE that 0x07 GMSK does not work on receive.  Use GFSK
-             * 0x08 with BT = 0.5.  This works better than 0.3 for RX.
-             * More testing needed for TX, which may work best with
-             * GMSK */
-            // GMSK for 9600 is 0x07.  0x04 is PSK.
             ax5043WriteReg(device, AX5043_MODULATION, 0x08);
-            // Differential encoding, bit inversion, G3RUH scrambler.
-            /* We use only FEC at 25K and above, so that code will set this. */
-            ax5043WriteReg(device, AX5043_ENCODING, 0x07);
+            ax5043WriteReg(device, AX5043_ENCODING, 0x00);
         }
         /* Disable PSK. */
         ax5043WriteReg(device, AX5043_MODCFGP, 0xe7);
         break;
 
     case MODULATION_PSK:
-        ax5043WriteReg(device, AX5043_MODULATION, 0x04);
+        if (speed == SPEED_SPECIAL) {
+            /* GMSK 9600.  NOTE that 0x07 GMSK does not work on
+             * receive.  Use GFSK 0x08 with BT = 0.5.  This works
+             * better than 0.3 for RX.  More testing needed for TX,
+             * which may work best with GMSK */
+            // GMSK is 0x07.  0x04 is PSK.
+            ax5043WriteReg(device, AX5043_MODULATION, 0x08);
+            // Differential encoding, bit inversion, G3RUH scrambler.
+            ax5043WriteReg(device, AX5043_ENCODING, 0x07);
 
-        /* No special encoding here. */
-        ax5043WriteReg(device, AX5043_ENCODING, 0x00);
+            /* Disable PSK. */
+            ax5043WriteReg(device, AX5043_MODCFGP, 0xe7);
+        } else {
+            ax5043WriteReg(device, AX5043_MODULATION, 0x04);
 
-        /* PSK setup.  This is from Not Black Magic. */
-        ax5043WriteReg(device, AX5043_MODCFGP, 0xe1);
+            /* No special encoding here. */
+            ax5043WriteReg(device, AX5043_ENCODING, 0x00);
+
+            /* PSK setup.  This is from Not Black Magic. */
+            ax5043WriteReg(device, AX5043_MODCFGP, 0xe1);
+        }
+        break;
     }
 
     /**
-     * Freq of the IF sets the center of the downconverted spectrum.  Set to BW / 2
+     * Freq of the IF sets the center of the downconverted spectrum.
      * 5200Hz for 1200 bps
      * 7200Hz for 9600 bps
      *
@@ -228,6 +241,7 @@ static void ax5043_set_modulation_base(rfchan device,
      */
     switch (speed) {
     case SPEED_SPECIAL:
+        /* Same for AFSK1200 and GMSK9600 */
         val = 0x04cd;
         break;
 
@@ -313,7 +327,10 @@ static void ax5043_set_modulation_base(rfchan device,
     switch (speed) {
     case SPEED_SPECIAL:
         // Set to 0c18 per black magic and 0x11 for 9600 bps
-        ax5043WriteReg(device, AX5043_DECIMATION, 0x08);
+        if (modulation == MODULATION_MSK)
+            ax5043WriteReg(device, AX5043_DECIMATION, 0x08);
+        else if (modulation == MODULATION_PSK)
+            ax5043WriteReg(device, AX5043_DECIMATION, 0x0D);
         break;
 
     case SPEED_1200:
@@ -385,7 +402,10 @@ static void ax5043_set_modulation_base(rfchan device,
      */
     switch (speed) {
     case SPEED_SPECIAL:
-        val = 0x034155;
+        if (modulation == MODULATION_MSK)
+            val = 0x034155;
+        else if (modulation == MODULATION_PSK)
+            val = 0x00401a;
         break;
 
     case SPEED_1200:
@@ -465,8 +485,12 @@ static void ax5043_set_modulation_base(rfchan device,
     ax5043WriteReg(device, AX5043_MAXRFOFFSET2, 0x80);  // set bit 23
     switch (speed) {
     case SPEED_SPECIAL:
-        ax5043WriteReg(device, AX5043_MAXRFOFFSET1, 0x07);
-        ax5043WriteReg(device, AX5043_MAXRFOFFSET0, 0x07);
+        if (modulation == MODULATION_MSK) {
+            ax5043WriteReg(device, AX5043_MAXRFOFFSET1, 0x07);
+            ax5043WriteReg(device, AX5043_MAXRFOFFSET0, 0x07);
+            break;
+        }
+        /* Fallthrough */
 
     case SPEED_2400:
     case SPEED_4800:
@@ -491,9 +515,11 @@ static void ax5043_set_modulation_base(rfchan device,
      */
     switch (speed) {
     case SPEED_SPECIAL:
-        ax5043WriteReg(device, AX5043_AFSKCTRL, 0x0C);
-        break;
-
+        if (modulation == MODULATION_MSK) {
+            ax5043WriteReg(device, AX5043_AFSKCTRL, 0x0C);
+            break;
+        }
+        /* Fallthrough */
     case SPEED_1200:
     case SPEED_2400:
     case SPEED_4800:
@@ -532,6 +558,12 @@ static void ax5043_set_modulation_base(rfchan device,
      */
     switch (speed) {
     case SPEED_SPECIAL:
+        if (modulation == MODULATION_MSK)
+            val = 0xE8;
+        else if (modulation == MODULATION_PSK)
+            val = 0xB5;
+        break;
+
     case SPEED_1200:
         val = 0xE8;
         break;
@@ -547,6 +579,7 @@ static void ax5043_set_modulation_base(rfchan device,
         break;
 
     case SPEED_9600:
+        /* Per radiolab. */
         val = 0xB5;
 
     case SPEED_19200:
@@ -610,23 +643,28 @@ static void ax5043_set_modulation_base(rfchan device,
      */
     switch (speed) {
     case SPEED_SPECIAL:
-        ax5043WriteReg(device, AX5043_TIMEGAIN0, 0xDC); // RX Only
-        // GOLF was 94, DA per radio lab
-        ax5043WriteReg(device, AX5043_TIMEGAIN1, 0xDA);
-        // GOLF was 93, D9 per radio lab
-        ax5043WriteReg(device, AX5043_TIMEGAIN3, 0xD9);
+        if (modulation == MODULATION_MSK) {
+            /* AFSK */
+            ax5043WriteReg(device, AX5043_TIMEGAIN0, 0xDC); // RX Only
+            // GOLF was 94, DA per radio lab
+            ax5043WriteReg(device, AX5043_TIMEGAIN1, 0xDA);
+            // GOLF was 93, D9 per radio lab
+            ax5043WriteReg(device, AX5043_TIMEGAIN3, 0xD9);
 
-        ax5043WriteReg(device, AX5043_DRGAIN0, 0xD6); // RX Only
-        // GOLF was 90, D5 per radio lab
-        ax5043WriteReg(device, AX5043_DRGAIN1, 0xD5);
-        // GOLF was 90, D4 per radio lab
-        ax5043WriteReg(device, AX5043_DRGAIN3, 0xD4);
+            ax5043WriteReg(device, AX5043_DRGAIN0, 0xD6); // RX Only
+            // GOLF was 90, D5 per radio lab
+            ax5043WriteReg(device, AX5043_DRGAIN1, 0xD5);
+            // GOLF was 90, D4 per radio lab
+            ax5043WriteReg(device, AX5043_DRGAIN3, 0xD4);
 
-        ax5043WriteReg(device, AX5043_PHASEGAIN0, 0xC3);
-        /* Per radiolab */
-        ax5043WriteReg(device, AX5043_PHASEGAIN1, 0xC3);
-        // GOLF was 83, C3 per radio lab
-        ax5043WriteReg(device, AX5043_PHASEGAIN3, 0xC3);
+            ax5043WriteReg(device, AX5043_PHASEGAIN0, 0xC3);
+            /* Per radiolab */
+            ax5043WriteReg(device, AX5043_PHASEGAIN1, 0xC3);
+            // GOLF was 83, C3 per radio lab
+            ax5043WriteReg(device, AX5043_PHASEGAIN3, 0xC3);
+        } else if (modulation == MODULATION_PSK) {
+            goto bps9600;
+        }
         break;
 
     case SPEED_1200:
@@ -646,6 +684,7 @@ static void ax5043_set_modulation_base(rfchan device,
         ax5043WriteReg(device, AX5043_PHASEGAIN3, 0xc3);
         break;
 
+    bps9600:
     case SPEED_9600:
     case SPEED_19200:
         ax5043WriteReg(device, AX5043_TIMEGAIN0, 0x89); // RX Only
@@ -703,11 +742,26 @@ static void ax5043_set_modulation_base(rfchan device,
      */
     switch (speed) {
     case SPEED_SPECIAL:
+        if (modulation == MODULATION_MSK) {
+            /* AFSK */
+            ax5043WriteReg(device, AX5043_FREQUENCYGAINA0, 0x0F);
+            ax5043WriteReg(device, AX5043_FREQUENCYGAINB0, 0x1F);
+            ax5043WriteReg(device, AX5043_FREQUENCYGAINC0, 0x0D);
+            ax5043WriteReg(device, AX5043_FREQUENCYGAIND0, 0x0D);
+        } else if (modulation == MODULATION_PSK) {
+            /* GMSK */
+            ax5043WriteReg(device, AX5043_FREQUENCYGAINA0, 0x26);
+            ax5043WriteReg(device, AX5043_FREQUENCYGAINB0, 0x0A);
+            ax5043WriteReg(device, AX5043_FREQUENCYGAINC0, 0x1F);
+            ax5043WriteReg(device, AX5043_FREQUENCYGAIND0, 0x1F);
+        }
+        break;
+
     case SPEED_1200:
         ax5043WriteReg(device, AX5043_FREQUENCYGAINA0, 0x0F);
         ax5043WriteReg(device, AX5043_FREQUENCYGAINB0, 0x1F);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINC0, 0x0D);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAIND0, 0x0D);
+        ax5043WriteReg(device, AX5043_FREQUENCYGAINC0, 0x0C);
+        ax5043WriteReg(device, AX5043_FREQUENCYGAIND0, 0x0C);
         break;
 
     case SPEED_2400:
@@ -729,8 +783,8 @@ static void ax5043_set_modulation_base(rfchan device,
     case SPEED_9600:
         ax5043WriteReg(device, AX5043_FREQUENCYGAINA0, 0x26);
         ax5043WriteReg(device, AX5043_FREQUENCYGAINB0, 0x0A);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINC0, 0x1F);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAIND0, 0x1F);
+        ax5043WriteReg(device, AX5043_FREQUENCYGAINC0, 0x09);
+        ax5043WriteReg(device, AX5043_FREQUENCYGAIND0, 0x09);
         break;
 
     case SPEED_19200:
@@ -768,15 +822,35 @@ static void ax5043_set_modulation_base(rfchan device,
 
     switch (speed) {
     case SPEED_SPECIAL:
+        if (modulation == MODULATION_MSK) {
+            /* AFSK */
+            // GOLF was 46, 0F per Radio lab
+            ax5043WriteReg(device, AX5043_FREQUENCYGAINA1, 0x0F);
+            // GOLF was 0A, 1F per radio lab
+            ax5043WriteReg(device, AX5043_FREQUENCYGAINB1, 0x1F);
+            // GOLF was 1F, 0D per radio lab
+            ax5043WriteReg(device, AX5043_FREQUENCYGAINC1, 0x1D);
+            // GOLF was 1F, 0D per radio lab
+            ax5043WriteReg(device, AX5043_FREQUENCYGAIND1, 0x1D);
+        } else if (modulation == MODULATION_PSK) {
+            /* GMSK */
+            // GOLF was 46, 0F per Radio lab
+            ax5043WriteReg(device, AX5043_FREQUENCYGAINA1, 0x26);
+            // GOLF was 0A, 1F per radio lab
+            ax5043WriteReg(device, AX5043_FREQUENCYGAINB1, 0x0A);
+            // GOLF was 1F, 0D per radio lab
+            ax5043WriteReg(device, AX5043_FREQUENCYGAINC1, 0x1F);
+            // GOLF was 1F, 0D per radio lab
+            ax5043WriteReg(device, AX5043_FREQUENCYGAIND1, 0x1F);
+        }
+        break;
+
     case SPEED_1200:
-        // GOLF was 46, 0F per Radio lab
+        /* Per radiolab. */
         ax5043WriteReg(device, AX5043_FREQUENCYGAINA1, 0x0F);
-        // GOLF was 0A, 1F per radio lab
         ax5043WriteReg(device, AX5043_FREQUENCYGAINB1, 0x1F);
-        // GOLF was 1F, 0D per radio lab
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINC1, 0x1D);
-        // GOLF was 1F, 0D per radio lab
-        ax5043WriteReg(device, AX5043_FREQUENCYGAIND1, 0x1D);
+        ax5043WriteReg(device, AX5043_FREQUENCYGAINC1, 0x0C);
+        ax5043WriteReg(device, AX5043_FREQUENCYGAIND1, 0x0C);
         break;
 
     case SPEED_2400:
@@ -796,14 +870,10 @@ static void ax5043_set_modulation_base(rfchan device,
         break;
 
     case SPEED_9600:
-        // GOLF was 46, 0F per Radio lab
         ax5043WriteReg(device, AX5043_FREQUENCYGAINA1, 0x26);
-        // GOLF was 0A, 1F per radio lab
         ax5043WriteReg(device, AX5043_FREQUENCYGAINB1, 0x0A);
-        // GOLF was 1F, 0D per radio lab
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINC1, 0x1F);
-        // GOLF was 1F, 0D per radio lab
-        ax5043WriteReg(device, AX5043_FREQUENCYGAIND1, 0x1F);
+        ax5043WriteReg(device, AX5043_FREQUENCYGAINC1, 0x09);
+        ax5043WriteReg(device, AX5043_FREQUENCYGAIND1, 0x09);
         break;
 
     case SPEED_19200:
@@ -846,8 +916,13 @@ static void ax5043_set_modulation_base(rfchan device,
     ax5043WriteReg(device, AX5043_FREQDEV13, 0x00);
     switch (speed) {
     case SPEED_SPECIAL:
-        ax5043WriteReg(device, AX5043_FREQDEV01, 0x00); // per radio lab
-        ax5043WriteReg(device, AX5043_FREQDEV03, 0x00); // per radio lab
+        if (modulation == MODULATION_MSK) {
+            ax5043WriteReg(device, AX5043_FREQDEV01, 0x00); // per radio lab
+            ax5043WriteReg(device, AX5043_FREQDEV03, 0x00); // per radio lab
+        } else if (modulation == MODULATION_MSK) {
+            ax5043WriteReg(device, AX5043_FREQDEV01, 0x2d); // per radio lab
+            ax5043WriteReg(device, AX5043_FREQDEV03, 0x2d); // per radio lab
+        }
         break;
 
     case SPEED_1200:
@@ -878,35 +953,36 @@ static void ax5043_set_modulation_base(rfchan device,
 
     switch (speed) {
     case SPEED_SPECIAL:
-    case SPEED_1200:
-        // GOLF was 46, 0F per radio lab
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINA3, 0x0F);
-        // GOLF was 0A, 1F per radio lab
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINB3, 0x1F);
-        // GOLF was 1F, 0D per radio lab
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINC3, 0x0D);
-        // GOLF was 1F, 0D per radio lab
-        ax5043WriteReg(device, AX5043_FREQUENCYGAIND3, 0x0D);
+        if (modulation == MODULATION_MSK) {
+            // GOLF was 46, 0F per radio lab
+            ax5043WriteReg(device, AX5043_FREQUENCYGAINA3, 0x0F);
+            // GOLF was 0A, 1F per radio lab
+            ax5043WriteReg(device, AX5043_FREQUENCYGAINB3, 0x1F);
+            // GOLF was 1F, 0D per radio lab
+            ax5043WriteReg(device, AX5043_FREQUENCYGAINC3, 0x0D);
+            // GOLF was 1F, 0D per radio lab
+            ax5043WriteReg(device, AX5043_FREQUENCYGAIND3, 0x0D);
+        } else if (modulation == MODULATION_MSK) {
+            // GOLF was 46, 0F per radio lab
+            ax5043WriteReg(device, AX5043_FREQUENCYGAINA3, 0x26);
+            // GOLF was 0A, 1F per radio lab
+            ax5043WriteReg(device, AX5043_FREQUENCYGAINB3, 0x0A);
+            // GOLF was 1F, 0D per radio lab
+            ax5043WriteReg(device, AX5043_FREQUENCYGAINC3, 0x1F);
+            // GOLF was 1F, 0D per radio lab
+            ax5043WriteReg(device, AX5043_FREQUENCYGAIND3, 0x1F);
+        }
         break;
 
+    case SPEED_1200:
     case SPEED_2400:
     case SPEED_4800:
+    case SPEED_9600:
         /* Per radiolab. */
         ax5043WriteReg(device, AX5043_FREQUENCYGAINA3, 0x0f);
         ax5043WriteReg(device, AX5043_FREQUENCYGAINB3, 0x1f);
         ax5043WriteReg(device, AX5043_FREQUENCYGAINC3, 0x0d);
         ax5043WriteReg(device, AX5043_FREQUENCYGAIND3, 0x0d);
-        break;
-
-    case SPEED_9600:
-        // GOLF was 46, 0F per radio lab
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINA3, 0x26);
-        // GOLF was 0A, 1F per radio lab
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINB3, 0x0A);
-        // GOLF was 1F, 0D per radio lab
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINC3, 0x1F);
-        // GOLF was 1F, 0D per radio lab
-        ax5043WriteReg(device, AX5043_FREQUENCYGAIND3, 0x1F);
         break;
 
     case SPEED_19200:
@@ -948,17 +1024,11 @@ static void ax5043_set_modulation_base(rfchan device,
      */
     switch (speed) {
     case SPEED_SPECIAL:
+        /* Same for AFSK and PSK */
+        ax5043WriteReg(device, AX5043_MODCFGF, 0x03);
+        break;
+
     case SPEED_1200:
-        ax5043WriteReg(device, AX5043_MODCFGF, 0x03);
-        break;
-
-    case SPEED_9600:
-        // radio lab says 00, but is that for FSK or
-        // because I selected wrong.  Surely we want filtering
-        /* TODO - do we want to change this per the next comment? */
-        ax5043WriteReg(device, AX5043_MODCFGF, 0x03);
-        break;
-
     case SPEED_2400:
     case SPEED_4800:
     case SPEED_19200:
@@ -990,7 +1060,10 @@ static void ax5043_set_modulation_base(rfchan device,
      */
     switch (speed) {
     case SPEED_SPECIAL:
-        val = 0x000A8E;
+        if (modulation == MODULATION_MSK)
+            val = 0x000A8E;
+        else if (modulation == MODULATION_PSK)
+            val = 0x0009D5;
         break;
 
     case SPEED_1200:
@@ -1018,6 +1091,7 @@ static void ax5043_set_modulation_base(rfchan device,
         break;
 
     case SPEED_9600:
+        /* Per radiolab. */
         if (modulation == MODULATION_MSK)
             val = 0x0009D5;
         else if (modulation == MODULATION_FSK2M)
@@ -1063,6 +1137,12 @@ static void ax5043_set_modulation_base(rfchan device,
      */
     switch (speed) {
     case SPEED_SPECIAL:
+        if (modulation == MODULATION_MSK)
+            val = 0x0004EA;
+        else if (modulation == MODULATION_PSK)
+            val = 0x002752;
+        break;
+
     case SPEED_1200:
         val = 0x0004EA;
         break;
@@ -1078,6 +1158,7 @@ static void ax5043_set_modulation_base(rfchan device,
         break;
 
     case SPEED_9600:
+        /* Per radiolab. */
         val = 0x002752;
         break;
 
@@ -1132,23 +1213,25 @@ static void ax5043_set_modulation_base(rfchan device,
     }
 
     // unclear if this needs to be different, but it is from radio lab
-    // TODO - This is odd to have 9600 be different, but it's really not
-    // that important.
+    // TODO - This is odd to have GMSK9600 be different, but it's
+    // really not that important.
     switch (speed) {
     case SPEED_SPECIAL:
+        if (modulation == MODULATION_PSK) {
+            // Bit 7 - 1 = raw, 0 = scrambled
+            ax5043WriteReg(device, AX5043_MATCH1LEN, 0x0A);
+            break;
+        }
+        /* Fallthrough */
     case SPEED_1200:
     case SPEED_2400:
     case SPEED_4800:
+    case SPEED_9600:
     case SPEED_19200:
     case SPEED_25K:
     case SPEED_50K:
     case SPEED_100K:
         ax5043WriteReg(device, AX5043_MATCH1LEN, 0x8A);
-        break;
-
-    case SPEED_9600:
-        // Bit 7 - 1 = raw, 0 = scrambled
-        ax5043WriteReg(device, AX5043_MATCH1LEN, 0x0A);
         break;
     }
 
@@ -1190,21 +1273,25 @@ static void ax5043_set_modulation_base(rfchan device,
 static void ax5043_set_modulation_tx(rfchan device, radio_modulation mod)
 {
     enum speed speed = RADIO_MODULATION_GET_SPEED(mod);
+    enum modulation modulation = RADIO_MODULATION_GET_MOD(mod);
 
     switch (speed) {
     case SPEED_SPECIAL:
-        /* For AFSK we need another pair of registers for MARK / SPACE
-         * AFSK(Mark/Space) = Freq * 2^18 / Fxtal + 1/2
-         * Freq Space = 2200Hz
-         * Freq Mark = 1200Hz
-         */
-        ax5043WriteReg(device, AX5043_AFSKSPACE1, 0x00);
-        // 0r 25?  This was 24 in Golf
-        ax5043WriteReg(device, AX5043_AFSKSPACE0, 0x24);
-        ax5043WriteReg(device, AX5043_AFSKMARK1, 0x00);
-        ax5043WriteReg(device, AX5043_AFSKMARK0, 0x14);
-        break;
-
+        if (modulation == MODULATION_MSK) {
+            /* For AFSK we need another pair of registers for MARK / SPACE
+             * AFSK(Mark/Space) = Freq * 2^18 / Fxtal + 1/2
+             * Freq Space = 2200Hz
+             * Freq Mark = 1200Hz
+             */
+            /* AFSK1200 */
+            ax5043WriteReg(device, AX5043_AFSKSPACE1, 0x00);
+            // 0r 25?  This was 24 in Golf
+            ax5043WriteReg(device, AX5043_AFSKSPACE0, 0x24);
+            ax5043WriteReg(device, AX5043_AFSKMARK1, 0x00);
+            ax5043WriteReg(device, AX5043_AFSKMARK0, 0x14);
+            break;
+        }
+        /* Fallthrough */
     case SPEED_1200:
     case SPEED_2400:
     case SPEED_4800:
@@ -1224,17 +1311,19 @@ static void ax5043_set_modulation_rx(rfchan device, radio_modulation mod)
 
     switch (speed) {
     case SPEED_SPECIAL:
-        /* For AFSK we need another pair of registers for MARK / SPACE
-         * AFSK(Mark/Space) = Freq * DECIMATION * 2^16 / Fxtal + 1/2
-         * Freq Space = 2200Hz
-         * Freq Mark = 1200Hz
-         */
-        ax5043WriteReg(device, AX5043_AFSKSPACE1, 0x00);
-        ax5043WriteReg(device, AX5043_AFSKSPACE0, 0x48); // D9 Per black magic
-        ax5043WriteReg(device, AX5043_AFSKMARK1, 0x00);
-        ax5043WriteReg(device, AX5043_AFSKMARK0, 0x27); // 76 per black magic
-        break;
-
+        if (modulation == MODULATION_MSK) {
+            /* For AFSK we need another pair of registers for MARK / SPACE
+             * AFSK(Mark/Space) = Freq * DECIMATION * 2^16 / Fxtal + 1/2
+             * Freq Space = 2200Hz
+             * Freq Mark = 1200Hz
+             */
+            ax5043WriteReg(device, AX5043_AFSKSPACE1, 0x00);
+            ax5043WriteReg(device, AX5043_AFSKSPACE0, 0x48); // D9 Per black magic
+            ax5043WriteReg(device, AX5043_AFSKMARK1, 0x00);
+            ax5043WriteReg(device, AX5043_AFSKMARK0, 0x27); // 76 per black magic
+            break;
+        }
+        /* Fallthrough */
     case SPEED_1200:
     case SPEED_2400:
     case SPEED_4800:
