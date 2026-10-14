@@ -737,11 +737,14 @@ static void ax5043_set_modulation_base(rfchan device,
     }
 
     /*
-     * From GOLF FREQUENCYGAINA0 = 46, B0 = 0A, C0 = qF, D0 = 1F
-     * Radio lab sets FREQUENCYGAINA0 to 0F, B0 = 1F, C0 = 0D, D0 = 0D
+     * The datasheet does not specify how these are calculated.
      */
     switch (speed) {
     case SPEED_SPECIAL:
+	/*
+	 * From GOLF FREQUENCYGAINA0 = 46, B0 = 0A, C0 = qF, D0 = 1F
+	 * Radio lab sets FREQUENCYGAINA0 to 0F, B0 = 1F, C0 = 0D, D0 = 0D
+	 */
         if (modulation == MODULATION_MSK) {
             /* AFSK */
             ax5043WriteReg(device, AX5043_FREQUENCYGAINA0, 0x0F);
@@ -820,95 +823,6 @@ static void ax5043_set_modulation_base(rfchan device,
         break;
     }
 
-    switch (speed) {
-    case SPEED_SPECIAL:
-        if (modulation == MODULATION_MSK) {
-            /* AFSK */
-            // GOLF was 46, 0F per Radio lab
-            ax5043WriteReg(device, AX5043_FREQUENCYGAINA1, 0x0F);
-            // GOLF was 0A, 1F per radio lab
-            ax5043WriteReg(device, AX5043_FREQUENCYGAINB1, 0x1F);
-            // GOLF was 1F, 0D per radio lab
-            ax5043WriteReg(device, AX5043_FREQUENCYGAINC1, 0x1D);
-            // GOLF was 1F, 0D per radio lab
-            ax5043WriteReg(device, AX5043_FREQUENCYGAIND1, 0x1D);
-        } else if (modulation == MODULATION_PSK) {
-            /* GMSK */
-            // GOLF was 46, 0F per Radio lab
-            ax5043WriteReg(device, AX5043_FREQUENCYGAINA1, 0x26);
-            // GOLF was 0A, 1F per radio lab
-            ax5043WriteReg(device, AX5043_FREQUENCYGAINB1, 0x0A);
-            // GOLF was 1F, 0D per radio lab
-            ax5043WriteReg(device, AX5043_FREQUENCYGAINC1, 0x1F);
-            // GOLF was 1F, 0D per radio lab
-            ax5043WriteReg(device, AX5043_FREQUENCYGAIND1, 0x1F);
-        }
-        break;
-
-    case SPEED_1200:
-        /* Per radiolab. */
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINA1, 0x0F);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINB1, 0x1F);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINC1, 0x0C);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAIND1, 0x0C);
-        break;
-
-    case SPEED_2400:
-        /* Per radiolab. */
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINA1, 0x0f);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINB1, 0x1f);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINC1, 0x0b);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAIND1, 0x0b);
-        break;
-
-    case SPEED_4800:
-        /* Per radiolab. */
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINA1, 0x0f);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINB1, 0x1f);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINC1, 0x0a);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAIND1, 0x0a);
-        break;
-
-    case SPEED_9600:
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINA1, 0x26);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINB1, 0x0A);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINC1, 0x09);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAIND1, 0x09);
-        break;
-
-    case SPEED_19200:
-        /* Per radiolab. */
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINA1, 0x0f);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINB1, 0x1f);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINC1, 0x08);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAIND1, 0x08);
-        break;
-
-    case SPEED_25K:
-        /* Per radiolab */
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINA1, 0x0f);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINB1, 0x1f);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINC1, 0x07);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAIND1, 0x07);
-        break;
-
-    case SPEED_50K:
-        /* Per radiolab */
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINA1, 0x0f);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINB1, 0x1f);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINC1, 0x06);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAIND1, 0x06);
-        break;
-
-    case SPEED_100K:
-        /* Per radiolab */
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINA1, 0x0f);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINB1, 0x1f);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINC1, 0x05);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAIND1, 0x05);
-        break;
-    }
-
     /* radio lab has this always 0 */
     ax5043WriteReg(device, AX5043_FREQDEV10, 0x00);
     ax5043WriteReg(device, AX5043_FREQDEV00, 0x00);
@@ -948,73 +862,6 @@ static void ax5043_set_modulation_base(rfchan device,
             ax5043WriteReg(device, AX5043_FREQDEV01, 0xC8); // per radio lab
             ax5043WriteReg(device, AX5043_FREQDEV03, 0xC8); // per radio lab
         }
-        break;
-    }
-
-    switch (speed) {
-    case SPEED_SPECIAL:
-        if (modulation == MODULATION_MSK) {
-            // GOLF was 46, 0F per radio lab
-            ax5043WriteReg(device, AX5043_FREQUENCYGAINA3, 0x0F);
-            // GOLF was 0A, 1F per radio lab
-            ax5043WriteReg(device, AX5043_FREQUENCYGAINB3, 0x1F);
-            // GOLF was 1F, 0D per radio lab
-            ax5043WriteReg(device, AX5043_FREQUENCYGAINC3, 0x0D);
-            // GOLF was 1F, 0D per radio lab
-            ax5043WriteReg(device, AX5043_FREQUENCYGAIND3, 0x0D);
-        } else if (modulation == MODULATION_MSK) {
-            // GOLF was 46, 0F per radio lab
-            ax5043WriteReg(device, AX5043_FREQUENCYGAINA3, 0x26);
-            // GOLF was 0A, 1F per radio lab
-            ax5043WriteReg(device, AX5043_FREQUENCYGAINB3, 0x0A);
-            // GOLF was 1F, 0D per radio lab
-            ax5043WriteReg(device, AX5043_FREQUENCYGAINC3, 0x1F);
-            // GOLF was 1F, 0D per radio lab
-            ax5043WriteReg(device, AX5043_FREQUENCYGAIND3, 0x1F);
-        }
-        break;
-
-    case SPEED_1200:
-    case SPEED_2400:
-    case SPEED_4800:
-    case SPEED_9600:
-        /* Per radiolab. */
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINA3, 0x0f);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINB3, 0x1f);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINC3, 0x0d);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAIND3, 0x0d);
-        break;
-
-    case SPEED_19200:
-        /* Per radiolab. */
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINA3, 0x0f);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINB3, 0x1f);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINC3, 0x0c);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAIND3, 0x0c);
-        break;
-
-    case SPEED_25K:
-        /* Per radiolab */
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINA3, 0x0f);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINB3, 0x1f);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINC3, 0x0b);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAIND3, 0x0b);
-        break;
-
-    case SPEED_50K:
-        /* Per radiolab */
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINA3, 0x0f);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINB3, 0x1f);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINC3, 0x0a);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAIND3, 0x0a);
-        break;
-
-    case SPEED_100K:
-        /* Per radiolab */
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINA3, 0x0f);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINB3, 0x1f);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAINC3, 0x09);
-        ax5043WriteReg(device, AX5043_FREQUENCYGAIND3, 0x09);
         break;
     }
 
