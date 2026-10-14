@@ -127,7 +127,7 @@ static void ax5043_set_fec(rfchan device, enum fec fec)
 
 /*
  * This setup up the modulation for the AX5043.  Note that the
- * SPEED_SPECIAL is used for the legacy AFSK1200 (with modulatio MSK)
+ * SPEED_SPECIAL is used for the legacy AFSK1200 (with modulation MSK)
  * and GMSK9600 (with modulation PSK).
  */
 static void ax5043_set_modulation_base(rfchan device,
@@ -142,7 +142,7 @@ static void ax5043_set_modulation_base(rfchan device,
     case MODULATION_MSK:
     case MODULATION_FSK2M:
         if (speed == SPEED_SPECIAL) {
-            // AFSK.  0x04 is PSK. GMSK for 9600 is 0x07
+            // AFSK1200.  0x04 is PSK. GMSK for 9600 is 0x07
             ax5043WriteReg(device, AX5043_MODULATION, 0x0A);
             // Differential encoding, bit inversion, no scrambler.
             ax5043WriteReg(device, AX5043_ENCODING, 0x03);
@@ -170,8 +170,8 @@ static void ax5043_set_modulation_base(rfchan device,
         } else {
             ax5043WriteReg(device, AX5043_MODULATION, 0x04);
 
-            /* No special encoding here. */
-            ax5043WriteReg(device, AX5043_ENCODING, 0x00);
+            /* Differential encoding here. */
+            ax5043WriteReg(device, AX5043_ENCODING, 0x02);
 
             /* PSK setup.  This is from Not Black Magic. */
             ax5043WriteReg(device, AX5043_MODCFGP, 0xe1);
