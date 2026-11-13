@@ -147,6 +147,7 @@ enum {
 #ifdef AFSK_HARDWARE3
     TxDac,
     ACPSend,
+    ACPTrace,
 #endif
     showDownlinkSize,
     ignoreUmb,
@@ -251,6 +252,11 @@ const commandPairs setupCommands[] = {
       "Set the given message to the ACP",
       ACPSend,
       "byte1 [byte2 [...]]",
+    },
+    { "acptrace",
+      "Trace ACP messages",
+      ACPTrace,
+      "[off|on]",
     },
 #endif
     { "test internal wd",
@@ -1215,6 +1221,23 @@ void RealConsoleTask(void)
                 printf("ACP message sent\n");
             break;
         }
+
+        case ACPTrace: {
+            char *t = next_token(&afterCommand);
+
+            if (!t) {
+		printf("ACP trace is %s\n", acp_trace ? "on" : "off");
+		break;
+	    }
+            if (strcmp(t, "on") == 0) {
+		acp_trace = true;
+	    } else if (strcmp(t, "off") == 0) {
+		acp_trace = false;
+	    } else {
+                printf("Unknown setting: %s\n", t);
+	    }
+	    break;
+	}
 #endif
 
         case initSaved: {
@@ -2374,7 +2397,7 @@ void RealConsoleTask(void)
             }
 
             if (!str_to_mod(&modstr, &modulation, &speed)) {
-                printf("Invalid modulation type, must be afsk, gmsk, msk, or psk.\n");
+                printf("Invalid modulation type, must be afsk, gmsk, msk, fsk2m, or psk.\n");
                 break;
             }
             if (!str_to_speed(&modstr, modulation, &speed)) {

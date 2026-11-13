@@ -14,6 +14,8 @@
 
 extern volatile bool acp_failed;
 
+extern bool acp_trace;
+
 void acp_init(void);
 
 int acp_send(const unsigned char *msg);
