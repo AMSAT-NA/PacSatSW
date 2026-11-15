@@ -156,6 +156,10 @@ void startup(void)
     GPIOSetOff(TX_DAC_Sel);
     GPIOSetOff(Ant_Sel);
 #endif
+    GPIOSetOff(MRAM0_Sel);
+    GPIOSetOff(MRAM1_Sel);
+    GPIOSetOff(MRAM2_Sel);
+    GPIOSetOff(MRAM3_Sel);
 
     i2cInit();
     spiInit();
@@ -395,6 +399,8 @@ void ConsoleTask(void *pvParameters)
         ReportError(REDFSIOerror, FALSE, CharString,
              (int)"ERROR: Could not load directory from MRAM");
     }
+
+    ax5043_init();
 
     xTaskCreate(IOTask, "IOTask", CAN_STACK_SIZE, NULL,
                 CAN_PRIORITY, NULL);

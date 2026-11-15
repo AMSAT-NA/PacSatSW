@@ -424,6 +424,8 @@ struct axradio_address {
  */
 #define AX5043_RECV_FLAG_ERR_MASK 0x7c
 
+void ax5043_init(void);
+
 uint16_t fifo_free(rfchan chan);
 void fifo_clear(rfchan chan);
 void fifo_repeat_byte(rfchan chan, uint8_t b, uint8_t count, uint8_t flags);

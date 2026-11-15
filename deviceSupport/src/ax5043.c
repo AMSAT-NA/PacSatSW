@@ -1749,9 +1749,9 @@ static uint8_t ax5043_reset(rfchan device)
     /* Older boards without power controls on the AX5043s. */
     ax5043WriteReg(device, AX5043_PWRMODE, 0x80);
     ax5043WriteReg(device, AX5043_PWRMODE, AX5043_PWRSTATE_POWERDOWN);
+#endif
     // Wait some time for regulator startup
     vTaskDelay(CENTISECONDS(2));
-#endif
 
     // Check the version and that we can read/write to scratch.  Then
     // we know the chip is connected
@@ -1779,6 +1779,27 @@ static uint8_t ax5043_reset(rfchan device)
     }
 
     return RADIO_OK;
+}
+
+/*
+ * General AX5043 initialization routine.
+ *
+ * It seems on resets that an AX5043 can get into a bad state and
+ * blocks other devices on the bus from working.  Running a
+ * transaction on them clears it out, so it's likely a latch up of
+ * some type.  So just run a transaction on every device at startup.
+ */
+void
+ax5043_init(void)
+{
+    rfchan device;
+
+    for (device = FIRST_RX_CHANNEL; device < NUM_CHANNELS; device++) {
+        ax5043PowerOff(device);
+        ax5043PowerOn(device);
+        ax5043ReadReg(device, AX5043_SILICONREVISION);
+        ax5043PowerOff(device);
+    }
 }
 
 static unsigned int calc_flags(rfchan device, uint32_t freq,
@@ -1839,7 +1860,8 @@ static int start_ax5043_rx(rfchan device,
     //    debug_print("In start_rx, Setting freq to %d\n", freq); //DEBUG RBG
     status = axradio_init(device, freq, mod, flags, true);
     if (status != AXRADIO_ERR_NOERROR) {
-        printf("ERROR: In start_rx, axradio_init returned: %d\n", status);
+        printf("ERROR: In start_rx, axradio_init for %d returned: %d\n",
+	       device, status);
         ReportError(AX5043error, FALSE, CharString,
                                      (int)"ax5043: ERROR: In start_ax5043_rx");
         return status;
