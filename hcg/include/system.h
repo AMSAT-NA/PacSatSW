@@ -295,7 +295,7 @@ typedef struct system_config_reg
 
 #define SYS_SYSPC8_CONFIGVALUE  0U
 
-#define SYS_SYSPC9_CONFIGVALUE  1U
+#define SYS_SYSPC9_CONFIGVALUE  0U
 
 #define SYS_CSDIS_CONFIGVALUE   ( 0x00000000U\
                                 | 0x00000000U \

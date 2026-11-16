@@ -708,7 +708,7 @@ typedef struct can_config_reg
 
 #define CAN1_INTMUX2_CONFIGVALUE   0x00000000U
 #define CAN1_INTMUX3_CONFIGVALUE   0x00000000U
-#define CAN1_TIOC_CONFIGVALUE    ((uint32)((uint32)1U  << 18U ) \
+#define CAN1_TIOC_CONFIGVALUE    ((uint32)((uint32)0U  << 18U ) \
                                  |(uint32)((uint32)0U  << 17U ) \
 								 |(uint32)((uint32)0U  << 16U ) \
                                  |(uint32)((uint32)0U  << 3U ) \

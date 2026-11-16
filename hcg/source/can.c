@@ -94,7 +94,7 @@ void canInit(void)
     canREG1->CTL = 0x00000001U;
 				 
      /** - CAN1 Port output values */
-    canREG1->TIOC =  (uint32)((uint32)1U  << 18U )
+    canREG1->TIOC =  (uint32)((uint32)0U  << 18U )
                    | (uint32)((uint32)0U  << 17U )
                    | (uint32)((uint32)0U  << 16U )                
                    | (uint32)((uint32)0U  << 3U )  

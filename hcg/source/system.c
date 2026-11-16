@@ -422,7 +422,7 @@ void systemInit(void)
     systemREG1->SYSPC8 = 0U;
 
     /** - set ECLK pins pullup/pulldown select */
-    systemREG1->SYSPC9 = 1U;
+    systemREG1->SYSPC9 = 0U;
 
     /** - Setup ECLK */
     systemREG1->ECPCNTL = (uint32)((uint32)0U << 24U)

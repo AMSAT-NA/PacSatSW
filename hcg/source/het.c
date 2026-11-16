@@ -2202,23 +2202,23 @@ void hetInit(void)
                     | (uint32) 0x00800000U
                     | (uint32) 0x00000000U
                     | (uint32) 0x00200000U
-                    | (uint32) 0x00100000U
+                    | (uint32) 0x00000000U
                     | (uint32) 0x00080000U
-                    | (uint32) 0x00040000U
+                    | (uint32) 0x00000000U
                     | (uint32) 0x00020000U
                     | (uint32) 0x00000000U
                     | (uint32) 0x00000000U
-                    | (uint32) 0x00004000U
+                    | (uint32) 0x00000000U
                     | (uint32) 0x00002000U
                     | (uint32) 0x00000000U
                     | (uint32) 0x00000000U
-                    | (uint32) 0x00000400U
+                    | (uint32) 0x00000000U
                     | (uint32) 0x00000000U
                     | (uint32) 0x00000000U
                     | (uint32) 0x00000000U
                     | (uint32) 0x00000040U
-                    | (uint32) 0x00000020U
                     | (uint32) 0x00000000U
+                    | (uint32) 0x00000010U
                     | (uint32) 0x00000000U
                     | (uint32) 0x00000004U
                     | (uint32) 0x00000002U
@@ -2226,7 +2226,7 @@ void hetInit(void)
 
     /** - Set HET pins pullup/down select */
     hetREG1->PSL = (uint32) 0x80000000U
-                 | (uint32) 0x40000000U
+                 | (uint32) 0x00000000U
                  | (uint32) 0x20000000U
                  | (uint32) 0x10000000U
                  | (uint32) 0x08000000U
@@ -2236,22 +2236,22 @@ void hetInit(void)
                  | (uint32) 0x00800000U
                  | (uint32) 0x00400000U
                  | (uint32) 0x00200000U
-                 | (uint32) 0x00100000U
+                 | (uint32) 0x00000000U
                  | (uint32) 0x00080000U
-                 | (uint32) 0x00040000U
+                 | (uint32) 0x00000000U
                  | (uint32) 0x00020000U
-                 | (uint32) 0x00010000U
+                 | (uint32) 0x00000000U
                  | (uint32) 0x00008000U
-                 | (uint32) 0x00004000U
+                 | (uint32) 0x00000000U
                  | (uint32) 0x00002000U
                  | (uint32) 0x00000000U
                  | (uint32) 0x00000800U
-                 | (uint32) 0x00000400U
-                 | (uint32) 0x00000200U
-                 | (uint32) 0x00000100U
-                 | (uint32) 0x00000080U
+                 | (uint32) 0x00000000U
+                 | (uint32) 0x00000000U
+                 | (uint32) 0x00000000U
+                 | (uint32) 0x00000000U
                  | (uint32) 0x00000040U
-                 | (uint32) 0x00000020U
+                 | (uint32) 0x00000000U
                  | (uint32) 0x00000010U
                  | (uint32) 0x00000008U
                  | (uint32) 0x00000004U

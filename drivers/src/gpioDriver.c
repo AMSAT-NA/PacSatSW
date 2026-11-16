@@ -545,6 +545,12 @@ static const GPIOInfo LED2Info = {
 #endif
 };
 
+/*
+ * All SPI devices on the MRAM bus start with the select pins on,
+ * set to 0, because those lines can latch up.  So we want them zero
+ * at startup to remove the latch up and then and set them to off (1)
+ * in the startup code.
+ */
 static const GPIOInfo MRAM0_Selector = {
     .info                 = &SPI_MRAM0_Select_Port,
     .PinNum               = SPI_MRAM0_Select_Pin,
@@ -914,7 +920,10 @@ static const GPIOInfo Ant_InterruptInfo = {
     .InterruptBothEdges   = true,
 };
 
-/* Want this on (0) at startup to avoid latch up issues. */
+/*
+ * Want this on (0) at startup to avoid latch up issues.  It's set off
+ * in the startup code.
+ */
 static const GPIOInfo Ant_SelInfo = {
     .info                 = &spiPort5GPIO,
     .PinNum               = SPI_PIN_CS0,

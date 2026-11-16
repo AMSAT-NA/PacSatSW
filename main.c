@@ -30,6 +30,7 @@
 #include "os_task.h"
 #include "mram.h"
 #include "ADS7828.h"
+#include "ax5043.h"
 
 //Flight software headers
 #include "TMS570Hardware.h"
