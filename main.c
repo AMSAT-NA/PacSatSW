@@ -154,8 +154,10 @@ void startup(void)
     GPIOSetOff(AX5043_Rx2_Sel);
     GPIOSetOff(AX5043_Rx3_Sel);
     GPIOSetOff(AX5043_Rx4_Sel);
+#ifdef AFSK_HARDWARE3
     GPIOSetOff(TX_DAC_Sel);
     GPIOSetOff(Ant_Sel);
+#endif
 #endif
     GPIOSetOff(MRAM0_Sel);
     GPIOSetOff(MRAM1_Sel);
