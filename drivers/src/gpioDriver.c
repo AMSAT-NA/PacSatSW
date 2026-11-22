@@ -546,15 +546,13 @@ static const GPIOInfo LED2Info = {
 };
 
 /*
- * All SPI devices on the MRAM bus start with the select pins on,
- * set to 0, because those lines can latch up.  So we want them zero
- * at startup to remove the latch up and then and set them to off (1)
- * in the startup code.
+ * SPI devices on the MRAM do not need the latch up fix since they are
+ * powered eith the TMS570.
  */
 static const GPIOInfo MRAM0_Selector = {
     .info                 = &SPI_MRAM0_Select_Port,
     .PinNum               = SPI_MRAM0_Select_Pin,
-    .InitialStateOn       = GPIO_ON,
+    .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
     .NegativeLogic        = true,
 };
@@ -562,7 +560,7 @@ static const GPIOInfo MRAM0_Selector = {
 static const GPIOInfo MRAM1_Selector = {
     .info                 = &SPI_MRAM1_Select_Port,
     .PinNum               = SPI_MRAM1_Select_Pin,
-    .InitialStateOn       = GPIO_ON,
+    .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
     .NegativeLogic        = true,
 };
@@ -570,7 +568,7 @@ static const GPIOInfo MRAM1_Selector = {
 static const GPIOInfo MRAM2_Selector = {
     .info                 = &SPI_MRAM2_Select_Port,
     .PinNum               = SPI_MRAM2_Select_Pin,
-    .InitialStateOn       = GPIO_ON,
+    .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
     .NegativeLogic        = true,
 };
@@ -578,7 +576,7 @@ static const GPIOInfo MRAM2_Selector = {
 static const GPIOInfo MRAM3_Selector = {
     .info                 = &SPI_MRAM3_Select_Port,
     .PinNum               = SPI_MRAM3_Select_Pin,
-    .InitialStateOn       = GPIO_ON,
+    .InitialStateOn       = GPIO_OFF,
     .DirectionIsOut       = GPIO_OUT,
     .NegativeLogic        = true,
 };

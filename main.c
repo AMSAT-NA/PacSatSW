@@ -159,10 +159,6 @@ void startup(void)
     GPIOSetOff(Ant_Sel);
 #endif
 #endif
-    GPIOSetOff(MRAM0_Sel);
-    GPIOSetOff(MRAM1_Sel);
-    GPIOSetOff(MRAM2_Sel);
-    GPIOSetOff(MRAM3_Sel);
 
     i2cInit();
     spiInit();
