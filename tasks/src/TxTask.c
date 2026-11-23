@@ -142,7 +142,7 @@ set_pa_power(bool on)
     if (on) {
         GPIOSetOn(SSPAPower);
     } else {
-#ifdef AFSK_HARDWARE3
+#if defined(AFSK_HARDWARE3) && !defined(AFSK_HARDWARE4)
         /* Avoid latch up on the DAC select line. */
         GPIOSetOn(TX_DAC_Sel);
 #endif
@@ -378,6 +378,13 @@ portTASK_FUNCTION_PROTO(TxTask, pvParameters)
 
         //       printf("Turn off TX LED1\n");
         GPIOSetOff(LED1);
+#ifdef AFSK_HARDWARE3
+	/*
+	 * Make sure the DAC isn't driving the PA bias input when the
+	 * PA is off.
+	 */
+        set_tx_dac(tx_dac_val);
+#endif
         set_pa_power(false);
         //       printf("INFO: Transmission complete\n");
     }
